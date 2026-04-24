@@ -1,29 +1,30 @@
 # 🛡️ FIM Platform 2026 – Spec-Driven Architecture
 
-> Última actualización: 16 de abril de 2026
-> Estado: Documentación — sin implementación
+> Última actualización: 23 de abril de 2026
+> Estado: Documentación de diseño detallado — sin implementación. La construcción del código y la ejecución del protocolo experimental se proyectan para la fase inmediata siguiente y se entregarán en una adenda formal.
 
 ## 🎯 Objetivo
 
 Definir una arquitectura profesional para un sistema FIM (File Integrity Monitoring) con:
 
-* 🧠 Agente autónomo y resiliente
-* 🔁 Restauración automática confiable
-* 📊 Capacidades forenses (diffs)
-* ⚙️ Backend modular (FastAPI)
-* 🌐 Frontend moderno (React + TypeScript)
-* ⚡ Infraestructura desacoplada (Valkey + N8N)
-* 🐳 Containerización completa (Docker Compose)
+* 🧠 Agente autónomo y resiliente sobre detección reactiva del núcleo Linux
+* 🔁 Restauración automática confiable con journal de acciones
+* 📊 Capacidades forenses (diffs, cadena de eventos, audit_log de retención ilimitada)
+* ⚙️ Backend modular (FastAPI) con máquina de estados explícita y optimistic locking
+* 🌐 Frontend moderno (React + TypeScript) con hardening web
+* ⚡ Infraestructura desacoplada (Valkey + n8n como enrutador acotado)
+* 🐳 Servidor central contenedorizado (Docker Compose); agente como servicio nativo del anfitrión
 
 ---
 
 # 🧠 Principios Clave
 
-* Agent-first (desacoplado)
-* Event-driven
-* Snapshot + Diff (estrategia híbrida)
-* Forensic-ready
-* Resiliencia offline
+* Agent-first (desacoplado, proceso nativo en el anfitrión)
+* Event-driven (notificación reactiva del kernel, no encuestamiento)
+* Snapshot + Diff (estrategia híbrida: snapshot para restaurar, diff para auditar)
+* Forensic-ready (cadena `superseded`, audit_log, journal de acciones)
+* Resiliencia offline (cola local del agente con confirmación bidireccional)
+* Defensa en profundidad (mTLS en canal + HMAC en mensaje + AES-GCM en reposo)
 
 ---
 
@@ -33,17 +34,17 @@ Definir una arquitectura profesional para un sistema FIM (File Integrity Monitor
 
 | Capa | Tecnología | Versión | Rol |
 |------|-----------|---------|-----|
-| **Agente** | Python + watchdog | 6.0.0 | Monitoreo filesystem (wrapper de inotify en Linux) |
+| **Agente** | Python + pyfanotify | 0.3.0 | Monitoreo filesystem reactivo sobre `fanotify` (kernel Linux ≥ 5.1) |
 | **Backend** | FastAPI | 0.136.0 | API REST modular, SSE para alertas real-time |
 | **ORM** | SQLModel | latest | Modelos + queries, integración nativa con FastAPI y Pydantic |
 | **DB Driver** | psycopg (psycopg3) | latest | Driver PostgreSQL async-capable para Python |
-| **Base de datos** | PostgreSQL | 18.3 | Almacenamiento persistente de eventos, reglas, alertas, acciones |
+| **Base de datos** | PostgreSQL | 18.3 | Almacenamiento persistente de eventos, reglas, alertas, acciones, audit_log |
 | **Migraciones** | SQL manual + db-init | — | Scripts SQL versionados. Tablas creadas por SQLModel al iniciar |
-| **Streams + Cache** | Valkey | 9.0.3 | Cola de eventos agent→backend, cache de reglas/config |
-| **Notificaciones** | N8N | 2.16.1 | Pipeline de alertas, health checks, integración SIEM |
+| **Streams + Cache** | Valkey | 9.0.3 | Cola de eventos agent→backend, commands backend→agent, cache de reglas |
+| **Notificaciones** | n8n | 2.16.1 | Enrutador de notificaciones externas (email, mensajería, SIEM) |
 | **Auth** | python-jose + JWT | latest | Autenticación stateless con tokens JWT |
 | **Hashing Passwords** | argon2-cffi | latest | Hashing de contraseñas con Argon2id (ganador de PHC) |
-| **Auth Agente** | mTLS (certificados) | — | Autenticación mutua agente↔backend con certificados TLS |
+| **Auth Agente** | mTLS (certificados) | — | Autenticación mutua agente↔backend con certificados TLS 1.3 |
 | **Frontend** | React + TypeScript | React 19 | SPA moderna |
 | **Bundler** | Vite | latest | Build y dev server |
 | **Data fetching** | TanStack Query | v5 | Cache, refetch, mutations |
@@ -52,70 +53,95 @@ Definir una arquitectura profesional para un sistema FIM (File Integrity Monitor
 | **Estilos** | Tailwind CSS + @tailwindcss/vite | 4.2.2 | Utility-first CSS, integración directa con Vite (sin PostCSS) |
 | **Package Manager** | pnpm | latest | Gestor de paquetes rápido, eficiente en disco (symlinks) |
 | **Logging** | structlog | latest | Logging estructurado JSON, trace_id por request |
-| **Containerización** | Docker + Docker Compose | latest | Orquestación de todos los servicios |
+| **Containerización** | Docker + Docker Compose | latest | Orquestación del servidor central (backend, db, valkey, n8n, frontend) |
 | **CI/CD** | GitHub Actions | — | Pipeline de integración y despliegue continuo |
 
 ### Notas sobre elecciones
 
+* **pyfanotify sobre watchdog/inotify**: `fanotify` (kernel Linux ≥ 5.1) es superior a `inotify` para el caso de uso FIM por tres razones: (1) provee contexto del proceso causante (PID, UID, path del ejecutable), no solo el evento sobre el archivo; (2) soporta marcado a nivel de sistema de archivos completo con `FAN_MARK_FILESYSTEM`, eliminando el race de tener que registrar watchers por cada subdirectorio nuevo; (3) opera en modo notificación pura o con contenido previo (puede bloquear la escritura para inspección antes de que se persista). El costo es que requiere la capability `CAP_SYS_ADMIN`, lo que motiva el despliegue nativo del agente (ver sección correspondiente). Se adopta el wrapper **pyfanotify 0.3.0** (licencia MIT, mantenido) y no el `python-fanotify` de Google porque ese repositorio está archivado.
 * **SQLModel** sobre SQLAlchemy puro: creado por el mismo autor de FastAPI (tiangolo), comparte modelos entre ORM y API schemas (Pydantic + SQLAlchemy en uno).
 * **psycopg3** (paquete `psycopg`) sobre `asyncpg`: compatible con SQLModel/SQLAlchemy, soporta sync y async, es el driver oficial recomendado para PostgreSQL moderno.
 * **python-jose** sobre PyJWT: soporta JWS, JWE, JWK — más completo para manejo de JWT.
 * **structlog** sobre loguru: salida JSON nativa, procesadores encadenables, ideal para logs parseables en producción. Se integra bien con `trace_id` por request vía middleware.
-* **watchdog** sobre inotify directo: abstrae el backend del OS. En Linux usa inotify internamente. Permite cross-platform si se necesita en el futuro.
 * **Tailwind CSS v4** sobre v3: v4 es un rewrite completo. NO usa `tailwind.config.js` — la configuración es CSS-first con `@theme`. Se instala como plugin de Vite (`@tailwindcss/vite`), no como plugin de PostCSS. En el CSS solo se pone `@import "tailwindcss";` (no más `@tailwind base/components/utilities`). Soporta Vite 8.
-* **N8N licencia**: Sustainable Use License (fair-code), no es OSS puro. Aceptable para proyecto académico.
+* **n8n como enrutador acotado**: n8n está delimitado al rol de enrutador de notificaciones externas (recibe webhooks del backend y los reencamina a correo, mensajería corporativa, SIEM). **No** asume el rol de coordinador central del playbook, porque n8n no ejecuta comandos nativos del sistema operativo; toda la lógica de decisión y orquestación de respuesta vive en el backend propio. La licencia es Sustainable Use License (fair-code), no OSS puro: aceptable para uso académico y self-hosted, no apta para reventa comercial. La política de fallbacks automáticos (ver sección correspondiente) garantiza que la indisponibilidad de n8n no comprometa la continuidad del alertado.
 * **Migraciones**: SQLModel crea las tablas al iniciar (`SQLModel.metadata.create_all(engine)`). En desarrollo, se reinicia el contenedor. En producción futura, se pueden agregar migraciones SQL versionadas.
 * **argon2-cffi** sobre bcrypt: Argon2id es el ganador de la Password Hashing Competition (PHC). Resistente a ataques GPU y side-channel. Configurable en memoria y paralelismo. Es la recomendación actual de OWASP.
-* **mTLS para autenticación del agente**: Autenticación mutua con certificados TLS. El agente presenta su certificado al backend y viceversa, ambos verifican contra una CA compartida. Más seguro que API keys — no requiere secretos en plaintext, resistente a replay attacks, y permite identificación criptográfica del agente.
+* **mTLS para autenticación del agente**: Autenticación mutua con certificados TLS 1.3. El agente presenta su certificado al backend y viceversa, ambos verifican contra una CA compartida. Más seguro que API keys — no requiere secretos en plaintext, resistente a replay attacks, y permite identificación criptográfica del agente.
 
 ---
 
 # 🏗️ Arquitectura General
 
 ```
-[ FIM AGENT (Python + watchdog) ]
-     │
-     ├── Monitoreo (inotify vía watchdog)
-     ├── Análisis local
-     ├── Snapshot + Diff
-     ├── Restauración automática
-     ├── Cola local (archivos JSON en disco)
-     │
-     ▼
-[ Valkey (Streams) ] ◄──── events ──── Agente publica eventos
-     │                  ────► commands ── Backend envía órdenes
-     │                       (baseline_update, restore, quarantine)
-     ▼
-[ Backend API (FastAPI + SQLModel) ]
-     │
-     ├── events        (ingesta + estados)
-     ├── rules         (CRUD + sync al agente)
-     ├── actions       (approve / reject)
-     ├── agents        (sync baseline → agente)
-     ├── alerts
-     ├── notifications ───► N8N (2.16.1)
-     │
-     ▼
-[ PostgreSQL 18.3 ]
-
-[ Frontend (React + TS + Vite) ] ──── Axios ────► Backend
-     │
-     ├── TanStack Query (data fetching)
-     ├── Zustand (state)
-     └── Approve / Reject events (pending)
+┌──────────────────────────────────────────┐
+│ ANFITRIÓN MONITOREADO (Linux, kernel ≥5.1) │
+│                                          │
+│  ┌────────────────────────────────────┐  │
+│  │ fanotify (kernel)                  │  │
+│  │ requiere CAP_SYS_ADMIN             │  │
+│  └──────────────┬─────────────────────┘  │
+│                 │                        │
+│  ┌──────────────▼─────────────────────┐  │
+│  │ Agente FIM (Python + pyfanotify)   │  │
+│  │ · Servicio systemd nativo          │  │
+│  │ · Motor de decisión (4 niveles)    │  │
+│  │ · Baseline cifrada (AES-256-GCM)   │  │
+│  │ · Cola local offline (JSON)        │  │
+│  │ · Journal pre-acción               │  │
+│  │ · Heartbeat cada 10 s              │  │
+│  └──────────────┬─────────────────────┘  │
+└─────────────────┼────────────────────────┘
+                  │
+                  │ mTLS 1.3 · HMAC-SHA256 por mensaje
+                  │ timestamps dobles (anti-replay 5 min)
+                  │
+┌─────────────────▼────────────────────────┐
+│ SERVIDOR CENTRAL — Docker Compose        │
+│                                          │
+│  [ Valkey 9.0.3 ]                        │
+│    streams: events, commands, heartbeat  │
+│                ▲                         │
+│                │                         │
+│  [ Backend FastAPI 0.136 ]               │
+│    · Clean Architecture (UoW + Repo)     │
+│    · Máquina de estados explícita        │
+│    · Optimistic locking (column version) │
+│    · JWT con rotación + blacklist        │
+│                ▲                         │
+│                │                         │
+│  [ PostgreSQL 18.3 ]                     │
+│    · events, rules, actions, alerts      │
+│    · users, agents, ruleset_version      │
+│    · audit_log (retención ilimitada)     │
+│    · failed_notifications                │
+│                                          │
+│  [ n8n 2.16.1 ] ── webhook ──► canales   │
+│    enrutador de notificaciones           │
+│    (fair-code, fallbacks a SMTP/log/DLQ) │
+│                                          │
+│  [ Frontend React 19 + nginx ]           │
+│    · CSP, HSTS, SameSite=Strict          │
+│    · SSE para alertas real-time          │
+│                                          │
+│  [ db-init ] init-container              │
+│    · schema + seed del primer admin      │
+└──────────────────────────────────────────┘
 ```
 
-### Servicios Docker Compose
+### Servicios Docker Compose (solo el servidor central)
 
 ```yaml
 services:
-  agent:        # Python + watchdog
   backend:      # FastAPI + SQLModel
   frontend:     # React (Vite build → nginx)
   db:           # PostgreSQL 18.3
   valkey:       # Valkey 9.0.3
-  n8n:          # N8N 2.16.1
+  n8n:          # n8n 2.16.1 (enrutador acotado)
+  db-init:      # init-container, corre una vez
 ```
+
+> **Importante**: el agente **no** está en Docker Compose. Se despliega como servicio nativo con systemd en cada anfitrión monitoreado porque `fanotify` requiere `CAP_SYS_ADMIN`, capability incompatible con aislamiento estándar de contenedores. Ver sección "Despliegue del agente".
 
 ---
 
@@ -125,22 +151,75 @@ services:
 
 | Componente | Tecnología | Detalle |
 |------------|-----------|---------|
-| Runtime | Python 3.12+ | Compatible con watchdog 6.0.0 |
-| Monitoreo FS | watchdog 6.0.0 | Usa inotify en Linux internamente |
+| Runtime | Python 3.12+ | Compatible con pyfanotify 0.3.0 |
+| Monitoreo FS | pyfanotify 0.3.0 sobre `fanotify` (kernel) | Detección reactiva con contexto de proceso |
 | Hashing | hashlib (stdlib) | SHA-256 para integridad |
 | Cola offline | Archivos JSON en disco | Resiliencia sin DB embebida |
 | Conexión backend | Valkey Streams (via valkey-py) | Publicación async de eventos |
+| Cifrado de baseline | cryptography (stdlib ext.) | AES-256-GCM con clave derivada HKDF-SHA256 |
+| Servicio | systemd unit nativa | Corre con CAP_SYS_ADMIN; hardening vía systemd (ver Anexo E de la tesis) |
+
+### Por qué `fanotify` y no `inotify`
+
+| Criterio | `inotify` (vía watchdog) | `fanotify` (vía pyfanotify) |
+|----------|--------------------------|------------------------------|
+| Contexto de proceso | ❌ No informa qué proceso hizo el cambio | ✅ PID, UID, path del ejecutable causante |
+| Marcado a nivel de FS | ❌ Hay que registrar watcher por subdirectorio (race con `mkdir`) | ✅ `FAN_MARK_FILESYSTEM` monta el FS entero |
+| Bloqueo pre-escritura | ❌ Solo notifica después del write | ✅ Modos de permisos permiten inspeccionar antes |
+| Límite de watchers | `fs.inotify.max_user_watches` (agotable) | No aplica al marcado de FS |
+| Eventos sobre dispositivos de bloque | ❌ | Limitado (igual que inotify, pero con contexto) |
+| Madurez en kernels actuales | ≥ 2.6.13 | ≥ 5.1 con features modernas |
+| Capability requerida | Ninguna | `CAP_SYS_ADMIN` |
+
+El agente prioriza la calidad forense del evento (qué proceso tocó qué archivo) y la cobertura completa del FS sobre la simplicidad operativa. El costo — requerir `CAP_SYS_ADMIN` y por tanto deployment nativo — se asume explícitamente como decisión arquitectónica.
+
+### Despliegue del agente (nativo, no Docker)
+
+El agente se instala como servicio de `systemd`:
+
+```ini
+# /etc/systemd/system/fim-agent.service
+[Unit]
+Description=FIM Agent — detección reactiva fanotify
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fim-agent
+Group=fim-agent
+AmbientCapabilities=CAP_SYS_ADMIN
+CapabilityBoundingSet=CAP_SYS_ADMIN
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/fim-agent /var/log/fim-agent
+PrivateTmp=true
+ExecStart=/opt/fim-agent/bin/fim-agent --config /etc/fim-agent/config.yaml
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+* `AmbientCapabilities=CAP_SYS_ADMIN`: requerido por `fanotify` para marcar FS completo y leer metadata de proceso causante.
+* `ProtectSystem=strict` + `ReadWritePaths`: el agente solo puede escribir en sus propios directorios (baseline cifrada, cola, journal, certs, logs).
+* `NoNewPrivileges`: impide escalación posterior.
+* `PrivateTmp`: aísla `/tmp`.
+
+> El contenedor del agente fue descartado: otorgar `CAP_SYS_ADMIN` a un contenedor rompe el aislamiento estándar y `fanotify` sobre un mount bind no ve operaciones del anfitrión, solo las del namespace del contenedor.
 
 ### Cola offline del agente
 
 El agente NO usa una base de datos embebida. Cuando no puede conectar con Valkey/backend:
 
-1. Serializa el evento a JSON
-2. Escribe en `/agent/storage/queue/` con nombre `{timestamp}_{hash}.json`
-3. Al reconectar, envía los eventos pendientes en orden FIFO
-4. Elimina el archivo JSON tras confirmación
+1. Serializa el evento a JSON.
+2. Escribe en `/var/lib/fim-agent/queue/` con nombre `{timestamp}_{event_id_uuid}.json` (escritura atómica: `write + rename`).
+3. Al reconectar, procesa **primero** los comandos pendientes del stream `commands` (ver W4 en appendix) y **después** envía los eventos encolados en orden FIFO.
+4. Elimina el archivo JSON tras recibir el `event_ack` correspondiente (ver C3 en appendix).
 
-Esto es más simple que SQLite, no requiere driver extra, y cumple el requisito de resiliencia offline.
+Esto es más simple que SQLite, no requiere driver extra, y cumple el requisito de resiliencia offline. Límite: 100 MB con política drop-oldest (ver W3 en appendix).
 
 ### Inicialización del baseline
 
@@ -151,7 +230,7 @@ Primera ejecución del agente:
   1. Leer lista de paths monitoreados (configuración)
   2. Escanear todos los archivos
   3. Calcular hash SHA-256 de cada uno
-  4. Guardar copia completa en /agent/storage/baseline/
+  4. Guardar copia completa en /var/lib/fim-agent/baseline/ (cifrada AES-256-GCM)
   5. Registrar metadata (path, hash, timestamp, permisos)
   6. Asumir estado actual como "sano" (baseline inicial)
 ```
@@ -159,28 +238,33 @@ Primera ejecución del agente:
 **Re-scan manual** (admin desde frontend):
 
 ```
-POST /agents/rescan { paths: ["/var/www", "/etc"] }
+POST /agents/{id}/rescan { paths: ["/var/www", "/etc"] }
   │
   ▼
 Backend envía comando via Valkey:
-  { "type": "rescan_baseline", "paths": ["/var/www", "/etc"] }
+  { "type": "rescan_baseline",
+    "paths": ["/var/www", "/etc"],
+    "ruleset_version": 47,
+    "signature": "<HMAC-SHA256>" }
   │
   ▼
 Agente:
-  1. Escanear paths indicados
-  2. Regenerar baseline COMPLETO para esos paths
-  3. Confirmar via Valkey
+  1. Verifica firma HMAC del comando
+  2. Verifica ruleset_version >= último aplicado
+  3. Escanea paths indicados
+  4. Regenera baseline COMPLETO para esos paths (re-cifrado AES-GCM)
+  5. Confirma via Valkey
 ```
 
-¿Cuándo usar re-scan? Después de un deploy legítimo masivo, una migración, o cuando necesitás resetear el baseline sin aprobar eventos uno por uno.
+¿Cuándo usar re-scan? Después de un deploy legítimo masivo, una migración, o cuando se necesita resetear el baseline sin aprobar eventos uno por uno.
 
-**⚠️ Impacto en eventos pending:**
+**⚠️ Impacto en eventos `pending`:**
 
 Antes de ejecutar el re-scan, el frontend muestra un diálogo de confirmación:
 
 ```
-"Los siguientes eventos PENDING para los paths seleccionados
- serán marcados como SUPERSEDED:
+"Los siguientes eventos pending para los paths seleccionados
+ serán marcados como superseded:
 
  - /var/www/index.html (pending desde 2026-04-15)
  - /etc/nginx/nginx.conf (pending desde 2026-04-16)
@@ -205,16 +289,25 @@ Si un archivo cambia y NO matchea ningún patrón de regla configurado, el agent
 
 La configuración del agente sigue un ciclo de vida de dos fases:
 
-**Fase 1 — Bootstrap (arranque inicial via `.env`):**
+**Fase 1 — Bootstrap (arranque inicial via `/etc/fim-agent/config.yaml` + variables systemd):**
 
-```
-# .env del contenedor agente
-WATCH_PATHS=/etc,/var/www,/opt/app
-VALKEY_URL=valkey://valkey:6379
-AGENT_ID=agent-prod-01
+```yaml
+# /etc/fim-agent/config.yaml
+agent_id: agent-prod-01
+backend:
+  valkey_url: valkey://backend-host:6379
+  ca_cert_path: /etc/fim-agent/certs/ca.pem
+watch_paths:
+  - /etc
+  - /var/www
+  - /opt/app
+storage:
+  baseline_dir: /var/lib/fim-agent/baseline
+  queue_dir: /var/lib/fim-agent/queue
+  journal_dir: /var/lib/fim-agent/journal
 ```
 
-El agente lee los paths a monitorear desde variables de entorno al arrancar. Esto define el estado inicial.
+El agente lee los paths a monitorear desde el archivo de configuración local al arrancar. Esto define el estado inicial.
 
 **Fase 2 — Runtime (gestión en caliente desde frontend):**
 
@@ -226,23 +319,29 @@ Backend: POST /agents/{id}/config
        │
        ▼
 Backend publica en Valkey Stream (commands):
-  { "type": "update_config", "watch_paths": [..., "/opt/newservice"] }
+  { "type": "update_config",
+    "watch_paths": [..., "/opt/newservice"],
+    "ruleset_version": 48,
+    "signature": "<HMAC-SHA256>" }
        │
        ▼
-Agente recibe → recarga paths monitoreados SIN reiniciar
-Agente ejecuta baseline scan para los paths nuevos
+Agente:
+  1. Verifica firma HMAC
+  2. Verifica ruleset_version monotónica
+  3. Recarga paths monitoreados SIN reiniciar el proceso
+  4. Ejecuta baseline scan para los paths nuevos
 ```
 
-La configuración de paths se persiste en PostgreSQL. El `.env` define solo el estado de bootstrap — a partir del primer arranque, el admin gestiona todo desde el frontend y los cambios se sincronizan via Valkey.
+La configuración de paths se persiste en PostgreSQL. El `config.yaml` define solo el estado de bootstrap — a partir del primer arranque, el admin gestiona todo desde el frontend y los cambios se sincronizan via Valkey.
 
 ## Sistema híbrido de restauración y análisis
 
 ## 🔹 Estrategia de Integridad (Core del sistema)
 
 ```
-Baseline (snapshot completo)
+Baseline (snapshot completo, cifrado AES-256-GCM)
         +
-Diffs (para auditoría)
+Diffs (para auditoría, solo texto)
 ```
 
 ---
@@ -251,26 +350,34 @@ Diffs (para auditoría)
 
 ## ✔ Qué es
 
-Copia completa del archivo en estado “sano”.
+Copia completa del archivo en estado "sano", cifrada en reposo.
 
 ## 📁 Ubicación
 
 ```
-/agent/storage/baseline/
+/var/lib/fim-agent/baseline/
 ```
 
-## ✔ Contenido
+## ✔ Contenido (por entrada)
 
-* archivo completo
-* hash SHA256
-* metadata
+* archivo completo (cifrado AES-256-GCM)
+* hash SHA-256 (del contenido claro)
+* metadata (path, permisos, timestamp, tamaño)
+* nonce GCM (96 bits, único por archivo)
+
+## 🔐 Cifrado del baseline (W10)
+
+* Algoritmo: **AES-256-GCM** (cifrado autenticado, estándar NIST)
+* Derivación de clave: `HKDF-SHA256(ikm=master_secret, salt=AGENT_ID, info="baseline-v1")`
+* `master_secret`: entregado al agente en el bootstrap (payload mTLS), persistido con permisos `0400` en `/var/lib/fim-agent/secrets/master_secret`
+* Un compromiso del volumen (lectura offline del disco) no revela el baseline sin el `master_secret`
 
 ---
 
 ## 🔐 Uso
 
-* restauración automática
-* validación de integridad
+* restauración automática (descifrar → escribir al FS)
+* validación de integridad (descifrar → rehashear → comparar)
 
 ---
 
@@ -278,12 +385,12 @@ Copia completa del archivo en estado “sano”.
 
 ## ✔ Qué es
 
-Diferencia entre versión anterior y nueva.
+Diferencia entre versión anterior y nueva, generada al momento del evento.
 
 ## 📁 Ubicación
 
 ```
-/agent/storage/diffs/
+/var/lib/fim-agent/diffs/
 ```
 
 ---
@@ -298,8 +405,8 @@ Diferencia entre versión anterior y nueva.
 
 ## ⚠️ Limitaciones
 
-* solo archivos de texto
-* no confiable para restauración
+* solo archivos de texto (para binarios: comparación de hash + hex dump parcial)
+* no confiable para restauración (puede perderse contexto)
 
 ---
 
@@ -317,7 +424,7 @@ Diff = análisis
 ## Ciclo de vida del cambio
 
 ```
-DETECTED → ANALYZED → ACTION → (AUTO_RESTORED | QUARANTINED | PENDING | ALERT_ONLY)
+detected -> analyzed -> action -> (auto_restored | quarantined | pending | alert_only)
 ```
 
 El agente no solo detecta — también **decide y actúa** en base a reglas cacheadas localmente.
@@ -392,40 +499,47 @@ Resultado:
 ## Flujo completo del agente
 
 ```
-Evento detectado (watchdog/inotify)
-      │
-      ├── Calcular hash (SHA-256)
-      ├── Comparar con baseline
-      │
-      ├── Si NO cambió → ignorar
-      │
-      ├── Si CAMBIÓ:
-      │       │
-      │       ├── Generar snapshot (si corresponde)
-      │       ├── Generar diff (si texto)
-      │       │
-      │       ├── Consultar regla (cacheada)
-      │       │
-      │       ├── SIN REGLA (ningún patrón matchea)
-      │       │       → DEFAULT: enviar evento (status: alert_only)
-      │       │
-      │       ├── action = auto_restore
-      │       │       → restaurar archivo desde baseline
-      │       │       → verificar hash post-restauración
-      │       │       → enviar evento (status: auto_restored)
-      │       │
-      │       ├── action = quarantine
-      │       │       → mover archivo a /agent/storage/quarantine/
-      │       │       → enviar evento (status: quarantined)
-      │       │
-      │       ├── action = manual_review
-      │       │       → NO tocar el archivo
-      │       │       → enviar evento (status: pending)
-      │       │
-      │       └── action = alert_only
-      │               → enviar evento (status: alert_only)
-      │
-      └── Encolar en Valkey Stream (o cola local si offline)
+Evento detectado (fanotify vía pyfanotify)
+   ├── Contexto recibido: path, pid, uid, exe del proceso causante
+   │
+   ├── Calcular hash SHA-256 del archivo actual
+   ├── Descifrar entrada de baseline (AES-GCM) y comparar hash
+   │
+   ├── Si NO cambió → ignorar
+   │
+   ├── Si CAMBIÓ:
+   │       │
+   │       ├── Generar snapshot (cifrado AES-GCM, si corresponde)
+   │       ├── Generar diff (si texto)
+   │       │
+   │       ├── Consultar regla (cacheada)
+   │       │
+   │       ├── SIN REGLA (ningún patrón matchea)
+   │       │       → DEFAULT: enviar evento (status: alert_only)
+   │       │
+   │       ├── action = auto_restore
+   │       │       → Escribir journal: {event_id, path, action, state: "pending"}
+   │       │       → restaurar archivo desde baseline (descifrar + escribir)
+   │       │       → verificar hash post-restauración
+   │       │       → Actualizar journal: {state: "completed"}
+   │       │       → enviar evento (status: auto_restored)
+   │       │
+   │       ├── action = quarantine
+   │       │       → Escribir journal: {event_id, path, action, state: "pending"}
+   │       │       → mover archivo a /var/lib/fim-agent/quarantine/
+   │       │       → Actualizar journal: {state: "completed"}
+   │       │       → enviar evento (status: quarantined)
+   │       │
+   │       ├── action = manual_review
+   │       │       → NO tocar el archivo
+   │       │       → enviar evento (status: pending)
+   │       │
+   │       └── action = alert_only
+   │               → enviar evento (status: alert_only)
+   │
+   └── Publicar en Valkey Stream (o encolar en cola local si offline)
+       Payload incluye: event_id (UUID v4), detected_at, schema_version,
+                         signature HMAC, contexto de proceso
 ```
 
 ---
@@ -439,24 +553,31 @@ Evento detectado (watchdog/inotify)
 ```
 1. Detectar cambio
 2. Validar que baseline existe y tiene archivo completo
-3. Restaurar archivo original desde baseline
-4. Verificar hash post-restauración
-5. Registrar acción → enviar evento (status: auto_restored)
+3. Escribir entrada de journal (W2): state = "pending"
+4. Descifrar archivo del baseline (AES-GCM)
+5. Restaurar archivo original sobre el FS
+6. Verificar hash post-restauración
+7. Actualizar journal: state = "completed"
+8. Enviar evento (status: auto_restored)
 ```
 
 > Restauración ≠ Aprobación. La restauración es inmediata y automática. La aprobación es humana y posterior.
+>
+> El journal pre-acción (W2) garantiza que si el agente muere mid-action, al reiniciar puede rehidratar entradas marcadas como `pending` y reintentar o reportar.
 
 ## 🔹 2. Cuarentena
 
 **Condición**: `action = quarantine` en la regla.
 
 ```
-/agent/storage/quarantine/
+/var/lib/fim-agent/quarantine/
 ```
 
+* Escribir journal pre-acción
 * Mover archivo sospechoso
 * Renombrar con timestamp/hash
-* Permisos restringidos (read-only, root)
+* Permisos restringidos (`0400`, owner `fim-agent`)
+* Actualizar journal
 * Enviar evento (status: quarantined)
 
 ## 🔹 3. Revisión manual (pending)
@@ -479,8 +600,7 @@ Evento detectado (watchdog/inotify)
 
 ## ⚠️ Requisito clave
 
-👉 El baseline DEBE contener el archivo completo
-(no solo hash)
+👉 El baseline DEBE contener el archivo completo (cifrado), no solo hash
 
 ---
 
@@ -493,7 +613,7 @@ Ej:
 * `/etc/passwd`
 * binarios del sistema
 
-✔ snapshot obligatorio
+✔ snapshot obligatorio (cifrado)
 ✔ restauración automática
 
 ---
@@ -522,7 +642,7 @@ max_snapshots_per_file = 3
 
 ## 🔹 Compresión
 
-* snapshots antiguos → gzip
+* snapshots antiguos → gzip (antes del cifrado)
 
 ---
 
@@ -536,14 +656,15 @@ max_snapshots_per_file = 3
 
 ## 🔹 Integridad
 
-* HMAC del snapshot
+* AES-256-GCM provee autenticación además de confidencialidad (tag GCM verifica cualquier alteración al descifrar)
 
 ---
 
 ## 🔹 Protección
 
-* permisos restringidos
-* fuera de paths monitoreados
+* Permisos `0600` para archivos cifrados del baseline, owner `fim-agent`
+* `master_secret` con permisos `0400`, owner `fim-agent`, fuera del volumen monitoreado
+* Directorios del agente excluidos del propio FIM (un patrón `!/var/lib/fim-agent/**` es obligatorio en la configuración)
 
 ---
 
@@ -555,51 +676,67 @@ max_snapshots_per_file = 3
 |------------|-----------|---------|
 | Framework | FastAPI 0.136.0 | Async, OpenAPI auto-generado, SSE nativo |
 | ORM | SQLModel | Modelos compartidos entre DB y API (Pydantic + SQLAlchemy) |
-| DB | PostgreSQL 18.3 | Eventos, reglas, alertas, acciones, usuarios |
+| DB | PostgreSQL 18.3 | Eventos, reglas, alertas, acciones, usuarios, audit_log |
 | DB Driver | psycopg (v3) | Driver oficial PostgreSQL, sync + async |
-| Auth | python-jose + JWT | Tokens stateless, refresh tokens |
+| Auth (humanos) | python-jose + JWT | Tokens stateless, refresh tokens con rotación |
+| Auth (agentes) | mTLS | Certificados TLS 1.3 mutuos con CA propia |
 | Logging | structlog | JSON estructurado con trace_id por request |
-| Streams | Valkey 9.0.3 (valkey-py) | Consumir eventos del agente via Streams |
-| Hashing | argon2-cffi (Argon2id) | latest | Hashing de contraseñas, ganador PHC, OWASP recomendado |
-| Auth Agente | mTLS | — | Certificados TLS mutuos para autenticación agente↔backend |
+| Streams | Valkey 9.0.3 (valkey-py) | Consumer groups para eventos del agente, publisher de comandos |
+| Hashing passwords | argon2-cffi (Argon2id) | Ganador PHC, configuración OWASP 2026 |
+| Firma de comandos | HMAC-SHA256 | Cada mensaje backend → agente firmado con shared_secret por agente |
 
 ## Módulos del backend
 
 ```
 backend/
 ├── app/
-│   ├── main.py              # FastAPI app + lifespan (create_all tables)
+│   ├── main.py              # FastAPI app + lifespan (create_all + seed_admin)
 │   ├── core/
 │   │   ├── config.py        # Settings (pydantic-settings)
-│   │   ├── database.py      # Engine + Session (SQLModel)
-│   │   ├── security.py      # JWT encode/decode (python-jose)
-│   │   └── dependencies.py  # get_current_user, get_session
+│   │   ├── database.py      # Engine + Session (SQLModel, UoW)
+│   │   ├── security.py      # JWT encode/decode, Argon2 PasswordHasher
+│   │   ├── pki.py           # CA propia, emisión/rotación de certs del agente
+│   │   ├── rate_limit.py    # Rate limiters (Valkey counters + TTL)
+│   │   ├── logging.py       # structlog + middleware sanitize_logs
+│   │   └── dependencies.py  # get_current_user, get_session, rate_limiter
 │   ├── modules/
 │   │   ├── auth/
-│   │   │   ├── router.py    # Login, refresh
+│   │   │   ├── router.py            # /auth/login, /auth/refresh, /auth/logout
+│   │   │   └── service.py
+│   │   ├── users/
+│   │   │   ├── router.py            # CRUD de usuarios (admin)
+│   │   │   ├── models.py            # User (incluye must_change_password)
 │   │   │   └── service.py
 │   │   ├── events/
-│   │   │   ├── router.py    # GET /events, GET /events/{id}
-│   │   │   ├── models.py    # SQLModel: Event, EventStatus
-│   │   │   ├── service.py   # Lógica de ingesta y consultas
-│   │   │   └── consumer.py  # Consumer de Valkey Stream
+│   │   │   ├── router.py            # GET /events (paginado), GET /events/{id}
+│   │   │   ├── models.py            # Event con column `version` (optimistic locking)
+│   │   │   ├── service.py           # Lógica de ingesta, validación de transiciones
+│   │   │   └── consumer.py          # Consumer group Valkey + XACK + publish ack
 │   │   ├── rules/
-│   │   │   ├── router.py    # CRUD de reglas
-│   │   │   ├── models.py    # SQLModel: Rule
-│   │   │   └── service.py
+│   │   │   ├── router.py            # CRUD de reglas
+│   │   │   ├── models.py            # Rule + ruleset_version counter
+│   │   │   └── service.py           # Sync a agente via Valkey
 │   │   ├── actions/
-│   │   │   ├── router.py    # POST /actions/approve, /actions/reject
-│   │   │   ├── models.py    # SQLModel: Action
-│   │   │   └── service.py   # Lógica de aprobación/rechazo
+│   │   │   ├── router.py            # /actions/approve, /actions/reject, /actions/bulk-*
+│   │   │   ├── models.py
+│   │   │   └── service.py           # Flow de aprobación con optimistic locking
 │   │   ├── alerts/
 │   │   │   ├── router.py
 │   │   │   ├── models.py
 │   │   │   └── service.py
 │   │   ├── agents/
-│   │   │   ├── router.py    # Sync de reglas, baseline updates, rescan, config management
-│   │   │   └── service.py   # Comunicación backend → agente
+│   │   │   ├── bootstrap_router.py  # POST /agents/bootstrap (CSR + HMAC)
+│   │   │   ├── router.py            # Sync reglas, baseline updates, rescan, config
+│   │   │   ├── service.py           # Publisher firmado al stream commands
+│   │   │   └── heartbeat_consumer.py # Consume agent_heartbeat stream
+│   │   ├── health/
+│   │   │   └── router.py            # GET /health/components
+│   │   ├── audit/
+│   │   │   ├── models.py            # audit_log (retención ilimitada)
+│   │   │   └── service.py           # Side-effect en servicios sensibles
 │   │   └── notifications/
-│   │       └── n8n_client.py # Webhook trigger a N8N
+│   │       ├── n8n_client.py        # Webhook con retry + DLQ
+│   │       └── models.py            # failed_notifications
 ├── Dockerfile
 └── requirements.txt
 ```
@@ -609,10 +746,10 @@ backend/
 
 ## Estados del evento (Event Lifecycle)
 
-Todo evento sigue un ciclo de vida con estados definidos:
+Todo evento sigue un ciclo de vida con estados definidos (ver C2 en appendix para la máquina de estados explícita):
 
 ```
-DETECTED → ANALYZED → ACTION
+detected -> analyzed -> action
                         │
                         ├── auto_restored  (sistema restauró automáticamente)
                         ├── quarantined    (sistema aisló el archivo)
@@ -625,7 +762,7 @@ DETECTED → ANALYZED → ACTION
                         └── alert_only     (solo registro, sin acción)
 ```
 
-### Estados posibles
+### Estados posibles (7 totales)
 
 | Estado | Origen | Significado |
 |--------|--------|-------------|
@@ -634,46 +771,67 @@ DETECTED → ANALYZED → ACTION
 | `rejected` | Admin (frontend) | Cambio malicioso/no deseado. Se restaura o cuarentena |
 | `auto_restored` | Agente (auto_restore) | Restaurado automáticamente por regla crítica |
 | `quarantined` | Agente (quarantine) | Archivo aislado automáticamente |
-| `alert_only` | Agente (alert_only) | Solo registrado para auditoría |
-| `superseded` | Agente (cadena de eventos) | Reemplazado por evento más reciente en el mismo path |
+| `alert_only` | Agente (alert_only o default sin match) | Solo registrado para auditoría |
+| `superseded` | Agente (cadena) o backend (re-scan) | Reemplazado por evento más reciente |
+
+La tabla de transiciones canónicas (in-edges / out-edges) está formalizada en C2 del appendix. Cualquier transición no listada es rechazada a nivel de service con HTTP 409.
 
 ## Flujo de aprobación (Admin)
 
 ### Caso 1: Admin APRUEBA (cambio legítimo)
 
 ```
-Frontend: POST /actions/approve { event_id }
+Frontend: POST /actions/approve { event_id, expected_version }
       │
       ▼
-Backend:
-  1. Marcar evento → status = approved
-  2. Generar nuevo baseline con el archivo actual
-  3. Enviar baseline_update al agente (via Valkey):
+Backend (modules/actions/service.py):
+  1. UPDATE optimista sobre events:
+     UPDATE events SET status='approved', version=version+1, ...
+     WHERE id=:id AND version=:expected_version AND status='pending';
+     · Si afecta 0 filas → HTTP 409 (conflict)  [ver C5]
+  2. Hashear archivo ACTUAL (via comando al agente) — no el hash del evento
+  3. Generar nueva entrada de baseline con hash actual
+  4. Publicar comando en Valkey stream commands con ruleset_version++ y signature HMAC:
      {
        "type": "baseline_update",
        "path": "/etc/ssh/sshd_config",
-       "hash": "nuevo_hash_sha256"
+       "hash": "<sha256_actual>",
+       "ruleset_version": 49,
+       "signature": "<HMAC-SHA256>"
      }
-  4. Agente recibe → actualiza su baseline local
+  5. Insertar audit_log (action=approve, event_id, user_id)
+  6. Responder 200 al frontend
+      │
+      ▼
+Agente:
+  · Verifica signature HMAC
+  · Verifica ruleset_version >= última aplicada (C11)
+  · Actualiza baseline local (re-cifra con AES-GCM)
+  · Confirma via stream commands con event_ack
 ```
 
-**Esto es CRÍTICO**: si no actualizás el baseline, el agente va a detectar el mismo cambio como anomalía en el próximo ciclo.
+**Esto es CRÍTICO**: si no se actualiza el baseline, el agente detecta el mismo cambio como anomalía en el próximo ciclo.
 
 ### Caso 2: Admin RECHAZA (cambio malicioso)
 
 ```
-Frontend: POST /actions/reject { event_id, action: "restore" | "quarantine" }
+Frontend: POST /actions/reject { event_id, expected_version, action: "restore" | "quarantine" }
       │
       ▼
 Backend:
-  1. Marcar evento → status = rejected
-  2. Enviar comando al agente (via Valkey):
+  1. UPDATE optimista (mismo patrón que approve)
+     · HTTP 409 si hay conflicto
+  2. Validar baseline state: si status='absent' → no-op con warning (C10)
+  3. Publicar comando al agente:
      {
        "type": "restore_file" | "quarantine_file",
-       "path": "/etc/ssh/sshd_config"
+       "path": "/etc/ssh/sshd_config",
+       "ruleset_version": 50,
+       "signature": "<HMAC-SHA256>"
      }
-  3. Agente ejecuta la acción
-  4. Baseline NO se actualiza (se mantiene el estado sano anterior)
+  4. Agente ejecuta acción (con journal pre-acción W2)
+  5. Baseline NO se actualiza (se mantiene el estado sano anterior)
+  6. audit_log + respuesta 200
 ```
 
 ### Caso 3: Admin APRUEBA pero el archivo fue eliminado
@@ -736,14 +894,6 @@ Evento A (pending)  ← primer cambio detectado
 3. Solo el **último evento de la cadena** es `pending` y visible para el admin
 4. El admin siempre decide sobre el estado MÁS RECIENTE del archivo
 
-### Estado `superseded`
-
-| Estado | Significado |
-|--------|-------------|
-| `superseded` | Reemplazado por un evento más reciente en la misma cadena |
-
-> Se suma a los 6 estados existentes. Total: 7 estados posibles.
-
 ### Flujo completo de la cadena
 
 ```
@@ -772,7 +922,7 @@ Eventos A (superseded) quedan como historial de auditoría.
 
 ### ¿Por qué hashear el archivo ACTUAL al aprobar?
 
-Porque entre que el admin ve el evento y aprieta "Approve", el archivo podría haber cambiado N veces. Si usás el hash del evento original, el baseline queda desactualizado y el agente detecta una "anomalía" falsa en el próximo ciclo.
+Porque entre que el admin ve el evento y aprieta "Approve", el archivo podría haber cambiado N veces. Si se usa el hash del evento original, el baseline queda desactualizado y el agente detecta una "anomalía" falsa en el próximo ciclo.
 
 **Al aprobar, el backend SIEMPRE:**
 1. Lee el archivo del filesystem actual (o pide hash actual al agente)
@@ -789,6 +939,12 @@ class Event(SQLModel, table=True):
     status: EventStatus         # pending | approved | rejected | auto_restored | quarantined | alert_only | superseded
     parent_event_id: int | None # Referencia al evento anterior en la cadena (None = primer evento)
     action_type: str            # auto_restore | quarantine | manual_review | alert_only
+    version: int = 0            # Optimistic locking (C5)
+    process_pid: int | None     # Contexto fanotify: proceso causante
+    process_uid: int | None
+    process_exe: str | None
+    detected_at: datetime       # Timestamp del agente
+    received_at: datetime       # Timestamp del backend (W13 anti-replay)
     created_at: datetime
     resolved_at: datetime | None
     resolved_by: int | None     # User ID del admin que aprobó/rechazó
@@ -816,6 +972,7 @@ El baseline NO es estático — se actualiza bajo condiciones controladas:
 
 * ✔ Admin aprueba un cambio (`status = approved`)
 * ✔ Cambio legítimo confirmado por humano
+* ✔ Re-scan explícito del admin (con warning previo)
 
 ### NO se actualiza cuando:
 
@@ -831,14 +988,17 @@ Backend                              Agente
    │                                   │
    ├── approve event ──────────────►   │
    │   baseline_update via Valkey      │
+   │   (firmado HMAC + ruleset_ver)    │
+   │                                   ├── Verifica HMAC + versión
    │                                   ├── Actualiza baseline local
-   │                                   ├── Recalcula hash
-   │                                   └── Confirma via Valkey
+   │                                   ├── Re-cifra con AES-GCM
+   │                                   └── Confirma via event_ack
    │                                   │
    ├── reject event ───────────────►   │
    │   restore/quarantine via Valkey   │
+   │                                   ├── Journal pre-acción (W2)
    │                                   ├── Ejecuta acción
-   │                                   └── Confirma via Valkey
+   │                                   └── Confirma via event_ack
 ```
 
 ## Inicialización de DB
@@ -858,22 +1018,21 @@ def create_db_and_tables():
 
 ### Creación del primer admin
 
-El primer usuario admin se crea como seed durante la inicialización de la base de datos:
+El primer usuario admin se crea como seed durante la inicialización. Con flag `must_change_password=true` (ver W20):
 
 ```python
-# En lifespan de FastAPI
 from argon2 import PasswordHasher
 
-ph = PasswordHasher()
+ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)  # C9
 
 def seed_admin():
-    """Crea el admin inicial si no existe ningún usuario."""
     admin_exists = session.exec(select(User)).first()
     if not admin_exists:
         admin = User(
-            username=settings.ADMIN_USERNAME,  # desde .env
-            password_hash=ph.hash(settings.ADMIN_PASSWORD),  # desde .env
-            role="admin"
+            username=settings.ADMIN_USERNAME,
+            password_hash=ph.hash(settings.ADMIN_PASSWORD),
+            role="admin",
+            must_change_password=True,  # W20: obliga cambio en primer login
         )
         session.add(admin)
         session.commit()
@@ -883,25 +1042,24 @@ Variables de entorno requeridas:
 
 ```
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=<password-seguro>
+ADMIN_PASSWORD=<password-seguro-temporal>
 ```
 
-> ⚠️ El password del `.env` es solo para el seed inicial. Debería cambiarse desde la interfaz tras el primer login.
+> ⚠️ El password del `.env` es solo para el seed inicial. Se fuerza el cambio en el primer login (W20).
 
 ### Hashing de passwords (Argon2id)
 
-Todas las contraseñas se hashean con **Argon2id** (via `argon2-cffi`):
+Todas las contraseñas se hashean con **Argon2id** (via `argon2-cffi`) con los parámetros fijos de C9:
 
-* Ganador de la Password Hashing Competition (PHC)
+* `time_cost=3, memory_cost=65536, parallelism=4`
+* Alineado con la recomendación OWASP 2026
 * Resistente a ataques GPU y side-channel
-* Configurable: memoria, iteraciones, paralelismo
-* Recomendación actual de OWASP
 
 ```python
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-ph = PasswordHasher()
+ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
 
 # Crear hash
 password_hash = ph.hash("user_password")
@@ -913,40 +1071,84 @@ except VerifyMismatchError:
     raise HTTPException(status_code=401, detail="Credenciales inválidas")
 ```
 
-## Auth Flow
+## Auth Flow (administradores)
 
 ```
-POST /auth/login  →  { access_token, refresh_token }
+POST /auth/login  →  { access_token (15 min), refresh_token (7 días, rotación) }
      │
      ▼
 Requests con header: Authorization: Bearer <access_token>
      │
      ▼
 Dependency: get_current_user(token) → decode JWT (python-jose) → User
+     │
+     ▼
+Blacklist de jti revocados en Valkey con TTL = exp restante  [C8]
+Multi-key signing: JWT_SECRET_CURRENT / JWT_SECRET_PREVIOUS   [C8]
 ```
 
-## Autenticación del agente (mTLS)
+## Autenticación del agente (mTLS + bootstrap)
 
-El agente se autentica con el backend usando **mTLS** (mutual TLS):
+El agente se autentica con el backend usando **mTLS** sobre TLS 1.3:
 
 ```
 Agente                              Backend
   │                                   │
   ├── Presenta certificado ────────►  │
-  │                                   ├── Verifica contra CA
+  │                                   ├── Verifica contra CA propia
+  │                                   ├── Consulta revoked_certificates
   │  ◄──── Presenta certificado ────  │
   ├── Verifica contra CA              │
   │                                   │
   └── Canal TLS mutuo establecido ──► │
 ```
 
-### Componentes
+### Bootstrap con CA propia (C6)
 
-| Componente | Ubicación | Propósito |
-|------------|-----------|----------|
-| CA cert | Docker secret compartido | Autoridad certificadora que firma ambos certs |
-| Agent cert + key | Montado en contenedor agent | Identifica al agente ante el backend |
-| Backend cert + key | Montado en contenedor backend | Identifica al backend ante el agente |
+La obtención del primer certificado no puede asumir mTLS ya existente. El flujo es:
+
+```
+1. Admin pre-registra en UI: { agent_id, bootstrap_secret (32 bytes random) }
+   Se persiste en DB.
+
+2. Agente arranca por primera vez:
+   - Genera par de claves local (RSA 4096 o Ed25519)
+   - Construye CSR (Certificate Signing Request)
+   - Firma el CSR con HMAC-SHA256 usando bootstrap_secret
+   - Envía POST /agents/bootstrap { agent_id, csr, hmac_signature }
+
+3. Backend (modules/agents/bootstrap_router.py):
+   - Recupera bootstrap_secret por agent_id
+   - Verifica HMAC del CSR
+   - Si OK: firma el CSR con la CA propia, emite cert válido 90 días
+   - Genera shared_secret para HMAC de comandos
+   - Retorna { cert, ca_cert, shared_secret, master_secret }
+   - Invalida bootstrap_secret (single-use)
+
+4. Agente persiste:
+   - cert + clave privada en /var/lib/fim-agent/certs/ (0600)
+   - shared_secret en /var/lib/fim-agent/secrets/shared_secret (0400)
+   - master_secret en /var/lib/fim-agent/secrets/master_secret (0400)
+```
+
+### Rotación y revocación
+
+- **Rotación**: 15 días antes de expirar, el agente inicia renovación presentando el cert actual (ya sobre mTLS).
+- **Revocación**: tabla `revoked_certificates` en DB (serial, revoked_at, reason). Backend verifica en cada handshake.
+
+### Firma HMAC de comandos (C7)
+
+Además del canal mTLS, cada comando individual del backend al agente se firma con HMAC-SHA256:
+
+```python
+signature = hmac.new(
+    shared_secret,
+    canonical_json(payload),  # orden determinístico de keys
+    hashlib.sha256
+).hexdigest()
+```
+
+El agente rechaza comandos con signature inválida. **Defensa en profundidad**: si alguien compromete Valkey pero no el cert, no puede inyectar comandos.
 
 ### Ventajas sobre API keys
 
@@ -955,23 +1157,7 @@ Agente                              Backend
 * Identificación criptográfica — el agente es quien dice ser
 * Revocable — se puede revocar un certificado sin cambiar passwords
 
-### Generación de certificados (desarrollo)
-
-```bash
-# CA (una vez)
-openssl req -x509 -newkey rsa:4096 -days 365 \
-  -keyout ca-key.pem -out ca-cert.pem -subj "/CN=FIM-CA"
-
-# Agente
-openssl req -newkey rsa:4096 -keyout agent-key.pem -out agent-req.pem -subj "/CN=fim-agent"
-openssl x509 -req -in agent-req.pem -CA ca-cert.pem -CAkey ca-key.pem -out agent-cert.pem
-
-# Backend
-openssl req -newkey rsa:4096 -keyout backend-key.pem -out backend-req.pem -subj "/CN=fim-backend"
-openssl x509 -req -in backend-req.pem -CA ca-cert.pem -CAkey ca-key.pem -out backend-cert.pem
-```
-
-> En producción, los certificados se gestionan con un sistema de PKI o se rotan automáticamente.
+## Responsabilidades del backend
 
 El backend:
 
@@ -980,75 +1166,99 @@ El backend:
 
 👉 El backend:
 
-* Recibe y persiste eventos
-* Gestiona el ciclo de vida del evento (estados)
-* Evalúa reglas y genera alertas
+* Recibe y persiste eventos (con XACK + event_ack bidireccional — C3)
+* Valida transiciones de estado contra la máquina formal (C2)
+* Aplica optimistic locking en actualizaciones de `status` (C5)
+* Evalúa reglas, genera alertas y dispara webhooks
 * Procesa aprobaciones/rechazos del admin
-* Envía comandos al agente via Valkey (baseline_update, restore, quarantine)
-* Dispara notificaciones via N8N
+* Envía comandos firmados al agente via Valkey
+* Dispara notificaciones via n8n con retry + DLQ (W11)
+* Mantiene audit_log de retención ilimitada (W18)
+* Verifica timestamps dobles contra clock skew (W13)
 
 ---
 
 # 🔁 Flujo Completo (Pipeline end-to-end)
 
 ```
-1. Agente detecta cambio (watchdog/inotify)
-2. Calcula hash, compara con baseline
-3. Genera snapshot + diff (si corresponde)
+1. Agente detecta cambio (fanotify via pyfanotify)
+   · Recibe: path, pid, uid, exe del proceso causante
+
+2. Calcula SHA-256 del archivo actual
+   Descifra entrada de baseline (AES-GCM) y compara hash
+
+3. Si cambió: genera snapshot cifrado + diff (si corresponde)
 4. Evalúa regla cacheada
 
 5. Según acción de la regla:
-   ├── auto_restore → restaurar archivo → evento (auto_restored)
-   ├── quarantine   → aislar archivo    → evento (quarantined)
-   ├── manual_review → NO tocar         → evento (pending)
-   └── alert_only   → NO tocar          → evento (alert_only)
+   ├── auto_restore  → journal(pending) → restaurar → journal(completed) → evento (auto_restored)
+   ├── quarantine    → journal(pending) → aislar    → journal(completed) → evento (quarantined)
+   ├── manual_review → NO tocar                                         → evento (pending)
+   └── alert_only    → NO tocar                                         → evento (alert_only)
 
-6. Encolar evento → Valkey Stream (o cola local si offline)
+6. Publica evento en stream events de Valkey
+   Payload: event_id UUID v4, detected_at, schema_version, signature HMAC,
+            contexto de proceso, path, hash, action_type
+   · Si offline: encola en /var/lib/fim-agent/queue/ (atómico write+rename)
 
-7. Backend consume evento:
-   ├── Persiste en PostgreSQL (SQLModel)
-   ├── Evalúa si necesita alerta
-   └── Dispara webhook a N8N (si corresponde)
+7. Backend consume (consumer group fim-backend):
+   · Valida timestamps dobles (|received_at - detected_at| <= 5 min) — W13
+   · Valida schema_version — W14
+   · Valida transición de estado — C2
+   · Persiste en PostgreSQL (SQLModel + UoW)
+   · XACK en Valkey
+   · Publica event_ack en stream commands (para que el agente limpie cola)
+   · Evalúa si necesita alerta → dispara webhook a n8n (con retry + DLQ)
+   · Registra en audit_log si es sensible
 
-8. Frontend muestra eventos (TanStack Query)
+8. Frontend muestra eventos (TanStack Query, paginado 50/pág)
+   · SSE para alertas real-time
+   · Banner de degradación si algún componente está down (W12)
 
-9. Admin decide (solo para eventos pending):
-   ├── APPROVE → backend actualiza baseline → sync agente
-   └── REJECT  → backend ordena restaurar/cuarentena → sync agente
+9. Admin decide (solo eventos pending):
+   ├── approve → optimistic UPDATE + hash actual + baseline_update firmado + audit_log
+   └── reject  → optimistic UPDATE + restore/quarantine firmado + audit_log
 
-10. Agente recibe comando → ejecuta → confirma
+10. Agente recibe comando:
+    · Verifica signature HMAC
+    · Verifica ruleset_version monotónica (C11)
+    · Ejecuta (con journal) → confirma via event_ack
 ```
 
 ## Comunicación bidireccional via Valkey
 
 ```
-Agente ──── Valkey Stream (events) ────► Backend
-                                            │
-Backend ─── Valkey Stream (commands) ──► Agente
+Agente ──── Valkey Stream events ────► Backend
+                                          │
+Backend ─── Valkey Stream commands ──► Agente
+Agente ──── Valkey Stream agent_heartbeat ───► Backend
 ```
 
-* **events stream**: agente publica eventos detectados
-* **commands stream**: backend envía órdenes (baseline_update, restore, quarantine)
+* **events stream**: agente publica eventos detectados (consumer group `fim-backend`)
+* **commands stream**: backend envía órdenes firmadas (baseline_update, restore_file, quarantine_file, rescan_baseline, update_config, event_ack)
+* **agent_heartbeat stream**: heartbeat cada 10 s con `queue_size`, `ruleset_version`, flag `queue_pressure` si la cola supera 80%, flag `shutdown` si está drenando
 
 ---
 
-# 🔔 N8N (2.16.1)
+# 🔔 n8n — Enrutador acotado de notificaciones
 
 ## Licencia
 
-Sustainable Use License (fair-code). No es OSS puro. Aceptable para uso académico y self-hosted.
+**Sustainable Use License** (fair-code). No es OSS puro. **Aceptable** para uso académico y self-hosted. **No apta** para reventa comercial ni incorporación como componente principal de productos comerciales. La política de fallbacks automáticos garantiza que la indisponibilidad de n8n no comprometa el alertado.
 
-## Funciones
+## Rol acotado
 
-* Alertas por email
-* Health checks (backend/agentes)
-* Reintentos de notificación
-* Escaneo programado fallback
-* Integración con SIEM
+n8n **no** ejecuta comandos sobre el sistema operativo del anfitrión monitoreado. No coordina el playbook ni toma decisiones. Se limita a:
 
-## Integración con backend
+* Recibir webhooks del backend
+* Enrutarlos a canales externos: correo, mensajería corporativa (Teams, Slack, etc.), SIEM
+* Reintentar internamente según su propia configuración de workflow
 
-El backend llama a N8N via webhook HTTP:
+Toda la lógica de decisión (aprobar, rechazar, restaurar, cuarentena) vive en el backend propio, que sí tiene los certificados mTLS y el `shared_secret` para hablar con el agente.
+
+## Integración con backend (con retry + DLQ — W11)
+
+El backend llama a n8n via webhook HTTP:
 
 ```
 POST http://n8n:5678/webhook/fim-alert
@@ -1058,15 +1268,31 @@ Content-Type: application/json
   "event_id": "...",
   "severity": "critical",
   "file_path": "/etc/passwd",
-  "action_taken": "restored"
+  "process_exe": "/usr/bin/curl",
+  "action_taken": "auto_restored",
+  "timestamp": "2026-04-23T14:32:11Z"
 }
 ```
 
-N8N ejecuta el workflow configurado (email, Slack, SIEM, etc.).
+**Política de retry**: 3 intentos con delays 5 s / 30 s / 120 s (exponencial).
 
-## Base de datos de N8N
+**DLQ**: si fallan los 3 intentos, se persiste en la tabla `failed_notifications(id, event_id, payload_json, last_error, failed_at, retry_count)`. La UI muestra un banner amarillo persistente mientras haya filas (W11) y el admin puede reintentar manualmente o descartar.
 
-N8N utiliza la **misma instancia de PostgreSQL** pero una **base de datos separada** (`fim_n8n`):
+## Cascada de fallbacks (garantía de entrega)
+
+El `NotificationDispatcher` del backend intenta canales en orden de precedencia (Tabla 8 de la tesis):
+
+| Orden | Canal | Condición |
+|-------|-------|-----------|
+| 1 | n8n webhook | Default, hasta 3 retries |
+| 2 | SMTP directo | Si n8n falla los 3 retries (y admin configuró SMTP directo como fallback) |
+| 3 | Webhook directo a canal externo | Si tanto n8n como SMTP fallan (p. ej. endpoint Teams pre-configurado) |
+| 4 | Log crítico | Siempre se escribe, independientemente de lo anterior |
+| 5 | Tabla `failed_notifications` + banner UI | Si ningún canal externo pudo entregar |
+
+## Base de datos de n8n
+
+n8n utiliza la **misma instancia de PostgreSQL** pero una **base de datos separada** (`fim_n8n`):
 
 * Comparte infraestructura (un solo contenedor `db`)
 * Datos aislados (bases de datos distintas: `fim` y `fim_n8n`)
@@ -1093,6 +1319,24 @@ GRANT ALL PRIVILEGES ON DATABASE fim_n8n TO fim;
 | Estado global | Zustand | Store liviano para auth state, UI state |
 | Routing | React Router v7 | Navegación SPA |
 | Estilos | Tailwind CSS 4.2 + @tailwindcss/vite | Utility-first, CSS-first config, plugin Vite nativo |
+| Diff viewer | react-diff-viewer-continued | Con escapado activado; prohibido `dangerouslySetInnerHTML` (W8) |
+
+## Hardening web (W7, W8, W9)
+
+### Headers HTTP emitidos por nginx
+
+* `Content-Security-Policy`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://backend; frame-ancestors 'none'`
+* `Strict-Transport-Security`: `max-age=31536000; includeSubDomains`
+* `X-Frame-Options: DENY`
+* Validación de header `Origin` contra whitelist en backend
+* Cookies con `SameSite=Strict`
+
+### Almacenamiento de tokens en cliente (W9)
+
+* **Access token** (15 min): en memoria (Zustand store). NUNCA en `localStorage`/`sessionStorage`.
+* **Refresh token** (7 días, rotación): cookie `httpOnly` + `Secure` + `SameSite=Strict` + `Path=/auth/refresh`.
+
+Resiste XSS (el token no es accesible a JS) y CSRF (SameSite=Strict).
 
 ## Configuración Tailwind CSS v4 con Vite
 
@@ -1145,30 +1389,44 @@ frontend/
 │   ├── api/
 │   │   ├── client.ts          # Axios instance + interceptors
 │   │   └── endpoints/
-│   │       ├── events.ts      # useEvents(), useEvent(id)
+│   │       ├── events.ts      # useEvents(), useEvent(id), useBulkApprove(), useBulkReject()
+│   │       ├── rules.ts
+│   │       ├── agents.ts
 │   │       ├── alerts.ts
+│   │       ├── health.ts      # useHealthComponents() polling 10s (W12)
+│   │       ├── notifications.ts # useFailedNotifications() (W11)
 │   │       └── auth.ts
 │   ├── stores/
-│   │   └── auth.store.ts      # Zustand: user, token, logout
+│   │   └── auth.store.ts      # Zustand: user, access_token in-memory, logout
 │   ├── pages/
 │   │   ├── Dashboard.tsx
-│   │   ├── Events.tsx
+│   │   ├── Events.tsx         # Paginado 50/pág, bulk actions (W15), toggle superseded (W1)
+│   │   ├── Rules.tsx
+│   │   ├── Agents.tsx         # Muestra estado draining (W17)
 │   │   ├── Alerts.tsx
+│   │   ├── FailedNotifications.tsx  # W11
+│   │   ├── ForcePasswordChange.tsx  # W20
 │   │   └── Login.tsx
 │   └── components/
-│       ├── layout/                 # Estructura visual de la app
+│       ├── layout/
 │       │   ├── Sidebar.tsx
 │       │   ├── Navbar.tsx
-│       │   ├── MainLayout.tsx      # Layout principal (sidebar + content)
-│       │   └── AuthLayout.tsx      # Layout para login/register
-│       └── ui/                     # Componentes reutilizables de UI
-│           ├── DiffViewer.tsx      # Visualización de diffs
+│       │   ├── SystemBanner.tsx      # Banner rojo si health != ok (W12)
+│       │   ├── NotificationsBanner.tsx # Banner amarillo si hay failed_notifications (W11)
+│       │   ├── MainLayout.tsx
+│       │   └── AuthLayout.tsx
+│       └── ui/
+│           ├── DiffViewer.tsx        # react-diff-viewer-continued
+│           ├── EventsTable.tsx       # Selección múltiple + paginación
+│           ├── BulkActionBar.tsx     # Aprobar/rechazar seleccionados
 │           ├── EventTimeline.tsx
-│           ├── RestoreApproval.tsx
+│           ├── RejectModal.tsx       # Branch baseline_absent (C10)
+│           ├── AgentCard.tsx         # Estado draining visible
 │           ├── Badge.tsx
 │           ├── Button.tsx
 │           └── Card.tsx
 ├── Dockerfile
+├── nginx.conf                 # Headers CSP, HSTS, etc. (W7)
 ├── vite.config.ts
 └── package.json
 ```
@@ -1178,27 +1436,44 @@ frontend/
 * Ver diffs de archivos (texto)
 * Ver comparación de archivos binarios (hash comparison + hex dump parcial)
 * Ver historial de versiones (snapshots)
-* Ver acciones automáticas ejecutadas
-* Aprobar o rechazar eventos `pending` (approve / reject)
+* Ver acciones automáticas ejecutadas + contexto del proceso causante
+* Aprobar o rechazar eventos `pending` (approve / reject) con manejo de conflicto 409 (C5)
+* Bulk approve/reject (W15)
 * Ver cadena de eventos por path (event chain)
+* Toggle "mostrar superseded" (W1)
 * Dashboard con métricas de integridad
 * Alertas en tiempo real (SSE desde backend)
+* Banner de degradación del sistema (W12)
+* Banner de notificaciones fallidas + vista de reintento/descarte (W11)
+* Forzado de cambio de password en primer login (W20)
+* Gestión de paths monitoreados por agente (sin reiniciar el servicio)
+* Trigger de re-scan con warning de impacto en pending
 
 ---
 
-# ⚠️ Limitaciones conocidas
+# ⚠️ Limitaciones tecnológicas conocidas del stack
 
-* `inotify` (vía watchdog) no garantiza captura PREVIA al write — cuando se detecta, el archivo ya cambió
-* Baseline puede crecer — mitigado con `max_snapshots_per_file = 3` y compresión gzip
-* Diffs textuales no aplican a archivos binarios — para binarios se muestra comparación de hash y hex dump parcial de los primeros bytes
-* N8N licencia fair-code — no OSS puro, pero self-hostable sin restricciones para uso académico
-* Cola offline del agente (JSON files) — no tiene transaccionalidad, aceptable para el caso de uso
+Alineadas con la sección 6.6 de la tesis v6. Cada limitación motivó una decisión arquitectónica concreta.
+
+| # | Limitación | Decisión arquitectónica derivada |
+|---|------------|----------------------------------|
+| 1 | **`fanotify` requiere `CAP_SYS_ADMIN`** | Agente desplegado nativo fuera de Docker; hardening con systemd (`ProtectSystem=strict`, `NoNewPrivileges`, etc.). Se documenta como restricción de deployment. |
+| 2 | **`fanotify` detecta *después* del write** (aun con modo permisos, la inspección pre-write tiene costos que no asumimos en el MVP) | El diff se genera comparando contra el baseline; el archivo ya está modificado cuando se evalúa. Para protección pre-write se deriva a trabajo futuro (IMA, dm-verity). |
+| 3 | **Saturación del consumidor `fanotify`** (eventos pueden perderse silenciosamente si el agente no consume a tiempo) | El agente monitorea activamente el nivel de backpressure y lo reporta como anomalía en el heartbeat (`queue_pressure` flag). |
+| 4 | **Valkey con persistencia AOF periódica** — un crash puede perder los últimos ms de escrituras | Cola local del agente actúa como buffer antes de la confirmación `XACK + event_ack` del backend (C3), que es la que autoriza la eliminación local. |
+| 5 | **Backend en instancia única** (C4) — no se diseña HA multi-réplica en el MVP | Init-container para arranque rápido + cola local del agente que preserva eventos durante la ventana de reinicio. Documentado como consideración de producción futura. |
+| 6 | **n8n no ejecuta comandos nativos del SO** | Delimitado a enrutador de notificaciones externas; toda la lógica de decisión y acción sobre el FS vive en el backend propio + agente. |
+| 7 | **n8n licencia fair-code** | No apta para reventa comercial ni incorporación como componente principal de productos comerciales. Compatible con uso académico y self-hosted. Fallbacks automáticos permiten operar sin n8n. |
+| 8 | **Raíz de confianza en espacio de usuario** — si el kernel del anfitrión está comprometido, todo el sistema lo está | Reconocida como amenaza residual. Trabajo futuro: integración con IMA, dm-verity, Secure Boot. |
+| 9 | **Diffs textuales no aplican a binarios** | Para binarios se muestra comparación de hash + hex dump parcial de primeros bytes. |
+| 10 | **Cola offline del agente (JSON files)** — no tiene transaccionalidad | Escritura atómica (`write + rename`), tamaños acotados (100 MB, drop-oldest), confirmación bidireccional via `event_ack`. Aceptable para el caso de uso. |
+| 11 | **Argon2id con parámetros fijos** puede resultar desmedido o insuficiente según el hardware | Se fijan parámetros recomendados por OWASP 2026 (C9). Futuro: benchmark al arranque para ajuste por entorno. |
 
 ---
 
 # 🐳 Docker Compose
 
-## Servicios
+## Servicios (servidor central — el agente NO está acá)
 
 ```yaml
 # docker-compose.yml (estructura)
@@ -1212,25 +1487,45 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "5432:5432"
+    # Sin puerto expuesto al host en producción; solo accesible por la red interna
+
+  db-init:
+    build: ./db-init
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql+psycopg://fim:${DB_PASSWORD}@db:5432/fim
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    # Init-container: corre una vez, crea schema + seed admin (W20), sale
 
   valkey:
     image: valkey/valkey:9.0
-    ports:
-      - "6379:6379"
+    # Sin puerto expuesto al host en producción
 
   backend:
     build: ./backend
     depends_on:
-      - db
-      - valkey
+      db-init:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql+psycopg://fim:${DB_PASSWORD}@db:5432/fim
       VALKEY_URL: valkey://valkey:6379
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET_CURRENT: ${JWT_SECRET_CURRENT}
+      JWT_SECRET_PREVIOUS: ${JWT_SECRET_PREVIOUS}
+      CA_CERT_PATH: /certs/ca.pem
+      CA_KEY_PATH: /certs/ca-key.pem
+    volumes:
+      - backend_certs:/certs:ro
     ports:
-      - "8000:8000"
+      - "8443:8443"  # HTTPS + mTLS para agentes
+      - "8000:8000"  # HTTPS para frontend
+    deploy:
+      replicas: 1  # Single-instance (C4)
 
   frontend:
     build: ./frontend
@@ -1238,33 +1533,27 @@ services:
       - backend
     ports:
       - "3000:80"
+    # nginx con headers CSP, HSTS, etc. (W7)
 
   n8n:
     image: n8nio/n8n:2.16.1
     depends_on:
-      - db
+      db-init:
+        condition: service_completed_successfully
     environment:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: db
       DB_POSTGRESDB_DATABASE: fim_n8n
       DB_POSTGRESDB_USER: fim
       DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "5678:5678"
-
-  agent:
-    build: ./agent
-    depends_on:
-      - valkey
-    volumes:
-      - /monitored/path:/watch:ro    # Path a monitorear (read-only)
-      - agent_storage:/agent/storage  # Baselines, diffs, quarantine, queue
-    privileged: false
+    # Sin puerto expuesto al host; solo accesible por el backend
 
 volumes:
   pg_data:
-  agent_storage:
+  backend_certs:
 ```
+
+> **El agente NO está en el compose**. Se despliega nativo en cada anfitrión monitoreado mediante la unit file de systemd mostrada en la sección "Despliegue del agente". El compose es solo para el servidor central.
 
 ---
 
@@ -1291,6 +1580,15 @@ jobs:
       - run: pip install -r backend/requirements.txt
       - run: cd backend && python -m pytest
 
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - run: pip install -r agent/requirements.txt
+      - run: cd agent && python -m pytest
+      # Integration tests de fanotify requieren kernel Linux; ubuntu-latest lo provee
+
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -1307,6 +1605,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose build
+      # Nota: solo construye imágenes del servidor central; el agente se empaqueta aparte
+      #       (futuro: packaging nativo en .deb y .rpm — ver sección 8.8 de la tesis)
 ```
 
 ---
@@ -1315,33 +1615,37 @@ jobs:
 
 Esta arquitectura define un sistema FIM completo con:
 
-✔ Restauración confiable (snapshot + baseline dinámico)
+✔ Detección reactiva sobre `fanotify` con contexto de proceso causante
+✔ Agente nativo con hardening systemd (no en Docker por `CAP_SYS_ADMIN`)
+✔ Restauración confiable (snapshot cifrado + baseline dinámico + journal pre-acción)
 ✔ Motor de decisión basado en reglas (4 niveles de acción)
-✔ Flujo de aprobación humana con cadena de eventos
-✔ Análisis forense (diff + historial de snapshots)
-✔ Baseline dinámico sincronizado entre agente y backend
-✔ Comunicación bidireccional via Valkey Streams
+✔ Flujo de aprobación humana con cadena de eventos `superseded` + optimistic locking
+✔ Análisis forense (diff + historial de snapshots + audit_log de retención ilimitada)
+✔ Baseline dinámico cifrado (AES-256-GCM + HKDF) sincronizado entre agente y backend
+✔ Comunicación bidireccional firmada (mTLS + HMAC + timestamps dobles anti-replay)
 ✔ Stack completo definido con versiones actuales (Abril 2026)
-✔ Containerización lista para desarrollo y despliegue
-✔ Seguridad robusta (Argon2id + mTLS + HMAC)
+✔ Servidor central contenedorizado; agente nativo
+✔ Seguridad en profundidad (Argon2id + mTLS + HMAC + AES-GCM)
 ✔ Configuración de agente gestionable en runtime
 ✔ Patrones glob con negación para reglas flexibles
+✔ n8n delimitado a enrutador con política de fallbacks automáticos
+✔ Resiliencia offline con cola local + confirmación bidireccional (C3)
 
 ---
 
 El sistema implementa un **modelo híbrido de respuesta automatizada y validación humana**:
 
-* **Detección** — watchdog + inotify, motor de decisión local
+* **Detección** — `fanotify` vía pyfanotify con contexto forense (PID/UID/exe), motor de decisión local
 * **Respuesta** — 4 niveles: auto_restore, quarantine, manual_review, alert_only
-* **Control humano** — Aprobación/rechazo de cambios pendientes con cadena de eventos
-* **Baseline inteligente** — Dinámico, actualizado solo por decisión humana (approve)
-* **Auditoría** — diffs, historial de snapshots, cadena de eventos con `superseded`
-* **Alerta** — N8N pipeline con reintentos
-* **Visualización** — React SPA con diffs, timeline, aprobaciones, event chain
+* **Control humano** — Aprobación/rechazo de cambios pendientes con cadena de eventos y optimistic locking
+* **Baseline inteligente** — Dinámico, cifrado AES-GCM, actualizado solo por decisión humana (approve) o re-scan explícito
+* **Auditoría** — diffs, historial de snapshots, cadena con `superseded`, audit_log separado (W18)
+* **Alerta** — cascada: n8n → SMTP → webhook directo → log → DLQ con banner UI
+* **Visualización** — React SPA con diffs, timeline, aprobaciones (con manejo 409), bulk actions, event chain
 
 ---
 
-👉 Esto no es solo monitoreo: es un **sistema activo de defensa, recuperación y control de integridad con validación humana**.
+👉 Esto no es solo monitoreo: es un **sistema activo de detección reactiva, recuperación, control de integridad con validación humana y trazabilidad forense completa**, alineado con el marco normativo argentino (Ley 25.326, Res. AAIP 47/2018 y 126/2024, Res. 44/2023, DNU 941/2025).
 
 ---
 
@@ -1349,11 +1653,239 @@ El sistema implementa un **modelo híbrido de respuesta automatizada y validaci�
 
 | Tecnología | Fuente | Verificado |
 |------------|--------|------------|
-| FastAPI 0.136.0 | [PyPI](https://pypi.org/project/fastapi/) / [GitHub](https://github.com/fastapi/fastapi/releases) | 16 Abr 2026 |
-| Valkey 9.0.3 | [GitHub](https://github.com/valkey-io/valkey/releases) / [valkey.io](https://valkey.io) | 16 Abr 2026 |
-| N8N 2.16.1 | [GitHub](https://github.com/n8n-io/n8n/releases) / [n8n.io](https://n8n.io) | 16 Abr 2026 |
-| PostgreSQL 18.3 | [postgresql.org](https://www.postgresql.org/) | 16 Abr 2026 |
-| watchdog 6.0.0 | [PyPI](https://pypi.org/project/watchdog/) | 16 Abr 2026 |
-| SQLModel | [sqlmodel.tiangolo.com](https://sqlmodel.tiangolo.com/) | 16 Abr 2026 |
-| React 19 | [react.dev](https://react.dev/) | 16 Abr 2026 |
-| Tailwind CSS 4.2.2 | [tailwindcss.com](https://tailwindcss.com/) / [GitHub](https://github.com/tailwindlabs/tailwindcss/releases) | 16 Abr 2026 |
+| FastAPI 0.136.0 | [PyPI](https://pypi.org/project/fastapi/) / [GitHub](https://github.com/fastapi/fastapi/releases) | 23 Abr 2026 |
+| Valkey 9.0.3 | [GitHub](https://github.com/valkey-io/valkey/releases) / [valkey.io](https://valkey.io) | 23 Abr 2026 |
+| n8n 2.16.1 | [GitHub](https://github.com/n8n-io/n8n/releases) / [n8n.io](https://n8n.io) | 23 Abr 2026 |
+| PostgreSQL 18.3 | [postgresql.org](https://www.postgresql.org/) | 23 Abr 2026 |
+| pyfanotify 0.3.0 | [PyPI](https://pypi.org/project/pyfanotify/) | 23 Abr 2026 |
+| SQLModel | [sqlmodel.tiangolo.com](https://sqlmodel.tiangolo.com/) | 23 Abr 2026 |
+| React 19 | [react.dev](https://react.dev/) | 23 Abr 2026 |
+| Tailwind CSS 4.2.2 | [tailwindcss.com](https://tailwindcss.com/) / [GitHub](https://github.com/tailwindlabs/tailwindcss/releases) | 23 Abr 2026 |
+
+---
+
+## Appendix: Decisiones de auditoría — Abril 2026
+
+Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, seguridad y resiliencia realizada el 2026-04-22. En caso de conflicto con secciones previas del documento, prevalece lo especificado en este appendix.
+
+### Léxico y nomenclatura
+
+#### C1: Léxico canónico en minúsculas
+**Decisión**: Los valores del campo `status` de eventos (`pending`, `approved`, `rejected`, `superseded`, `auto_restored`, `quarantined`, `alert_only`) se escriben SIEMPRE en minúsculas (snake_case) tanto en código, schemas, JSON, logs y prosa descriptiva cuando se refieren al valor literal. Se toleran mayúsculas solo como títulos markdown (`## PENDING`) o cuando se referencia la acción del botón de UI en texto narrativo (`click en APPROVE`).
+**Motivación**: Eliminar ambigüedad entre variantes mayúsculas/minúsculas detectada en diagramas y prosa.
+**Aplicación**: Modelos SQLModel (`EventStatus` enum), schemas API, cliente Valkey, logs estructurados, documentación técnica.
+
+### Modelo de eventos y lifecycle
+
+#### C2: Máquina de estados explícita (in-edges / out-edges)
+**Decisión**: Se adopta la siguiente tabla de transiciones canónicas.
+
+| Estado destino | In-edges permitidas | Out-edges permitidas |
+|----------------|---------------------|----------------------|
+| `pending` | (creación por agente, action=`manual_review`) | `approved`, `rejected`, `superseded` |
+| `approved` | `pending` (admin approve) | (terminal) |
+| `rejected` | `pending` (admin reject) | (terminal) |
+| `superseded` | `pending` (cadena), `pending` (re-scan) | (terminal) |
+| `auto_restored` | (creación por agente, action=`auto_restore`) | (terminal) |
+| `quarantined` | (creación por agente, action=`quarantine`) | (terminal) |
+| `alert_only` | (creación por agente, action=`alert_only` o default) | (terminal) |
+
+Cualquier transición no listada es inválida y debe ser rechazada a nivel de service con error 409.
+**Motivación**: Convertir el ciclo de vida informal en un contrato verificable.
+**Aplicación**: `modules/events/service.py` (validador de transición), tests de lifecycle.
+
+#### C3: Protocolo ACK Valkey
+**Decisión**:
+- El agente genera un `event_id` UUID v4 al crear cada evento.
+- El backend consume con consumer group `fim-backend`.
+- Tras persistir en PostgreSQL, el backend ejecuta `XACK` en el stream `events`.
+- El backend publica un mensaje `event_ack` en el stream `commands` con el `event_id`.
+- El agente, al recibir el `event_ack`, elimina la entrada correspondiente de su cola local.
+**Motivación**: Garantizar entrega exactamente-una-vez end-to-end sin perder eventos en crashes del agente tras publicar pero antes de confirmar.
+**Aplicación**: `modules/events/consumer.py` (XACK + publish ack), agente (handler `event_ack` + cleanup de `/var/lib/fim-agent/queue/`).
+
+#### C10: Rechazo sobre baseline `absent` = no-op con warning
+**Decisión**: Si un admin rechaza un evento cuyo baseline ya está en `status: absent`, la operación NO envía comando `restore_file` al agente (no hay archivo a restaurar), marca el evento como `rejected`, loguea warning y retorna respuesta 200 con flag `baseline_absent: true`.
+**Motivación**: Evitar comandos espurios al agente y degradación silenciosa.
+**Aplicación**: `modules/actions/service.py` (reject flow).
+
+#### C11: `ruleset_version` monotónico
+**Decisión**: Los comandos `baseline_update`, `rule_sync`, `update_config` y `rescan_baseline` incluyen un `ruleset_version: int` monotónico creciente generado por el backend. El agente persiste el último `ruleset_version` aplicado y descarta mensajes con versión menor (idempotencia + ordering).
+**Motivación**: Prevenir aplicación fuera de orden por re-entregas de Valkey.
+**Aplicación**: Tabla `ruleset_version` en PostgreSQL (counter), payload de commands, agente (state persistido en `/var/lib/fim-agent/state.json`).
+
+### Arquitectura del sistema
+
+#### C4: Backend single-instance
+**Decisión**: El backend FastAPI corre como **un único contenedor**. No se diseña para HA multi-réplica en el MVP. Las asunciones de optimistic locking (C5) y JWT revocation (C8) se basan en este supuesto.
+**Motivación**: Simplificar consumer groups, coordinación Valkey y rate limiting in-process.
+**Aplicación**: `docker-compose.yml` (replicas: 1), documentación de deployment.
+
+#### C5: Optimistic locking sobre Event
+**Decisión**: Se agrega una columna `version: int` (default 0) a la tabla `events`. Toda actualización de `status` usa:
+```sql
+UPDATE events
+SET status = :new_status, version = version + 1, resolved_at = NOW(), resolved_by = :user_id
+WHERE id = :event_id AND version = :expected_version AND status = 'pending';
+```
+Si el `UPDATE` afecta 0 filas, se retorna HTTP 409 con body `{ "error": "conflict", "reason": "event_already_resolved_or_superseded" }`.
+**Motivación**: Evitar race conditions entre dos admins aprobando el mismo evento simultáneamente o entre aprobación y auto-superseded por nuevo evento del agente.
+**Aplicación**: `modules/events/models.py` (`version: int = Field(default=0)`), `modules/actions/service.py`.
+
+### Seguridad y criptografía
+
+#### C6: Bootstrap mTLS con CA propia
+**Decisión**:
+- El backend actúa como CA propia (self-hosted PKI).
+- El admin pre-registra un `agent_id` y un `bootstrap_secret` (32 bytes aleatorios) en la DB vía UI.
+- El agente envía al endpoint `POST /agents/bootstrap` un CSR firmado con el `bootstrap_secret` (HMAC) + el `agent_id`.
+- El backend verifica HMAC, firma el CSR, emite un certificado válido por **90 días** y lo retorna.
+- El agente persiste el certificado en `/var/lib/fim-agent/certs/`.
+- Rotación: 15 días antes de expirar, el agente inicia renovación presentando el cert actual (ya mTLS).
+- Revocación: tabla `revoked_certificates` en DB (serial, revoked_at, reason); backend verifica contra la lista en cada handshake.
+**Motivación**: Evitar secretos compartidos persistentes y permitir rotación automática.
+**Aplicación**: `modules/agents/bootstrap_router.py`, `core/pki.py`, middleware TLS del backend.
+
+#### C7: HMAC-SHA256 en comandos backend → agente
+**Decisión**: Cada comando publicado en el stream `commands` incluye un campo `signature` = `HMAC-SHA256(shared_secret, canonical_json(payload))`. El `shared_secret` se genera por agente al emitir su cert mTLS y se distribuye en el mismo payload de bootstrap (cifrado en tránsito por TLS). El agente rechaza comandos con signature inválida.
+**Motivación**: Defensa en profundidad contra inyección si alguien compromete Valkey pero no el certificado.
+**Aplicación**: `modules/agents/service.py` (publisher), agente (command handler).
+
+#### C8: Gestión de JWT
+**Decisión**:
+- Access token: exp 15 minutos.
+- Refresh token: exp 7 días con rotación en cada uso (el refresh anterior se invalida al emitir uno nuevo).
+- Blacklist de `jti` revocados en Valkey con TTL = exp restante del token.
+- Multi-key signing: variables `JWT_SECRET_CURRENT` y `JWT_SECRET_PREVIOUS`. Se firma con CURRENT, se verifica intentando primero CURRENT y luego PREVIOUS. Al rotar, se promueve CURRENT→PREVIOUS y se genera un nuevo CURRENT.
+**Motivación**: Permitir rotación de clave sin downtime y revocación inmediata de refresh tokens comprometidos.
+**Aplicación**: `core/security.py`, `modules/auth/service.py`.
+
+#### C9: Parámetros Argon2id
+**Decisión**: `PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)`. No se usan los defaults del paquete.
+**Motivación**: Alinearse con la recomendación OWASP 2026 y evitar variaciones entre versiones de `argon2-cffi`.
+**Aplicación**: `core/security.py` (instancia singleton de `PasswordHasher`).
+
+#### W10: Cifrado de baseline en disco
+**Decisión**: Los archivos dentro de `/var/lib/fim-agent/baseline/` se cifran con AES-256-GCM. La key se deriva con HKDF-SHA256 desde `HKDF(ikm=master_secret, salt=AGENT_ID, info="baseline-v1")`. El `master_secret` se entrega al agente en el payload de bootstrap y se persiste con permisos `0400` en `/var/lib/fim-agent/secrets/master_secret`.
+**Motivación**: Proteger el baseline contra lectura offline en caso de compromiso del volumen.
+**Aplicación**: Agente (módulo `storage/baseline_crypto.py`).
+
+### Resiliencia y degradación
+
+#### W2: Journal pre-acción
+**Decisión**: Antes de ejecutar `auto_restore` o `quarantine`, el agente escribe una entrada JSON en `/var/lib/fim-agent/journal/{event_id}.json` con `{event_id, path, action, started_at, state: "pending"}`. Al completar, se actualiza a `state: "completed"` o `state: "failed"` con detalles. Al arranque, el agente rehidrata el journal y reintenta o reporta acciones incompletas.
+**Motivación**: Asegurar consistencia si el agente muere mid-action.
+**Aplicación**: Agente (decision engine + recovery on startup).
+
+#### W3: Cola offline con límite y política
+**Decisión**: La cola `/var/lib/fim-agent/queue/` tiene un máximo de **100 MB**. Política drop-oldest al superar el límite. Si el uso supera el **80%**, el agente publica (al reconectar) un heartbeat con flag `queue_pressure: true` que la UI muestra como alerta banner.
+**Motivación**: Evitar agotar disco del anfitrión en escenarios de desconexión prolongada.
+**Aplicación**: Agente (`storage/queue.py`), backend (endpoint `/agents/status`), frontend (banner).
+
+#### W4: Orden al reconectar
+**Decisión**: Al restablecerse la conexión, el agente procesa **primero** los comandos pendientes del stream `commands` (en especial `baseline_update`/`rule_sync`/`update_config`) y **después** envía los eventos encolados. Esto garantiza que los eventos se persistan con el ruleset correcto.
+**Motivación**: Evitar que eventos offline se evalúen contra reglas desactualizadas al llegar al backend.
+**Aplicación**: Agente (reconnect state machine).
+
+#### W11: Retry de webhook n8n + DLQ
+**Decisión**: Los webhooks hacia n8n usan retry exponencial **3 intentos con delays 5 s / 30 s / 120 s**. Si fallan los 3, se persiste una fila en la tabla `failed_notifications(id, event_id, payload_json, last_error, failed_at, retry_count)`. La UI muestra un banner persistente mientras haya filas.
+**Motivación**: No perder alertas críticas si n8n está caído.
+**Aplicación**: `modules/notifications/n8n_client.py`, `modules/notifications/models.py`, frontend (`NotificationsBanner`).
+
+#### W12: Endpoint de salud por componente + UI
+**Decisión**: Endpoint `GET /health/components` retorna `{postgres: "ok"|"degraded"|"down", valkey: ..., n8n: ..., agents: [{id, state}]}`. El frontend hace polling cada **10 s** y muestra un banner persistente si algún componente no está `ok`. El mismo endpoint dispara webhook n8n ante cambios de estado.
+**Motivación**: Visibilidad operativa unificada.
+**Aplicación**: `modules/health/router.py`, frontend (`SystemBanner` en `MainLayout`).
+
+### Operaciones
+
+#### W5: Rate limiting
+**Decisión**:
+- Login: **5 intentos / 15 minutos** por `(username + IP)`. Key: `rl:login:{user}:{ip}`.
+- API autenticada default: **100 requests / minuto** por user.
+- Stream de eventos del agente: **100 eventos / minuto** por `agent_id` (en backend, tras consumir del stream; excedente se descarta con alerta).
+
+Implementado en Valkey con counters + TTL.
+**Motivación**: Mitigar abuso y DoS accidental.
+**Aplicación**: `core/rate_limit.py`, middleware FastAPI, consumer del agente.
+
+#### W6: Logging y retention
+**Decisión**: `structlog` con renderer JSON. Middleware `sanitize_logs` que filtra los campos `password`, `access_token`, `refresh_token`, `bootstrap_secret`, `master_secret`, `shared_secret`, `signature` antes de emitir. Retention de logs: **30 días**. **Prohibido loguear contenido de diffs** — solo `hash_before`, `hash_after`, `size_delta`.
+**Motivación**: Cumplimiento de buenas prácticas y reducción de superficie si los logs se filtran.
+**Aplicación**: `core/logging.py`, pipeline de logs (rotación vía systemd journal / Docker logging driver).
+
+#### W13: Timestamps dobles con anti-replay
+**Decisión**: Todo evento publicado por el agente incluye `detected_at: datetime` (agente) y el backend agrega `received_at: datetime` al consumirlo. Si `abs(received_at - detected_at) > 5 minutos`, el backend rechaza el evento con código `clock_skew` y lo persiste en `rejected_events_audit`.
+**Motivación**: Detectar relojes desincronizados o replay attacks.
+**Aplicación**: Agente (publisher), `modules/events/consumer.py`.
+
+#### W14: `schema_version` en mensajes
+**Decisión**: Todo mensaje en streams `events` y `commands` incluye `schema_version: int` (start en 1). El backend rechaza mensajes con `schema_version` mayor que el soportado (`UNSUPPORTED_SCHEMA`). El agente ignora campos desconocidos (forward compat). Se documenta cada bump en `docs/schema_changelog.md`.
+**Motivación**: Evolución controlada del protocolo entre versiones de agente y backend.
+**Aplicación**: Schemas Pydantic compartidos, agente (payload builder).
+
+#### W16: Heartbeat y estado de agente
+**Decisión**: El agente publica cada **10 segundos** al stream `agent_heartbeat` un mensaje `{agent_id, timestamp, queue_size, ruleset_version, queue_pressure, shutdown}`. Backend:
+- Sin heartbeat por **30 s** → estado `offline`.
+- Sin heartbeat por **5 minutos** → estado `dead` + alerta webhook n8n.
+**Motivación**: Detección temprana de agentes caídos.
+**Aplicación**: Agente (scheduler), `modules/agents/heartbeat_consumer.py`.
+
+#### W17: Graceful shutdown
+**Decisión**: Al recibir `SIGTERM`, el agente:
+1. Deja de aceptar nuevos eventos de fanotify.
+2. Drena la cola local publicando al stream (timeout 30 s).
+3. Exit 0.
+
+Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refleja estado `draining` en `/health/components` y la UI muestra indicador visual.
+**Motivación**: Evitar pérdida de eventos en rolling deployments o reinicios planificados.
+**Aplicación**: Agente (signal handler).
+
+#### W18: Tabla `audit_log` separada
+**Decisión**: Tabla dedicada `audit_log(id, timestamp, user_id, action, resource_type, resource_id, ip, user_agent, metadata_json)`. Registra login/logout, CRUD de reglas, approve/reject, re-scan, cambios de config. Retention ilimitada (no se rota con los logs estructurados).
+**Motivación**: Trazabilidad para auditorías de seguridad y cumplimiento normativo (Res. AAIP 47/2018 y 126/2024).
+**Aplicación**: `modules/audit/models.py` + `modules/audit/service.py` (called as side-effect en servicios sensibles).
+
+### Frontend
+
+#### W7: Headers HTTP
+**Decisión**: nginx del frontend emite:
+- `Content-Security-Policy`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://backend; frame-ancestors 'none'`
+- `Strict-Transport-Security`: `max-age=31536000; includeSubDomains`
+- `X-Frame-Options: DENY`
+- Validación de header `Origin` contra whitelist en backend.
+- Cookies con `SameSite=Strict`.
+**Motivación**: Mitigar XSS, clickjacking y CSRF.
+**Aplicación**: `frontend/nginx.conf`, backend CORS middleware.
+
+#### W8: DiffViewer seguro
+**Decisión**: Se adopta `react-diff-viewer-continued` con opciones de escapado activas. Queda **prohibido** el uso de `dangerouslySetInnerHTML` en todo el codebase (lint rule `react/no-danger`).
+**Motivación**: Prevenir XSS si un atacante inyecta contenido malicioso en un archivo monitoreado.
+**Aplicación**: `components/ui/DiffViewer.tsx`, `.eslintrc`.
+
+#### W9: Almacenamiento de tokens en cliente
+**Decisión**:
+- Access token: en memoria (Zustand store), nunca en `localStorage`/`sessionStorage`.
+- Refresh token: cookie `httpOnly` + `Secure` + `SameSite=Strict` + `Path=/auth/refresh`.
+**Motivación**: Resistir XSS (no accesible a JS) y CSRF (SameSite=Strict).
+**Aplicación**: `stores/auth.store.ts`, backend `modules/auth/router.py` (Set-Cookie en `/auth/login`).
+
+#### W15: Bulk actions + paginación
+**Decisión**:
+- La tabla de eventos soporta selección múltiple (checkbox por fila + "seleccionar todos en la página").
+- Botones "Aprobar seleccionados" y "Rechazar seleccionados" aparecen cuando hay ≥ 1 fila marcada.
+- Bulk approve: modal de confirmación con cuenta de eventos afectados y lista resumida (primeros 10 paths). Ejecuta `POST /actions/bulk-approve` con `event_ids[]`. Respuesta incluye `succeeded[]` y `failed[]` (con razón).
+- Bulk reject: adicionalmente pide la acción (`restore` | `quarantine`) que se aplica a todos.
+- Paginación: **50 eventos por página** por defecto, navegación numerada + "ir a página".
+**Motivación**: Tras un deploy masivo, aprobar uno por uno es impráctico. Paginación fija para previsibilidad de carga.
+**Aplicación**: `pages/Events.tsx`, `components/ui/BulkActionBar.tsx`, backend `modules/actions/router.py` (endpoints bulk).
+
+#### W1: Filtro default oculta `superseded`
+**Decisión**: La vista de Eventos filtra por defecto excluyendo estados `superseded`. Se agrega un toggle "Mostrar superseded" (checkbox) en el panel de filtros. Al activarlo, reaparecen en la lista con un ícono visual distintivo (cadena rota) y se indica el `parent_event_id`. El toggle se persiste en la URL (query param `?include_superseded=true`).
+**Motivación**: Los eventos superseded son ruido operacional; el admin los quiere solo para auditoría.
+**Aplicación**: `pages/Events.tsx` (filtro default), `components/ui/EventsTable.tsx`.
+
+#### W20: Seed admin con cambio de password forzado
+**Decisión**: El seed del primer admin crea el usuario con flag `must_change_password: bool = True`. En el primer `POST /auth/login` exitoso, el backend emite tokens con scope `password_change_only` y el frontend redirige a una vista donde el admin debe cambiar el password. Hasta que se complete el cambio (y el flag pase a `false`), ninguna otra API responde con éxito (devuelve 403 `password_change_required`).
+**Motivación**: Evitar que credenciales de bootstrap queden activas en producción.
+**Aplicación**: `modules/users/models.py` (campo `must_change_password`), `core/dependencies.py` (guard), frontend (`pages/ForcePasswordChange.tsx`).

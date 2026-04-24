@@ -508,3 +508,257 @@
 ---
 
 > **Nota:** Este documento refleja las decisiones de diseño tomadas para el MVP. Las reglas pueden evolucionar conforme avance la implementación. Todo cambio debe documentarse y trazarse a la decisión que lo motivó.
+
+---
+
+## Appendix: Decisiones de auditoría — Abril 2026
+
+Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, seguridad y resiliencia realizada el 2026-04-22. En caso de conflicto con reglas previas (RN-01 a RN-70), prevalece lo especificado en este appendix.
+
+### Léxico y nomenclatura
+
+#### C1 / RN-71: Léxico canónico en minúsculas
+**Descripción:** Los valores del campo `status` de eventos se escriben SIEMPRE en minúsculas: `pending`, `approved`, `rejected`, `superseded`, `auto_restored`, `quarantined`, `alert_only`.
+**Condición:** Siempre (persistencia, APIs, streams Valkey, logs, documentación técnica).
+**Resultado:** Cualquier valor que no cumpla este léxico es rechazado a nivel de schema/enum.
+**Excepciones:** Títulos markdown o énfasis de botón en UI pueden usar mayúsculas.
+
+---
+
+### Modelo de eventos y lifecycle
+
+#### C2 / RN-72: Máquina de estados canónica (in/out edges)
+**Descripción:** Las transiciones válidas están definidas por la siguiente tabla y cualquier transición no listada se rechaza.
+
+| Estado | In-edges permitidas | Out-edges permitidas |
+|--------|---------------------|----------------------|
+| `pending` | creación (action=`manual_review`) | `approved`, `rejected`, `superseded` |
+| `approved` | `pending` | terminal |
+| `rejected` | `pending` | terminal |
+| `superseded` | `pending` (por cadena o re-scan) | terminal |
+| `auto_restored` | creación (action=`auto_restore`) | terminal |
+| `quarantined` | creación (action=`quarantine`) | terminal |
+| `alert_only` | creación (action=`alert_only` o default) | terminal |
+
+**Condición:** Al intentar actualizar el `status` de un evento.
+**Resultado:** Transición válida -> aplica. Inválida -> HTTP 409 conflict.
+**Excepciones:** Ninguna.
+
+#### C3 / RN-73: Protocolo ACK Valkey end-to-end
+**Descripción:** El ack de un evento sigue un protocolo de 4 pasos que garantiza at-least-once y limpieza idempotente.
+**Condición:** Siempre que el agente publique un evento.
+**Resultado:** 1) Agente genera `event_id` UUID v4. 2) Backend consume con consumer group `fim-backend`. 3) Tras persistir en PostgreSQL ejecuta XACK + publica `event_ack` al stream `commands`. 4) Agente al recibir el ack elimina la entrada de `/agent/storage/queue/`.
+**Excepciones:** Si el agente no recibe ack en 60s, reintenta la publicación (deduplicado por `event_id` en backend).
+
+#### C10 / RN-74: Rechazo sobre baseline absent es no-op
+**Descripción:** Rechazar un evento cuyo baseline está en `status: absent` no envía comando al agente.
+**Condición:** Admin rechaza un evento y el baseline asociado tiene `status: absent`.
+**Resultado:** El evento pasa a `rejected`, se loguea warning, se retorna 200 con `baseline_absent: true`. NO se publica `restore_file` ni `quarantine_file`.
+**Excepciones:** Ninguna.
+
+#### C11 / RN-75: `ruleset_version` monotónico
+**Descripción:** Los comandos `baseline_update` y `rule_sync` incluyen un `ruleset_version: int` monotónico creciente generado por el backend.
+**Condición:** Al publicar comandos que afectan estado replicado del agente.
+**Resultado:** El agente persiste el último `ruleset_version` aplicado y descarta mensajes con versión menor. Garantiza ordering + idempotencia ante re-entregas.
+**Excepciones:** Ninguna.
+
+---
+
+### Arquitectura del sistema
+
+#### C4 / RN-76: Backend single-instance (no HA)
+**Descripción:** El backend corre como única instancia. El MVP no soporta réplicas múltiples.
+**Condición:** Siempre.
+**Resultado:** Optimistic locking, consumer groups, rate limiting y JWT blacklist se diseñan asumiendo una única instancia.
+**Excepciones:** Ninguna hasta decisión explícita de ampliación.
+
+#### C5 / RN-77: Optimistic locking sobre Event
+**Descripción:** Toda mutación de `status` en un evento `pending` usa una cláusula de versión optimista.
+**Condición:** Admin aprueba o rechaza; backend aplica `superseded` automático.
+**Resultado:** Columna `version: int` (default 0). El UPDATE incluye `WHERE id=X AND version=V AND status='pending'`. Si afecta 0 filas -> HTTP 409.
+**Excepciones:** Ninguna.
+
+---
+
+### Seguridad y criptografía
+
+#### C6 / RN-78: Bootstrap mTLS con CA propia
+**Descripción:** El backend actúa como CA. Los agentes se registran con un secret pre-compartido y reciben cert firmado.
+**Condición:** Primer arranque del agente.
+**Resultado:** Admin pre-registra `agent_id + bootstrap_secret`. Agente POSTea CSR+HMAC a `/agents/bootstrap`. Cert válido 90 días. Rotación automática 15 días antes de expirar. Revocación por lista en tabla `revoked_certificates`.
+**Excepciones:** Ninguna.
+
+#### C7 / RN-79: HMAC de comandos backend -> agente
+**Descripción:** Los comandos publicados en `commands` están firmados con HMAC-SHA256.
+**Condición:** Todo comando hacia el agente.
+**Resultado:** Campo `signature` = `HMAC-SHA256(shared_secret, canonical_json(payload))`. El `shared_secret` se entrega junto con el certificado mTLS. Comandos con signature inválida se descartan.
+**Excepciones:** Ninguna.
+
+#### C8 / RN-80: Gestión de JWT
+**Descripción:** JWT con access/refresh, rotación, blacklist y multi-key.
+**Condición:** Toda sesión de usuario.
+**Resultado:** Access token 15 minutos, refresh token 7 días con rotación en cada uso, blacklist de `jti` en Valkey con TTL, dos keys activas (`JWT_SECRET_CURRENT` + `JWT_SECRET_PREVIOUS`) para rotar sin downtime.
+**Excepciones:** Ninguna.
+
+#### C9 / RN-81: Parámetros Argon2id explícitos
+**Descripción:** Argon2id se configura con parámetros fijos, no defaults.
+**Condición:** Hashing y verificación de passwords.
+**Resultado:** `PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)`.
+**Excepciones:** Ninguna.
+
+#### W10 / RN-82: Baseline cifrado en disco
+**Descripción:** Los archivos del baseline del agente se cifran con AES-256-GCM.
+**Condición:** Escritura o lectura de `/agent/storage/baseline/`.
+**Resultado:** Key derivada con `HKDF(ikm=master_secret, salt=AGENT_ID, info="baseline-v1")`. `master_secret` entregado en bootstrap, persistido con permisos 0400.
+**Excepciones:** Ninguna.
+
+---
+
+### Resiliencia y degradación
+
+#### W2 / RN-83: Journal pre-acción
+**Descripción:** Acciones destructivas del agente (`auto_restore`, `quarantine`) se registran en journal antes de ejecutarse.
+**Condición:** Antes de modificar filesystem.
+**Resultado:** Se escribe `/agent/storage/journal/{event_id}.json` con `state: pending` antes de actuar, luego se actualiza a `completed` o `failed`. Al reiniciar, el agente rehidrata el journal y reintenta o reporta.
+**Excepciones:** Ninguna.
+
+#### W3 / RN-84: Límite y política de cola offline
+**Descripción:** La cola offline tiene límite de tamaño y política de descarte.
+**Condición:** El agente está offline y la cola crece.
+**Resultado:** Máximo **100 MB**. Política drop-oldest. Si el uso supera **80%**, el próximo heartbeat incluye flag `queue_pressure: true`.
+**Excepciones:** Ninguna.
+
+#### W4 / RN-85: Orden de procesamiento al reconectar
+**Descripción:** Al reconectar, el agente procesa primero comandos y luego envía eventos.
+**Condición:** Restablecimiento de conexión con Valkey.
+**Resultado:** 1) Consume y aplica todos los comandos pendientes (especialmente `baseline_update` y `rule_sync`). 2) Publica eventos de la cola local en FIFO.
+**Excepciones:** Ninguna.
+
+#### W11 / RN-86: Retry exponencial y DLQ de webhooks
+**Descripción:** Webhooks a N8N reintentan 3 veces con backoff y persisten en DLQ al fallar.
+**Condición:** El backend dispara una notificación a N8N.
+**Resultado:** Delays 5s / 30s / 120s. Si fallan los 3, se persiste en `failed_notifications(id, event_id, payload_json, last_error, failed_at, retry_count)`. UI muestra banner mientras haya filas.
+**Excepciones:** Ninguna.
+
+#### W12 / RN-87: Health check por componente
+**Descripción:** El backend expone un endpoint que reporta el estado de cada componente.
+**Condición:** Siempre.
+**Resultado:** `GET /health/components` retorna `{postgres, valkey, n8n, agents[]}` con estado `ok` | `degraded` | `down`. Frontend hace polling cada 10s y muestra banner. Cambios de estado disparan webhook N8N.
+**Excepciones:** Ninguna.
+
+---
+
+### Operaciones
+
+#### W5 / RN-88: Rate limiting
+**Descripción:** Rate limiting aplicado a endpoints sensibles y publicación de eventos.
+**Condición:** Cada request entrante o evento publicado por agente.
+**Resultado:**
+- Login: 5 intentos / 15 min por `(user + IP)`.
+- API autenticada: 100 req/min por user.
+- Eventos de agente: 100 eventos/min por `agent_id`.
+
+Implementado con counters+TTL en Valkey. Excedentes retornan 429 (API) o se descartan con alerta (eventos).
+**Excepciones:** Ninguna.
+
+#### W6 / RN-89: Logging estructurado con sanitización
+**Descripción:** Todos los logs son JSON estructurado con sanitización de secretos.
+**Condición:** Cualquier emisión de log.
+**Resultado:** Middleware `sanitize_logs` filtra `password`, `access_token`, `refresh_token`, `bootstrap_secret`, `master_secret`, `signature`. Retention 30 días. **Prohibido loguear contenido de diffs** — solo `hash_before`, `hash_after`, `size_delta`.
+**Excepciones:** Ninguna.
+
+#### W13 / RN-90: Timestamps dobles y rechazo por skew
+**Descripción:** Los eventos llevan dos timestamps y se rechazan si hay desfase excesivo.
+**Condición:** Consumo de evento por el backend.
+**Resultado:** Evento incluye `detected_at` (agente). Backend agrega `received_at`. Si `abs(received_at - detected_at) > 5 min`, se rechaza con código `clock_skew` y se persiste en `rejected_events_audit`.
+**Excepciones:** Ninguna.
+
+#### W14 / RN-91: `schema_version` en payloads
+**Descripción:** Todo mensaje en streams incluye `schema_version`.
+**Condición:** Publicación o consumo de mensaje en `events`/`commands`.
+**Resultado:** Receptor rechaza `schema_version` mayor que el soportado. Receptor ignora campos desconocidos (forward compat). Bumps se documentan en `docs/schema_changelog.md`.
+**Excepciones:** Ninguna.
+
+#### W16 / RN-92: Heartbeat y transiciones de estado de agente
+**Descripción:** El estado del agente se infiere de heartbeats periódicos.
+**Condición:** Siempre.
+**Resultado:** Agente publica a stream `agent_heartbeat` cada **10s** con `{agent_id, timestamp, queue_size, ruleset_version}`. Sin heartbeat 30s -> `offline`. Sin heartbeat 5 min -> `dead` + webhook N8N.
+**Excepciones:** Durante shutdown graceful el agente publica con `shutdown: true` (estado `draining`).
+
+#### W17 / RN-93: Graceful shutdown del agente
+**Descripción:** El agente drena su cola al recibir SIGTERM antes de salir.
+**Condición:** Recepción de SIGTERM.
+**Resultado:** Deja de aceptar nuevos eventos, drena la cola local al stream (timeout 30s), exit 0. Durante el drenaje reporta estado `draining`; el `/health/components` devuelve 503 para ese agente.
+**Excepciones:** Si el drenaje supera timeout, exit 0 con eventos remanentes en disco (rehidratados en próximo arranque).
+
+#### W18 / RN-94: Tabla `audit_log` dedicada
+**Descripción:** Todas las acciones administrativas relevantes se registran en una tabla de auditoría separada de los logs.
+**Condición:** Login/logout, CRUD de reglas, approve/reject, re-scan, cambios de config.
+**Resultado:** Tabla `audit_log(id, timestamp, user_id, action, resource_type, resource_id, ip, user_agent, metadata_json)`. Retention ilimitada (no rota con logs estructurados).
+**Excepciones:** Ninguna.
+
+---
+
+### Frontend
+
+#### W7 / RN-95: Headers HTTP de seguridad
+**Descripción:** nginx del frontend emite un conjunto estricto de headers y el backend valida origen.
+**Condición:** Toda respuesta HTTP del frontend y toda request al backend.
+**Resultado:** CSP estricto (`default-src 'self'`, etc.), `Strict-Transport-Security` 1 año con subdominios, `X-Frame-Options: DENY`, cookies `SameSite=Strict`, backend valida `Origin` contra whitelist.
+**Excepciones:** Ninguna.
+
+#### W8 / RN-96: DiffViewer con escapado
+**Descripción:** Solo se permite render de diffs mediante componente con escapado automático.
+**Condición:** Render de contenido de archivo.
+**Resultado:** Se usa `react-diff-viewer-continued` con escapado activo. **Prohibido** `dangerouslySetInnerHTML` (lint rule `react/no-danger`).
+**Excepciones:** Ninguna.
+
+#### W9 / RN-97: Almacenamiento de tokens en cliente
+**Descripción:** Access y refresh tokens se almacenan por separado con distintos requisitos.
+**Condición:** Toda sesión de admin.
+**Resultado:** Access token solo en memoria (Zustand). Refresh token en cookie `httpOnly + Secure + SameSite=Strict + Path=/auth/refresh`. Nunca `localStorage`/`sessionStorage`.
+**Excepciones:** Ninguna.
+
+---
+
+### UX y features
+
+#### W1 / RN-98: Filtro default oculta superseded + retention
+**Descripción:** La UI oculta `superseded` por defecto y los eventos tienen retention operativa.
+**Condición:** Vista operativa de Eventos.
+**Resultado:** Filtro default excluye `superseded`. Toggle explícito para incluirlos. **Máximo 10 eventos en una cadena** (por path); al intentar crear el 11 se compacta eliminando los `superseded` más antiguos. **Retention 30 días** para eventos en estados terminales (salvo auditoría activa).
+**Excepciones:** Eventos referenciados desde `audit_log` no se eliminan.
+
+#### W15 / RN-99: Bulk approve/reject y paginación
+**Descripción:** Operaciones masivas y paginación fija.
+**Condición:** Vista de Eventos.
+**Resultado:** Selección múltiple + endpoints `POST /actions/bulk-approve` y `POST /actions/bulk-reject` con `event_ids[]`. Respuesta con `succeeded[]` y `failed[]`. Paginación **50 eventos/página** por defecto.
+**Excepciones:** Ninguna.
+
+#### W20 / RN-100: Seed admin con cambio forzado
+**Descripción:** El primer admin debe cambiar su password antes de operar.
+**Condición:** Primer login del usuario seed.
+**Resultado:** Flag `must_change_password: bool = True` al crear el seed. Tokens emitidos con scope `password_change_only` hasta completar el cambio. Cualquier endpoint responde 403 `password_change_required` mientras el flag sea true. Requerimientos del nuevo password: >= 12 chars, al menos 1 mayúscula, 1 minúscula, 1 número.
+**Excepciones:** Ninguna.
+
+---
+
+## 16. Observabilidad y degradación (Dominio nuevo)
+
+### RN-101: Polling de health desde frontend
+**Descripción:** El frontend refresca el estado de salud del sistema periódicamente.
+**Condición:** Sesión activa del admin.
+**Resultado:** `GET /health/components` cada 10 segundos. Banner rojo persistente si cualquier componente != `ok`.
+**Excepciones:** Ninguna.
+
+### RN-102: Visibilidad de DLQ de notificaciones
+**Descripción:** El admin siempre puede ver y actuar sobre notificaciones que fallaron.
+**Condición:** Existen filas en `failed_notifications`.
+**Resultado:** Banner amarillo persistente. Vista `/notifications/failed` permite reintentar (individual o bulk) o descartar. Banner desaparece cuando la tabla queda vacía.
+**Excepciones:** Ninguna.
+
+### RN-103: Degradación no bloquea UI
+**Descripción:** Los banners de degradación no impiden operar la UI.
+**Condición:** Cualquier banner de degradación activo.
+**Resultado:** El banner es informativo, cerrable hasta el próximo poll, y no bloquea acciones (salvo las que dependen directamente del componente caído).
+**Excepciones:** Si `postgres` está `down`, el backend retorna 503 a la mayoría de endpoints — la UI refleja esto con mensajes inline.
