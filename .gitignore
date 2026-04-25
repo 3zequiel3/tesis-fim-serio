@@ -10,9 +10,12 @@ backend/htmlcov/
 backend/.vscode/
 .agent
 .opencode
-.claude
 .vscode
 .agents
+
+# Claude Code: configuración compartida (.claude/settings.json, agents/,
+# commands/, skills/) SÍ se versiona. settings.local.json es per-user.
+.claude/settings.local.json
 
 # Cache
 **/__pycache__/
@@ -21,10 +24,5 @@ backend/.vscode/
 **/*.pyd
 **/*.so
 *.egg-info/
-openspec/*claude --agent sdd-orchestrator
 
-openspec
-./openspec
-CHANGES.md
 skills-lock.json
-CLAUDE.md

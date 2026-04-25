@@ -1,0 +1,43 @@
+schema: spec-driven
+
+context: |
+  FIM Platform — File Integrity Monitoring para Linux (tesis de grado).
+
+  Stack:
+  - Backend: Python 3.13 + FastAPI 0.136 + SQLModel + PostgreSQL 18.3 + Valkey 9.0.3
+  - Agente: Python + pyfanotify 0.3.0 + systemd (CAP_SYS_ADMIN)
+  - Frontend: Vite + React 19 + TypeScript + Tailwind v4 (sin tailwind.config.js)
+  - Notificaciones: n8n 2.16.1
+  - Deployment: Docker Compose (backend single-instance, RN-76)
+
+  Documentación canónica en docs/ (4 archivos: arquitectura_stack, flujo_de_usuario, historias_de_usuario, reglas_de_negocio).
+  Roadmap de implementación en CHANGES.md (20 changes en 4 hitos M1-M4).
+
+  Decisiones cerradas (Abril 2026) en los appendices "Decisiones de auditoría" y "Decisiones de implementación" de los docs canónicos. Estos appendices PREVALECEN sobre contenido previo en caso de conflicto.
+
+  Convenciones:
+  - Conventional commits, sin Co-Authored-By
+  - Léxico canónico de eventos en minúsculas snake_case (RN-71)
+  - Backend: backend/app/{core,modules}/
+  - Agente: NO servidor HTTP, solo Valkey Streams (RN-108, D8)
+  - Cross-cutting (logging, rate limit, trace_id) viaja con primer feature que lo necesita (D7)
+
+rules:
+  proposal:
+    - Cada proposal corresponde 1:1 a un change del CHANGES.md (mismo ID kebab-case)
+    - Listar reglas RN-XX cubiertas y decisiones D-X aplicadas
+    - Validar que las dependencias del DAG están satisfechas antes de proponer
+    - Si surge una suposición no cerrada, detener y documentarla en el appendix "Decisiones de implementación" antes de continuar
+  spec:
+    - Mantener léxico canónico de RN-71 (minúsculas snake_case) en todos los identifiers, enums, schemas y JSON
+    - Schemas SQLModel deben usar enums tipados (no str libre) para campos con dominio cerrado
+    - Referenciar reglas RN-XX cubiertas en cada requirement
+  design:
+    - Backend single-instance (RN-76) — no diseñar para HA multi-réplica
+    - Backend ↔ agente solo vía Valkey Streams asincrónicos (D8: NO HTTP en agente)
+    - Optimistic locking sobre Event con columna version (C5)
+    - Comandos al agente llevan target_agent_id (D5)
+  tasks:
+    - Granularidad: máximo 4 horas por task
+    - Cada task referenciable a una capacidad listada en el change correspondiente del CHANGES.md
+    - Tasks de cross-cutting van con el feature que primero lo necesita (D7)
