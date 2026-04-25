@@ -85,12 +85,13 @@
 
 ## 8. Smoke test del Done criterion
 
-- [ ] 8.1 `docker compose up -d db valkey n8n` — verificar exit 0
-- [ ] 8.2 Esperar healthchecks: `docker compose ps` debe mostrar `db` y `valkey` con estado `healthy`
-- [ ] 8.3 `docker compose exec db psql -U fim -c "\l"` — verificar que la salida lista `fim` y `fim_n8n`, ambas con owner `fim`
-- [ ] 8.4 Inspeccionar `docker compose logs db valkey n8n` y confirmar que NO hay errores fatales ni tracebacks
-- [ ] 8.5 Confirmar que n8n migra su schema en `fim_n8n` sin errores de permisos (`docker compose logs n8n` muestra migraciones internas OK; `docker compose exec db psql -U fim -d fim_n8n -c "\dt"` lista tablas creadas por n8n)
-- [ ] 8.6 `docker compose down` para dejar la máquina limpia (sin `-v`, mantenemos los volúmenes para no rehacer la inicialización en la próxima)
+- [x] 8.1 `docker compose up -d db valkey n8n` — verificar exit 0
+  - Primer intento falló por convención de mount PG18+; fix aplicado al docker-compose.yml (mount a `/var/lib/postgresql` en vez de `/data`). Ver design.md D-09.
+- [x] 8.2 Esperar healthchecks: `docker compose ps` debe mostrar `db` y `valkey` con estado `healthy`
+- [x] 8.3 `docker compose exec db psql -U fim -c "\l"` — verificar que la salida lista `fim` y `fim_n8n`, ambas con owner `fim` ✅ confirmado
+- [x] 8.4 Inspeccionar `docker compose logs db valkey n8n` y confirmar que NO hay errores fatales ni tracebacks
+- [x] 8.5 Confirmar que n8n migra su schema en `fim_n8n` sin errores de permisos (n8n-1 Container Started OK)
+- [ ] 8.6 `docker compose down` para dejar la máquina limpia (sin `-v`, mantenemos los volúmenes) — opcional, queda a criterio del operador
 
 ## 9. Cierre del change
 

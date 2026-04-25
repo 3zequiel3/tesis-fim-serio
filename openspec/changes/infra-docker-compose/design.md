@@ -114,9 +114,11 @@ Cada variable en `.env.example` lleva un comentario sobre qué hace, qué format
 ### D-09: Volúmenes — `pg_data`, `n8n_data`, `backend_certs`
 
 Tres volúmenes nombrados:
-- `pg_data` → `/var/lib/postgresql/data` en `db`. Persistencia de la base.
+- `pg_data` → **`/var/lib/postgresql`** en `db` (NO `/data`, ver nota PG18 abajo). Persistencia de la base.
 - `n8n_data` → `/home/node/.n8n` en `n8n`. Persistencia de credentials/workflows de n8n.
 - `backend_certs` → `/certs` en `backend` (cuando exista). Hoy el volumen se declara pero no se usa.
+
+**Nota crítica — PostgreSQL 18+ cambió la convención del mount point**: hasta PG 17 incluido, la convención canónica era montar el volumen a `/var/lib/postgresql/data`. A partir de la imagen `postgres:18`, el mount va al directorio padre `/var/lib/postgresql` y la imagen guarda los datos en un subdirectorio versionado del estilo `/var/lib/postgresql/18/docker/`. Esto se hace para ser compatible con `pg_ctlcluster` y permitir `pg_upgrade --link` sin cruzar mount boundaries cuando se migra entre majors. Si se monta a `/var/lib/postgresql/data` (la convención vieja), el contenedor detecta ese path como "unused mount/volume" y **se rehúsa a iniciar**. Detectado en el primer smoke test de este change. Referencia: [docker-library/postgres#37](https://github.com/docker-library/postgres/issues/37) y [docker-library/postgres#1259](https://github.com/docker-library/postgres/pull/1259).
 
 `db/init/` se monta como **bind mount read-only** (`./db/init:/docker-entrypoint-initdb.d:ro`), no como volumen nombrado, porque es código versionado en el repo.
 
@@ -158,7 +160,7 @@ No hay migración: es la primera infra del proyecto, repo limpio.
 1. `docker compose down -v` (destruye volúmenes y red).
 2. `git revert` del commit del change.
 
-**Re-correrlo**: borrar `pg_data` (`docker volume rm <proyecto>_pg_data`) y volver a hacer `docker compose up -d db`. Las bases se recrean desde el script.
+**Re-correrlo**: borrar `pg_data` (`docker volume rm <proyecto>_pg_data`) y volver a hacer `docker compose up -d db`. Las bases se recrean desde el script. Nota: con la convención PG18+ el volumen monta a `/var/lib/postgresql`, no a `/data`.
 
 ## Open Questions
 

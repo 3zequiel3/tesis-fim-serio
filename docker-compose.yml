@@ -38,7 +38,13 @@ services:
       POSTGRES_USER: fim
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      # postgres:18+ cambió la convención: el mount va a /var/lib/postgresql
+      # (NO a /var/lib/postgresql/data). La imagen guarda los datos en un
+      # subdirectorio versionado /var/lib/postgresql/<major>/docker/ para
+      # ser compatible con pg_ctlcluster y pg_upgrade --link entre majors.
+      # Si se montara a /data como en <=17, el container detecta el mount
+      # viejo como "unused" y se rehúsa a arrancar. Ver docker-library/postgres#37.
+      - pg_data:/var/lib/postgresql
       - ./db/init:/docker-entrypoint-initdb.d:ro
     networks:
       - fim_internal
