@@ -1,5 +1,8 @@
 # Reglas de Negocio — Plataforma FIM
 
+> Última actualización: 23 de abril de 2026
+> Estado: Documentación de diseño detallado — sin implementación. La construcción del código y la ejecución del protocolo experimental se proyectan para la fase inmediata siguiente y se entregarán en una adenda formal.
+>
 > Documento canónico de reglas de negocio del sistema de File Integrity Monitoring.
 > Cada regla es verificable, no ambigua, y trazable a decisiones de diseño documentadas.
 
@@ -24,22 +27,25 @@
 | 13 | [Sincronización](#13-sincronización) | RN-55 a RN-59 |
 | 14 | [Seguridad avanzada](#14-seguridad-avanzada) | RN-60 a RN-67 |
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
+| Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
+| 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-108 |
 
 ---
 
 ## 1. Detección y monitoreo
 
 ### RN-01: Detección de cambios en tiempo real
-**Descripción:** El agente detecta cambios en el filesystem mediante watchdog (inotify en Linux).
-**Condición:** El agente está en ejecución y monitoreando los paths configurados.
-**Resultado:** Se genera un evento de cambio con metadata (path, tipo de operación, timestamp, hash).
-**Excepciones:** Los paths excluidos por configuración no generan eventos.
+**Descripción:** El agente detecta cambios en el filesystem mediante `pyfanotify` sobre el subsistema `fanotify` del núcleo Linux (kernel ≥ 5.1).
+**Condición:** El agente está en ejecución como servicio nativo de `systemd` y monitoreando los paths configurados.
+**Resultado:** Se genera un evento de cambio con metadata: path, tipo de operación, timestamp del agente (`detected_at`), hash SHA-256 del contenido, **y contexto del proceso causante** (PID, UID, path del ejecutable).
+**Excepciones:** Los paths excluidos por configuración no generan eventos. Los directorios del propio agente (`/var/lib/fim-agent/**`) deben estar excluidos para evitar recursión.
 
 ### RN-02: Limitación de captura pre-escritura
-**Descripción:** El sistema NO puede capturar el estado de un archivo antes de que se escriba un cambio.
-**Condición:** Siempre. Es una limitación técnica de inotify.
-**Resultado:** Solo se detecta el cambio posterior a la escritura. El estado previo se obtiene del baseline almacenado.
-**Excepciones:** Ninguna.
+**Descripción:** En el modo de operación adoptado (notificación pura), `fanotify` notifica *después* de que la escritura se persiste en el filesystem.
+**Condición:** Siempre. `fanotify` ofrece modos de permisos que permiten inspeccionar antes de la escritura, pero esos modos no se utilizan en el MVP por su impacto en rendimiento.
+**Resultado:** Solo se detecta el cambio posterior a la escritura. El estado previo se obtiene del baseline cifrado almacenado por el agente.
+**Excepciones:** Ninguna en el MVP. La protección pre-escritura queda en trabajo futuro mediante integración con IMA y dm-verity.
 
 ### RN-03: Diferencias solo para archivos de texto
 **Descripción:** El cálculo de diffs (diferencias línea a línea) solo se realiza para archivos de texto.
@@ -49,8 +55,8 @@
 
 ### RN-04: Monitoreo basado en paths configurados
 **Descripción:** El agente monitorea únicamente los directorios y archivos definidos en su configuración.
-**Condición:** Al iniciar el agente o al recibir una actualización de configuración.
-**Resultado:** Solo los paths incluidos en la configuración generan eventos. Todo lo demás se ignora.
+**Condición:** Al iniciar el agente o al recibir un comando `update_config` con la lista actualizada de paths.
+**Resultado:** Solo los paths incluidos en la configuración generan eventos. Todo lo demás se ignora. El agente reconfigura los watchers de `fanotify` en caliente sin reiniciar el proceso.
 **Excepciones:** Ninguna.
 
 ---
@@ -66,7 +72,7 @@
 ### RN-06: Acción default — alert_only
 **Descripción:** Si ninguna regla definida coincide con el path del archivo modificado, la acción por defecto es `alert_only`.
 **Condición:** No existe regla cuyo pattern coincida con el path del evento.
-**Resultado:** El evento se registra para auditoría sin ninguna acción automática.
+**Resultado:** El evento se registra para auditoría sin ninguna acción automática sobre el filesystem.
 **Excepciones:** Ninguna.
 
 ### RN-07: Tipos de acción válidos
@@ -78,13 +84,13 @@
 ### RN-08: Estructura de una regla
 **Descripción:** Cada regla tiene tres componentes obligatorios: pattern, severity y action.
 **Condición:** Al crear o actualizar una regla en el backend.
-**Resultado:** `pattern` es un glob que define qué paths afecta, `severity` es uno de `critical | high | medium | low`, `action` es uno de los 4 tipos válidos (RN-07).
+**Resultado:** `pattern` es un glob que define qué paths afecta (con soporte de negación `!`), `severity` es uno de `critical | high | medium | low`, `action` es uno de los 4 tipos válidos (RN-07).
 **Excepciones:** Ninguna.
 
 ### RN-09: Las reglas se definen en el backend
 **Descripción:** La definición y gestión de reglas es responsabilidad exclusiva del backend.
 **Condición:** Siempre.
-**Resultado:** El agente recibe las reglas via sincronización (Valkey) y las cachea localmente. El agente nunca crea ni modifica reglas.
+**Resultado:** El agente recibe las reglas vía sincronización (Valkey Streams, comando firmado HMAC con `ruleset_version` monotónico — ver RN-75 y RN-79) y las cachea localmente. El agente nunca crea ni modifica reglas.
 **Excepciones:** Ninguna.
 
 ---
@@ -107,7 +113,7 @@
 **Descripción:** Un evento en estado `pending` puede transicionar a un subconjunto definido de estados.
 **Condición:** El evento está en estado `pending`.
 **Resultado:** Transiciones válidas: `pending → approved`, `pending → rejected`, `pending → superseded`.
-**Excepciones:** Ninguna otra transición desde `pending` es válida.
+**Excepciones:** Ninguna otra transición desde `pending` es válida. (Ver RN-72 para máquina de estados completa.)
 
 ### RN-13: Asignación automática de estado por acción
 **Descripción:** Cuando el motor de decisión ejecuta una acción automática, el evento se crea directamente en su estado terminal.
@@ -127,38 +133,38 @@
 
 ### RN-15: Inicialización automática del baseline
 **Descripción:** El baseline se inicializa automáticamente en la primera ejecución del agente.
-**Condición:** El agente arranca por primera vez (o no existe baseline previo).
-**Resultado:** Se realiza un escaneo completo de todos los paths monitoreados, registrando hash y metadata de cada archivo. Este conjunto constituye el baseline inicial.
+**Condición:** El agente arranca por primera vez (o no existe baseline previo para un path agregado en runtime).
+**Resultado:** Se realiza un escaneo completo de todos los paths monitoreados, registrando hash SHA-256 y metadata de cada archivo. El contenido completo se cifra con AES-256-GCM (ver RN-82). Este conjunto constituye el baseline inicial.
 **Excepciones:** Ninguna.
 
 ### RN-16: Actualización del baseline solo por aprobación
-**Descripción:** El baseline se actualiza ÚNICAMENTE cuando un administrador aprueba un cambio.
-**Condición:** Un admin ejecuta la acción de aprobación sobre un evento `pending`.
+**Descripción:** El baseline se actualiza ÚNICAMENTE cuando un administrador aprueba un cambio o cuando se ejecuta un re-scan explícito.
+**Condición:** Un admin ejecuta la acción de aprobación sobre un evento `pending`, o dispara un re-scan (RN-18).
 **Resultado:** Se hashea el archivo en su estado ACTUAL (no el hash del evento) y se registra como nuevo baseline para ese path.
 **Excepciones:** Ninguna. Las acciones `auto_restore`, `quarantine`, `reject` y `alert_only` NO actualizan el baseline.
 
 ### RN-17: Hash del archivo actual al aprobar
 **Descripción:** Al aprobar un cambio, el baseline se actualiza con el hash del archivo tal como está en el momento de la aprobación, no con el hash registrado en el evento.
 **Condición:** Admin aprueba un evento.
-**Resultado:** Se lee el archivo del disco, se calcula su hash actual, y ese hash se registra como baseline.
+**Resultado:** El backend consulta al agente el hash actual del archivo, lo registra como baseline, y publica el `baseline_update` firmado con HMAC y `ruleset_version++` (ver RN-75, RN-79). El agente actualiza su baseline local re-cifrado con AES-256-GCM (RN-82).
 **Excepciones:** Si el archivo no existe al momento de la aprobación (fue eliminado entre detección y aprobación), el frontend muestra un warning y el admin puede aprobar la ausencia como nuevo estado válido del baseline (ver RN-60).
 
 ### RN-18: Re-scan manual
-**Descripción:** El frontend permite iniciar un re-scan manual del baseline completo.
+**Descripción:** El frontend permite iniciar un re-scan manual del baseline para paths seleccionados.
 **Condición:** El admin solicita un re-scan desde la interfaz (caso de uso: post-deploy masivo).
-**Resultado:** Antes de ejecutar, el frontend muestra un warning listando los eventos `pending` que serán marcados como `superseded` para los paths seleccionados. El admin debe confirmar. Al confirmar, los eventos pending se marcan como `superseded` y el backend envía un comando `rescan_baseline` al agente via Valkey.
+**Resultado:** Antes de ejecutar, el frontend muestra un warning listando los eventos `pending` que serán marcados como `superseded` para los paths seleccionados. El admin debe confirmar. Al confirmar, los eventos pending se marcan como `superseded` y el backend envía un comando `rescan_baseline` firmado con HMAC al agente vía Valkey, con `ruleset_version++`.
 **Excepciones:** Si el admin cancela la confirmación, el re-scan no se ejecuta.
 
-### RN-19: Protección del baseline con HMAC
-**Descripción:** El baseline almacenado localmente está protegido mediante HMAC para detectar manipulación.
+### RN-19: Protección del baseline mediante cifrado autenticado
+**Descripción:** El baseline almacenado localmente se protege mediante cifrado autenticado AES-256-GCM, que provee tanto confidencialidad como integridad.
 **Condición:** Siempre que se lee o escribe el baseline local.
-**Resultado:** Al escribir, se firma con HMAC. Al leer, se verifica la firma. Si la verificación falla, se reporta un incidente de integridad.
-**Excepciones:** Ninguna.
+**Resultado:** Al escribir, el archivo se cifra con AES-256-GCM (la etiqueta GCM autentica el contenido). Al leer, el descifrado verifica automáticamente la autenticidad: si el archivo cifrado fue alterado, el descifrado falla y se reporta un incidente de integridad.
+**Excepciones:** Ninguna. Esta regla reemplaza al uso de HMAC sobre baseline en plaintext: AES-GCM provee la garantía de integridad de forma integrada al cifrado, sin necesidad de un mecanismo HMAC separado. Ver RN-82 para detalles del esquema de derivación de clave.
 
 ### RN-20: Permisos restringidos del baseline
 **Descripción:** Los archivos de baseline tienen permisos restringidos en el filesystem.
 **Condición:** Siempre.
-**Resultado:** Solo el usuario del agente (o root) tiene acceso de lectura/escritura al directorio de baseline.
+**Resultado:** Archivos cifrados del baseline en `/var/lib/fim-agent/baseline/` con permisos `0600`, owner `fim-agent`. El `master_secret` para derivación de clave en `/var/lib/fim-agent/secrets/master_secret` con permisos `0400`. Los directorios del agente quedan excluidos del propio FIM mediante un patrón `!/var/lib/fim-agent/**` obligatorio.
 **Excepciones:** Ninguna.
 
 ---
@@ -174,7 +180,7 @@
 ### RN-22: Solo el último evento de la cadena es accionable
 **Descripción:** En una cadena de eventos, solo el evento más reciente es visible para decisión del admin.
 **Condición:** Existe una cadena de eventos para un mismo path.
-**Resultado:** Los eventos `superseded` permanecen como historial de auditoría. Solo el último evento (no superseded) aparece como accionable en la interfaz.
+**Resultado:** Los eventos `superseded` permanecen como historial de auditoría. Solo el último evento (no superseded) aparece como accionable en la interfaz. Por defecto los `superseded` están ocultos en la vista (ver RN-98).
 **Excepciones:** Ninguna.
 
 ### RN-23: Vinculación mediante parent_event_id
@@ -196,19 +202,19 @@
 ### RN-25: Flujo de aprobación
 **Descripción:** Al aprobar un evento, el backend actualiza el baseline con el hash actual del archivo y sincroniza al agente.
 **Condición:** Admin aprueba un evento en estado `pending`.
-**Resultado:** 1) Se hashea el archivo ACTUAL en disco, 2) se genera nuevo registro de baseline, 3) se sincroniza al agente via Valkey con comando `baseline_update`, 4) el evento transiciona a `approved`.
-**Excepciones:** Si el archivo ya no existe, el sistema muestra warning al admin. Si confirma, el baseline registra el path como "absent" (hash: null). Ver RN-60.
+**Resultado:** 1) Se aplica UPDATE optimista (ver RN-77); 2) se hashea el archivo ACTUAL en disco (consultado al agente); 3) se genera nuevo registro de baseline; 4) se publica comando `baseline_update` firmado con HMAC y `ruleset_version++` al stream `commands` de Valkey; 5) el agente verifica firma, verifica versión, actualiza baseline local re-cifrado con AES-GCM y confirma vía `event_ack`; 6) el evento transiciona a `approved`; 7) la operación se registra en `audit_log` (RN-94).
+**Excepciones:** Si el UPDATE optimista afecta 0 filas, se retorna HTTP 409 (ver RN-77). Si el archivo ya no existe, el sistema muestra warning al admin y el baseline puede registrar el path como `absent` (ver RN-60).
 
 ### RN-26: Flujo de rechazo
 **Descripción:** Al rechazar un evento, el admin elige entre restaurar o poner en cuarentena.
 **Condición:** Admin rechaza un evento en estado `pending`.
-**Resultado:** 1) El evento transiciona a `rejected`, 2) el backend envía al agente via Valkey el comando correspondiente (`restore_file` o `quarantine_file`), 3) el baseline NO se actualiza.
-**Excepciones:** Ninguna.
+**Resultado:** 1) Se aplica UPDATE optimista (RN-77); 2) el evento transiciona a `rejected`; 3) el backend publica el comando correspondiente (`restore_file` o `quarantine_file`) firmado con HMAC y `ruleset_version++`; 4) el agente escribe journal pre-acción (RN-83), ejecuta la acción y actualiza el journal; 5) el baseline NO se actualiza; 6) la operación se registra en `audit_log` (RN-94).
+**Excepciones:** Si el baseline está en `status: absent`, no se publica comando al agente (ver RN-74).
 
 ### RN-27: Rechazo no actualiza baseline
 **Descripción:** El rechazo de un evento nunca modifica el baseline existente.
 **Condición:** Admin rechaza un evento.
-**Resultado:** El baseline permanece intacto. El objetivo es que el archivo vuelva a su estado original (via restauración o cuarentena).
+**Resultado:** El baseline permanece intacto. El objetivo es que el archivo vuelva a su estado original (vía restauración o cuarentena).
 **Excepciones:** Ninguna.
 
 ### RN-28: Restauración ≠ Aprobación
@@ -221,28 +227,28 @@
 **Descripción:** La aprobación y el rechazo de eventos son acciones exclusivas del rol admin.
 **Condición:** Un usuario intenta aprobar o rechazar un evento.
 **Resultado:** Solo usuarios autenticados con rol admin pueden ejecutar estas acciones.
-**Excepciones:** Ninguna. No existe otro rol en el sistema.
+**Excepciones:** Ninguna. No existe otro rol en el sistema (ver RN-44).
 
 ---
 
 ## 7. Restauración automática
 
-### RN-30: Restauración automática solo para severity critical
-**Descripción:** La acción `auto_restore` se ejecuta exclusivamente cuando la regla matcheada tiene severity `critical`.
-**Condición:** Se detecta un cambio, la regla matcheada tiene `action: auto_restore` y `severity: critical`.
-**Resultado:** El agente restaura el archivo desde el baseline (copia completa del archivo sano).
-**Excepciones:** Si no hay baseline para el archivo (primera detección), no se puede restaurar.
+### RN-30: Restauración automática por configuración de regla
+**Descripción:** La acción `auto_restore` se ejecuta cuando la regla matcheada tiene esa acción configurada explícitamente, independientemente de la severidad.
+**Condición:** Se detecta un cambio y la regla matcheada tiene `action: auto_restore`.
+**Resultado:** El agente restaura el archivo desde el baseline (descifrando con AES-GCM). El uso típico — pero no exclusivo — es para reglas con `severity: critical`.
+**Excepciones:** Si no existe baseline para el archivo (primera detección sin baseline previo), no se puede restaurar; se reporta error.
 
 ### RN-31: Restauración desde baseline completo
-**Descripción:** La restauración automática utiliza la copia completa del archivo baseline, no un diff.
+**Descripción:** La restauración automática utiliza la copia completa del archivo desde el baseline cifrado, no un diff.
 **Condición:** Se ejecuta una acción `auto_restore`.
-**Resultado:** El archivo en disco se reemplaza completamente por la copia almacenada en el baseline.
+**Resultado:** El agente descifra el archivo del baseline (AES-256-GCM), lo escribe sobre el filesystem reemplazando completamente el contenido modificado.
 **Excepciones:** Ninguna.
 
 ### RN-32: Verificación post-restauración
 **Descripción:** Después de restaurar un archivo, el agente verifica que la restauración fue exitosa.
 **Condición:** Se completó una restauración (automática o por rechazo).
-**Resultado:** Se calcula el hash del archivo restaurado y se compara con el hash del baseline. Si coincide, la restauración fue exitosa. Si no, se reporta un error.
+**Resultado:** Se calcula el hash SHA-256 del archivo restaurado y se compara con el hash del baseline. Si coincide, la restauración fue exitosa y el journal se actualiza a `state: completed`. Si no, se reporta error y se actualiza a `state: failed` con detalles.
 **Excepciones:** Ninguna.
 
 ### RN-33: Restauración no actualiza baseline
@@ -258,7 +264,7 @@
 ### RN-34: Destino de archivos en cuarentena
 **Descripción:** Los archivos puestos en cuarentena se mueven a un directorio dedicado del agente.
 **Condición:** Se ejecuta una acción `quarantine` (automática o por rechazo).
-**Resultado:** El archivo se mueve a `/agent/storage/quarantine/`.
+**Resultado:** El archivo se mueve a `/var/lib/fim-agent/quarantine/`.
 **Excepciones:** Ninguna.
 
 ### RN-35: Renombrado de archivo en cuarentena
@@ -268,9 +274,9 @@
 **Excepciones:** Ninguna.
 
 ### RN-36: Permisos restringidos en cuarentena
-**Descripción:** Los archivos en cuarentena tienen permisos de solo lectura restringidos a root.
+**Descripción:** Los archivos en cuarentena tienen permisos restringidos.
 **Condición:** Un archivo se coloca en cuarentena.
-**Resultado:** Permisos: read-only, propietario root. No se permite escritura ni ejecución.
+**Resultado:** Permisos `0400`, owner `fim-agent`. No se permite escritura ni ejecución.
 **Excepciones:** Ninguna.
 
 ### RN-37: Cuarentena no actualiza baseline
@@ -286,32 +292,32 @@
 ### RN-38: Cola local cuando agente está offline
 **Descripción:** Si el agente no puede conectarse al backend (Valkey no disponible), los eventos se encolan localmente.
 **Condición:** El agente detecta un cambio pero no puede enviar el evento al backend.
-**Resultado:** El evento se almacena en archivos JSON en disco local.
-**Excepciones:** Ninguna.
+**Resultado:** El evento se almacena en archivos JSON en `/var/lib/fim-agent/queue/` con escritura atómica (`write + rename`) y nombre `{timestamp}_{event_id_uuid}.json`.
+**Excepciones:** Ninguna. La cola tiene límite de tamaño y política definidos en RN-84.
 
 ### RN-39: Envío FIFO al reconectar
 **Descripción:** Al restablecerse la conexión, los eventos encolados se envían en orden FIFO.
 **Condición:** El agente recupera la conexión con Valkey.
-**Resultado:** Los eventos se envían en el orden en que fueron creados (primero en entrar, primero en salir).
+**Resultado:** Los eventos se envían en el orden en que fueron creados (primero en entrar, primero en salir). El procesamiento de comandos pendientes ocurre antes (ver RN-85).
 **Excepciones:** Ninguna.
 
-### RN-40: Eliminación de cola tras confirmación
-**Descripción:** Los archivos JSON de la cola local se eliminan solo después de confirmación de recepción.
-**Condición:** El backend confirma la recepción del evento.
-**Resultado:** El archivo JSON correspondiente se elimina del disco local.
-**Excepciones:** Si la confirmación no llega, el archivo permanece para reintento.
+### RN-40: Eliminación de cola tras confirmación bidireccional
+**Descripción:** Los archivos JSON de la cola local se eliminan solo después de la confirmación end-to-end del backend (XACK + `event_ack`).
+**Condición:** El backend confirma la recepción y persistencia del evento mediante `event_ack` publicado en el stream `commands` (ver RN-73).
+**Resultado:** El archivo JSON correspondiente se elimina del disco local solo al recibir `event_ack`.
+**Excepciones:** Si el `event_ack` no llega en 60 s, el agente reintenta la publicación (deduplicado por `event_id` en backend).
 
 ### RN-41: Cola offline sin transaccionalidad
 **Descripción:** La cola local no ofrece garantías transaccionales (no es ACID).
 **Condición:** Siempre (limitación técnica documentada).
-**Resultado:** En caso de crash del agente durante escritura de la cola, puede haber eventos parcialmente escritos o perdidos.
+**Resultado:** En caso de crash del agente durante escritura de la cola, puede haber eventos parcialmente escritos. La escritura atómica `write + rename` mitiga el problema pero no lo elimina por completo.
 **Excepciones:** Ninguna. Es una limitación aceptada.
 
 ### RN-42: Acciones automáticas durante offline
 **Descripción:** El agente ejecuta acciones automáticas (auto_restore, quarantine) incluso sin conexión al backend.
 **Condición:** El agente está offline pero detecta un cambio que matchea una regla con acción automática.
-**Resultado:** La acción se ejecuta localmente usando las reglas cacheadas. El evento resultante se encola para envío posterior.
-**Excepciones:** Si las reglas cacheadas están desactualizadas respecto al backend, se opera con la versión local.
+**Resultado:** La acción se ejecuta localmente usando las reglas cacheadas y el baseline cifrado local. El evento resultante se encola para envío posterior.
+**Excepciones:** Si las reglas cacheadas están desactualizadas respecto al backend, se opera con la versión local; al reconectar, los comandos pendientes se aplican primero (RN-85).
 
 ---
 
@@ -319,8 +325,8 @@
 
 ### RN-43: Autenticación JWT stateless
 **Descripción:** La autenticación se implementa mediante JWT stateless con par de tokens.
-**Condición:** Para toda operación autenticada.
-**Resultado:** Se emite un `access_token` (corta duración) y un `refresh_token` (larga duración). El servidor no mantiene estado de sesión.
+**Condición:** Para toda operación autenticada del admin.
+**Resultado:** Se emite un `access_token` (15 min) y un `refresh_token` (7 días con rotación). El servidor no mantiene estado de sesión, salvo la blacklist de `jti` revocados (ver RN-80).
 **Excepciones:** Ninguna.
 
 ### RN-44: Rol único — admin
@@ -332,13 +338,13 @@
 ### RN-45: Sin registro público de usuarios
 **Descripción:** No existe un endpoint de registro público. Los usuarios se crean administrativamente.
 **Condición:** Siempre.
-**Resultado:** El primer admin se crea automáticamente como seed al inicializar la base de datos (credenciales desde variables de entorno, password hasheado con Argon2id). Admins adicionales pueden ser creados desde la interfaz por un admin existente. No hay flujo de sign-up público.
+**Resultado:** El primer admin se crea automáticamente como seed al inicializar la base de datos (credenciales desde variables de entorno, password hasheado con Argon2id — ver RN-81). El primer login fuerza cambio de password (ver RN-100). Admins adicionales pueden ser creados desde la interfaz por un admin existente.
 **Excepciones:** Ninguna.
 
 ### RN-46: Refresh token para renovación de sesión
 **Descripción:** La renovación de sesión se realiza exclusivamente mediante el refresh token.
 **Condición:** El access token expiró.
-**Resultado:** El cliente presenta el refresh token para obtener un nuevo par access/refresh. Si el refresh token expiró, se requiere nuevo login.
+**Resultado:** El cliente presenta el refresh token para obtener un nuevo par. El refresh token rota en cada uso (el anterior se invalida — ver RN-80). Si el refresh token expiró o fue revocado, se requiere nuevo login.
 **Excepciones:** Ninguna.
 
 ---
@@ -354,7 +360,7 @@
 ### RN-48: Compresión de snapshots antiguos
 **Descripción:** Los snapshots que no son la versión más reciente se comprimen con gzip.
 **Condición:** Un snapshot deja de ser la versión activa (se genera uno más nuevo).
-**Resultado:** El snapshot anterior se comprime con gzip para ahorrar espacio en disco.
+**Resultado:** El snapshot anterior se comprime con gzip antes del cifrado AES-GCM, para ahorrar espacio en disco.
 **Excepciones:** El snapshot activo (más reciente) permanece sin comprimir para acceso rápido.
 
 ### RN-49: Deduplicación por hash
@@ -363,72 +369,72 @@
 **Resultado:** Se compara el hash del archivo actual con el hash del último snapshot. Si son iguales, no se crea un nuevo snapshot.
 **Excepciones:** Ninguna.
 
-### RN-50: Protección de baseline con HMAC
-**Descripción:** Los archivos de baseline se protegen con HMAC para garantizar su integridad.
+### RN-50: Protección de baseline mediante cifrado autenticado
+**Descripción:** Los archivos de baseline se protegen con AES-256-GCM, que provee confidencialidad e integridad de forma integrada.
 **Condición:** Al leer o escribir archivos de baseline.
-**Resultado:** Escritura: se calcula y almacena HMAC. Lectura: se verifica HMAC antes de usar el contenido.
-**Excepciones:** Si la verificación HMAC falla, se trata como incidente de seguridad.
+**Resultado:** Escritura: el contenido se cifra con AES-256-GCM (clave derivada por HKDF-SHA256, ver RN-82); la etiqueta GCM autentica el ciphertext. Lectura: el descifrado verifica la etiqueta automáticamente; si el archivo fue alterado en disco, el descifrado falla y se reporta como incidente de seguridad.
+**Excepciones:** Ninguna. Esta regla absorbe lo que en versiones anteriores se especificaba como "HMAC sobre baseline plaintext"; AES-GCM provee la garantía equivalente en una sola operación criptográfica.
 
 ### RN-51: Permisos restringidos en almacenamiento
-**Descripción:** Los directorios de baseline y snapshots tienen permisos restringidos.
+**Descripción:** Los directorios de baseline, snapshots, cola, journal y secretos del agente tienen permisos restringidos.
 **Condición:** Siempre.
-**Resultado:** Solo el usuario del agente (o root) tiene acceso. Se previene lectura/escritura por otros usuarios del sistema.
+**Resultado:** `/var/lib/fim-agent/{baseline,quarantine,queue,journal}/` con permisos `0700`, owner `fim-agent`. `/var/lib/fim-agent/secrets/{master_secret,shared_secret}` con permisos `0400`. `/var/lib/fim-agent/certs/` con permisos `0600`. Ningún otro usuario del sistema tiene acceso. Adicionalmente, el servicio `systemd` aplica `ProtectSystem=strict`, `NoNewPrivileges`, `PrivateTmp`.
 **Excepciones:** Ninguna.
 
 ---
 
 ## 12. Notificaciones
 
-### RN-52: Notificaciones via N8N
-**Descripción:** Las notificaciones del sistema se canalizan a través de N8N como orquestador de flujos.
+### RN-52: Notificaciones vía n8n con cascada de fallbacks
+**Descripción:** Las notificaciones del sistema se canalizan principalmente a través de n8n como **enrutador acotado**, con cascada de fallbacks automáticos para garantizar entrega.
 **Condición:** Se produce un evento que requiere notificación.
-**Resultado:** El backend dispara un webhook o evento hacia N8N, que se encarga de la distribución (email, Slack, etc.).
-**Excepciones:** Si N8N no está disponible, el evento se registra pero la notificación puede perderse.
+**Resultado:** El backend dispara un webhook a n8n. Si falla los 3 intentos del retry exponencial (ver RN-86), se aplica cascada de fallbacks: SMTP directo → webhook directo pre-configurado → log crítico → tabla `failed_notifications` con banner UI persistente.
+**Excepciones:** n8n está delimitado al rol de **enrutador de notificaciones externas**: no ejecuta comandos sobre el sistema operativo del anfitrión monitoreado, no coordina el playbook ni toma decisiones. La indisponibilidad de n8n no compromete la operación del sistema gracias a los fallbacks.
 
 ### RN-53: Eventos que disparan notificación
 **Descripción:** Se generan notificaciones para eventos que requieren atención o representan un riesgo.
-**Condición:** Se crea un evento con estado `pending`, `auto_restored`, o `quarantined`.
-**Resultado:** Se dispara una notificación con la información del evento (path, severidad, acción tomada).
-**Excepciones:** Los eventos `alert_only` y `superseded` pueden no generar notificación dependiendo de la configuración.
+**Condición:** Se crea un evento con severidad `critical` o `high` en cualquier estado, o cuando el sistema cambia de estado de salud (ver RN-87).
+**Resultado:** Se dispara una notificación con la información del evento: `event_id`, path, severidad, acción tomada, contexto del proceso causante (`process_pid`, `process_uid`, `process_exe`), timestamps (`detected_at`, `received_at`).
+**Excepciones:** Los eventos `superseded` no generan notificación. Los `alert_only` con severidad baja pueden no generar notificación dependiendo de la configuración.
 
 ### RN-54: Notificaciones no bloquean el flujo principal
 **Descripción:** El envío de notificaciones es asíncrono y no bloquea el procesamiento de eventos.
 **Condición:** Siempre.
-**Resultado:** Si la notificación falla, el evento se procesa normalmente. La notificación es best-effort.
+**Resultado:** Si el envío falla, el evento se procesa normalmente. La notificación entra a la cascada de fallbacks (RN-52) y si todos fallan, se persiste en `failed_notifications` para reintento manual.
 **Excepciones:** Ninguna.
 
 ---
 
 ## 13. Sincronización
 
-### RN-55: Comunicación bidireccional via Valkey Streams
+### RN-55: Comunicación bidireccional vía Valkey Streams
 **Descripción:** La comunicación entre agente y backend es bidireccional a través de Valkey Streams.
 **Condición:** Siempre que agente y backend necesitan intercambiar información.
-**Resultado:** Se utilizan dos streams: `events` (agente → backend) y `commands` (backend → agente).
+**Resultado:** Se utilizan tres streams: `events` (agente → backend), `commands` (backend → agente), `agent_heartbeat` (agente → backend). Toda la comunicación viaja sobre el canal mTLS establecido en bootstrap (ver RN-78).
 **Excepciones:** Si Valkey no está disponible, aplican las reglas de resiliencia offline (RN-38 a RN-42).
 
 ### RN-56: Stream de eventos (agente → backend)
 **Descripción:** El agente publica eventos detectados en el stream `events`.
 **Condición:** El agente detecta un cambio y genera un evento.
-**Resultado:** El evento se publica en el stream `events` de Valkey. El backend lo consume y persiste en PostgreSQL.
+**Resultado:** El evento se publica con: `event_id` UUID v4, `detected_at`, `schema_version`, payload de datos del cambio (path, hashes, contexto del proceso causante PID/UID/exe). El backend lo consume con consumer group `fim-backend` y persiste en PostgreSQL.
 **Excepciones:** Si Valkey no está disponible, el evento se encola localmente (RN-38).
 
 ### RN-57: Stream de comandos (backend → agente)
-**Descripción:** El backend publica comandos para el agente en el stream `commands`.
-**Condición:** El backend necesita instruir al agente (aprobación, rechazo, re-scan).
-**Resultado:** Se publica un comando en el stream. Los comandos válidos son: `baseline_update`, `restore_file`, `quarantine_file`, `rescan_baseline`.
+**Descripción:** El backend publica comandos firmados para el agente en el stream `commands`.
+**Condición:** El backend necesita instruir al agente (aprobación, rechazo, re-scan, sincronización de reglas, actualización de configuración, ack de eventos).
+**Resultado:** Se publica un comando con `signature` HMAC-SHA256 (ver RN-79) y `ruleset_version` monotónico (RN-75). Comandos válidos: `baseline_update`, `restore_file`, `quarantine_file`, `rescan_baseline`, `rule_sync`, `update_config`, `event_ack`.
 **Excepciones:** Ninguna.
 
 ### RN-58: Sincronización de reglas al agente
-**Descripción:** Las reglas de decisión definidas en el backend se sincronizan al agente via Valkey.
+**Descripción:** Las reglas de decisión definidas en el backend se sincronizan al agente vía Valkey con firma HMAC y `ruleset_version`.
 **Condición:** Se crean, modifican o eliminan reglas en el backend.
-**Resultado:** El agente recibe el conjunto actualizado de reglas y reemplaza su cache local.
-**Excepciones:** Si el agente está offline, aplica las reglas cacheadas hasta la próxima sincronización.
+**Resultado:** El backend incrementa `ruleset_version`, firma el comando `rule_sync` con HMAC y lo publica. El agente verifica firma y versión, reemplaza su cache local, persiste el nuevo `ruleset_version` aplicado en `/var/lib/fim-agent/state.json`, y confirma vía `event_ack`.
+**Excepciones:** Si el agente está offline, aplica las reglas cacheadas hasta la próxima sincronización; al reconectar procesa los comandos pendientes antes que los eventos encolados (RN-85).
 
 ### RN-59: Sincronización de baseline tras aprobación
 **Descripción:** Tras aprobar un evento, el nuevo baseline se sincroniza al agente.
 **Condición:** Admin aprueba un evento y se genera nuevo baseline.
-**Resultado:** El backend envía un comando `baseline_update` con el hash actualizado. El agente actualiza su baseline local para ese path.
+**Resultado:** El backend envía un comando `baseline_update` firmado con HMAC y `ruleset_version++` que incluye el path y el hash actualizado. El agente verifica, actualiza su baseline local re-cifrado con AES-GCM y confirma vía `event_ack`.
 **Excepciones:** Si el agente está offline, la actualización se procesa al reconectar.
 
 ---
@@ -439,30 +445,30 @@
 **Descripción:** El admin puede aprobar un evento pending cuyo archivo ya no existe en el filesystem.
 **Condición:** Admin aprueba un evento pero el archivo fue eliminado entre detección y aprobación.
 **Resultado:** El frontend muestra un warning explícito. Si el admin confirma, el baseline registra el path con `status: "absent"` y `hash: null`. El agente trata la creación futura de ese archivo como anomalía.
-**Excepciones:** Si el admin cancela, el evento permanece en `pending`.
+**Excepciones:** Si el admin cancela, el evento permanece en `pending`. El rechazo sobre baseline absent es no-op (ver RN-74).
 
 ### RN-61: Hashing de contraseñas con Argon2id
 **Descripción:** Todas las contraseñas de usuario se hashean con Argon2id.
 **Condición:** Al crear o modificar la contraseña de un usuario.
-**Resultado:** Se utiliza `argon2-cffi` con Argon2id (ganador de la Password Hashing Competition). Configurable en memoria, iteraciones y paralelismo. Recomendación actual de OWASP.
+**Resultado:** Se utiliza `argon2-cffi` con Argon2id (ganador de la Password Hashing Competition) con parámetros explícitos: `time_cost=3, memory_cost=65536, parallelism=4` (RN-81). Recomendación OWASP 2026.
 **Excepciones:** Ninguna. No se aceptan otros algoritmos de hashing.
 
 ### RN-62: Creación del primer admin por seed
 **Descripción:** El primer usuario admin se crea automáticamente al inicializar la base de datos.
 **Condición:** La base de datos se inicializa y no existe ningún usuario.
-**Resultado:** Se crea un usuario admin con las credenciales definidas en variables de entorno (`ADMIN_USERNAME`, `ADMIN_PASSWORD`). El password se hashea con Argon2id.
+**Resultado:** Se crea un usuario admin con las credenciales definidas en variables de entorno (`ADMIN_USERNAME`, `ADMIN_PASSWORD`). El password se hashea con Argon2id. El usuario se marca con `must_change_password: true` (ver RN-100).
 **Excepciones:** Si ya existe al menos un usuario, el seed no se ejecuta.
 
-### RN-63: Autenticación del agente via mTLS
+### RN-63: Autenticación del agente vía mTLS
 **Descripción:** El agente se autentica con el backend mediante mTLS (mutual TLS).
 **Condición:** Toda comunicación entre agente y backend.
-**Resultado:** Ambos presentan certificados TLS y verifican contra una CA compartida. No se utilizan API keys ni secretos en plaintext.
-**Excepciones:** Ninguna. La conexión se rechaza si el certificado no es válido.
+**Resultado:** Ambos presentan certificados TLS y verifican contra una CA propia operada por el backend (ver RN-78). No se utilizan API keys ni secretos en plaintext.
+**Excepciones:** Ninguna. La conexión se rechaza si el certificado no es válido o está revocado.
 
 ### RN-64: Ventajas de mTLS sobre API keys
 **Descripción:** mTLS provee garantías de seguridad superiores a API keys.
 **Condición:** Siempre (decisión de diseño).
-**Resultado:** Sin secretos en plaintext, resistente a replay attacks, identificación criptográfica, certificados revocables sin rotación de passwords.
+**Resultado:** Sin secretos en plaintext, resistente a replay attacks (cada handshake TLS es único), identificación criptográfica del agente, certificados revocables sin rotación de passwords.
 **Excepciones:** Ninguna.
 
 ### RN-65: Patrones glob con negación
@@ -477,27 +483,27 @@
 **Resultado:** El baseline almacena `{ path, status: "absent", hash: null }`. Si el archivo se crea en el futuro, el agente lo detecta como anomalía.
 **Excepciones:** Ninguna.
 
-### RN-67: Base de datos separada para N8N
-**Descripción:** N8N utiliza la misma instancia de PostgreSQL pero una base de datos separada.
+### RN-67: Base de datos separada para n8n
+**Descripción:** n8n utiliza la misma instancia de PostgreSQL pero una base de datos separada.
 **Condición:** Configuración de infraestructura.
-**Resultado:** Se crean dos bases de datos en el mismo servidor PostgreSQL: `fim` (aplicación) y `fim_n8n` (N8N). Un script de inicialización (`docker-entrypoint-initdb.d`) crea ambas al arrancar.
+**Resultado:** Se crean dos bases de datos en el mismo servidor PostgreSQL: `fim` (aplicación) y `fim_n8n` (n8n). Un script de inicialización (`docker-entrypoint-initdb.d`) crea ambas al arrancar.
 **Excepciones:** Ninguna.
 
 ---
 
 ## 15. Configuración del agente
 
-### RN-68: Configuración inicial via .env
-**Descripción:** La configuración inicial del agente proviene de variables de entorno.
-**Condición:** Primer arranque del agente.
-**Resultado:** El agente lee `WATCH_PATHS`, `VALKEY_URL`, `AGENT_ID` desde el `.env` del contenedor. Estos valores definen el estado de bootstrap.
-**Excepciones:** Ninguna.
+### RN-68: Configuración inicial vía archivo local
+**Descripción:** La configuración inicial del agente proviene de un archivo local en el anfitrión.
+**Condición:** Primer arranque del agente como servicio nativo de `systemd`.
+**Resultado:** El agente lee `agent_id`, `valkey_url`, `ca_cert_path`, lista inicial de `watch_paths` y rutas de almacenamiento desde `/etc/fim-agent/config.yaml`. Estos valores definen el estado de bootstrap.
+**Excepciones:** El agente NO se ejecuta dentro de un contenedor Docker porque `fanotify` requiere la capability `CAP_SYS_ADMIN`, incompatible con el aislamiento estándar de contenedores. Se despliega como servicio nativo con hardening por `systemd` (ver RN-51).
 
 ### RN-69: Gestión de paths en runtime desde frontend
 **Descripción:** El admin puede agregar o quitar paths monitoreados desde el frontend sin reiniciar el agente.
 **Condición:** Admin modifica la configuración de paths desde la sección de Agentes.
-**Resultado:** El backend persiste la nueva configuración en PostgreSQL y envía un comando `update_config` via Valkey. El agente recarga los paths sin reinicio. Para paths nuevos, ejecuta baseline scan automáticamente.
-**Excepciones:** Parámetros como `VALKEY_URL` o `AGENT_ID` solo se configuran via `.env` y requieren reinicio.
+**Resultado:** El backend persiste la nueva configuración en PostgreSQL como fuente autoritativa, incrementa `ruleset_version`, firma el comando `update_config` con HMAC y lo publica vía Valkey. El agente verifica firma y versión, recarga los paths reconfigurando los watchers de `fanotify` en caliente. Para paths nuevos, ejecuta baseline scan automáticamente y cifra las entradas con AES-GCM. A partir del primer arranque, la configuración autoritativa vive en PostgreSQL — `config.yaml` es solo el bootstrap.
+**Excepciones:** Parámetros como `valkey_url`, `agent_id` o `ca_cert_path` solo se configuran vía archivo local y requieren reinicio del servicio.
 
 ### RN-70: Confirmación previa al re-scan
 **Descripción:** El re-scan requiere confirmación explícita del admin cuando existen eventos pending.
@@ -507,7 +513,7 @@
 
 ---
 
-> **Nota:** Este documento refleja las decisiones de diseño tomadas para el MVP. Las reglas pueden evolucionar conforme avance la implementación. Todo cambio debe documentarse y trazarse a la decisión que lo motivó.
+> **Nota:** Este documento refleja las decisiones de diseño tomadas para el MVP en fase de diseño detallado. Las reglas pueden evolucionar conforme avance la implementación. Todo cambio debe documentarse y trazarse a la decisión que lo motivó.
 
 ---
 
@@ -541,14 +547,14 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 | `alert_only` | creación (action=`alert_only` o default) | terminal |
 
 **Condición:** Al intentar actualizar el `status` de un evento.
-**Resultado:** Transición válida -> aplica. Inválida -> HTTP 409 conflict.
+**Resultado:** Transición válida → aplica. Inválida → HTTP 409 conflict.
 **Excepciones:** Ninguna.
 
 #### C3 / RN-73: Protocolo ACK Valkey end-to-end
 **Descripción:** El ack de un evento sigue un protocolo de 4 pasos que garantiza at-least-once y limpieza idempotente.
 **Condición:** Siempre que el agente publique un evento.
-**Resultado:** 1) Agente genera `event_id` UUID v4. 2) Backend consume con consumer group `fim-backend`. 3) Tras persistir en PostgreSQL ejecuta XACK + publica `event_ack` al stream `commands`. 4) Agente al recibir el ack elimina la entrada de `/agent/storage/queue/`.
-**Excepciones:** Si el agente no recibe ack en 60s, reintenta la publicación (deduplicado por `event_id` en backend).
+**Resultado:** 1) Agente genera `event_id` UUID v4. 2) Backend consume con consumer group `fim-backend`. 3) Tras persistir en PostgreSQL ejecuta `XACK` + publica `event_ack` al stream `commands`. 4) Agente al recibir el ack elimina la entrada de `/var/lib/fim-agent/queue/`.
+**Excepciones:** Si el agente no recibe ack en 60 s, reintenta la publicación (deduplicado por `event_id` en backend).
 
 #### C10 / RN-74: Rechazo sobre baseline absent es no-op
 **Descripción:** Rechazar un evento cuyo baseline está en `status: absent` no envía comando al agente.
@@ -557,9 +563,9 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 **Excepciones:** Ninguna.
 
 #### C11 / RN-75: `ruleset_version` monotónico
-**Descripción:** Los comandos `baseline_update` y `rule_sync` incluyen un `ruleset_version: int` monotónico creciente generado por el backend.
+**Descripción:** Los comandos `baseline_update`, `rule_sync`, `update_config` y `rescan_baseline` incluyen un `ruleset_version: int` monotónico creciente generado por el backend.
 **Condición:** Al publicar comandos que afectan estado replicado del agente.
-**Resultado:** El agente persiste el último `ruleset_version` aplicado y descarta mensajes con versión menor. Garantiza ordering + idempotencia ante re-entregas.
+**Resultado:** El agente persiste el último `ruleset_version` aplicado en `/var/lib/fim-agent/state.json` y descarta mensajes con versión menor. Garantiza ordering + idempotencia ante re-entregas.
 **Excepciones:** Ninguna.
 
 ---
@@ -575,7 +581,7 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 #### C5 / RN-77: Optimistic locking sobre Event
 **Descripción:** Toda mutación de `status` en un evento `pending` usa una cláusula de versión optimista.
 **Condición:** Admin aprueba o rechaza; backend aplica `superseded` automático.
-**Resultado:** Columna `version: int` (default 0). El UPDATE incluye `WHERE id=X AND version=V AND status='pending'`. Si afecta 0 filas -> HTTP 409.
+**Resultado:** Columna `version: int` (default 0). El UPDATE incluye `WHERE id=X AND version=V AND status='pending'`. Si afecta 0 filas → HTTP 409.
 **Excepciones:** Ninguna.
 
 ---
@@ -585,13 +591,13 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 #### C6 / RN-78: Bootstrap mTLS con CA propia
 **Descripción:** El backend actúa como CA. Los agentes se registran con un secret pre-compartido y reciben cert firmado.
 **Condición:** Primer arranque del agente.
-**Resultado:** Admin pre-registra `agent_id + bootstrap_secret`. Agente POSTea CSR+HMAC a `/agents/bootstrap`. Cert válido 90 días. Rotación automática 15 días antes de expirar. Revocación por lista en tabla `revoked_certificates`.
+**Resultado:** Admin pre-registra `agent_id + bootstrap_secret` (32 bytes random). Agente POSTea CSR + HMAC a `/agents/bootstrap`. Cert válido 90 días. Junto con el cert se entregan `shared_secret` (para HMAC de comandos — RN-79) y `master_secret` (para derivación de clave de baseline — RN-82). Rotación automática 15 días antes de expirar. Revocación por lista en tabla `revoked_certificates`.
 **Excepciones:** Ninguna.
 
-#### C7 / RN-79: HMAC de comandos backend -> agente
+#### C7 / RN-79: HMAC de comandos backend → agente
 **Descripción:** Los comandos publicados en `commands` están firmados con HMAC-SHA256.
 **Condición:** Todo comando hacia el agente.
-**Resultado:** Campo `signature` = `HMAC-SHA256(shared_secret, canonical_json(payload))`. El `shared_secret` se entrega junto con el certificado mTLS. Comandos con signature inválida se descartan.
+**Resultado:** Campo `signature` = `HMAC-SHA256(shared_secret, canonical_json(payload))`. El `shared_secret` se entrega junto con el certificado mTLS en bootstrap. Comandos con signature inválida se descartan.
 **Excepciones:** Ninguna.
 
 #### C8 / RN-80: Gestión de JWT
@@ -608,8 +614,8 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 
 #### W10 / RN-82: Baseline cifrado en disco
 **Descripción:** Los archivos del baseline del agente se cifran con AES-256-GCM.
-**Condición:** Escritura o lectura de `/agent/storage/baseline/`.
-**Resultado:** Key derivada con `HKDF(ikm=master_secret, salt=AGENT_ID, info="baseline-v1")`. `master_secret` entregado en bootstrap, persistido con permisos 0400.
+**Condición:** Escritura o lectura de `/var/lib/fim-agent/baseline/`.
+**Resultado:** Key derivada con `HKDF-SHA256(ikm=master_secret, salt=AGENT_ID, info="baseline-v1")`. `master_secret` entregado en bootstrap, persistido en `/var/lib/fim-agent/secrets/master_secret` con permisos `0400`. Cada archivo cifrado lleva un nonce GCM único de 96 bits. La etiqueta GCM autentica el contenido.
 **Excepciones:** Ninguna.
 
 ---
@@ -619,31 +625,31 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 #### W2 / RN-83: Journal pre-acción
 **Descripción:** Acciones destructivas del agente (`auto_restore`, `quarantine`) se registran en journal antes de ejecutarse.
 **Condición:** Antes de modificar filesystem.
-**Resultado:** Se escribe `/agent/storage/journal/{event_id}.json` con `state: pending` antes de actuar, luego se actualiza a `completed` o `failed`. Al reiniciar, el agente rehidrata el journal y reintenta o reporta.
+**Resultado:** Se escribe `/var/lib/fim-agent/journal/{event_id}.json` con `state: pending` antes de actuar, luego se actualiza a `completed` o `failed`. Al reiniciar, el agente rehidrata el journal y reintenta o reporta.
 **Excepciones:** Ninguna.
 
 #### W3 / RN-84: Límite y política de cola offline
 **Descripción:** La cola offline tiene límite de tamaño y política de descarte.
 **Condición:** El agente está offline y la cola crece.
-**Resultado:** Máximo **100 MB**. Política drop-oldest. Si el uso supera **80%**, el próximo heartbeat incluye flag `queue_pressure: true`.
+**Resultado:** Máximo **100 MB** en `/var/lib/fim-agent/queue/`. Política drop-oldest. Si el uso supera **80 %**, el próximo heartbeat incluye flag `queue_pressure: true` para que la UI lo muestre como alerta.
 **Excepciones:** Ninguna.
 
 #### W4 / RN-85: Orden de procesamiento al reconectar
 **Descripción:** Al reconectar, el agente procesa primero comandos y luego envía eventos.
 **Condición:** Restablecimiento de conexión con Valkey.
-**Resultado:** 1) Consume y aplica todos los comandos pendientes (especialmente `baseline_update` y `rule_sync`). 2) Publica eventos de la cola local en FIFO.
+**Resultado:** 1) Consume y aplica todos los comandos pendientes (especialmente `baseline_update`, `rule_sync` y `update_config`). 2) Publica eventos de la cola local en FIFO.
 **Excepciones:** Ninguna.
 
-#### W11 / RN-86: Retry exponencial y DLQ de webhooks
-**Descripción:** Webhooks a N8N reintentan 3 veces con backoff y persisten en DLQ al fallar.
-**Condición:** El backend dispara una notificación a N8N.
-**Resultado:** Delays 5s / 30s / 120s. Si fallan los 3, se persiste en `failed_notifications(id, event_id, payload_json, last_error, failed_at, retry_count)`. UI muestra banner mientras haya filas.
+#### W11 / RN-86: Retry exponencial, DLQ y cascada de fallbacks de notificaciones
+**Descripción:** Los webhooks a n8n reintentan con backoff y, ante fallo total, se aplica cascada de fallbacks.
+**Condición:** El backend dispara una notificación.
+**Resultado:** Retry: 3 intentos con delays 5 s / 30 s / 120 s. Si fallan los 3, cascada de fallbacks: SMTP directo → webhook directo pre-configurado → log crítico → tabla `failed_notifications(id, event_id, payload_json, last_error, failed_at, retry_count)`. UI muestra banner amarillo persistente mientras haya filas. La indisponibilidad de n8n no compromete la entrega.
 **Excepciones:** Ninguna.
 
 #### W12 / RN-87: Health check por componente
 **Descripción:** El backend expone un endpoint que reporta el estado de cada componente.
 **Condición:** Siempre.
-**Resultado:** `GET /health/components` retorna `{postgres, valkey, n8n, agents[]}` con estado `ok` | `degraded` | `down`. Frontend hace polling cada 10s y muestra banner. Cambios de estado disparan webhook N8N.
+**Resultado:** `GET /health/components` retorna `{postgres, valkey, n8n, agents[]}` con estado `ok | degraded | down`. Frontend hace polling cada 10 s y muestra banner rojo persistente. Cambios de estado disparan webhook n8n.
 **Excepciones:** Ninguna.
 
 ---
@@ -658,13 +664,13 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 - API autenticada: 100 req/min por user.
 - Eventos de agente: 100 eventos/min por `agent_id`.
 
-Implementado con counters+TTL en Valkey. Excedentes retornan 429 (API) o se descartan con alerta (eventos).
+Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se descartan con alerta (eventos).
 **Excepciones:** Ninguna.
 
 #### W6 / RN-89: Logging estructurado con sanitización
 **Descripción:** Todos los logs son JSON estructurado con sanitización de secretos.
 **Condición:** Cualquier emisión de log.
-**Resultado:** Middleware `sanitize_logs` filtra `password`, `access_token`, `refresh_token`, `bootstrap_secret`, `master_secret`, `signature`. Retention 30 días. **Prohibido loguear contenido de diffs** — solo `hash_before`, `hash_after`, `size_delta`.
+**Resultado:** Middleware `sanitize_logs` filtra `password`, `access_token`, `refresh_token`, `bootstrap_secret`, `master_secret`, `shared_secret`, `signature`. Retention 30 días. **Prohibido loguear contenido de diffs** — solo `hash_before`, `hash_after`, `size_delta`.
 **Excepciones:** Ninguna.
 
 #### W13 / RN-90: Timestamps dobles y rechazo por skew
@@ -675,26 +681,26 @@ Implementado con counters+TTL en Valkey. Excedentes retornan 429 (API) o se desc
 
 #### W14 / RN-91: `schema_version` en payloads
 **Descripción:** Todo mensaje en streams incluye `schema_version`.
-**Condición:** Publicación o consumo de mensaje en `events`/`commands`.
+**Condición:** Publicación o consumo de mensaje en `events` / `commands` / `agent_heartbeat`.
 **Resultado:** Receptor rechaza `schema_version` mayor que el soportado. Receptor ignora campos desconocidos (forward compat). Bumps se documentan en `docs/schema_changelog.md`.
 **Excepciones:** Ninguna.
 
 #### W16 / RN-92: Heartbeat y transiciones de estado de agente
 **Descripción:** El estado del agente se infiere de heartbeats periódicos.
 **Condición:** Siempre.
-**Resultado:** Agente publica a stream `agent_heartbeat` cada **10s** con `{agent_id, timestamp, queue_size, ruleset_version}`. Sin heartbeat 30s -> `offline`. Sin heartbeat 5 min -> `dead` + webhook N8N.
-**Excepciones:** Durante shutdown graceful el agente publica con `shutdown: true` (estado `draining`).
+**Resultado:** Agente publica al stream `agent_heartbeat` cada **10 s** con `{agent_id, timestamp, queue_size, ruleset_version, queue_pressure, shutdown}`. Sin heartbeat 30 s → `offline`. Sin heartbeat 5 min → `dead` + webhook n8n.
+**Excepciones:** Durante shutdown graceful el agente publica con `shutdown: true` (estado `draining` — ver RN-93).
 
 #### W17 / RN-93: Graceful shutdown del agente
 **Descripción:** El agente drena su cola al recibir SIGTERM antes de salir.
 **Condición:** Recepción de SIGTERM.
-**Resultado:** Deja de aceptar nuevos eventos, drena la cola local al stream (timeout 30s), exit 0. Durante el drenaje reporta estado `draining`; el `/health/components` devuelve 503 para ese agente.
+**Resultado:** Deja de aceptar nuevos eventos de `fanotify`, drena la cola local al stream (timeout 30 s), exit 0. Durante el drenaje reporta estado `draining`; el `/health/components` lo refleja para ese agente y la UI deshabilita acciones (re-scan, update config).
 **Excepciones:** Si el drenaje supera timeout, exit 0 con eventos remanentes en disco (rehidratados en próximo arranque).
 
 #### W18 / RN-94: Tabla `audit_log` dedicada
 **Descripción:** Todas las acciones administrativas relevantes se registran en una tabla de auditoría separada de los logs.
-**Condición:** Login/logout, CRUD de reglas, approve/reject, re-scan, cambios de config.
-**Resultado:** Tabla `audit_log(id, timestamp, user_id, action, resource_type, resource_id, ip, user_agent, metadata_json)`. Retention ilimitada (no rota con logs estructurados).
+**Condición:** Login/logout, CRUD de reglas, approve/reject, bulk approve/reject, re-scan, cambios de config, reintentos de notificaciones, cambios de password.
+**Resultado:** Tabla `audit_log(id, timestamp, user_id, action, resource_type, resource_id, ip, user_agent, metadata_json)`. Retention ilimitada (no rota con logs estructurados). Cumple con requisitos de Resoluciones AAIP 47/2018 y 126/2024.
 **Excepciones:** Ninguna.
 
 ---
@@ -716,7 +722,7 @@ Implementado con counters+TTL en Valkey. Excedentes retornan 429 (API) o se desc
 #### W9 / RN-97: Almacenamiento de tokens en cliente
 **Descripción:** Access y refresh tokens se almacenan por separado con distintos requisitos.
 **Condición:** Toda sesión de admin.
-**Resultado:** Access token solo en memoria (Zustand). Refresh token en cookie `httpOnly + Secure + SameSite=Strict + Path=/auth/refresh`. Nunca `localStorage`/`sessionStorage`.
+**Resultado:** Access token solo en memoria (Zustand). Refresh token en cookie `httpOnly + Secure + SameSite=Strict + Path=/auth/refresh`. Nunca `localStorage` / `sessionStorage`.
 **Excepciones:** Ninguna.
 
 ---
@@ -726,19 +732,19 @@ Implementado con counters+TTL en Valkey. Excedentes retornan 429 (API) o se desc
 #### W1 / RN-98: Filtro default oculta superseded + retention
 **Descripción:** La UI oculta `superseded` por defecto y los eventos tienen retention operativa.
 **Condición:** Vista operativa de Eventos.
-**Resultado:** Filtro default excluye `superseded`. Toggle explícito para incluirlos. **Máximo 10 eventos en una cadena** (por path); al intentar crear el 11 se compacta eliminando los `superseded` más antiguos. **Retention 30 días** para eventos en estados terminales (salvo auditoría activa).
+**Resultado:** Filtro default excluye `superseded`. Toggle explícito para incluirlos (con persistencia en URL). **Máximo 10 eventos en una cadena** (por path); al intentar crear el 11 se compacta eliminando los `superseded` más antiguos. **Retention 30 días** para eventos en estados terminales (salvo auditoría activa).
 **Excepciones:** Eventos referenciados desde `audit_log` no se eliminan.
 
 #### W15 / RN-99: Bulk approve/reject y paginación
 **Descripción:** Operaciones masivas y paginación fija.
 **Condición:** Vista de Eventos.
-**Resultado:** Selección múltiple + endpoints `POST /actions/bulk-approve` y `POST /actions/bulk-reject` con `event_ids[]`. Respuesta con `succeeded[]` y `failed[]`. Paginación **50 eventos/página** por defecto.
+**Resultado:** Selección múltiple + endpoints `POST /actions/bulk-approve` y `POST /actions/bulk-reject` con `event_ids[]`. Cada evento se procesa con optimistic locking individual (RN-77). Respuesta con `succeeded[]` y `failed[]` (con razón por fallo). Paginación **50 eventos/página** por defecto.
 **Excepciones:** Ninguna.
 
 #### W20 / RN-100: Seed admin con cambio forzado
 **Descripción:** El primer admin debe cambiar su password antes de operar.
 **Condición:** Primer login del usuario seed.
-**Resultado:** Flag `must_change_password: bool = True` al crear el seed. Tokens emitidos con scope `password_change_only` hasta completar el cambio. Cualquier endpoint responde 403 `password_change_required` mientras el flag sea true. Requerimientos del nuevo password: >= 12 chars, al menos 1 mayúscula, 1 minúscula, 1 número.
+**Resultado:** Flag `must_change_password: bool = True` al crear el seed. Tokens emitidos con scope `password_change_only` hasta completar el cambio. Cualquier endpoint responde 403 `password_change_required` mientras el flag sea true. Requerimientos del nuevo password: ≥ 12 chars, al menos 1 mayúscula, 1 minúscula, 1 número.
 **Excepciones:** Ninguna.
 
 ---
@@ -754,11 +760,129 @@ Implementado con counters+TTL en Valkey. Excedentes retornan 429 (API) o se desc
 ### RN-102: Visibilidad de DLQ de notificaciones
 **Descripción:** El admin siempre puede ver y actuar sobre notificaciones que fallaron.
 **Condición:** Existen filas en `failed_notifications`.
-**Resultado:** Banner amarillo persistente. Vista `/notifications/failed` permite reintentar (individual o bulk) o descartar. Banner desaparece cuando la tabla queda vacía.
+**Resultado:** Banner amarillo persistente. Vista `/notifications/failed` permite reintentar (individual o bulk) o descartar. Banner desaparece cuando la tabla queda vacía. Cada acción se registra en `audit_log` (RN-94).
 **Excepciones:** Ninguna.
 
 ### RN-103: Degradación no bloquea UI
 **Descripción:** Los banners de degradación no impiden operar la UI.
 **Condición:** Cualquier banner de degradación activo.
 **Resultado:** El banner es informativo, cerrable hasta el próximo poll, y no bloquea acciones (salvo las que dependen directamente del componente caído).
-**Excepciones:** Si `postgres` está `down`, el backend retorna 503 a la mayoría de endpoints — la UI refleja esto con mensajes inline.
+
+---
+
+## Appendix: Decisiones de implementación — Abril 2026
+
+Las siguientes decisiones cierran las 8 suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)) el 2026-04-24. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+
+### Modelo de datos
+
+#### D1 / RN-104: Réplica de baseline metadata en backend
+**Descripción:** El backend mantiene una tabla `baseline_entries` con metadata por path monitoreado, sin contenido cifrado. La fuente de verdad del contenido sigue siendo el agente (cifrado AES-256-GCM en `/var/lib/fim-agent/baseline/`).
+**Condición:** Siempre que un comando `baseline_update` sea confirmado por el agente vía `event_ack` (RN-25, RN-59).
+**Resultado:** Schema:
+- `path: str`
+- `agent_id: str`
+- `hash: str | null` (null cuando `status = 'absent'`)
+- `status: 'present' | 'absent'` (RN-66)
+- `last_updated: datetime`
+- `ruleset_version: int` (versión del comando que generó esta entrada)
+
+Sincronización: cada `event_ack` exitoso de `baseline_update` actualiza la fila en backend. El backend consulta `baseline_entries` (no al agente) para resolver flujos de approve, reject y visualización en UI.
+**Excepciones:** Ninguna. Si el agente y el backend divergen, RN-50 (verificación al leer en agente) lo detecta y genera un evento de incidente.
+
+#### D4 / RN-105: Tabla `rejected_events_audit` y enum `RejectionReason`
+**Descripción:** Eventos publicados por el agente que el backend rechaza durante la ingesta se persisten en una tabla auditable separada.
+**Condición:** Validación de `schema_version`, HMAC, clock skew (RN-90, RN-91) o `agent_id` falla.
+**Resultado:** Schema:
+- `id: int` (pk)
+- `event_id: str` (UUID del payload, si pudo parsearse)
+- `agent_id: str`
+- `reason: RejectionReason` (enum: `clock_skew`, `invalid_schema`, `invalid_signature`, `unknown_agent`, `duplicate_event`)
+- `received_at: datetime`
+- `detected_at: datetime | null` (del payload original)
+- `payload_dump: str` (JSON crudo, truncado a 4 KB)
+
+El uso de enum (no `str` libre) garantiza que cualquier valor fuera del léxico es rechazado a nivel de schema.
+**Excepciones:** Ninguna.
+
+#### D6 / RN-107: Tabla unificada `alerts` (fusión con `failed_notifications`)
+**Descripción:** Se elimina la tabla separada `failed_notifications` (mencionada en RN-86, RN-102). Una única tabla `alerts` cubre el lifecycle completo (pending → delivered o terminal_failed).
+**Condición:** Cualquier evento con severidad `critical` o `high` (RN-53) genera una fila en `alerts` al ser ingresado.
+**Resultado:** Schema:
+- `id: int` (pk)
+- `event_id: int` (FK a `events`)
+- `severity: 'critical' | 'high' | 'medium' | 'low'`
+- `channel: str | null` (`n8n` | `smtp_fallback` | `webhook_fallback` | `log_only`; null mientras está pending)
+- `delivered_at: datetime | null`
+- `failed_at: datetime | null`
+- `last_error: str | null`
+- `retry_count: int` (default 0)
+- `created_at: datetime`
+
+Estados:
+- **Pending**: `delivered_at IS NULL AND failed_at IS NULL AND retry_count < 3`
+- **Delivered**: `delivered_at IS NOT NULL` (puede haber retry_count > 0)
+- **Failed terminal**: `delivered_at IS NULL AND failed_at IS NOT NULL` (típicamente `retry_count >= 3`)
+
+`delivered_at` y `failed_at` son **mutuamente excluyentes solo en estado terminal**.
+**Excepciones:** Ninguna.
+
+### Aprobación y sincronización
+
+#### D2: Reescritura de RN-17 — el approve usa el hash del evento, no consulta al agente
+**Descripción:** **Esta decisión sustituye el comportamiento descrito en la versión original de RN-17 (que indicaba "se consulta al agente el hash actual").**
+
+El backend NO consulta al agente al ejecutar approve. Usa directamente el hash que el evento `pending` ya trae al momento de detección (publicado por el agente vía `fanotify`).
+**Condición:** Admin ejecuta approve sobre un evento `pending`.
+**Resultado:** El baseline se actualiza con el hash del evento aprobado. La cadena de eventos (RN-21) garantiza que el evento `pending` activo SIEMPRE refleja el estado más reciente conocido del archivo: cualquier cambio posterior crea un nuevo evento que marca al anterior como `superseded`. Si el admin intenta aprobar un evento `superseded`, retorna 409 (RN-77).
+
+**Race window self-healing**: existe una ventana microsegundo entre que el archivo cambia en el FS y `fanotify` emite el evento. Si un cambio ocurre en esa ventana entre `detected_at` y la confirmación del approve:
+1. El approve completa con el hash del evento aprobado.
+2. El nuevo cambio genera un nuevo evento `pending` cuyo hash difiere del baseline recién actualizado.
+3. El admin ve un nuevo pending y lo trata normalmente.
+
+El sistema converge sin pérdida de datos ni inconsistencia detectable.
+**Excepciones:** Approve con archivo eliminado mantiene RN-60: `BaselineEntry` se persiste con `hash: null, status: 'absent'`.
+
+#### D5 / RN-106: `target_agent_id` en comandos y semántica de `ruleset_version_applied`
+**Descripción:** El contador `ruleset_version` (RN-75) sigue siendo global por backend (single-instance, RN-76). Para soportar configuración heterogénea entre agentes, todo comando publicado al stream `commands` lleva un campo `target_agent_id: str | null` (null = broadcast).
+**Condición:** Backend publica cualquier comando (`baseline_update`, `rule_sync`, `update_config`, `rescan_baseline`, `restore_file`, `quarantine_file`).
+**Resultado:**
+- El agente filtra por `target_agent_id IN (self.agent_id, NULL)` antes de procesar.
+- `Agent.ruleset_version_applied` se define como: **el max `ruleset_version` confirmado vía `event_ack` de comandos cuyo `target_agent_id` era `self.agent_id` o `NULL`**.
+- El check "agente al día" en backend usa: `agent.ruleset_version_applied == max(version FROM commands WHERE target_agent_id IN (agent_id, NULL))`. **No** comparar contra el counter global.
+
+Sin esta semántica, agentes que no son target de comandos recientes aparecerían perpetuamente "desactualizados" en el dashboard.
+**Excepciones:** Ninguna.
+
+### Arquitectura del agente
+
+#### D8 / RN-108: Prohibición de servidor HTTP en el agente
+**Descripción:** El agente NO expone servidor HTTP, gRPC ni ningún listener TCP. Toda comunicación backend → agente viaja por streams Valkey asincrónicos (`commands` y `agent_heartbeat`).
+**Condición:** Siempre.
+**Resultado:**
+- Comandos: backend publica en stream `commands`, agente confirma vía `event_ack`.
+- Salud y estado del agente: backend lee del stream `agent_heartbeat` (RN-92), enriquecido con `queue_size`, `queue_pressure`, `ruleset_version_applied`, `shutdown`.
+- Consultas síncronas backend → agente: **no existen** en el MVP. La fusión D2 + heartbeat enriquecido las elimina.
+
+Excepción futura (out-of-scope MVP): si se requiere debug interactivo local, se habilitará un **Unix socket via systemd socket activation** (sin puerto TCP, sin certificado adicional, controlado por permisos de FS). Nunca un puerto TCP.
+**Excepciones:** Ninguna en el MVP.
+
+### Decisiones técnicas referenciadas en otros documentos
+
+Las siguientes decisiones cierran suposiciones del roadmap pero su contenido es puramente técnico/operativo y se documenta en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo appendix:
+
+- **D3**: Lifespan de FastAPI ejecuta `seed_admin()` y `create_all()`; se elimina el init-container `db-init` del compose.
+- **D7**: Cross-cutting (logging sanitizado, rate limiting, `trace_id`) se introduce en el primer change que lo requiere, no se centraliza al final del roadmap.
+
+### Reglas modificadas por este appendix
+
+Este appendix **modifica** el comportamiento descrito en las siguientes reglas previas. Las versiones originales quedan derogadas:
+
+| Regla original | Reemplazada/refinada por |
+|----------------|--------------------------|
+| RN-17 (approve consulta hash al agente) | D2 (approve usa hash del evento; cadena de eventos garantiza consistencia) |
+| RN-86 (referencia a `failed_notifications` separada) | D6 / RN-107 (tabla unificada `alerts`) |
+| RN-102 (banner amarillo basado en `failed_notifications`) | D6 / RN-107 (banner amarillo basado en `alerts WHERE delivered_at IS NULL AND failed_at IS NOT NULL`) |
+| RN-75 (versión monotónica solamente) | D5 / RN-106 (versión monotónica + `target_agent_id` + semántica de `ruleset_version_applied`) |
+**Excepciones:** Si `postgres` está `down`, el backend retorna 503 a la mayoría de endpoints — la UI refleja esto con mensajes inline. Si un agente está `draining`, los botones de re-scan / update config quedan deshabilitados (RN-93).

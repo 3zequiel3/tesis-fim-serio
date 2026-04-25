@@ -1889,3 +1889,225 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 **Decisión**: El seed del primer admin crea el usuario con flag `must_change_password: bool = True`. En el primer `POST /auth/login` exitoso, el backend emite tokens con scope `password_change_only` y el frontend redirige a una vista donde el admin debe cambiar el password. Hasta que se complete el cambio (y el flag pase a `false`), ninguna otra API responde con éxito (devuelve 403 `password_change_required`).
 **Motivación**: Evitar que credenciales de bootstrap queden activas en producción.
 **Aplicación**: `modules/users/models.py` (campo `must_change_password`), `core/dependencies.py` (guard), frontend (`pages/ForcePasswordChange.tsx`).
+
+---
+
+## Appendix: Decisiones de implementación — Abril 2026
+
+Las siguientes 8 decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)) el 2026-04-24. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+
+### Modelo de datos del backend
+
+#### D1: Réplica de baseline metadata en backend
+**Decisión**: El backend persiste una tabla `baseline_entries` con metadata por path monitoreado, sin contenido cifrado. La fuente de verdad del contenido sigue siendo el agente (cifrado AES-256-GCM en `/var/lib/fim-agent/baseline/`).
+
+Schema SQLModel:
+```python
+class BaselineEntry(SQLModel, table=True):
+    __tablename__ = "baseline_entries"
+    id: int = Field(primary_key=True)
+    path: str = Field(index=True)
+    agent_id: str = Field(foreign_key="agents.agent_id", index=True)
+    hash: str | None  # null cuando status='absent'
+    status: BaselineStatus  # 'present' | 'absent'
+    last_updated: datetime
+    ruleset_version: int  # versión del comando que generó esta entrada
+```
+
+Sincronización: cada `event_ack` exitoso de `baseline_update` (RN-25, RN-59) hace upsert en `baseline_entries`. El backend resuelve approve/reject/UI consultando esta tabla, sin round-trip al agente.
+
+**Motivación**: Eliminar dependencia síncrona del backend hacia el agente para resolver flujos de approve y mostrar estado del baseline en UI. El agente sigue siendo único custodio del contenido cifrado (defensa en profundidad).
+
+**Aplicación**: `modules/agents/models.py` (nueva tabla), `modules/actions/service.py` (consulta `baseline_entries` en approve/reject), `modules/agents/consumer.py` (handler de `event_ack` para `baseline_update`).
+
+#### D4: Tabla `rejected_events_audit` con enum tipado
+**Decisión**: Eventos rechazados durante la ingesta (clock skew RN-90, schema inválido RN-91, HMAC inválido, agent desconocido, evento duplicado) se persisten en una tabla auditable con motivo tipado.
+
+Schema SQLModel:
+```python
+class RejectionReason(str, Enum):
+    CLOCK_SKEW = "clock_skew"
+    INVALID_SCHEMA = "invalid_schema"
+    INVALID_SIGNATURE = "invalid_signature"
+    UNKNOWN_AGENT = "unknown_agent"
+    DUPLICATE_EVENT = "duplicate_event"
+
+class RejectedEventAudit(SQLModel, table=True):
+    __tablename__ = "rejected_events_audit"
+    id: int = Field(primary_key=True)
+    event_id: str | None  # UUID si pudo parsearse del payload
+    agent_id: str
+    reason: RejectionReason
+    received_at: datetime
+    detected_at: datetime | None
+    payload_dump: str  # JSON crudo, truncado a 4 KB
+```
+
+**Motivación**: `str` libre permite typos que rompen reportes; el enum garantiza léxico cerrado. El truncado a 4 KB evita que un atacante llene la tabla con payloads grandes.
+
+**Aplicación**: `modules/events/models.py` (enum + table), `modules/events/consumer.py` (insert al rechazar).
+
+#### D6: Tabla unificada `alerts` (fusión con `failed_notifications`)
+**Decisión**: Se elimina la tabla separada `failed_notifications` mencionada en RN-86 y RN-102. Una única tabla `alerts` cubre todo el lifecycle.
+
+Schema SQLModel:
+```python
+class AlertSeverity(str, Enum):
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+class AlertChannel(str, Enum):
+    N8N = "n8n"
+    SMTP_FALLBACK = "smtp_fallback"
+    WEBHOOK_FALLBACK = "webhook_fallback"
+    LOG_ONLY = "log_only"
+
+class Alert(SQLModel, table=True):
+    __tablename__ = "alerts"
+    id: int = Field(primary_key=True)
+    event_id: int = Field(foreign_key="events.id")
+    severity: AlertSeverity
+    channel: AlertChannel | None  # null mientras pending
+    delivered_at: datetime | None
+    failed_at: datetime | None
+    last_error: str | None
+    retry_count: int = Field(default=0)
+    created_at: datetime
+```
+
+Estados:
+- **Pending**: `delivered_at IS NULL AND failed_at IS NULL AND retry_count < 3`
+- **Delivered**: `delivered_at IS NOT NULL`
+- **Failed terminal**: `delivered_at IS NULL AND failed_at IS NOT NULL`
+
+El banner amarillo del frontend (RN-102) consulta:
+```sql
+SELECT COUNT(*) FROM alerts WHERE delivered_at IS NULL AND failed_at IS NOT NULL;
+```
+
+**Motivación**: Dos tablas duplican lógica para representar el mismo lifecycle. Una sola tabla simplifica queries, índices y la UI de retry/discard.
+
+**Aplicación**: `modules/alerts/models.py` (nueva tabla, elimina `failed_notifications`), `modules/notifications/n8n_client.py` (escribe filas), `modules/health/router.py` (query del banner).
+
+### Despliegue y arranque
+
+#### D3: Lifespan FastAPI ejecuta `seed_admin()` y `create_all()` (sin init-container)
+**Decisión**: El seed del primer admin y la creación de tablas (`SQLModel.metadata.create_all()`) se ejecutan en el lifespan de FastAPI. Se elimina el servicio `db-init` del `docker-compose.yml`.
+
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    SQLModel.metadata.create_all(engine)
+    seed_admin()
+    yield
+```
+
+**Motivación**: El backend es single-instance (RN-76, C4). No hay race condition. `seed_admin()` y `create_all()` son idempotentes. El init-container agrega complejidad operativa (otra imagen, variable de entorno duplicada para password) sin beneficio en single-instance.
+
+**Trigger de migración a init-container**: si se introduce Alembic con migraciones versionadas, mover seed + migraciones a un init-container es justificado (separar `apply migrations` de `start app`). Documentar este trigger antes de habilitar Alembic.
+
+**Aplicación**: `main.py` (lifespan), `docker-compose.yml` (eliminar servicio `db-init`).
+
+### Sincronización backend ↔ agente
+
+#### D2: Approve usa el hash del evento, no consulta al agente
+**Decisión**: **Esta decisión sustituye la versión original de RN-17 que indicaba "el backend consulta al agente el hash actual"**. El backend NO realiza request síncrono al agente al ejecutar approve. Usa el hash que el evento `pending` ya trae al momento de detección.
+
+Justificación técnica:
+- El evento `pending` activo refleja el estado más reciente conocido por el sistema. Cualquier cambio detectado posteriormente crea un nuevo evento que marca al anterior como `superseded` (RN-21, C9).
+- Aprobar un evento implica que el snapshot al momento de detección es el deseado.
+- Aprobar un evento `superseded` retorna 409 (RN-77, C5).
+
+Race window self-healing:
+1. T0: archivo cambia, fanotify detecta, evento A con hash_A → pending.
+2. T1: archivo cambia de nuevo (microsegundos), fanotify aún no fired.
+3. T2: admin aprueba A con hash_A → baseline = hash_A.
+4. T3: fanotify procesa T1, evento B con hash_B → pending vs baseline hash_A → admin lo trata normalmente.
+
+El sistema converge sin pérdida de datos.
+
+**Motivación**: Eliminar el patrón request/response síncrono sobre streams asincrónicos. La cadena de eventos (RN-21) ya provee la garantía de consistencia que un round-trip al agente buscaría.
+
+**Aplicación**: `modules/actions/service.py` (approve usa `event.hash` directamente, no publica `get_file_hash`). Reescribir RN-17 en [reglas_de_negocio.md](reglas_de_negocio.md) bajo D2.
+
+#### D5: `target_agent_id` en comandos + semántica de `ruleset_version_applied`
+**Decisión**:
+- El contador `ruleset_version` (RN-75, C11) sigue siendo global por backend.
+- Todo comando publicado al stream `commands` lleva `target_agent_id: str | None`. `null` = broadcast.
+- El agente filtra: `if msg.target_agent_id not in (self.agent_id, None): skip`.
+- `Agent.ruleset_version_applied` se define como **el max `ruleset_version` confirmado vía `event_ack` de comandos cuyo `target_agent_id` era `self.agent_id` o `null`**.
+
+Check de "agente al día":
+```sql
+SELECT MAX(ruleset_version) FROM published_commands
+WHERE target_agent_id = :agent_id OR target_agent_id IS NULL;
+-- comparar con agent.ruleset_version_applied
+```
+
+**Motivación**: Sin `target_agent_id`, dos agentes con configuración heterogénea (paths distintos, reglas distintas) ven incrementarse el counter global por cambios que no les aplican. El agente B aparecería perpetuamente "desactualizado" en el dashboard aunque esté al día.
+
+**Aplicación**: Schema de payload de todos los comandos (`baseline_update`, `rule_sync`, `update_config`, `rescan_baseline`, `restore_file`, `quarantine_file`), agente (`commands_consumer.py` filtro), backend (`modules/agents/service.py` cálculo de `is_up_to_date`).
+
+#### D8: Prohibición de servidor HTTP en el agente
+**Decisión**: El agente NO expone servidor HTTP, gRPC ni listener TCP. Toda comunicación backend → agente viaja por Valkey Streams (`commands`) y backend ← agente por (`events`, `agent_heartbeat`).
+
+Análisis de casos backend → agente:
+| Caso | Resolución |
+|------|------------|
+| Approve (consultar hash) | D2 lo elimina |
+| Re-scan baseline | Async vía `rescan_baseline` + `event_ack` |
+| Update config | Async vía `update_config` + `event_ack` |
+| Rule sync | Async vía `rule_sync` + `event_ack` |
+| Restore / Quarantine | Async vía `restore_file` / `quarantine_file` + `event_ack` |
+| Health check del agente | `agent_heartbeat` cada 10s (RN-92, C12) |
+| Estado de cola | `agent_heartbeat` enriquecido (`queue_size`, `queue_pressure`) |
+
+Ningún caso requiere request/response síncrono.
+
+**Motivación**: Exponer HTTP en el agente implica abrir puerto TCP, configurar mTLS bidireccional, manejar lifecycle del server, gestionar firewall. Costo desproporcionado para un caso que no existe.
+
+**Excepción futura (out-of-scope MVP)**: si surge necesidad de debug interactivo local, exponer **Unix socket via systemd socket activation** (controlado por permisos de FS, sin TCP, sin certificado adicional). Nunca un puerto TCP.
+
+**Aplicación**: `agent/main.py` no instancia ningún server. Documentación de instalación menciona explícitamente que no hay puerto a abrir en el firewall del host.
+
+### Organización del código
+
+#### D7: Cross-cutting distribuido, no centralizado al final
+**Decisión**: Los controles transversales (logging sanitizado, rate limiting, `trace_id`) se introducen en el primer change que los necesita, no se agrupan al final del roadmap.
+
+Matriz feature → control:
+| Control | Change donde se introduce | Justificación |
+|---------|---------------------------|---------------|
+| `sanitize_logs` middleware (W6, RN-89) | Change 02 (`backend-core-scaffold`) | Sin él, los primeros logs ya pueden filtrar secrets. |
+| `trace_id` por request (RN-89) | Change 02 (`backend-core-scaffold`) | Mismo razonamiento, va con el middleware de logging. |
+| Rate limit login 5/15min (W5, RN-88) | Change 04 (`backend-auth`) | Sin endpoint de login, no aplica antes. |
+| Rate limit API auth 100 req/min/user | Change 04 (`backend-auth`) | Va en `get_current_user` (primer endpoint autenticado). |
+| Rate limit eventos del agente 100/min/`agent_id` | Change 11 (`backend-event-ingestion`) | Va en el consumer del stream `events`. |
+| Validación de `Origin` whitelist (RN-95) | Change 04 (`backend-auth`) | Va en el middleware CORS, primera vez que se sirve API. |
+
+Lo que SÍ queda en el change final (`backend-observability-hardening`):
+- Documentación operativa (formato de logs, paths, retención).
+- Tuning de parámetros para producción.
+- Tests de carga del rate limiter.
+- Workflows de ejemplo de n8n.
+- Endpoint `POST /users` para creación de admins adicionales.
+- Documentación de instalación del agente.
+
+**Motivación**: Centralizar todo al final implica que dev environment opera SIN sanitización de logs ni rate limiting durante todos los changes intermedios — riesgo real de filtrar secrets en logs de desarrollo y de tener regresiones cuando se "agrega" el control al final.
+
+**Aplicación**: Refleja la versión refactorizada del CHANGES.md (changes 02, 04, 11 toman cross-cutting; change 20 queda solo con docs y hardening operativo).
+
+### Resumen de aplicación
+
+| Decisión | Bloqueaba (en CHANGES.md original) | Estado |
+|----------|-----------------------------------|--------|
+| D1 (BaselineEntry backend) | Change 03, 13 | Cerrada |
+| D2 (Hash del evento) | Change 13 | Cerrada |
+| D3 (Lifespan FastAPI) | Change 02 | Cerrada |
+| D4 (`rejected_events_audit` enum) | Change 11 | Cerrada |
+| D5 (`target_agent_id` + semántica) | Change 12 | Cerrada |
+| D6 (`alerts` unificada) | Change 16 | Cerrada |
+| D7 (Cross-cutting distribuido) | Cierre M1 | Cerrada |
+| D8 (NO HTTP en agente) | Change 13 | Cerrada |
