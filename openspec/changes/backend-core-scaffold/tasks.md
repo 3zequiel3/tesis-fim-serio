@@ -80,5 +80,5 @@
 
 - [x] 11.1 Verificar que NO se modificó `docker-compose.yml`, `db/init/`, `.env.example`, `docs/`, `CHANGES.md` (boundary del change).
 - [x] 11.2 Correr `openspec validate backend-core-scaffold` (si está disponible) y resolver warnings.
-- [ ] 11.3 Commit conventional: `feat(backend): scaffold core package with cross-cutting (#change-02)`. Sin Co-Authored-By. Body explicando D3 y D7 aplicadas y los archivos creados.
+- [x] 11.3 Commit conventional: `feat(backend): scaffold core package with cross-cutting (#change-02)`. Sin Co-Authored-By. Body explicando D3 y D7 aplicadas y los archivos creados.
 - [x] 11.4 Confirmar que `openspec status --change backend-core-scaffold --json` muestra `isComplete: true` (todos los artifacts done).
