@@ -1,0 +1,14 @@
+# Runtime dependencies — FIM Platform Backend
+# Pinned as of 2026-04-25. Anchor: fastapi==0.136.0
+# If pip cannot resolve a conflict, check fastapi/starlette compat matrix first.
+
+fastapi==0.136.0
+sqlmodel==0.0.22
+psycopg[binary]==3.2.4
+python-jose[cryptography]==3.3.0
+argon2-cffi==23.1.0
+structlog==25.1.0
+valkey==6.1.0
+cryptography==44.0.2
+pydantic-settings==2.7.1
+uvicorn[standard]==0.34.0
