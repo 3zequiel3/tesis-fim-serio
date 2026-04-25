@@ -119,13 +119,14 @@ def seed_admin() -> None:
 
 **Validación al startup**: la instancia `settings = Settings()` se crea al import-time del módulo. Si falta una variable obligatoria, pydantic lanza `ValidationError` antes de que uvicorn empiece a aceptar conexiones — fail-fast.
 
-### D-CHANGE-05 — Dockerfile multi-stage, usuario no-root, sin healthcheck propio
+### D-CHANGE-05 — Dockerfile multi-stage con virtualenv, usuario no-root, sin healthcheck propio
 
 **Decisión**:
-- **Stage builder**: `python:3.13-slim`, `pip install --no-cache-dir --target=/install -r requirements.txt`. Sin `gcc` ni `build-essential` salvo que `psycopg[binary]` lo requiera (la variante `[binary]` provee wheels precompiladas; si en `apply` se descubre que falla, se cambia a `psycopg[c]` y se documenta).
-- **Stage runtime**: `python:3.13-slim`, copia `/install` del builder, agrega usuario `app` con `useradd -m -u 10001 app`, `WORKDIR /app`, `COPY --chown=app:app . /app/`, `USER app`. `EXPOSE 8000`. `CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]`.
+- **Stage builder**: `python:3.13-slim`, crea un virtualenv en `/opt/venv` con `python -m venv /opt/venv`, agrega `/opt/venv/bin` al `PATH`, e instala dependencias con `pip install --no-cache-dir -r requirements.txt`. Sin `gcc` ni `build-essential` salvo que `psycopg[binary]` lo requiera (la variante `[binary]` provee wheels precompiladas; si en `apply` se descubre que falla, se cambia a `psycopg[c]` y se documenta).
+- **Stage runtime**: `python:3.13-slim`, agrega usuario `app` con `useradd -m -u 10001 app`, copia `/opt/venv` completo del builder con `COPY --from=builder /opt/venv /opt/venv`, setea `ENV PATH="/opt/venv/bin:$PATH"` y `ENV PYTHONUNBUFFERED=1`. `WORKDIR /app`, `COPY --chown=app:app app/ /app/app/`, `USER app`. `EXPOSE 8000`. `CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]`.
 - **Sin `HEALTHCHECK` en el Dockerfile**: el compose ya define healthchecks en otros servicios; el del backend se agregará cuando exista `GET /health/components` (Change 11/15) y dependa de DB/Valkey. En este change, `GET /health` plano sirve para smoke test manual y para `wait-for` en CI futuros, pero no necesita estar declarado en Dockerfile.
-- **Sin `ENV PYTHONDONTWRITEBYTECODE=1` ni `PYTHONUNBUFFERED=1` en el Dockerfile**: se setean en el `Settings` de pydantic via env, o se confía en uvicorn (que ya hace flush). Mantener Dockerfile mínimo.
+
+**Alternativa rechazada (originalmente propuesta y aplicada — falló en smoke test)**: `pip install --target=/install` en el builder + `COPY --from=builder /install /usr/local/lib/python3.13/site-packages` en el runtime. Falla con `exec: "uvicorn": executable file not found in $PATH` cuando el container arranca. Razón técnica: `--target` mete los paquetes en un directorio plano y los ejecutables (uvicorn, pytest, etc.) quedan en `<target>/bin/`. Al copiar `/install` directo a `site-packages`, los binarios terminan en `/usr/local/lib/python3.13/site-packages/bin/`, que no está en el `PATH`. El patrón venv encapsula `lib/` + `bin/` en un único árbol y se resuelve con un solo `ENV PATH="/opt/venv/bin:$PATH"`, además de garantizar que los shebangs de los scripts del venv (`#!/opt/venv/bin/python`) sigan apuntando al intérprete correcto cuando se copia la imagen al runtime.
 
 **Alternativa considerada**: imagen `python:3.13-alpine`. Descartada — `psycopg` y `cryptography` con musl libc son problemáticos (necesitan compilación nativa, ABI distinta). `slim` (debian) es el default seguro para stack Python científico/criptográfico.
 
