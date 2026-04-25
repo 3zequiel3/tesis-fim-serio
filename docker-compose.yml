@@ -1,0 +1,148 @@
+# docker-compose.yml — FIM Platform
+#
+# Compose v2 (sin directiva `version:` — obsoleta desde Compose v2).
+#
+# Uso básico (infra sola — Done criterion de Change 01):
+#   docker compose up -d db valkey n8n
+#
+# Uso completo (cuando backend y frontend existan en Change 02/14):
+#   docker compose --profile app up -d
+#
+# Servicios con profiles: ["app"] (backend, frontend) NO arrancan con
+# `docker compose up` sin el flag --profile app. Esto evita errores de build
+# en tanto sus Dockerfiles no existan (D-05).
+
+networks:
+  fim_internal:
+    driver: bridge
+
+volumes:
+  pg_data:
+  valkey_data:
+  n8n_data:
+  backend_certs:
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # db — PostgreSQL 18.3
+  # Base `fim` creada por POSTGRES_DB; base `fim_n8n` creada por el script
+  # SQL en db/init/ (D-02). Usuario único `fim` con ownership sobre ambas (D-03).
+  # Puerto 5432 NO expuesto al host (D-04).
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:18.3
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fim
+      POSTGRES_USER: fim
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - fim_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fim -d fim"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # valkey — Valkey 9.0.3 (compatible con Redis protocol)
+  # Backend ↔ agente FIM se comunican SOLO vía Valkey Streams (RN-108, D8).
+  # Puerto 6379 NO expuesto al host (D-04).
+  # ---------------------------------------------------------------------------
+  valkey:
+    image: valkey/valkey:9.0.3
+    restart: unless-stopped
+    volumes:
+      - valkey_data:/data
+    networks:
+      - fim_internal
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # n8n — n8nio/n8n 2.16.1 (notificaciones)
+  # Usa la base fim_n8n con el usuario fim (D-03).
+  # Puerto 5678 (UI de n8n) NO expuesto al host — acceso solo por exec (D-04).
+  # Change 13 (integration-n8n-notifications) configura los workflows.
+  # ---------------------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n:2.16.1
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: fim_n8n
+      DB_POSTGRESDB_USER: fim
+      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD}
+      N8N_RUNNERS_ENABLED: "true"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - fim_internal
+
+  # ---------------------------------------------------------------------------
+  # backend — FastAPI (placeholder, Change 02)
+  # profiles: ["app"] → no arranca con `docker compose up` sin --profile app.
+  # Puertos: 8000 (API HTTP), 8443 (mTLS para agentes FIM, RN-78).
+  # deploy.replicas: 1 (RN-76 — single-instance, sin HA en M1-M4).
+  # El volumen backend_certs se popula en Change 04 (agent-mtls-ca).
+  # ---------------------------------------------------------------------------
+  backend:
+    build: ./backend
+    image: fim-backend:dev
+    profiles:
+      - app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://fim:${DB_PASSWORD}@db:5432/fim
+      VALKEY_URL: valkey://valkey:6379
+      JWT_SECRET_CURRENT: ${JWT_SECRET_CURRENT}
+      JWT_SECRET_PREVIOUS: ${JWT_SECRET_PREVIOUS}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CA_CERT_PATH: ${CA_CERT_PATH}
+      CA_KEY_PATH: ${CA_KEY_PATH}
+    volumes:
+      - backend_certs:/certs:ro
+    ports:
+      - "8443:8443"
+      - "8000:8000"
+    networks:
+      - fim_internal
+    deploy:
+      replicas: 1
+
+  # ---------------------------------------------------------------------------
+  # frontend — React 19 + Vite (placeholder, Change 14)
+  # profiles: ["app"] → no arranca sin --profile app.
+  # Puertos: definidos en Change 14. Hoy sin binding para evitar premature
+  # port reservation (D-04).
+  # ---------------------------------------------------------------------------
+  frontend:
+    build: ./frontend
+    image: fim-frontend:dev
+    profiles:
+      - app
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - fim_internal
