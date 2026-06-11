@@ -10,5 +10,6 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True)
     password_hash: str
     role: str = Field(default="admin")
+    is_active: bool = Field(default=True)
     must_change_password: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)

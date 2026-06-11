@@ -1,11 +1,9 @@
 import sqlalchemy
-from argon2 import PasswordHasher
 from sqlmodel import Session, select
 
 from app.core.database import engine
 from app.core.logging import log
-
-_ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
+from app.core.security import hash_password
 
 
 def seed_admin() -> None:
@@ -23,8 +21,9 @@ def seed_admin() -> None:
             return
         admin = User(
             username=settings.admin_username,
-            password_hash=_ph.hash(settings.admin_password.get_secret_value()),
+            password_hash=hash_password(settings.admin_password.get_secret_value()),
             role="admin",
+            is_active=True,
             must_change_password=True,
         )
         session.add(admin)

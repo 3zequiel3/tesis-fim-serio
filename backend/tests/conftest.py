@@ -20,6 +20,11 @@ from httpx import AsyncClient
 # porque config.py instancia Settings() al import-time.
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
 os.environ.setdefault("VALKEY_URL", "valkey://localhost:6379")
+os.environ.setdefault("JWT_SECRET_CURRENT", "test-secret-current-32-chars-xxxxx")
+os.environ.setdefault("JWT_SECRET_PREVIOUS", "")
+os.environ.setdefault("ADMIN_USERNAME", "admin")
+os.environ.setdefault("ADMIN_PASSWORD", "AdminPassword123!")
+os.environ.setdefault("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 
 
 @pytest.fixture

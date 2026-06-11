@@ -27,17 +27,25 @@ class Settings(BaseSettings):
     database_url: PostgresDsn
     valkey_url: str
 
-    # Variables que usan Changes posteriores; default vacío en M1.
-    jwt_secret_current: str = ""
+    # Auth — obligatorias desde Change 04.
+    jwt_secret_current: str
     jwt_secret_previous: str = ""
     admin_username: str = ""
     admin_password: SecretStr = SecretStr("")
+
+    # CORS — lista de origins permitidos, separada por comas.
+    cors_allowed_origins: str = ""
+
+    # PKI (Change 06).
     ca_cert_path: str = ""
     ca_key_path: str = ""
 
     # Comportamiento del backend.
     environment: str = "dev"
     log_level: str = "INFO"
+
+    def get_allowed_origins(self) -> list[str]:
+        return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
 
 
 # Instancia singleton — falla en import-time si DATABASE_URL o VALKEY_URL faltan.
