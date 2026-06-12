@@ -1,0 +1,34 @@
+[Unit]
+Description=FIM Agent — File Integrity Monitor
+Documentation=https://github.com/mncrmn2009/tesis-fim-serio
+After=network.target
+
+[Service]
+Type=simple
+User=fim-agent
+Group=fim-agent
+WorkingDirectory=/opt/fim-agent
+
+ExecStart=/opt/fim-agent/venv/bin/python -m agent --config /etc/fim-agent/config.yaml
+
+# Capabilities — fanotify requires CAP_SYS_ADMIN to mark full filesystems
+AmbientCapabilities=CAP_SYS_ADMIN
+CapabilityBoundingSet=CAP_SYS_ADMIN
+
+# Hardening — restrict what the process can access
+ProtectSystem=strict
+NoNewPrivileges=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/fim-agent /var/log/fim-agent
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fim-agent
+
+[Install]
+WantedBy=multi-user.target

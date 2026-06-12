@@ -1,0 +1,57 @@
+# FIM Agent — Bootstrap Configuration
+# This file defines the initial state of the agent (RN-68).
+# After first bootstrap via mTLS (Change 06), the authoritative configuration
+# lives in PostgreSQL; config.yaml is only read on first startup.
+#
+# Copy to /etc/fim-agent/config.yaml and fill in the values before starting.
+
+# Unique identifier for this agent instance. Must match the agent_id registered
+# in the backend via POST /agents/register (Change 06). Use hostname or a
+# descriptive slug (e.g., "host-prod-webserver-01").
+agent_id: host-prod-01
+
+# Base URL of the FIM backend (HTTP, no trailing slash). Used for the initial
+# bootstrap request (POST /agents/bootstrap) before mTLS is established.
+# Example: http://192.168.1.10:8000
+backend_url: http://localhost:8000
+
+# URL of the Valkey (Redis-compatible) server running in Docker Compose.
+# The agent uses Valkey Streams for all backend communication (RN-108).
+valkey_url: redis://localhost:6379
+
+# Path to the CA certificate used to verify the backend's mTLS certificate
+# and to validate the agent's own certificate after bootstrap (Change 06).
+ca_cert_path: /etc/fim-agent/certs/ca.pem
+
+# Filesystem paths to monitor with fanotify (Change 09).
+# Use absolute paths. The agent auto-excludes /var/lib/fim-agent/** to prevent
+# recursive event loops (RN-68). Paths are loaded at startup; changes are
+# pushed from the backend via Valkey after first bootstrap.
+watch_paths:
+  - /etc
+  - /bin
+  - /sbin
+  - /usr/bin
+  - /usr/sbin
+
+# Storage directories. These must exist with 0700 permissions and owner fim-agent.
+# Run install.sh to create them correctly.
+storage:
+  # AES-256-GCM encrypted baseline snapshots (Change 07).
+  baseline_dir: /var/lib/fim-agent/baseline
+
+  # Offline event queue for resilience when Valkey is unreachable (Change 08).
+  # Files written atomically as {timestamp}_{event_id}.json. Max 100 MB, drop-oldest.
+  queue_dir: /var/lib/fim-agent/queue
+
+  # Pre-action journal for atomic restoration and quarantine (Changes 07, 09).
+  # Each entry: {event_id}.json with state pending → completed/failed.
+  journal_dir: /var/lib/fim-agent/journal
+
+  # Cryptographic material — master_secret and shared_secret delivered at
+  # bootstrap (Change 06). Files must be 0400. Created by bootstrap.py.
+  secrets_dir: /var/lib/fim-agent/secrets
+
+  # TLS certificate and private key for mTLS communication (Change 06).
+  # cert.pem: 0600, key.pem: 0600, owner fim-agent.
+  certs_dir: /var/lib/fim-agent/certs

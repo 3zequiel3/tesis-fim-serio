@@ -1,0 +1,163 @@
+"""Tests del publisher de eventos FIM (Change 08, task 9.2)."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import uuid
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from agent.config import AgentConfig, StorageConfig
+from agent.publisher import Publisher, _ACK_TIMEOUT_S
+from agent.queue import EventQueue
+from agent.streams import verify_payload
+
+
+# ── fixtures ──────────────────────────────────────────────────────────────────
+
+@pytest.fixture()
+def shared_secret(tmp_path: Path) -> bytes:
+    secret = os.urandom(32)
+    secrets_dir = tmp_path / "secrets"
+    secrets_dir.mkdir(mode=0o700)
+    p = secrets_dir / "shared_secret"
+    fd = os.open(str(p), os.O_CREAT | os.O_WRONLY, 0o400)
+    with os.fdopen(fd, "wb") as f:
+        f.write(secret)
+    return secret
+
+
+@pytest.fixture()
+def config(tmp_path: Path, shared_secret: bytes) -> AgentConfig:
+    secrets_dir = tmp_path / "secrets"
+    return AgentConfig(
+        agent_id="test-agent-01",
+        backend_url="http://localhost:8000",
+        valkey_url="redis://localhost:6379",
+        ca_cert_path="/tmp/ca.pem",
+        watch_paths=["/tmp"],
+        storage=StorageConfig(
+            baseline_dir=str(tmp_path / "baseline"),
+            queue_dir=str(tmp_path / "queue"),
+            journal_dir=str(tmp_path / "journal"),
+            secrets_dir=str(secrets_dir),
+            certs_dir=str(tmp_path / "certs"),
+        ),
+    )
+
+
+@pytest.fixture()
+def queue(config: AgentConfig) -> EventQueue:
+    return EventQueue(config.storage.queue_dir)
+
+
+@pytest.fixture()
+def mock_client() -> AsyncMock:
+    client = AsyncMock()
+    client.xadd = AsyncMock(return_value="1-0")
+    client.xread = AsyncMock(return_value=[])
+    return client
+
+
+@pytest.fixture()
+def publisher(config: AgentConfig, queue: EventQueue, mock_client: AsyncMock) -> Publisher:
+    return Publisher(config, queue, mock_client)
+
+
+# ── payload firmado verificable ───────────────────────────────────────────────
+
+def test_publish_payload_has_valid_signature(
+    publisher: Publisher, shared_secret: bytes
+) -> None:
+    asyncio.run(publisher.publish({"path": "/etc/hosts", "hash_detected": "aaa"}))
+    xadd_call = publisher._client.xadd.call_args
+    data_str = xadd_call[0][1]["data"]
+    payload = json.loads(data_str)
+    assert "signature" in payload
+    assert verify_payload(shared_secret, payload)
+
+
+def test_publish_includes_required_fields(publisher: Publisher) -> None:
+    asyncio.run(publisher.publish({"path": "/etc/hosts", "hash_detected": "bbb"}))
+    xadd_call = publisher._client.xadd.call_args
+    data_str = xadd_call[0][1]["data"]
+    payload = json.loads(data_str)
+    for field in ("event_id", "agent_id", "detected_at", "schema_version", "signature"):
+        assert field in payload, f"Missing field: {field}"
+
+
+# ── encolar antes de XADD ─────────────────────────────────────────────────────
+
+def test_publish_enqueues_before_xadd(publisher: Publisher, queue: EventQueue) -> None:
+    """El archivo de cola debe existir aunque XADD falle."""
+    publisher._client.xadd = AsyncMock(side_effect=Exception("Valkey down"))
+    try:
+        asyncio.run(publisher.publish({"path": "/etc/hosts", "hash_detected": "ccc"}))
+    except Exception:
+        pass
+    assert queue.queue_size == 1
+
+
+# ── drenaje FIFO ──────────────────────────────────────────────────────────────
+
+def test_drain_queue_publishes_in_fifo_order(
+    publisher: Publisher, queue: EventQueue
+) -> None:
+    now = datetime.now(timezone.utc)
+    e1 = {
+        "event_id": str(uuid.uuid4()),
+        "agent_id": "test-agent-01",
+        "detected_at": (now - timedelta(hours=1)).isoformat(),
+        "schema_version": 1,
+        "path": "/a",
+        "hash_detected": "h1",
+        "signature": "",
+    }
+    e2 = {
+        "event_id": str(uuid.uuid4()),
+        "agent_id": "test-agent-01",
+        "detected_at": now.isoformat(),
+        "schema_version": 1,
+        "path": "/b",
+        "hash_detected": "h2",
+        "signature": "",
+    }
+    queue.enqueue(e1)
+    queue.enqueue(e2)
+
+    asyncio.run(publisher._drain_queue())
+
+    calls = publisher._client.xadd.call_args_list
+    assert len(calls) == 2
+    first = json.loads(calls[0][0][1]["data"])
+    second = json.loads(calls[1][0][1]["data"])
+    assert first["path"] == "/a"
+    assert second["path"] == "/b"
+
+
+# ── reintento a 60 s ──────────────────────────────────────────────────────────
+
+def test_retry_republishes_after_timeout(publisher: Publisher) -> None:
+    asyncio.run(publisher.publish({"path": "/etc/shadow", "hash_detected": "ddd"}))
+    event_id = list(publisher._pending.keys())[0]
+
+    # Simular que pasaron >60 s retrocediendo el timestamp
+    old_time, payload = publisher._pending[event_id]
+    publisher._pending[event_id] = (old_time - _ACK_TIMEOUT_S - 1, payload)
+
+    # Ejecutar la lógica de retry directamente
+    async def _do_retry() -> None:
+        now = asyncio.get_event_loop().time()
+        for eid, (published_at, pld) in list(publisher._pending.items()):
+            if now - published_at >= _ACK_TIMEOUT_S:
+                await publisher._xadd(pld)
+
+    asyncio.run(_do_retry())
+
+    # 2 llamadas: la publicación inicial + el reintento
+    assert publisher._client.xadd.call_count == 2

@@ -18,6 +18,8 @@ class Event(SQLModel, table=True):
     __tablename__ = "events"
 
     id: int | None = Field(default=None, primary_key=True)
+    event_id: str = Field(unique=True, index=True)  # UUID v4 del agente (dedup RN-73)
+    agent_id: str = Field(foreign_key="agents.agent_id", index=True)
     path: str = Field(index=True)
     hash_detected: str
     status: EventStatus = Field(index=True)

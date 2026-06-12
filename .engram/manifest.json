@@ -16,6 +16,14 @@
       "sessions": 0,
       "memories": 3,
       "prompts": 0
+    },
+    {
+      "id": "15facf9a",
+      "created_by": "mncrm",
+      "created_at": "2026-06-12T04:14:18Z",
+      "sessions": 0,
+      "memories": 12,
+      "prompts": 0
     }
   ]
 }

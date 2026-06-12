@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # PKI (Change 06).
     ca_cert_path: str = ""
     ca_key_path: str = ""
+    backend_cert_path: str = ""
+    backend_key_path: str = ""
 
     # Comportamiento del backend.
     environment: str = "dev"

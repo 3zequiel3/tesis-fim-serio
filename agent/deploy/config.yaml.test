@@ -1,0 +1,15 @@
+# Test config for local smoke test (9.1)
+# Run from repo root: python -m agent --config agent/deploy/config.yaml.test --log-format console
+agent_id: test-agent
+valkey_url: redis://localhost:6379
+ca_cert_path: /tmp/ca.pem
+
+watch_paths:
+  - /tmp/fim-test
+
+storage:
+  baseline_dir: /tmp/fim-agent-test/baseline
+  queue_dir: /tmp/fim-agent-test/queue
+  journal_dir: /tmp/fim-agent-test/journal
+  secrets_dir: /tmp/fim-agent-test/secrets
+  certs_dir: /tmp/fim-agent-test/certs

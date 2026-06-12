@@ -1,0 +1,128 @@
+"""
+Bootstrap mTLS del agente FIM (Change 06, RN-78).
+
+Flujo:
+  1. is_bootstrapped() → si ya hay cert válido, saltar.
+  2. generate_keypair() → genera clave Ed25519 si no existe.
+  3. build_csr() → construye CSR con CN=agent_id.
+  4. run() → POST /agents/bootstrap, persiste cert + CA + secrets.
+"""
+
+from __future__ import annotations
+
+import datetime
+import os
+import sys
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import httpx
+import structlog
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.x509.oid import NameOID
+
+if TYPE_CHECKING:
+    from agent.config import AgentConfig
+
+log = structlog.get_logger()
+
+_AGENT_CERT = "agent-cert.pem"
+_AGENT_KEY = "agent-key.pem"
+_CA_CERT = "ca.pem"
+_SHARED_SECRET = "shared_secret"
+_MASTER_SECRET = "master_secret"
+
+
+def _write_file(path: Path, content: bytes, mode: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, mode)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(content)
+    except Exception:
+        raise
+    os.chmod(path, mode)
+
+
+def is_bootstrapped(certs_dir: Path) -> bool:
+    cert_path = certs_dir / _AGENT_CERT
+    if not cert_path.exists():
+        return False
+    try:
+        cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return cert.not_valid_after_utc > now
+    except Exception:
+        return False
+
+
+def generate_keypair(key_path: Path) -> Ed25519PrivateKey:
+    if key_path.exists():
+        private_key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
+        return private_key  # type: ignore[return-value]
+
+    private_key = Ed25519PrivateKey.generate()
+    _write_file(
+        key_path,
+        private_key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        ),
+        mode=0o600,
+    )
+    return private_key
+
+
+def build_csr(private_key: Ed25519PrivateKey, agent_id: str) -> str:
+    csr = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, agent_id)]))
+        .sign(private_key, None)  # type: ignore[arg-type]  # Ed25519 has no hash
+    )
+    return csr.public_bytes(serialization.Encoding.PEM).decode()
+
+
+def run(config: "AgentConfig", bootstrap_secret: str) -> None:
+    certs_dir = Path(config.storage.certs_dir)
+    secrets_dir = Path(config.storage.secrets_dir)
+
+    key_path = certs_dir / _AGENT_KEY
+    private_key = generate_keypair(key_path)
+    csr_pem = build_csr(private_key, config.agent_id)
+
+    url = config.backend_url.rstrip("/") + "/agents/bootstrap"
+    log.info("agent.bootstrap.start", agent_id=config.agent_id, url=url)
+
+    try:
+        resp = httpx.post(
+            url,
+            json={
+                "agent_id": config.agent_id,
+                "csr_pem": csr_pem,
+                "bootstrap_secret": bootstrap_secret,
+            },
+            timeout=30.0,
+            verify=False,  # Bootstrap pre-mTLS — CA aún no confiada localmente
+        )
+    except httpx.ConnectError as exc:
+        log.error("agent.bootstrap.connection_error", error=str(exc))
+        sys.exit(1)
+    except httpx.TimeoutException as exc:
+        log.error("agent.bootstrap.timeout", error=str(exc))
+        sys.exit(1)
+
+    if resp.status_code != 200:
+        log.error("agent.bootstrap.failed", status=resp.status_code, body=resp.text)
+        sys.exit(1)
+
+    data = resp.json()
+
+    _write_file(certs_dir / _AGENT_CERT, data["cert_pem"].encode(), mode=0o600)
+    _write_file(certs_dir / _CA_CERT, data["ca_cert_pem"].encode(), mode=0o600)
+    _write_file(secrets_dir / _SHARED_SECRET, bytes.fromhex(data["shared_secret_hex"]), mode=0o400)
+    _write_file(secrets_dir / _MASTER_SECRET, bytes.fromhex(data["master_secret_hex"]), mode=0o400)
+
+    log.info("agent.bootstrap.complete", agent_id=config.agent_id)

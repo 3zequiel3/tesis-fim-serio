@@ -65,3 +65,12 @@ async def require_full_access(user: User = Depends(get_current_user)) -> User:
             detail="password_change_required",
         )
     return user
+
+
+async def require_admin(user: User = Depends(require_full_access)) -> User:
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin_required",
+        )
+    return user

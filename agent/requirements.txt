@@ -1,0 +1,13 @@
+# Runtime dependencies — FIM Agent
+# Pinned 2026-06-11. Anchor: pyfanotify==0.3.0 (Linux only)
+# pyfanotify requires Linux kernel >= 5.1 and CAP_SYS_ADMIN — not installable on other platforms.
+# structlog, valkey, cryptography, pydantic-settings pinned to match backend versions.
+
+pyfanotify==0.3.0
+structlog==25.1.0
+valkey==6.1.0
+cryptography==44.0.2
+pydantic-settings==2.7.1
+pydantic==2.10.6
+PyYAML==6.0.2
+httpx==0.28.1

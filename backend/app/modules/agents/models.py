@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
+from pydantic import BaseModel, field_validator
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
@@ -21,6 +22,7 @@ class Agent(SQLModel, table=True):
     ruleset_version_applied: int = Field(default=0)
     queue_pressure: float | None = Field(default=None)
     bootstrap_secret_hash: str | None = Field(default=None)
+    shared_secret_hex: str | None = Field(default=None)  # persiste tras bootstrap para HMAC
 
 
 class RevokedCertificate(SQLModel, table=True):
@@ -31,6 +33,31 @@ class RevokedCertificate(SQLModel, table=True):
     serial_number: str
     revoked_at: datetime = Field(default_factory=datetime.utcnow)
     reason: str | None = Field(default=None)
+
+
+class AgentRegisterRequest(BaseModel):
+    agent_id: str
+    bootstrap_secret: str
+
+    @field_validator("bootstrap_secret")
+    @classmethod
+    def secret_min_length(cls, v: str) -> str:
+        if len(v) < 16:
+            raise ValueError("bootstrap_secret must be at least 16 characters")
+        return v
+
+
+class AgentBootstrapRequest(BaseModel):
+    agent_id: str
+    csr_pem: str
+    bootstrap_secret: str
+
+
+class AgentBootstrapResponse(BaseModel):
+    cert_pem: str
+    ca_cert_pem: str
+    shared_secret_hex: str
+    master_secret_hex: str
 
 
 class BaselineStatus(str, Enum):

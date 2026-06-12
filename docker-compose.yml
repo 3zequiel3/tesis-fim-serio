@@ -126,8 +126,10 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       CA_CERT_PATH: ${CA_CERT_PATH}
       CA_KEY_PATH: ${CA_KEY_PATH}
+      BACKEND_CERT_PATH: ${BACKEND_CERT_PATH}
+      BACKEND_KEY_PATH: ${BACKEND_KEY_PATH}
     volumes:
-      - backend_certs:/certs:ro
+      - backend_certs:/certs
     ports:
       - "8443:8443"
       - "8000:8000"
