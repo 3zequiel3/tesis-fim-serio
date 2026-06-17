@@ -19,7 +19,7 @@ import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import structlog
 
@@ -54,6 +54,9 @@ class Publisher:
         # event_id → (loop_time_published, payload)
         self._pending: dict[str, tuple[float, dict[str, Any]]] = {}
         self._shutdown = False
+        self._on_ack_cb: Callable[[str], None] | None = None
+        self._on_update_config_cb: Callable[[list[str]], None] | None = None
+        self._on_rule_sync_cb: Callable[[list, int], None] | None = None
 
     # ── public ───────────────────────────────────────────────────────────────
 
@@ -75,6 +78,17 @@ class Publisher:
             payload,
         )
         log.info("publisher.event_published", event_id=payload["event_id"])
+
+    def register_callbacks(
+        self,
+        on_ack: Callable[[str], None] | None = None,
+        on_update_config: Callable[[list[str]], None] | None = None,
+        on_rule_sync: Callable[[list, int], None] | None = None,
+    ) -> None:
+        """Registra callbacks opcionales invocados al procesar comandos del stream."""
+        self._on_ack_cb = on_ack
+        self._on_update_config_cb = on_update_config
+        self._on_rule_sync_cb = on_rule_sync
 
     def set_shutdown(self, value: bool) -> None:
         """Marca el estado de drenaje graceful para que el heartbeat lo vea."""
@@ -153,7 +167,24 @@ class Publisher:
             if event_id:
                 self._queue.remove(event_id)
                 self._pending.pop(event_id, None)
+                if self._on_ack_cb is not None:
+                    self._on_ack_cb(event_id)
                 log.info("publisher.event_acked", event_id=event_id)
+        elif cmd_type == "update_config":
+            new_paths = payload.get("watch_paths")
+            if isinstance(new_paths, list) and self._on_update_config_cb is not None:
+                self._on_update_config_cb(new_paths)
+                log.info("publisher.update_config_received")
+        elif cmd_type == "rule_sync":
+            rules_payload = payload.get("rules")
+            ruleset_version = payload.get("ruleset_version")
+            if (
+                isinstance(rules_payload, list)
+                and isinstance(ruleset_version, int)
+                and self._on_rule_sync_cb is not None
+            ):
+                self._on_rule_sync_cb(rules_payload, ruleset_version)
+                log.info("publisher.rule_sync_received", ruleset_version=ruleset_version)
 
     # ── retry loop ─────────────────────────────────────────────────────────────
 

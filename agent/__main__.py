@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import platform
 import signal
 import sys
 from pathlib import Path
@@ -13,13 +14,32 @@ import valkey.asyncio as avalkey
 import agent.bootstrap as bootstrap
 from agent.baseline import BaselineEngine, load_master_secret
 from agent.config import load_config
+from agent.decision import DecisionEngine
 from agent.heartbeat import HeartbeatPublisher
+from agent.journal import JournalManager
 from agent.logging import configure_logging
 from agent.publisher import Publisher
 from agent.queue import EventQueue
+from agent.rules import RulesCache
 from agent.state import load_state
 
+_LINUX = platform.system() == "Linux"
+
 log = structlog.get_logger()
+
+
+async def _drain_then_stop(
+    queue: EventQueue,
+    stop_event: asyncio.Event,
+    timeout: float = 30.0,
+) -> None:
+    """Espera hasta que la cola offline drene o se cumpla el timeout, luego señala stop."""
+    deadline = asyncio.get_event_loop().time() + timeout
+    while asyncio.get_event_loop().time() < deadline:
+        if queue.queue_size == 0:
+            break
+        await asyncio.sleep(0.5)
+    stop_event.set()
 
 
 async def main(config_path: Path, log_level: str, log_format: str) -> None:
@@ -39,6 +59,9 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     state_path = Path(cfg.storage.baseline_dir).parent / "state.json"
     state = load_state(state_path)
 
+    # RulesCache se auto-carga desde state.json (clave "rules")
+    rules_cache = RulesCache(state_path)
+
     master_secret = load_master_secret(cfg.storage.secrets_dir)
     engine = BaselineEngine(cfg, master_secret)
     report = engine.init_scan(cfg.watch_paths)
@@ -57,32 +80,72 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     )
 
     stop_event = asyncio.Event()
-    # Señala que el agente está en modo drenaje graceful (SIGTERM recibido)
     shutdown_flag = asyncio.Event()
     loop = asyncio.get_running_loop()
+    _drain_task: asyncio.Task | None = None
 
     def _shutdown(sig_name: str) -> None:
         log.info("shutting down", signal=sig_name)
         shutdown_flag.set()
-        stop_event.set()
+        nonlocal _drain_task
+        # Drena la cola y luego activa stop_event (RN-93)
+        _drain_task = loop.create_task(_drain_then_stop(queue, stop_event))
 
     loop.add_signal_handler(signal.SIGTERM, lambda: _shutdown("SIGTERM"))
     loop.add_signal_handler(signal.SIGINT, lambda: _shutdown("SIGINT"))
 
-    # Una conexión Valkey por proceso, compartida por publisher y heartbeat (D-1, D8)
     valkey_client: avalkey.Valkey = avalkey.Valkey.from_url(cfg.valkey_url, decode_responses=True)
 
     queue = EventQueue(cfg.storage.queue_dir)
     publisher = Publisher(cfg, queue, valkey_client)
     heartbeat = HeartbeatPublisher(cfg, queue, state, valkey_client)
 
-    try:
-        await asyncio.gather(
-            publisher.run(stop_event),
-            heartbeat.run(stop_event, shutdown_flag),
+    quarantine_dir = Path(cfg.storage.journal_dir).parent / "quarantine"
+    journal = JournalManager(cfg.storage.journal_dir)
+    decision_engine = DecisionEngine(
+        rules=rules_cache,
+        journal=journal,
+        baseline=engine,
+        quarantine_dir=quarantine_dir,
+    )
+
+    coroutines = [
+        publisher.run(stop_event),
+        heartbeat.run(stop_event, shutdown_flag),
+    ]
+
+    if _LINUX:
+        from agent.detector import FanotifyDetector
+
+        # Rehidratación del journal antes de arrancar el detector (RN-83)
+        await decision_engine.rehydrate(publisher)
+
+        detector = FanotifyDetector(
+            agent_id=cfg.agent_id,
+            watch_paths=cfg.watch_paths,
+            baseline=engine,
+            publisher=publisher,
+            stop_event=stop_event,
+            decision_engine=decision_engine,
         )
+
+        def _on_rule_sync(rules_payload: list, ruleset_version: int) -> None:
+            rules_cache.update(rules_payload, ruleset_version, state)
+
+        publisher.register_callbacks(
+            on_ack=detector.on_ack,
+            on_update_config=detector.reload_paths,
+            on_rule_sync=_on_rule_sync,
+        )
+        coroutines.append(detector.start())
+    else:
+        log.warning("agent.detector.skipped", reason="fanotify only available on Linux")
+
+    try:
+        await asyncio.gather(*coroutines)
     finally:
         await valkey_client.aclose()
+        sys.exit(0)
 
 
 def _parse_args() -> argparse.Namespace:
