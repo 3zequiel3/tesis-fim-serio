@@ -2111,3 +2111,25 @@ Lo que SÍ queda en el change final (`backend-observability-hardening`):
 | D6 (`alerts` unificada) | Change 16 | Cerrada |
 | D7 (Cross-cutting distribuido) | Cierre M1 | Cerrada |
 | D8 (NO HTTP en agente) | Change 13 | Cerrada |
+| D9 (Fan-out HMAC en broadcast) | Change 12 | Cerrada |
+| D10 (`published_commands` table owner) | Change 12 | Cerrada |
+
+#### D9: Fan-out para comandos broadcast — un mensaje firmado por agente
+**Decisión**: Cuando el backend publica un comando con semántica "broadcast" (e.g. `rule_sync` global), NO publica un único mensaje con `target_agent_id: null`. En cambio, publica N mensajes físicos en el stream `commands`, uno por cada agente registrado, cada uno con `target_agent_id = agent_id` y firmado con el `shared_secret` específico de ese agente.
+
+El término "broadcast" en D5, RN-29 y CHANGES.md C12 significa "a todos los agentes activos", no "un único mensaje en el stream". El agente consume solo mensajes donde `target_agent_id == self.agent_id` (o la firma coincide), como ya lo hace con `event_ack`.
+
+**Motivación**: Un único mensaje HMAC-firmado en un stream compartido no puede ser verificado por múltiples agentes, cada uno con su propio `shared_secret` generado en bootstrap. Fan-out mantiene la garantía RN-79 sin introducir un segundo secret de broadcast ni comprometer el modelo de seguridad per-agent.
+
+**Aplicación**: `backend/app/modules/rules/service.py` — la función `publish_rule_sync(session)` itera `Agent.all_active()`, firma con cada `agent.shared_secret_hex` y publica en `commands`. El campo `target_agent_id` siempre lleva el ID explícito del agente (nunca null en la práctica para `rule_sync`). Changes que publiquen otros comandos broadcast (C13 `restore_file`, C15 `rescan_baseline`) aplican el mismo patrón.
+
+#### D10: Tabla `published_commands` creada en C12
+**Decisión**: La tabla `published_commands` se crea en Change 12 (`backend-rules-crud`), que es el primer change que publica comandos versionados al stream `commands`.
+
+Columnas: `id: int` (PK autoincrement), `command_type: str`, `target_agent_id: str | None`, `ruleset_version: int`, `published_at: datetime`.
+
+El check de "agente al día" de D5 (`SELECT MAX(ruleset_version) FROM published_commands WHERE target_agent_id = :agent_id OR target_agent_id IS NULL`) opera desde C12 en adelante. Changes posteriores que publiquen comandos (C13, C14, C15) insertan en esta misma tabla.
+
+**Motivación**: Diferir la tabla a C14 (`backend-agents-status`) agrega deuda técnica — D5 ya está definida y C12 necesita el registro para que el dashboard posterior tenga datos históricos desde el primer `rule_sync`. La tabla es trivial y su ownership natural es el primer change que la escribe.
+
+**Aplicación**: `backend/app/modules/rules/models.py` agrega `class PublishedCommand(SQLModel, table=True)`. `backend/app/main.py` importa el modelo para que `create_all()` lo incluya. `rules/service.py` inserta en `published_commands` al publicar `rule_sync`.

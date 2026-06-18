@@ -3,7 +3,7 @@ import pytest
 from app.modules.agents.models import AgentStatus, BaselineStatus
 from app.modules.alerts.models import AlertChannel, AlertSeverity
 from app.modules.events.models import EventStatus, RejectionReason
-from app.modules.rules.models import RuleAction, RuleSeverity
+from app.modules.rules.models import PublishedCommand, RuleAction, RuleSeverity
 
 
 class TestEventStatus:
@@ -82,3 +82,36 @@ class TestAlertChannel:
     def test_rejects_unknown(self):
         with pytest.raises(ValueError):
             AlertChannel("email")
+
+
+class TestPublishedCommand:
+    def test_instantiation_with_required_fields(self):
+        cmd = PublishedCommand(
+            command_type="rule_sync",
+            target_agent_id="agent-001",
+            ruleset_version=5,
+        )
+        assert cmd.command_type == "rule_sync"
+        assert cmd.target_agent_id == "agent-001"
+        assert cmd.ruleset_version == 5
+        assert cmd.id is None  # PK sin asignar hasta insert
+
+    def test_target_agent_id_nullable(self):
+        """target_agent_id admite None (D10 — check OR target_agent_id IS NULL)."""
+        cmd = PublishedCommand(
+            command_type="rule_sync",
+            target_agent_id=None,
+            ruleset_version=1,
+        )
+        assert cmd.target_agent_id is None
+
+    def test_published_at_has_default(self):
+        from datetime import datetime
+
+        cmd = PublishedCommand(
+            command_type="rule_sync",
+            target_agent_id="agent-001",
+            ruleset_version=3,
+        )
+        assert cmd.published_at is not None
+        assert isinstance(cmd.published_at, datetime)

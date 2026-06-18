@@ -35,3 +35,15 @@ class RulesetVersion(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     version: int = Field(default=0)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PublishedCommand(SQLModel, table=True):
+    """Registro histórico de comandos versionados publicados al stream commands (D10)."""
+
+    __tablename__ = "published_commands"
+
+    id: int | None = Field(default=None, primary_key=True)
+    command_type: str
+    target_agent_id: str | None = Field(default=None)
+    ruleset_version: int
+    published_at: datetime = Field(default_factory=datetime.utcnow)

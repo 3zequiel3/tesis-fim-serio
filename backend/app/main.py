@@ -32,6 +32,7 @@ from app.modules.auth.service import seed_admin
 from app.modules.events.consumer import run_consumer
 from app.modules.events.router import router as events_router
 from app.modules.events.service import retention_task
+from app.modules.rules.router import router as rules_router
 from app.modules.users.router import router as users_router
 
 configure_logging()
@@ -90,6 +91,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(agents_router)
 app.include_router(events_router)
+app.include_router(rules_router)
 
 
 @app.get("/health")
