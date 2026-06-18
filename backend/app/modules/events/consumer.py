@@ -2,14 +2,15 @@
 Consumer del stream 'events' para el backend FIM Platform.
 
 Consumer group: fim-backend (RN-56).
-Validación en orden barato→caro (D-5):
+Validación en orden barato→caro:
   1. schema_version   → invalid_schema  (RN-91)
   2. agent_id existe  → unknown_agent
   3. HMAC-SHA256      → invalid_signature (RN-79)
   4. clock skew ≤5min → clock_skew      (RN-90)
-  5. dedup event_id   → XACK + event_ack sin re-insertar (RN-73)
+  5. rate limit       → rate_limited    (RN-88, D7)
+  6. dedup event_id   → XACK + event_ack sin re-insertar (RN-73)
 
-Camino feliz: persiste Event, XACK, publica event_ack firmado en 'commands' (RN-73, D5).
+Camino feliz: ingest_event (service), XACK, publica event_ack firmado (RN-73, D5).
 Rechazos: inserta RejectedEventAudit, XACK, sin event_ack (D4, RN-105).
 Al arrancar releer pendientes con id '0' antes de nuevos '>' (RN-76).
 """
@@ -18,6 +19,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
+from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
@@ -37,6 +40,7 @@ from app.core.streams import (
 )
 from app.modules.agents.models import Agent
 from app.modules.events.models import Event, EventStatus, RejectedEventAudit, RejectionReason
+from app.modules.events.service import InvalidTransitionError, ingest_event
 
 log = structlog.get_logger()
 
@@ -45,6 +49,42 @@ _MAX_PAYLOAD_DUMP = 4 * 1024  # 4 KB (RN-105)
 _BLOCK_MS = 2000
 _BATCH_SIZE = 50
 
+
+# ── Rate limiter ──────────────────────────────────────────────────────────────
+
+class _RateLimiter:
+    """Ventana deslizante 60s por agent_id (RN-88). Single-threaded asyncio."""
+
+    def __init__(self, limit: int = 100, window_s: float = 60.0) -> None:
+        self._limit = limit
+        self._window_s = window_s
+        self._buckets: dict[str, deque[float]] = {}
+
+    def check(self, key: str) -> bool:
+        """Retorna True si está dentro del límite (registra el timestamp). False si excede."""
+        now = time.monotonic()
+        cutoff = now - self._window_s
+        bucket = self._buckets.setdefault(key, deque())
+        while bucket and bucket[0] < cutoff:
+            bucket.popleft()
+        if len(bucket) >= self._limit:
+            return False
+        bucket.append(now)
+        return True
+
+    def reset(self) -> None:
+        self._buckets.clear()
+
+
+_rate_limiter = _RateLimiter()
+
+
+def reset_rate_limiter() -> None:
+    """Limpia todos los contadores. Usado en tests."""
+    _rate_limiter.reset()
+
+
+# ── Consumer loop ─────────────────────────────────────────────────────────────
 
 async def run_consumer(client: Any, stop_event: asyncio.Event) -> None:
     """Tarea asyncio principal del consumer de eventos."""
@@ -126,7 +166,13 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         await _reject(client, msg_id, event_id, agent_id, RejectionReason.clock_skew, received_at, payload, payload_dump)
         return
 
-    # ── 5. dedup ──────────────────────────────────────────────────────────────
+    # ── 5. rate limit ─────────────────────────────────────────────────────────
+    if not _rate_limiter.check(agent_id):
+        await _reject(client, msg_id, event_id, agent_id, RejectionReason.rate_limited, received_at, payload, payload_dump)
+        log.warning("consumer.rate_limited", agent_id=agent_id)
+        return
+
+    # ── 6. dedup ──────────────────────────────────────────────────────────────
     if event_id and _event_exists(event_id):
         # Re-entrega legítima: XACK + event_ack, no re-insertar, no auditar
         await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
@@ -136,11 +182,28 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         return
 
     # ── camino feliz ───────────────────────────────────────────────────────────
-    _persist_event(payload, agent_id, received_at, detected_at)
+    event = _ingest(payload, received_at, detected_at)
     await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
-    if event_id:
+    if event is not None and event_id:
         await _publish_event_ack(client, event_id, agent_id, shared_secret)
-    log.info("consumer.event_persisted", event_id=event_id, agent_id=agent_id)
+        log.info("consumer.event_persisted", event_id=event_id, agent_id=agent_id)
+    elif event is None:
+        log.warning("consumer.event_ingest_skipped", event_id=event_id, reason="race_or_invalid_transition")
+
+
+# ── helpers de ingesta ────────────────────────────────────────────────────────
+
+def _ingest(payload: dict[str, Any], received_at: datetime, detected_at: datetime) -> Event | None:
+    """Llama service.ingest_event; captura InvalidTransitionError."""
+    try:
+        return ingest_event(payload, received_at, detected_at)
+    except InvalidTransitionError as exc:
+        log.warning(
+            "consumer.invalid_transition",
+            from_status=str(exc.from_status),
+            to_status=str(exc.to_status),
+        )
+        return None
 
 
 # ── helpers de base de datos ─────────────────────────────────────────────────
@@ -163,24 +226,6 @@ def _event_exists(event_id: str) -> bool:
     with Session(engine) as session:
         existing = session.exec(select(Event).where(Event.event_id == event_id)).first()
     return existing is not None
-
-
-def _persist_event(payload: dict[str, Any], agent_id: str, received_at: datetime, detected_at: datetime) -> None:
-    event = Event(
-        event_id=payload.get("event_id", ""),
-        agent_id=agent_id,
-        path=payload.get("path", ""),
-        hash_detected=payload.get("hash_detected", ""),
-        status=EventStatus.pending,
-        process_pid=payload.get("process_pid"),
-        process_uid=payload.get("process_uid"),
-        process_exe=payload.get("process_exe"),
-        detected_at=detected_at,
-        received_at=received_at,
-    )
-    with Session(engine) as session:
-        session.add(event)
-        session.commit()
 
 
 # ── helpers de rechazo ────────────────────────────────────────────────────────

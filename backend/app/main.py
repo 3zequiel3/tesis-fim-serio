@@ -30,6 +30,8 @@ from app.modules.agents.router import router as agents_router
 from app.modules.auth.router import router as auth_router
 from app.modules.auth.service import seed_admin
 from app.modules.events.consumer import run_consumer
+from app.modules.events.router import router as events_router
+from app.modules.events.service import retention_task
 from app.modules.users.router import router as users_router
 
 configure_logging()
@@ -59,6 +61,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     async_valkey = avalkey.Valkey.from_url(settings.valkey_url, decode_responses=True)
     consumer_task = asyncio.create_task(run_consumer(async_valkey, stop_event))
     heartbeat_task = asyncio.create_task(run_heartbeat_consumer(async_valkey, stop_event))
+    retention_task_handle = asyncio.create_task(retention_task())
 
     yield
 
@@ -66,7 +69,8 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     stop_event.set()
     consumer_task.cancel()
     heartbeat_task.cancel()
-    await asyncio.gather(consumer_task, heartbeat_task, return_exceptions=True)
+    retention_task_handle.cancel()
+    await asyncio.gather(consumer_task, heartbeat_task, retention_task_handle, return_exceptions=True)
     await async_valkey.aclose()
 
     close_valkey()
@@ -85,6 +89,7 @@ app.add_middleware(TraceIdMiddleware)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(agents_router)
+app.include_router(events_router)
 
 
 @app.get("/health")

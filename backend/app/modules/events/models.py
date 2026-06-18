@@ -41,6 +41,7 @@ class RejectionReason(str, Enum):
     invalid_signature = "invalid_signature"
     unknown_agent = "unknown_agent"
     duplicate_event = "duplicate_event"
+    rate_limited = "rate_limited"
 
 
 class RejectedEventAudit(SQLModel, table=True):

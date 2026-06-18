@@ -24,7 +24,7 @@ class TestEventStatus:
 class TestRejectionReason:
     def test_all_canonical_values(self):
         for v in ("clock_skew", "invalid_schema", "invalid_signature",
-                  "unknown_agent", "duplicate_event"):
+                  "unknown_agent", "duplicate_event", "rate_limited"):
             assert RejectionReason(v).value == v
 
     def test_rejects_unknown(self):
