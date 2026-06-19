@@ -29,7 +29,10 @@ from agent.streams import SCHEMA_VERSION, load_shared_secret, sign_payload
 if TYPE_CHECKING:
     import valkey.asyncio as avalkey
 
+    from agent.baseline import BaselineEngine
     from agent.config import AgentConfig
+    from agent.journal import JournalManager
+    from agent.state import AgentState
 
 log = structlog.get_logger()
 
@@ -57,6 +60,11 @@ class Publisher:
         self._on_ack_cb: Callable[[str], None] | None = None
         self._on_update_config_cb: Callable[[list[str]], None] | None = None
         self._on_rule_sync_cb: Callable[[list, int], None] | None = None
+        # C13: referencias opcionales para dispatch de comandos del agente
+        self._baseline_engine: "BaselineEngine | None" = None
+        self._agent_state: "AgentState | None" = None
+        self._journal: "JournalManager | None" = None
+        self._quarantine_dir: str | None = None
 
     # ── public ───────────────────────────────────────────────────────────────
 
@@ -89,6 +97,23 @@ class Publisher:
         self._on_ack_cb = on_ack
         self._on_update_config_cb = on_update_config
         self._on_rule_sync_cb = on_rule_sync
+
+    def register_command_handlers(
+        self,
+        baseline_engine: "BaselineEngine",
+        state: "AgentState",
+        journal: "JournalManager",
+        quarantine_dir: str | None = None,
+    ) -> None:
+        """
+        Registra las instancias necesarias para despachar comandos C13
+        (baseline_update, restore_file, quarantine_file).
+        Debe llamarse desde bootstrap después de inicializar baseline y state.
+        """
+        self._baseline_engine = baseline_engine
+        self._agent_state = state
+        self._journal = journal
+        self._quarantine_dir = quarantine_dir
 
     def set_shutdown(self, value: bool) -> None:
         """Marca el estado de drenaje graceful para que el heartbeat lo vea."""
@@ -134,7 +159,7 @@ class Publisher:
     # ── listener de event_ack ─────────────────────────────────────────────────
 
     async def _ack_listener(self, stop_event: asyncio.Event) -> None:
-        """Lee 'commands' y procesa event_ack (RN-40, RN-73, D5, RN-106)."""
+        """Lee 'commands' y procesa event_ack (RN-40, RN-73, D5, RN-106) y comandos C13."""
         last_id = "$"
         while not stop_event.is_set():
             try:
@@ -144,20 +169,78 @@ class Publisher:
                 if results:
                     for _stream, messages in results:
                         for msg_id, msg_data in messages:
-                            self._handle_command(msg_data)
+                            await self._handle_command_async(msg_data)
                             last_id = msg_id
             except Exception as exc:
                 log.warning("publisher.ack_listener_error", error=str(exc))
                 await asyncio.sleep(1)
 
-    def _handle_command(self, msg_data: dict[str, Any]) -> None:
-        """Procesa un mensaje del stream commands."""
+    async def _handle_command_async(self, msg_data: dict[str, Any]) -> None:
+        """Procesa un mensaje del stream commands (async — soporta dispatch C13)."""
         raw = msg_data.get("data", "{}")
         try:
             payload = json.loads(raw)
         except (json.JSONDecodeError, TypeError):
             return
         # Filtrar por target_agent_id — D5, RN-106
+        target = payload.get("target_agent_id")
+        if target and target != self._config.agent_id:
+            return
+        cmd_type = payload.get("type") or payload.get("command_type") or ""
+        if cmd_type == "event_ack":
+            event_id = payload.get("event_id")
+            if event_id:
+                self._queue.remove(event_id)
+                self._pending.pop(event_id, None)
+                if self._on_ack_cb is not None:
+                    self._on_ack_cb(event_id)
+                log.info("publisher.event_acked", event_id=event_id)
+        elif cmd_type == "update_config":
+            new_paths = payload.get("watch_paths")
+            if isinstance(new_paths, list) and self._on_update_config_cb is not None:
+                self._on_update_config_cb(new_paths)
+                log.info("publisher.update_config_received")
+        elif cmd_type == "rule_sync":
+            rules_payload = payload.get("rules")
+            ruleset_version = payload.get("ruleset_version")
+            if (
+                isinstance(rules_payload, list)
+                and isinstance(ruleset_version, int)
+                and self._on_rule_sync_cb is not None
+            ):
+                self._on_rule_sync_cb(rules_payload, ruleset_version)
+                log.info("publisher.rule_sync_received", ruleset_version=ruleset_version)
+        elif cmd_type in ("baseline_update", "restore_file", "quarantine_file"):
+            # C13: despachar al módulo commands si las instancias están registradas
+            if (
+                self._baseline_engine is not None
+                and self._agent_state is not None
+            ):
+                from agent import commands as _commands
+                await _commands.dispatch(
+                    payload,
+                    baseline_engine=self._baseline_engine,
+                    state=self._agent_state,
+                    valkey_client=self._client,
+                    config=self._config,
+                    journal=self._journal,
+                    quarantine_dir=self._quarantine_dir,
+                )
+            else:
+                log.warning(
+                    "publisher.command_handler_not_registered",
+                    cmd_type=cmd_type,
+                )
+
+    def _handle_command(self, msg_data: dict[str, Any]) -> None:
+        """Compatibilidad: wrapper sync que delega al handler async (no debe usarse directamente)."""
+        # Solo procesa tipos que no requieren await (event_ack, update_config, rule_sync).
+        # Los tipos C13 requieren _handle_command_async.
+        raw = msg_data.get("data", "{}")
+        try:
+            payload = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return
         target = payload.get("target_agent_id")
         if target and target != self._config.agent_id:
             return

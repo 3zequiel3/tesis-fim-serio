@@ -1,0 +1,362 @@
+"""
+Lógica de negocio para aprobación y rechazo de eventos FIM (C13).
+
+Expone: _approve_single, _reject_single, approve_bulk, reject_bulk.
+
+Orden de operaciones en approve:
+  1. Verificar confirm_absent si hash is None (antes del UPDATE).
+  2. UPDATE optimista sobre events (status, version, resolved_at, resolved_by).
+  3. Upsert en baseline_entries.
+  4. increment_ruleset_version.
+  5. Publicar baseline_update en Valkey (post-UPDATE, pre-commit aceptado).
+  6. Escribir audit_log.
+  7. commit.
+
+Orden de operaciones en reject:
+  1. UPDATE optimista sobre events.
+  2. Publicar restore_file o quarantine_file (no-op si baseline absent).
+  3. Escribir audit_log.
+  4. commit.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from typing import Any
+
+import structlog
+from sqlalchemy import update as sa_update
+from sqlmodel import Session, select
+
+from app.modules.agents.models import Agent, BaselineEntry, BaselineStatus
+from app.modules.audit.models import AuditLog
+from app.modules.events.models import Event, EventStatus
+from app.modules.rules.models import RulesetVersion
+from app.modules.actions.schemas import RejectAction
+
+log = structlog.get_logger()
+
+
+# ── Excepciones de dominio ────────────────────────────────────────────────────
+
+
+class ConflictError(Exception):
+    """El UPDATE optimista no afectó ninguna fila (versión incorrecta o evento no-pending)."""
+    def __init__(self, event_id: int) -> None:
+        self.event_id = event_id
+        super().__init__(f"conflict on event {event_id}")
+
+
+class AbsentConfirmationRequired(Exception):
+    """El evento tiene hash=None y confirm_absent no fue True."""
+    def __init__(self, event_id: int) -> None:
+        self.event_id = event_id
+        super().__init__(f"absent_confirmation_required for event {event_id}")
+
+
+# ── Helpers internos ──────────────────────────────────────────────────────────
+
+
+def _increment_ruleset_version(session: Session) -> int:
+    """
+    Incrementa el counter global RulesetVersion (mismo que usa C12).
+    Crea la fila si no existe.
+    """
+    rv = session.exec(select(RulesetVersion)).first()
+    if rv is None:
+        rv = RulesetVersion(version=0)
+        session.add(rv)
+        session.flush()
+    rv.version += 1
+    rv.updated_at = datetime.utcnow()
+    session.add(rv)
+    session.flush()
+    return rv.version
+
+
+def _get_event(session: Session, event_id: int) -> Event | None:
+    return session.exec(select(Event).where(Event.id == event_id)).first()
+
+
+def _get_agent(session: Session, agent_id: str) -> Agent | None:
+    return session.exec(select(Agent).where(Agent.agent_id == agent_id)).first()
+
+
+def _get_baseline_entry(session: Session, path: str, agent_id: str) -> BaselineEntry | None:
+    return session.exec(
+        select(BaselineEntry).where(
+            BaselineEntry.path == path,
+            BaselineEntry.agent_id == agent_id,
+        )
+    ).first()
+
+
+def _upsert_baseline_entry(
+    session: Session,
+    path: str,
+    agent_id: str,
+    hash_value: str | None,
+    baseline_status: BaselineStatus,
+    ruleset_version: int,
+) -> None:
+    entry = _get_baseline_entry(session, path, agent_id)
+    if entry is None:
+        entry = BaselineEntry(
+            path=path,
+            agent_id=agent_id,
+            hash=hash_value,
+            status=baseline_status,
+            last_updated=datetime.utcnow(),
+            ruleset_version=ruleset_version,
+        )
+        session.add(entry)
+    else:
+        entry.hash = hash_value
+        entry.status = baseline_status
+        entry.last_updated = datetime.utcnow()
+        entry.ruleset_version = ruleset_version
+        session.add(entry)
+
+
+def _write_audit(
+    session: Session,
+    user_id: int,
+    action: str,
+    event_id: int,
+    details: dict[str, Any] | None = None,
+) -> None:
+    entry = AuditLog(
+        user_id=user_id,
+        action=action,
+        target_type="event",
+        target_id=event_id,
+        detail=json.dumps(details) if details else None,
+    )
+    session.add(entry)
+
+
+# ── Approve single ────────────────────────────────────────────────────────────
+
+
+def _approve_single(
+    db: Session,
+    valkey_client: Any,
+    event_id: int,
+    version: int,
+    confirm_absent: bool,
+    user_id: int,
+) -> Event:
+    """
+    Aprueba un evento pending con optimistic locking.
+
+    Raises:
+        AbsentConfirmationRequired: si hash is None y confirm_absent is False.
+        ConflictError: si el UPDATE no afecta ninguna fila.
+    """
+    from app.modules.actions.streams import publish_baseline_update
+
+    # 1. Leer el evento para detectar hash None ANTES del UPDATE (no modifica estado)
+    # En el modelo Event, hash_detected es str; cadena vacía "" indica archivo ausente (D-C13-04).
+    event = _get_event(db, event_id)
+    if event is None:
+        raise ConflictError(event_id)
+
+    # Verificar ausencia antes del UPDATE (D-C13-04)
+    # hash vacío o None = archivo eliminado/ausente
+    hash_value: str | None = event.hash_detected if event.hash_detected else None
+    if hash_value is None and not confirm_absent:
+        raise AbsentConfirmationRequired(event_id)
+
+    # 2. UPDATE optimista
+    now = datetime.now(timezone.utc)
+    stmt = (
+        sa_update(Event)
+        .where(
+            Event.id == event_id,
+            Event.version == version,
+            Event.status == EventStatus.pending,
+        )
+        .values(
+            status=EventStatus.approved,
+            version=version + 1,
+            resolved_at=now,
+            resolved_by=user_id,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    result = db.execute(stmt)
+    if result.rowcount == 0:
+        raise ConflictError(event_id)
+
+    # Refrescar event para obtener datos actualizados
+    db.flush()
+    db.refresh(event)
+
+    # 3. Incrementar ruleset_version
+    new_version = _increment_ruleset_version(db)
+
+    # 4. Upsert baseline_entries
+    baseline_status = BaselineStatus.absent if hash_value is None else BaselineStatus.present
+    _upsert_baseline_entry(db, event.path, event.agent_id, hash_value, baseline_status, new_version)
+
+    # 5. Publicar baseline_update (post-flush, pre-commit)
+    publish_baseline_update(db, valkey_client, event, new_version)
+
+    # 6. Audit log
+    _write_audit(db, user_id, "approve", event_id, {"version": version})
+
+    # 7. Commit
+    db.commit()
+    db.refresh(event)
+
+    log.info("service.actions.approve", event_id=event_id, user_id=user_id)
+    return event
+
+
+# ── Reject single ─────────────────────────────────────────────────────────────
+
+
+def _reject_single(
+    db: Session,
+    valkey_client: Any,
+    event_id: int,
+    version: int,
+    action: RejectAction,
+    user_id: int,
+) -> Event:
+    """
+    Rechaza un evento pending con optimistic locking.
+
+    Raises:
+        ConflictError: si el UPDATE no afecta ninguna fila.
+    """
+    from app.modules.actions.streams import publish_quarantine_file, publish_restore_file
+
+    event = _get_event(db, event_id)
+    if event is None:
+        raise ConflictError(event_id)
+
+    # 1. UPDATE optimista
+    now = datetime.now(timezone.utc)
+    stmt = (
+        sa_update(Event)
+        .where(
+            Event.id == event_id,
+            Event.version == version,
+            Event.status == EventStatus.pending,
+        )
+        .values(
+            status=EventStatus.rejected,
+            version=version + 1,
+            resolved_at=now,
+            resolved_by=user_id,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    result = db.execute(stmt)
+    if result.rowcount == 0:
+        raise ConflictError(event_id)
+
+    db.flush()
+    db.refresh(event)
+
+    # 2. Publicar comando (no-op si baseline absent para ese path)
+    baseline_entry = _get_baseline_entry(db, event.path, event.agent_id)
+    if baseline_entry is not None and baseline_entry.status == BaselineStatus.absent:
+        log.warning(
+            "service.actions.reject.baseline_absent_noop",
+            event_id=event_id,
+            path=event.path,
+        )
+    else:
+        if action == RejectAction.restore:
+            publish_restore_file(db, valkey_client, event)
+        else:
+            publish_quarantine_file(db, valkey_client, event)
+
+    # 3. Audit log
+    _write_audit(db, user_id, "reject", event_id, {"version": version, "action": action.value})
+
+    # 4. Commit
+    db.commit()
+    db.refresh(event)
+
+    log.info("service.actions.reject", event_id=event_id, user_id=user_id, action=action.value)
+    return event
+
+
+# ── Bulk operations ───────────────────────────────────────────────────────────
+
+
+def approve_bulk(
+    db: Session,
+    valkey_client: Any,
+    items: list[dict[str, Any]],
+    user_id: int,
+) -> dict[str, Any]:
+    """
+    Aprueba múltiples eventos de forma independiente.
+    Error en un ítem no aborta el resto.
+    Retorna {"succeeded": [...], "failed": [...]}.
+    """
+    succeeded: list[int] = []
+    failed: list[dict[str, Any]] = []
+
+    for item in items:
+        event_id = item["event_id"]
+        try:
+            _approve_single(
+                db,
+                valkey_client,
+                event_id=event_id,
+                version=item["version"],
+                confirm_absent=item.get("confirm_absent", False),
+                user_id=user_id,
+            )
+            succeeded.append(event_id)
+        except AbsentConfirmationRequired:
+            failed.append({"event_id": event_id, "reason": "absent_confirmation_required"})
+        except ConflictError:
+            failed.append({"event_id": event_id, "reason": "conflict"})
+        except Exception as exc:
+            log.error("service.actions.approve_bulk.unexpected", event_id=event_id, error=str(exc))
+            failed.append({"event_id": event_id, "reason": "internal_error"})
+
+    return {"succeeded": succeeded, "failed": failed}
+
+
+def reject_bulk(
+    db: Session,
+    valkey_client: Any,
+    items: list[dict[str, Any]],
+    user_id: int,
+) -> dict[str, Any]:
+    """
+    Rechaza múltiples eventos de forma independiente.
+    Error en un ítem no aborta el resto.
+    Retorna {"succeeded": [...], "failed": [...]}.
+    """
+    succeeded: list[int] = []
+    failed: list[dict[str, Any]] = []
+
+    for item in items:
+        event_id = item["event_id"]
+        try:
+            action = RejectAction(item["action"])
+            _reject_single(
+                db,
+                valkey_client,
+                event_id=event_id,
+                version=item["version"],
+                action=action,
+                user_id=user_id,
+            )
+            succeeded.append(event_id)
+        except ConflictError:
+            failed.append({"event_id": event_id, "reason": "conflict"})
+        except Exception as exc:
+            log.error("service.actions.reject_bulk.unexpected", event_id=event_id, error=str(exc))
+            failed.append({"event_id": event_id, "reason": "internal_error"})
+
+    return {"succeeded": succeeded, "failed": failed}

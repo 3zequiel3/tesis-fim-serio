@@ -399,3 +399,44 @@ class BaselineEngine:
             return True
         except BaselineIntegrityError:
             raise
+
+    def update_from_command(
+        self,
+        path: str,
+        hash_value: str | None,
+        baseline_status: str,
+    ) -> BaselineEntry:
+        """
+        Actualiza (o crea) la entrada de baseline a partir de un comando baseline_update
+        recibido desde el backend (C13, RN handler 8.3).
+
+        Misma clave HKDF que el resto del motor. Nuevo nonce AES-GCM por escritura.
+        Sobreescribe la entrada existente si existe (idempotente: re-delivery seguro).
+
+        Args:
+            path: ruta del archivo monitorizado.
+            hash_value: SHA-256 hexadecimal del archivo, o None si status=absent.
+            baseline_status: "present" | "absent".
+        """
+        entry = BaselineEntry(
+            path=path,
+            status=baseline_status,
+            hash=hash_value,
+            size=None,
+            mode=None,
+            uid=None,
+            gid=None,
+            mtime=None,
+            captured_at=_now_iso(),
+            snapshots=[],
+            content_b64=None,
+        )
+        blob = self._encrypt_entry(entry)
+        _atomic_write(_entry_path(self._baseline_dir, path), blob)
+        log.info(
+            "baseline.update_from_command",
+            path=path,
+            status=baseline_status,
+            hash=hash_value,
+        )
+        return entry

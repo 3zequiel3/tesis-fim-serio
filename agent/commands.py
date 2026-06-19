@@ -1,0 +1,369 @@
+"""
+Dispatcher de comandos entrantes del stream `commands` para el agente FIM (C13).
+
+Implementa:
+  dispatch(command, *, baseline_engine, state, valkey_client, config)
+    — enruta por command["type"] con verificación HMAC y filtro target_agent_id.
+
+Handlers:
+  handle_baseline_update  — actualiza baseline local cifrado y publica event_ack.
+  handle_restore_file     — restaura archivo desde baseline con journal.
+  handle_quarantine_file  — pone en cuarentena con journal.
+
+Restricciones:
+  - Sin servidor HTTP (D8, RN-108).
+  - Verificación HMAC-SHA256 sobre JSON canónico (sin campo signature).
+  - Filtro target_agent_id: None = broadcast; otro valor = solo ese agente.
+  - event_ack publicado siempre (ok o error) tras ejecutar.
+"""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import json
+import os
+import shutil
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import structlog
+
+from agent.streams import canonical_json, verify_payload
+
+if TYPE_CHECKING:
+    import valkey.asyncio as avalkey
+
+    from agent.baseline import BaselineEngine
+    from agent.config import AgentConfig
+    from agent.journal import JournalManager
+    from agent.state import AgentState
+
+log = structlog.get_logger()
+
+STREAM_EVENT_ACK = "event_ack"
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+async def _publish_ack(
+    valkey_client: "avalkey.Valkey",
+    command_id: str,
+    command_type: str,
+    event_id: Any,
+    agent_id: str,
+    ok: bool,
+    error: str | None = None,
+) -> None:
+    """Publica confirmación event_ack al stream event_ack de Valkey."""
+    payload = {
+        "command_id": command_id,
+        "command_type": command_type,
+        "event_id": event_id,
+        "agent_id": agent_id,
+        "status": "ok" if ok else "error",
+        "error": error,
+        "timestamp": _now_iso(),
+    }
+    data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    try:
+        await valkey_client.xadd(STREAM_EVENT_ACK, {"data": data})
+        log.debug("commands.ack_published", command_id=command_id, status=payload["status"])
+    except Exception as exc:
+        log.error("commands.ack_publish_failed", command_id=command_id, error=str(exc))
+
+
+# ── Dispatcher principal ──────────────────────────────────────────────────────
+
+
+async def dispatch(
+    command: dict[str, Any],
+    *,
+    baseline_engine: "BaselineEngine",
+    state: "AgentState",
+    valkey_client: "avalkey.Valkey",
+    config: "AgentConfig",
+    journal: "JournalManager | None" = None,
+    quarantine_dir: str | None = None,
+) -> None:
+    """
+    Enruta un comando entrante del stream `commands`.
+
+    1. Filtra target_agent_id — ignorar silenciosamente si no coincide.
+    2. Verifica firma HMAC-SHA256 — descartar con log error si falla.
+    3. Despacha al handler según command["type"].
+    4. Tipos desconocidos: log warning, sin excepción.
+    """
+    # 1. Filtro target_agent_id
+    target = command.get("target_agent_id")
+    if target is not None and target != config.agent_id:
+        log.debug("commands.dispatch.target_mismatch", target=target, own=config.agent_id)
+        return
+
+    # 2. Verificación HMAC
+    secret = _load_shared_secret(config)
+    if secret is None:
+        log.error("commands.dispatch.no_shared_secret", agent_id=config.agent_id)
+        return
+
+    if not verify_payload(secret, command):
+        log.error(
+            "commands.dispatch.hmac_invalid",
+            command_type=command.get("type"),
+            command_id=command.get("command_id"),
+        )
+        return
+
+    # 3. Dispatch por tipo
+    cmd_type = command.get("type", "")
+
+    if cmd_type == "baseline_update":
+        await handle_baseline_update(
+            command=command,
+            baseline_engine=baseline_engine,
+            state=state,
+            valkey_client=valkey_client,
+            config=config,
+        )
+    elif cmd_type == "restore_file":
+        if journal is None:
+            log.error("commands.dispatch.restore_no_journal")
+            return
+        await handle_restore_file(
+            command=command,
+            baseline_engine=baseline_engine,
+            journal=journal,
+            valkey_client=valkey_client,
+            config=config,
+        )
+    elif cmd_type == "quarantine_file":
+        if journal is None:
+            log.error("commands.dispatch.quarantine_no_journal")
+            return
+        await handle_quarantine_file(
+            command=command,
+            journal=journal,
+            valkey_client=valkey_client,
+            config=config,
+            quarantine_dir=quarantine_dir,
+        )
+    else:
+        # 4. Tipo desconocido: log warning, sin excepción
+        log.warning("commands.dispatch.unknown_type", cmd_type=cmd_type)
+
+
+def _load_shared_secret(config: "AgentConfig") -> bytes | None:
+    """Carga el shared_secret desde el directorio de secrets del agente."""
+    try:
+        from agent.streams import load_shared_secret
+        return load_shared_secret(config.storage.secrets_dir)
+    except (FileNotFoundError, OSError) as exc:
+        log.error("commands.load_shared_secret.failed", error=str(exc))
+        return None
+
+
+# ── Handler: baseline_update ──────────────────────────────────────────────────
+
+
+async def handle_baseline_update(
+    command: dict[str, Any],
+    baseline_engine: "BaselineEngine",
+    state: "AgentState",
+    valkey_client: "avalkey.Valkey",
+    config: "AgentConfig",
+) -> None:
+    """
+    Actualiza el baseline local cifrado a partir del comando baseline_update.
+
+    1. Verifica que ruleset_version >= state.ruleset_version.
+    2. Llama BaselineEngine.update_from_command().
+    3. Actualiza state.ruleset_version y persiste.
+    4. Publica event_ack.
+    """
+    from agent.state import save_state
+
+    command_id = command.get("command_id", "")
+    event_id = command.get("event_id")
+    cmd_version = command.get("ruleset_version", 0)
+
+    # 2. Verificar versión
+    if cmd_version < state.ruleset_version:
+        log.debug(
+            "commands.baseline_update.stale_version",
+            cmd_version=cmd_version,
+            local_version=state.ruleset_version,
+        )
+        return
+
+    path = command.get("path", "")
+    hash_value: str | None = command.get("hash")
+    baseline_status = command.get("baseline_status", "present")
+
+    try:
+        baseline_engine.update_from_command(path, hash_value, baseline_status)
+    except Exception as exc:
+        log.error("commands.baseline_update.write_failed", path=path, error=str(exc))
+        await _publish_ack(
+            valkey_client, command_id, "baseline_update", event_id, config.agent_id,
+            ok=False, error=str(exc),
+        )
+        return
+
+    # 3. Actualizar state.ruleset_version
+    state.ruleset_version = cmd_version
+    try:
+        save_state(state)
+    except Exception as exc:
+        log.warning("commands.baseline_update.save_state_failed", error=str(exc))
+
+    log.info(
+        "commands.baseline_update.done",
+        path=path,
+        ruleset_version=cmd_version,
+    )
+
+    # 4. Publicar event_ack
+    await _publish_ack(
+        valkey_client, command_id, "baseline_update", event_id, config.agent_id, ok=True,
+    )
+
+
+# ── Handler: restore_file ─────────────────────────────────────────────────────
+
+
+async def handle_restore_file(
+    command: dict[str, Any],
+    baseline_engine: "BaselineEngine",
+    journal: "JournalManager",
+    valkey_client: "avalkey.Valkey",
+    config: "AgentConfig",
+) -> None:
+    """
+    Restaura un archivo desde el baseline local con journal transaccional.
+
+    1. Journal pre-acción (pending).
+    2. Restaurar archivo usando lógica de decision.py (_auto_restore equivalente).
+    3. Journal post-acción (completed/failed).
+    4. Publicar event_ack.
+    """
+    command_id = command.get("command_id", "")
+    event_id = command.get("event_id")
+    path = command.get("path", "")
+
+    # Usar command_id como event_id del journal para unicidad
+    journal_key = command_id or str(uuid.uuid4())
+
+    # 1. Journal pre-acción
+    journal.write_pending(journal_key, path, "restore")
+
+    # 2. Restaurar
+    error_reason: str | None = None
+    try:
+        entry = baseline_engine.read_entry(path)
+        if entry is None or entry.content_b64 is None:
+            raise ValueError("no_baseline_content")
+
+        content = base64.b64decode(entry.content_b64)
+        tmp_path = path + ".fim_restore_tmp"
+        try:
+            with open(tmp_path, "wb") as f:
+                f.write(content)
+            os.replace(tmp_path, path)
+        except OSError as exc:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise ValueError(f"write_failed: {exc}") from exc
+
+        restored_hash = hashlib.sha256(content).hexdigest()
+        if entry.hash and restored_hash != entry.hash:
+            raise ValueError("hash_mismatch_after_restore")
+
+        log.info("commands.restore_file.done", path=path, command_id=command_id)
+        journal.mark_completed(journal_key)
+
+    except Exception as exc:
+        error_reason = str(exc)
+        log.error("commands.restore_file.failed", path=path, error=error_reason)
+        journal.mark_failed(journal_key, error_reason)
+
+    # 4. Publicar event_ack
+    await _publish_ack(
+        valkey_client, command_id, "restore_file", event_id, config.agent_id,
+        ok=error_reason is None, error=error_reason,
+    )
+
+
+# ── Handler: quarantine_file ──────────────────────────────────────────────────
+
+
+async def handle_quarantine_file(
+    command: dict[str, Any],
+    journal: "JournalManager",
+    valkey_client: "avalkey.Valkey",
+    config: "AgentConfig",
+    quarantine_dir: str | None = None,
+) -> None:
+    """
+    Pone un archivo en cuarentena con journal transaccional.
+
+    1. Journal pre-acción (pending).
+    2. Mover archivo a quarantine_dir con permisos 0400.
+    3. Journal post-acción (completed/failed).
+    4. Publicar event_ack.
+    """
+    command_id = command.get("command_id", "")
+    event_id = command.get("event_id")
+    path = command.get("path", "")
+
+    journal_key = command_id or str(uuid.uuid4())
+
+    # 1. Journal pre-acción
+    journal.write_pending(journal_key, path, "quarantine")
+
+    # 2. Quarantine
+    error_reason: str | None = None
+    try:
+        _qdir = Path(quarantine_dir) if quarantine_dir else Path("/var/lib/fim-agent/quarantine")
+        _qdir.mkdir(parents=True, exist_ok=True)
+
+        basename = os.path.basename(path)
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        dest = _qdir / f"{basename}.{timestamp}"
+
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"file_not_found: {path}")
+
+        shutil.move(path, str(dest))
+
+        # Permisos 0400 en plataformas Unix
+        try:
+            os.chmod(str(dest), 0o400)
+        except OSError as exc:
+            log.warning("commands.quarantine_file.chmod_failed", dest=str(dest), error=str(exc))
+
+        log.info("commands.quarantine_file.done", path=path, dest=str(dest))
+        journal.mark_completed(journal_key)
+
+    except FileNotFoundError:
+        error_reason = "file_not_found"
+        log.error("commands.quarantine_file.not_found", path=path)
+        journal.mark_failed(journal_key, error_reason)
+    except Exception as exc:
+        error_reason = str(exc)
+        log.error("commands.quarantine_file.failed", path=path, error=error_reason)
+        journal.mark_failed(journal_key, error_reason)
+
+    # 4. Publicar event_ack
+    await _publish_ack(
+        valkey_client, command_id, "quarantine_file", event_id, config.agent_id,
+        ok=error_reason is None, error=error_reason,
+    )
