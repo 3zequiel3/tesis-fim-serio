@@ -4,6 +4,10 @@ Capability: API REST del backend para consultar eventos — lista paginada con f
 
 ---
 
+## Purpose
+
+Exponer un endpoint REST `GET /events` con paginación y filtros multi-select (status, path, fechas), y un endpoint `GET /events/{id}` para consulta de eventos individuales con contexto de proceso. Permitir consultas desde el frontend con autenticación JWT.
+## Requirements
 ### Requirement: GET /events con paginación y filtros multi-select
 
 El sistema SHALL exponer `GET /events` en `backend/app/modules/events/router.py` que retorna eventos paginados. Los parámetros de query SHALL ser: `status` (multi-value, acepta múltiples valores, e.g. `?status=pending&status=approved`), `path_prefix` (string, match case-sensitive de prefijo), `date_from` (ISO8601 datetime), `date_to` (ISO8601 datetime), `include_superseded` (bool, default `false`), `page` (int, default `1`, min `1`), `page_size` (int, default `50`, min `1`, max `200`). La respuesta SHALL ser `{"total": int, "page": int, "page_size": int, "items": [...]}`. Cuando `include_superseded=false` (default), los eventos con `status=superseded` SHALL ser excluidos del resultado y del conteo `total` (RN-22, RN-98). El endpoint SHALL requerir autenticación JWT (mismo middleware que C04).
@@ -69,8 +73,6 @@ El sistema SHALL registrar el router de eventos en `backend/app/main.py` con pre
 - **WHEN** el backend arranca
 - **THEN** `GET /events` y `GET /events/{id}` están disponibles en la aplicación FastAPI
 
----
-
 ### Requirement: resolved_at y resolved_by se populan al aprobar o rechazar un evento
 
 Cuando un evento transiciona de `pending` a `approved` o `rejected` via `POST /actions/approve` o `POST /actions/reject`, el sistema SHALL poblar los campos `resolved_at` (timestamp UTC de la acción) y `resolved_by` (user_id del admin que ejecutó la acción). Estos campos SHALL ser retornados en la respuesta de `GET /events/{id}` y en los ítems de `GET /events`.
@@ -88,3 +90,26 @@ Cuando un evento transiciona de `pending` a `approved` o `rejected` via `POST /a
 #### Scenario: GET /events filtra por status=approved correctamente
 - **WHEN** se hace `GET /events?status=approved`
 - **THEN** todos los ítems retornados tienen `status=approved` y `resolved_at` no nulo
+
+### Requirement: Hook de notificación post-ingesta en el event consumer
+
+El consumer SHALL disparar una tarea asincrónica de notificación (`asyncio.create_task(notify_if_applicable(event))`) tras persistir exitosamente un evento en DB y realizar XACK, sin bloquear el flujo del consumer ni depender el XACK del resultado de la notificación.
+
+**Contexto existente**: El consumer `consumer.py` ingiere eventos de Valkey Streams, persiste en DB y hace XACK. Este delta agrega la llamada de notificación después del XACK, sin modificar la lógica de ingesta ni el flujo de XACK.
+
+**Cambio**: Después de que un evento se persiste exitosamente en DB y se realiza XACK, el consumer SHALL disparar `asyncio.create_task(notify_if_applicable(event))` donde `notify_if_applicable` está definido en `backend/app/modules/alerts/service.py`. La función retorna inmediatamente sin await — es fire-and-forget desde la perspectiva del consumer.
+
+**Invariante preservado**: El XACK NO depende del resultado de la notificación. Si la notificación falla internamente, no impacta el procesamiento del stream.
+
+#### Scenario: Evento persistido dispara tarea de notificación
+- **WHEN** el consumer persiste exitosamente un evento en DB y hace XACK
+- **THEN** se crea un `asyncio.Task` con `notify_if_applicable(event)` sin bloquear el loop del consumer
+
+#### Scenario: Evento que falla la persistencia no dispara notificación
+- **WHEN** `_ingest()` lanza una excepción o retorna None
+- **THEN** NO se llama `notify_if_applicable`
+
+#### Scenario: Error en la notificación no afecta el consumer
+- **WHEN** `notify_if_applicable` levanta una excepción internamente
+- **THEN** el consumer continúa procesando el siguiente mensaje normalmente (la excepción queda en el Task)
+

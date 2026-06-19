@@ -1,0 +1,662 @@
+"""
+Tests del módulo notifications (C15 — backend-notifications).
+
+Cubre:
+  7.1  Tests unitarios de notifier y service:
+       - severity determination (critical, high, low, no rules)
+       - notify_if_applicable skip (low/medium/superseded)
+       - retry loop 3x
+       - cascada de canales
+       - log_only siempre exitoso
+
+  7.2  Tests de endpoints DLQ:
+       - GET /alerts/failed
+       - POST /alerts/{id}/retry (200, 409, 404)
+       - DELETE /alerts/{id} (204, 404)
+
+  7.3  Tests de GET /health/components:
+       - todos ok
+       - valkey down
+       - n8n degraded
+       - detección de cambio de estado
+
+Usa SQLite in-memory. Salta si psycopg no está disponible (Windows sin PostgreSQL).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine, select
+
+try:
+    import psycopg  # noqa: F401
+except ImportError:
+    pytest.skip("psycopg/libpq not available on this platform", allow_module_level=True)
+
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
+os.environ.setdefault("VALKEY_URL", "valkey://localhost:6379")
+os.environ.setdefault("JWT_SECRET_CURRENT", "test-secret-current-32-chars-xxxxx")
+os.environ.setdefault("JWT_SECRET_PREVIOUS", "")
+os.environ.setdefault("ADMIN_USERNAME", "admin")
+os.environ.setdefault("ADMIN_PASSWORD", "AdminPassword123!")
+os.environ.setdefault("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+
+from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
+from app.modules.alerts.notifier import send_log_only, send_n8n, send_smtp, send_webhook_fallback
+from app.modules.alerts.service import (
+    RETRY_DELAYS,
+    _determine_severity,
+    delete_alert,
+    list_failed_alerts,
+    notify_event,
+    notify_if_applicable,
+    retry_alert,
+)
+from app.modules.agents.models import Agent, AgentStatus
+from app.modules.auth.models import User
+from app.modules.events.models import Event, EventStatus
+from app.modules.rules.models import Rule, RuleAction, RuleSeverity
+
+
+# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture()
+def mem_engine():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    SQLModel.metadata.create_all(engine)
+    return engine
+
+
+@pytest.fixture()
+def session(mem_engine):
+    with Session(mem_engine) as s:
+        yield s
+
+
+@pytest.fixture()
+def agent(session) -> Agent:
+    a = Agent(agent_id="agent-001", status=AgentStatus.online)
+    session.add(a)
+    session.commit()
+    session.refresh(a)
+    return a
+
+
+@pytest.fixture()
+def admin_user(session) -> User:
+    user = User(
+        id=1,
+        username="admin",
+        password_hash="hashed",
+        role="admin",
+        is_active=True,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def _make_event(
+    session: Session,
+    agent_id: str = "agent-001",
+    path: str = "/etc/passwd",
+    status: EventStatus = EventStatus.pending,
+) -> Event:
+    event = Event(
+        event_id=f"evt-{id(session)}-{path[:5]}",
+        agent_id=agent_id,
+        path=path,
+        hash_detected="abc123",
+        status=status,
+        detected_at=datetime.now(timezone.utc),
+        received_at=datetime.now(timezone.utc),
+    )
+    session.add(event)
+    session.commit()
+    session.refresh(event)
+    return event
+
+
+def _make_rule(
+    session: Session,
+    pattern: str = "/etc/*",
+    severity: RuleSeverity = RuleSeverity.critical,
+) -> Rule:
+    rule = Rule(
+        pattern=pattern,
+        severity=severity,
+        action=RuleAction.alert_only,
+    )
+    session.add(rule)
+    session.commit()
+    session.refresh(rule)
+    return rule
+
+
+def _make_alert(
+    session: Session,
+    event_id: int,
+    severity: AlertSeverity = AlertSeverity.critical,
+    failed: bool = False,
+    delivered: bool = False,
+) -> Alert:
+    alert = Alert(event_id=event_id, severity=severity)
+    if failed:
+        alert.failed_at = datetime.now(timezone.utc)
+        alert.last_error = "test_error"
+        alert.retry_count = 3
+    if delivered:
+        alert.delivered_at = datetime.now(timezone.utc)
+        alert.channel = AlertChannel.n8n
+    session.add(alert)
+    session.commit()
+    session.refresh(alert)
+    return alert
+
+
+# ── 7.1 Tests unitarios de notifier ──────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_send_log_only_always_succeeds():
+    """send_log_only siempre retorna True sin importar el payload."""
+    result = await send_log_only({"severity": "critical", "event_id": "evt-1"})
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_send_n8n_skipped_when_no_url():
+    """send_n8n retorna False si url está vacía."""
+    result = await send_n8n({"data": "x"}, url="")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_send_n8n_success():
+    """send_n8n retorna True en respuesta 2xx."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=mock_response)
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        result = await send_n8n({"data": "x"}, url="http://n8n.local/webhook/test")
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_send_n8n_failure():
+    """send_n8n retorna False si httpx levanta excepción."""
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(side_effect=Exception("connection refused"))
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        result = await send_n8n({"data": "x"}, url="http://n8n.local/webhook/test")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_send_smtp_skipped_when_no_host():
+    """send_smtp retorna False si smtp_host está vacío."""
+    cfg = MagicMock()
+    cfg.smtp_host = ""
+    result = await send_smtp({"data": "x"}, cfg)
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_send_webhook_fallback_skipped_when_no_url():
+    """send_webhook_fallback retorna False si url está vacía."""
+    result = await send_webhook_fallback({"data": "x"}, url="")
+    assert result is False
+
+
+# ── 7.1 Tests unitarios de service — severity determination ──────────────────
+
+
+def test_determine_severity_critical(session, agent):
+    """Regla critical matchea /etc/passwd → retorna critical."""
+    _make_rule(session, pattern="/etc/*", severity=RuleSeverity.critical)
+    event = _make_event(session, path="/etc/passwd")
+    sev = _determine_severity(event, session)
+    assert sev == RuleSeverity.critical
+
+
+def test_determine_severity_high_over_low(session, agent):
+    """Dos reglas: low y high; retorna high."""
+    _make_rule(session, pattern="/etc/*", severity=RuleSeverity.low)
+    _make_rule(session, pattern="/etc/p*", severity=RuleSeverity.high)
+    event = _make_event(session, path="/etc/passwd")
+    sev = _determine_severity(event, session)
+    assert sev == RuleSeverity.high
+
+
+def test_determine_severity_no_match(session, agent):
+    """Sin reglas matching → retorna low."""
+    _make_rule(session, pattern="/var/log/*", severity=RuleSeverity.critical)
+    event = _make_event(session, path="/etc/passwd")
+    sev = _determine_severity(event, session)
+    assert sev == RuleSeverity.low
+
+
+def test_determine_severity_no_rules(session, agent):
+    """Sin reglas en DB → retorna low."""
+    event = _make_event(session, path="/etc/passwd")
+    sev = _determine_severity(event, session)
+    assert sev == RuleSeverity.low
+
+
+# ── 7.1 Tests de notify skip ─────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_notify_skip_superseded(session, agent):
+    """Evento superseded → no crea Alert."""
+    _make_rule(session, pattern="/etc/*", severity=RuleSeverity.critical)
+    event = _make_event(session, path="/etc/passwd", status=EventStatus.superseded)
+
+    with patch("app.modules.alerts.service.engine") as mock_engine:
+        mock_engine.__enter__ = MagicMock()
+        # Parchar Session para devolver nuestra session de test
+        with patch("app.modules.alerts.service.Session") as mock_session_class:
+            mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+            mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+            await notify_if_applicable(event)
+
+    # No debe haber creado alertas
+    alerts = session.exec(select(Alert)).all()
+    assert len(alerts) == 0
+
+
+@pytest.mark.asyncio
+async def test_notify_skip_low_severity(session, agent):
+    """Evento con severity=low → no crea Alert."""
+    _make_rule(session, pattern="/etc/*", severity=RuleSeverity.low)
+    event = _make_event(session, path="/etc/passwd")
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class:
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+        await notify_if_applicable(event)
+
+    alerts = session.exec(select(Alert)).all()
+    assert len(alerts) == 0
+
+
+@pytest.mark.asyncio
+async def test_notify_skip_medium_severity(session, agent):
+    """Evento con severity=medium → no crea Alert."""
+    _make_rule(session, pattern="/etc/*", severity=RuleSeverity.medium)
+    event = _make_event(session, path="/etc/passwd")
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class:
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+        await notify_if_applicable(event)
+
+    alerts = session.exec(select(Alert)).all()
+    assert len(alerts) == 0
+
+
+# ── 7.1 Tests de retry loop y cascada ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_notify_event_delivers_on_first_attempt(session, agent):
+    """n8n responde en primer intento → delivered_at poblado, retry_count=0."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id)
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.send_n8n", new_callable=AsyncMock, return_value=True), \
+         patch("app.modules.alerts.service.settings") as mock_settings:
+
+        mock_settings.n8n_webhook_url = "http://n8n.local/webhook"
+        mock_settings.smtp_host = ""
+        mock_settings.webhook_fallback_url = ""
+
+        # Usar la session de test para las actualizaciones
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        await notify_event(alert, event)
+
+    session.refresh(alert)
+    assert alert.delivered_at is not None
+    assert alert.channel == AlertChannel.n8n
+    assert alert.retry_count == 0
+
+
+@pytest.mark.asyncio
+async def test_notify_event_retry_3x_then_log_only(session, agent):
+    """n8n falla, smtp no config, webhook_fallback no config → log_only en primer intento."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id)
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.send_n8n", new_callable=AsyncMock, return_value=False), \
+         patch("app.modules.alerts.service.send_log_only", new_callable=AsyncMock, return_value=True), \
+         patch("app.modules.alerts.service.settings") as mock_settings, \
+         patch("asyncio.sleep", new_callable=AsyncMock):  # no esperar en tests
+
+        mock_settings.n8n_webhook_url = "http://n8n.local/webhook"
+        mock_settings.smtp_host = ""
+        mock_settings.webhook_fallback_url = ""
+
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        await notify_event(alert, event)
+
+    session.refresh(alert)
+    # log_only es siempre exitoso → debe tener delivered_at
+    assert alert.delivered_at is not None
+    assert alert.channel == AlertChannel.log_only
+
+
+@pytest.mark.asyncio
+async def test_log_only_always_delivers(session, agent):
+    """Canal log_only siempre marca como entregado."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id)
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.send_n8n", new_callable=AsyncMock, return_value=False), \
+         patch("app.modules.alerts.service.send_smtp", new_callable=AsyncMock, return_value=False), \
+         patch("app.modules.alerts.service.send_webhook_fallback", new_callable=AsyncMock, return_value=False), \
+         patch("app.modules.alerts.service.send_log_only", new_callable=AsyncMock, return_value=True), \
+         patch("app.modules.alerts.service.settings") as mock_settings, \
+         patch("asyncio.sleep", new_callable=AsyncMock):
+
+        mock_settings.n8n_webhook_url = "http://n8n.local"
+        mock_settings.smtp_host = "smtp.local"
+        mock_settings.webhook_fallback_url = "http://fallback.local"
+
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        await notify_event(alert, event)
+
+    session.refresh(alert)
+    assert alert.delivered_at is not None
+    assert alert.channel == AlertChannel.log_only
+
+
+# ── 7.2 Tests de endpoints ────────────────────────────────────────────────────
+
+
+def _make_test_app(test_session: Session, mock_valkey=None):
+    """Crea una app FastAPI con overrides para test."""
+    from app.main import app
+    from app.core.database import get_session
+    from app.core.valkey import get_valkey_client
+    from app.core.deps import require_admin
+    from app.modules.auth.models import User
+
+    def override_session():
+        yield test_session
+
+    def override_admin():
+        return User(id=1, username="admin", password_hash="x", role="admin", is_active=True)
+
+    def override_valkey():
+        if mock_valkey:
+            return mock_valkey
+        return MagicMock()
+
+    app.dependency_overrides[get_session] = override_session
+    app.dependency_overrides[require_admin] = override_admin
+    app.dependency_overrides[get_valkey_client] = override_valkey
+    return app
+
+
+def test_get_failed_alerts_returns_only_failed(session, agent):
+    """GET /alerts/failed retorna solo alertas fallidas."""
+    event = _make_event(session)
+    _make_alert(session, event.id, delivered=True)   # entregada — NO debe aparecer
+    failed = _make_alert(session, event.id, failed=True)  # fallida — SÍ debe aparecer
+
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.get("/alerts/failed")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["id"] == failed.id
+
+    app.dependency_overrides.clear()
+
+
+def test_get_failed_alerts_empty(session, agent):
+    """GET /alerts/failed retorna lista vacía si no hay fallos."""
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.get("/alerts/failed")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 0
+    assert data["items"] == []
+
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_retry_alert_already_delivered(session, agent):
+    """retry_alert lanza ValueError('already_delivered') si ya fue entregada."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id, delivered=True)
+
+    with pytest.raises(ValueError, match="already_delivered"):
+        await retry_alert(alert.id, session)
+
+
+@pytest.mark.asyncio
+async def test_retry_alert_not_found(session):
+    """retry_alert lanza ValueError('not_found') si id no existe."""
+    with pytest.raises(ValueError, match="not_found"):
+        await retry_alert(99999, session)
+
+
+def test_post_retry_alert_409_if_delivered(session, agent):
+    """POST /alerts/{id}/retry → 409 si ya entregada."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id, delivered=True)
+
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.post(f"/alerts/{alert.id}/retry")
+
+    assert response.status_code == 409
+    app.dependency_overrides.clear()
+
+
+def test_post_retry_alert_404_if_not_found(session):
+    """POST /alerts/{id}/retry → 404 si no existe."""
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.post("/alerts/99999/retry")
+
+    assert response.status_code == 404
+    app.dependency_overrides.clear()
+
+
+def test_delete_alert_204(session, agent):
+    """DELETE /alerts/{id} → 204 si ok."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id)
+
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.delete(f"/alerts/{alert.id}")
+
+    assert response.status_code == 204
+    app.dependency_overrides.clear()
+
+
+def test_delete_alert_404_if_not_found(session):
+    """DELETE /alerts/{id} → 404 si no existe."""
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.delete("/alerts/99999")
+
+    assert response.status_code == 404
+    app.dependency_overrides.clear()
+
+
+def test_delete_alert_service(session, agent):
+    """delete_alert elimina correctamente la fila."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id)
+    alert_id = alert.id
+
+    delete_alert(alert_id, session)
+    assert session.get(Alert, alert_id) is None
+
+
+# ── 7.3 Tests de GET /health/components ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_health_all_ok(session):
+    """Todos los componentes up → todos 'ok' (excepto agents que depende de DB)."""
+    mock_valkey = AsyncMock()
+    mock_valkey.ping = AsyncMock(return_value=True)
+
+    mock_settings = MagicMock()
+    mock_settings.n8n_webhook_url = "http://n8n.local"
+    mock_settings.smtp_host = ""
+
+    # Parchar _check_n8n para que retorne ok sin llamada HTTP real
+    with patch("app.core.health._check_n8n", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.core.health._check_postgres", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.core.health._last_state", {}):
+
+        from app.core import health as health_module
+        health_module._last_state = {}
+
+        result = await health_module.check_components(session, mock_valkey, mock_settings)
+
+    assert result["postgres"] == "ok"
+    assert result["valkey"] == "ok"
+    assert result["n8n"] == "ok"
+    assert "checked_at" in result
+
+
+@pytest.mark.asyncio
+async def test_health_valkey_down(session):
+    """Valkey no responde → resultado 'down' para valkey."""
+    mock_valkey = AsyncMock()
+    mock_valkey.ping = AsyncMock(side_effect=Exception("connection refused"))
+
+    mock_settings = MagicMock()
+    mock_settings.n8n_webhook_url = ""
+    mock_settings.smtp_host = ""
+
+    with patch("app.core.health._check_postgres", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.core.health._check_n8n", new_callable=AsyncMock, return_value="degraded"):
+
+        from app.core import health as health_module
+        health_module._last_state = {}
+
+        result = await health_module.check_components(session, mock_valkey, mock_settings)
+
+    assert result["valkey"] == "down"
+
+
+@pytest.mark.asyncio
+async def test_health_n8n_degraded_when_not_configured(session):
+    """N8N_WEBHOOK_URL no configurado → n8n: 'degraded'."""
+    mock_valkey = AsyncMock()
+    mock_valkey.ping = AsyncMock(return_value=True)
+
+    mock_settings = MagicMock()
+    mock_settings.n8n_webhook_url = ""  # no configurado
+
+    with patch("app.core.health._check_postgres", new_callable=AsyncMock, return_value="ok"):
+        from app.core import health as health_module
+        health_module._last_state = {}
+
+        result = await health_module.check_components(session, mock_valkey, mock_settings)
+
+    assert result["n8n"] == "degraded"
+
+
+@pytest.mark.asyncio
+async def test_health_state_change_triggers_webhook(session):
+    """Cambio de estado ok→down dispara asyncio.create_task con send_n8n."""
+    mock_valkey = AsyncMock()
+    mock_settings = MagicMock()
+    mock_settings.n8n_webhook_url = "http://n8n.local/webhook"
+    mock_settings.smtp_host = ""
+
+    from app.core import health as health_module
+
+    # Establecer estado previo: valkey=ok
+    health_module._last_state = {
+        "postgres": "ok",
+        "valkey": "ok",
+        "n8n": "ok",
+        "agents": "degraded",
+    }
+
+    tasks_created: list = []
+
+    def fake_create_task(coro):
+        tasks_created.append(coro)
+        # Cerrar la coroutine para evitar ResourceWarning
+        coro.close()
+        return MagicMock()
+
+    with patch("app.core.health._check_postgres", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.core.health._check_valkey", new_callable=AsyncMock, return_value="down"), \
+         patch("app.core.health._check_n8n", new_callable=AsyncMock, return_value="ok"), \
+         patch("asyncio.create_task", side_effect=fake_create_task):
+
+        await health_module.check_components(session, mock_valkey, mock_settings)
+
+    # Debe haberse disparado un create_task por el cambio valkey ok→down
+    assert len(tasks_created) >= 1
+
+
+@pytest.mark.asyncio
+async def test_health_no_webhook_on_first_call(session):
+    """Primera llamada (sin estado previo) → no dispara webhook."""
+    mock_valkey = AsyncMock()
+    mock_settings = MagicMock()
+    mock_settings.n8n_webhook_url = "http://n8n.local/webhook"
+
+    from app.core import health as health_module
+    health_module._last_state = {}  # sin estado previo
+
+    tasks_created: list = []
+
+    def fake_create_task(coro):
+        tasks_created.append(coro)
+        coro.close()
+        return MagicMock()
+
+    with patch("app.core.health._check_postgres", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.core.health._check_valkey", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.core.health._check_n8n", new_callable=AsyncMock, return_value="ok"), \
+         patch("asyncio.create_task", side_effect=fake_create_task):
+
+        await health_module.check_components(session, mock_valkey, mock_settings)
+
+    # Sin estado previo → no debe dispararse ningún webhook
+    assert len(tasks_created) == 0

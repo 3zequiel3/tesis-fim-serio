@@ -39,6 +39,7 @@ from app.core.streams import (
     verify_payload,
 )
 from app.modules.agents.models import Agent
+from app.modules.alerts.service import notify_if_applicable
 from app.modules.events.models import Event, EventStatus, RejectedEventAudit, RejectionReason
 from app.modules.events.service import InvalidTransitionError, ingest_event
 
@@ -187,6 +188,8 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
     if event is not None and event_id:
         await _publish_event_ack(client, event_id, agent_id, shared_secret)
         log.info("consumer.event_persisted", event_id=event_id, agent_id=agent_id)
+        # Notificación asincrónica post-ingesta — fire-and-forget (D-C15-02)
+        asyncio.create_task(notify_if_applicable(event))
     elif event is None:
         log.warning("consumer.event_ingest_skipped", event_id=event_id, reason="race_or_invalid_transition")
 

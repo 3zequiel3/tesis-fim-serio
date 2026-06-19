@@ -12,3 +12,5 @@ valkey==6.1.0
 cryptography==44.0.2
 pydantic-settings==2.7.1
 uvicorn[standard]==0.34.0
+httpx[asyncio]==0.28.1
+aiosmtplib==3.0.2

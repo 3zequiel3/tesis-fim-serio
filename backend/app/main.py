@@ -12,19 +12,21 @@ Orden de inicialización:
 
 import asyncio
 from contextlib import asynccontextmanager
+from typing import Any
 
 import valkey.asyncio as avalkey
-from fastapi import FastAPI
-from sqlmodel import SQLModel
+from fastapi import FastAPI, Depends
+from sqlmodel import SQLModel, Session
 
 import app.modules  # noqa: F401 — registra todos los modelos en SQLModel.metadata
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import engine, get_session
+from app.core.health import check_components
 from app.core.logging import configure_logging, log
 from app.core.middleware.cors import CORSOriginMiddleware
 from app.core.middleware.trace_id import TraceIdMiddleware
 from app.core.pki import ensure_ca, start_mtls_server
-from app.core.valkey import close_valkey, init_valkey
+from app.core.valkey import close_valkey, get_valkey_client, init_valkey
 from app.modules.agents.heartbeat_consumer import run_heartbeat_consumer
 from app.modules.agents.router import router as agents_router
 from app.modules.auth.router import router as auth_router
@@ -33,6 +35,7 @@ from app.modules.events.consumer import run_consumer
 from app.modules.events.router import router as events_router
 from app.modules.events.service import retention_task
 from app.modules.actions.router import router as actions_router
+from app.modules.alerts.router import router as alerts_router
 from app.modules.rules.router import router as rules_router
 from app.modules.users.router import router as users_router
 
@@ -94,8 +97,21 @@ app.include_router(agents_router)
 app.include_router(events_router)
 app.include_router(rules_router)
 app.include_router(actions_router)
+app.include_router(alerts_router)
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/health/components")
+async def health_components(
+    session: Session = Depends(get_session),
+    valkey_client: Any = Depends(get_valkey_client),
+) -> dict[str, Any]:
+    """
+    Verificación real de componentes: postgres, valkey, n8n, agents.
+    Sin auth JWT (RN-101 — monitoreo sin login). Siempre retorna 200.
+    """
+    return await check_components(session, valkey_client, settings)
