@@ -74,32 +74,32 @@
 
 ## 12. Tests backend
 
-- [ ] 12.1 `test_approve_success` — evento pending aprobado: status→approved, baseline_entries upserted, `baseline_update` publicado
-- [ ] 12.2 `test_approve_conflict` — versión incorrecta → 409
-- [ ] 12.3 `test_approve_absent_no_confirm` — hash nulo sin `confirm_absent` → 422
-- [ ] 12.4 `test_approve_absent_confirmed` — hash nulo con `confirm_absent=True` → 200, baseline_entries con `status='absent'`
-- [ ] 12.5 `test_reject_restore` — evento pending rechazado con `action=restore`, `restore_file` publicado, baseline no modificado
-- [ ] 12.6 `test_reject_quarantine` — `quarantine_file` publicado
-- [ ] 12.7 `test_reject_absent_baseline_noop` — baseline absent → reject OK, sin comando publicado
-- [ ] 12.8 `test_bulk_approve_partial` — 3 ítems, 1 con conflicto → succeeded 2, failed 1
-- [ ] 12.9 `test_bulk_reject_partial` — misma semántica
-- [ ] 12.10 `test_baseline_update_hmac_valid` — payload del comando tiene firma HMAC verificable con `shared_secret` del agente
-- [ ] 12.11 `test_no_get_file_hash_published` — ningún flujo de approve/reject publica `get_file_hash`
-- [ ] 12.12 `test_audit_log_on_approve` — fila en audit_log con `action='approve'`
-- [ ] 12.13 `test_audit_log_on_reject` — fila en audit_log con `action='reject'` y `details.action`
+- [x] 12.1 `test_approve_success` — evento pending aprobado: status→approved, baseline_entries upserted, `baseline_update` publicado
+- [x] 12.2 `test_approve_conflict` — versión incorrecta → 409
+- [x] 12.3 `test_approve_absent_no_confirm` — hash nulo sin `confirm_absent` → 422
+- [x] 12.4 `test_approve_absent_confirmed` — hash nulo con `confirm_absent=True` → 200, baseline_entries con `status='absent'`
+- [x] 12.5 `test_reject_restore` — evento pending rechazado con `action=restore`, `restore_file` publicado, baseline no modificado
+- [x] 12.6 `test_reject_quarantine` — `quarantine_file` publicado
+- [x] 12.7 `test_reject_absent_baseline_noop` — baseline absent → reject OK, sin comando publicado
+- [x] 12.8 `test_bulk_approve_partial` — 3 ítems, 1 con conflicto → succeeded 2, failed 1
+- [x] 12.9 `test_bulk_reject_partial` — misma semántica
+- [x] 12.10 `test_baseline_update_hmac_valid` — payload del comando tiene firma HMAC verificable con `shared_secret` del agente
+- [x] 12.11 `test_no_get_file_hash_published` — ningún flujo de approve/reject publica `get_file_hash`
+- [x] 12.12 `test_audit_log_on_approve` — fila en audit_log con `action='approve'`
+- [x] 12.13 `test_audit_log_on_reject` — fila en audit_log con `action='reject'` y `details.action`
 
 ## 13. Tests agente
 
-- [ ] 13.1 `test_dispatch_routes_baseline_update` — tipo correcto llama al handler correcto
-- [ ] 13.2 `test_dispatch_unknown_type_no_exception` — sin excepción, log warning
-- [ ] 13.3 `test_hmac_invalid_discards_command` — firma incorrecta → handler no llamado
-- [ ] 13.4 `test_target_agent_id_filter_other_agent` — comando para otro agente ignorado
-- [ ] 13.5 `test_target_agent_id_null_broadcast` — `target_agent_id=null` → procesado
-- [ ] 13.6 `test_baseline_update_present_writes_encrypted` — entry cifrada creada/actualizada
-- [ ] 13.7 `test_baseline_update_absent_writes_null_hash`
-- [ ] 13.8 `test_baseline_update_older_version_ignored`
-- [ ] 13.9 `test_restore_handler_success_publishes_ack`
-- [ ] 13.10 `test_restore_handler_no_baseline_publishes_error_ack`
-- [ ] 13.11 `test_quarantine_handler_success`
-- [ ] 13.12 `test_quarantine_handler_file_not_found_publishes_error_ack`
-- [ ] 13.13 `test_journal_written_before_filesystem_op` — journal pre-acción existe antes de modificar filesystem
+- [x] 13.1 `test_dispatch_routes_baseline_update` — tipo correcto llama al handler correcto
+- [x] 13.2 `test_dispatch_unknown_type_no_exception` — sin excepción, log warning
+- [x] 13.3 `test_hmac_invalid_discards_command` — firma incorrecta → handler no llamado
+- [x] 13.4 `test_target_agent_id_filter_other_agent` — comando para otro agente ignorado
+- [x] 13.5 `test_target_agent_id_null_broadcast` — `target_agent_id=null` → procesado
+- [x] 13.6 `test_baseline_update_present_writes_encrypted` — entry cifrada creada/actualizada
+- [x] 13.7 `test_baseline_update_absent_writes_null_hash`
+- [x] 13.8 `test_baseline_update_older_version_ignored`
+- [x] 13.9 `test_restore_handler_success_publishes_ack`
+- [x] 13.10 `test_restore_handler_no_baseline_publishes_error_ack`
+- [x] 13.11 `test_quarantine_handler_success`
+- [x] 13.12 `test_quarantine_handler_file_not_found_publishes_error_ack`
+- [x] 13.13 `test_journal_written_before_filesystem_op` — journal pre-acción existe antes de modificar filesystem
