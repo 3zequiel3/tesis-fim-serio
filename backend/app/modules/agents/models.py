@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, field_validator
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -23,6 +23,7 @@ class Agent(SQLModel, table=True):
     queue_pressure: float | None = Field(default=None)
     bootstrap_secret_hash: str | None = Field(default=None)
     shared_secret_hex: str | None = Field(default=None)  # persiste tras bootstrap para HMAC
+    watch_paths: list[str] = Field(default=[], sa_column=Column(JSON))
 
 
 class RevokedCertificate(SQLModel, table=True):
@@ -58,6 +59,36 @@ class AgentBootstrapResponse(BaseModel):
     ca_cert_pem: str
     shared_secret_hex: str
     master_secret_hex: str
+
+
+class AgentResponse(BaseModel):
+    """Schema de respuesta para un agente individual (GET /agents y GET /agents/{id})."""
+
+    agent_id: str
+    status: AgentStatus
+    last_heartbeat: datetime | None
+    queue_pressure: float | None
+    ruleset_version_applied: int
+    watch_paths: list[str]
+
+
+class AgentListResponse(BaseModel):
+    """Schema de respuesta para la lista de agentes (GET /agents)."""
+
+    items: list[AgentResponse]
+    total: int
+
+
+class AgentConfigRequest(BaseModel):
+    """Body para POST /agents/{id}/config."""
+
+    watch_paths: list[str]
+
+
+class AgentRescanRequest(BaseModel):
+    """Body para POST /agents/{id}/rescan."""
+
+    force: bool = False
 
 
 class BaselineStatus(str, Enum):

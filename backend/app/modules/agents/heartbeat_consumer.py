@@ -27,6 +27,7 @@ log = structlog.get_logger()
 _BLOCK_MS = 2000
 _SWEEP_INTERVAL_S = 10.0
 _OFFLINE_THRESHOLD_S = 30.0
+_DEAD_THRESHOLD_S = 300.0  # 5 minutos sin heartbeat → dead (D-C14-04)
 
 
 async def run_heartbeat_consumer(client: Any, stop_event: asyncio.Event) -> None:
@@ -77,6 +78,7 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
         agent.last_heartbeat = datetime.now(timezone.utc)
         if isinstance(queue_pressure, (int, float)):
             agent.queue_pressure = float(queue_pressure)
+        # dead → online cuando llega un heartbeat (D-C14-04: el agente puede volver a la vida)
         agent.status = AgentStatus.draining if shutdown else AgentStatus.online
         session.add(agent)
         session.commit()
@@ -96,17 +98,36 @@ async def _sweep_loop(stop_event: asyncio.Event) -> None:
 
 
 def _sweep_offline() -> None:
-    threshold = datetime.now(timezone.utc) - timedelta(seconds=_OFFLINE_THRESHOLD_S)
+    now = datetime.now(timezone.utc)
+    offline_threshold = now - timedelta(seconds=_OFFLINE_THRESHOLD_S)
+    dead_threshold = now - timedelta(seconds=_DEAD_THRESHOLD_S)
+
     with Session(engine) as session:
+        # Primera pasada: online/draining sin heartbeat en 30s → offline
         candidates = session.exec(
             select(Agent).where(
                 Agent.status.in_([AgentStatus.online, AgentStatus.draining]),  # type: ignore[attr-defined]
-                Agent.last_heartbeat < threshold,
+                Agent.last_heartbeat < offline_threshold,
             )
         ).all()
         for agent in candidates:
             agent.status = AgentStatus.offline
             session.add(agent)
         if candidates:
-            session.commit()
             log.info("heartbeat_consumer.sweep_offline", count=len(candidates))
+
+        # Segunda pasada: offline sin heartbeat en 5min → dead (D-C14-04)
+        dead_candidates = session.exec(
+            select(Agent).where(
+                Agent.status == AgentStatus.offline,  # type: ignore[attr-defined]
+                Agent.last_heartbeat < dead_threshold,
+            )
+        ).all()
+        for agent in dead_candidates:
+            agent.status = AgentStatus.dead
+            session.add(agent)
+        if dead_candidates:
+            log.info("heartbeat_consumer.sweep_dead", count=len(dead_candidates))
+
+        if candidates or dead_candidates:
+            session.commit()

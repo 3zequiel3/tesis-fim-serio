@@ -1,5 +1,5 @@
 """
-Lógica de negocio para registro y bootstrap de agentes FIM (Change 06).
+Lógica de negocio para registro, bootstrap y gestión de agentes FIM (Change 06, C14).
 """
 
 from __future__ import annotations
@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import secrets
 from pathlib import Path
+from typing import Any
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
@@ -21,6 +22,7 @@ from app.modules.agents.models import (
     AgentBootstrapRequest,
     AgentBootstrapResponse,
     AgentRegisterRequest,
+    AgentResponse,
     AgentStatus,
 )
 
@@ -84,6 +86,148 @@ def bootstrap_agent(
         shared_secret_hex=shared_secret.hex(),
         master_secret_hex=master_secret.hex(),
     )
+
+
+class PendingEventsExist(Exception):
+    """Hay eventos pending del agente — requiere force=True para rescan."""
+
+    def __init__(self, count: int) -> None:
+        self.count = count
+        super().__init__(f"pending_events_exist: {count}")
+
+
+# ── Gestión de agentes (C14) ──────────────────────────────────────────────────
+
+
+def _agent_to_response(agent: Agent) -> AgentResponse:
+    return AgentResponse(
+        agent_id=agent.agent_id,
+        status=agent.status,
+        last_heartbeat=agent.last_heartbeat,
+        queue_pressure=agent.queue_pressure,
+        ruleset_version_applied=agent.ruleset_version_applied,
+        watch_paths=agent.watch_paths or [],
+    )
+
+
+def list_agents(db: Session) -> list[AgentResponse]:
+    """Retorna todos los agentes registrados con su estado operacional."""
+    agents = db.exec(select(Agent)).all()
+    return [_agent_to_response(a) for a in agents]
+
+
+def get_agent(db: Session, agent_id: str) -> AgentResponse:
+    """Retorna el detalle del agente o raise 404."""
+    agent = db.get(Agent, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="agent not found")
+    return _agent_to_response(agent)
+
+
+def update_agent_config(
+    db: Session,
+    valkey_client: Any,
+    agent_id: str,
+    watch_paths: list[str],
+    user_id: int,
+) -> AgentResponse:
+    """
+    Actualiza watch_paths del agente (replace-all), incrementa ruleset_version,
+    publica update_config HMAC-signed y registra en audit_log.
+
+    D-C14-02: semántica replace-all — el array anterior es completamente sobreescrito.
+    D-C14-05: el ruleset_version se incrementa aquí antes de publicar.
+    """
+    from app.modules.agents.streams import publish_update_config
+    from app.modules.audit.models import AuditLog
+    from app.modules.rules.service import increment_ruleset_version
+
+    agent = db.get(Agent, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="agent not found")
+
+    # Persistir watch_paths
+    agent.watch_paths = watch_paths
+    db.add(agent)
+    db.flush()
+
+    # Incrementar ruleset_version (mismo counter que C12/C13)
+    new_version = increment_ruleset_version(db)
+
+    # Actualizar ruleset_version_applied en el agente
+    agent.ruleset_version_applied = new_version
+    db.add(agent)
+    db.flush()
+
+    # Registrar audit_log
+    audit = AuditLog(
+        user_id=user_id,
+        action="agent_config",
+        target_type="agent",
+        detail=f'{{"agent_id": "{agent_id}", "watch_paths": {watch_paths}}}',
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(agent)
+
+    # Publicar update_config post-commit (mismo patrón D-F que rules.py)
+    publish_update_config(db, valkey_client, agent, watch_paths, new_version)
+
+    return _agent_to_response(agent)
+
+
+def rescan_agent(
+    db: Session,
+    valkey_client: Any,
+    agent_id: str,
+    force: bool,
+    user_id: int,
+) -> None:
+    """
+    Fuerza re-scan de baseline del agente.
+
+    D-C14-03: si force=False y hay pending → raise PendingEventsExist(count=N).
+    Si force=True → marcar pending como superseded y publicar rescan_baseline.
+    """
+    from app.modules.agents.streams import publish_rescan_baseline
+    from app.modules.audit.models import AuditLog
+    from app.modules.events.models import Event, EventStatus
+
+    agent = db.get(Agent, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="agent not found")
+
+    # Contar eventos pending del agente
+    pending_events = db.exec(
+        select(Event).where(
+            Event.agent_id == agent_id,
+            Event.status == EventStatus.pending,
+        )
+    ).all()
+
+    if not force and pending_events:
+        raise PendingEventsExist(count=len(pending_events))
+
+    # force=True: marcar pending como superseded
+    if pending_events:
+        for event in pending_events:
+            event.status = EventStatus.superseded
+            event.parent_event_id = None  # rescan, no cadena natural (D-C14-03)
+            db.add(event)
+        db.flush()
+
+    # Registrar audit_log
+    audit = AuditLog(
+        user_id=user_id,
+        action="agent_rescan",
+        target_type="agent",
+        detail=f'{{"agent_id": "{agent_id}", "force": {str(force).lower()}, "superseded_count": {len(pending_events)}}}',
+    )
+    db.add(audit)
+    db.commit()
+
+    # Publicar rescan_baseline post-commit
+    publish_rescan_baseline(db, valkey_client, agent)
 
 
 def _validate_csr(csr_pem: str, expected_agent_id: str) -> None:
