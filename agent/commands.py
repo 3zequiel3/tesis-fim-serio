@@ -1,14 +1,16 @@
 """
-Dispatcher de comandos entrantes del stream `commands` para el agente FIM (C13).
+Dispatcher de comandos entrantes del stream `commands` para el agente FIM (C13, C14).
 
 Implementa:
-  dispatch(command, *, baseline_engine, state, valkey_client, config)
+  dispatch(command, *, baseline_engine, state, valkey_client, config, detector)
     — enruta por command["type"] con verificación HMAC y filtro target_agent_id.
 
 Handlers:
   handle_baseline_update  — actualiza baseline local cifrado y publica event_ack.
   handle_restore_file     — restaura archivo desde baseline con journal.
   handle_quarantine_file  — pone en cuarentena con journal.
+  handle_update_config    — recarga watch_paths en fanotify + scan de paths nuevos (C14).
+  handle_rescan_baseline  — scan completo de todos los watch_paths (C14).
 
 Restricciones:
   - Sin servidor HTTP (D8, RN-108).
@@ -38,6 +40,7 @@ if TYPE_CHECKING:
 
     from agent.baseline import BaselineEngine
     from agent.config import AgentConfig
+    from agent.detector import FanotifyDetector
     from agent.journal import JournalManager
     from agent.state import AgentState
 
@@ -92,6 +95,7 @@ async def dispatch(
     config: "AgentConfig",
     journal: "JournalManager | None" = None,
     quarantine_dir: str | None = None,
+    detector: "FanotifyDetector | None" = None,
 ) -> None:
     """
     Enruta un comando entrante del stream `commands`.
@@ -153,6 +157,23 @@ async def dispatch(
             valkey_client=valkey_client,
             config=config,
             quarantine_dir=quarantine_dir,
+        )
+    elif cmd_type == "update_config":
+        await handle_update_config(
+            command=command,
+            detector=detector,
+            baseline_engine=baseline_engine,
+            state=state,
+            valkey_client=valkey_client,
+            config=config,
+        )
+    elif cmd_type == "rescan_baseline":
+        await handle_rescan_baseline(
+            command=command,
+            baseline_engine=baseline_engine,
+            state=state,
+            valkey_client=valkey_client,
+            config=config,
         )
     else:
         # 4. Tipo desconocido: log warning, sin excepción
@@ -365,5 +386,144 @@ async def handle_quarantine_file(
     # 4. Publicar event_ack
     await _publish_ack(
         valkey_client, command_id, "quarantine_file", event_id, config.agent_id,
+        ok=error_reason is None, error=error_reason,
+    )
+
+
+# ── Handler: update_config (C14) ──────────────────────────────────────────────
+
+
+async def handle_update_config(
+    command: dict[str, Any],
+    detector: "FanotifyDetector | None",
+    baseline_engine: "BaselineEngine",
+    state: "AgentState",
+    valkey_client: "avalkey.Valkey",
+    config: "AgentConfig",
+) -> None:
+    """
+    Actualiza la configuración de watch_paths del agente (C14, D-C14-06/07).
+
+    1. Calcula paths añadidos/eliminados respecto a la config actual.
+    2. Llama detector.reload_watch_paths(new_paths) para actualizar fanotify.
+    3. Llama baseline_engine.run_scan(added_paths) solo para paths nuevos.
+    4. Actualiza config.yaml local con los nuevos watch_paths.
+    5. Actualiza state.ruleset_version y persiste en state.json.
+    6. Publica event_ack.
+    """
+    import yaml
+
+    from agent.state import save_state
+
+    command_id = command.get("command_id", "")
+    event_id = command.get("event_id")
+    new_paths: list[str] = command.get("watch_paths") or []
+    cmd_version: int = command.get("ruleset_version", 0)
+
+    error_reason: str | None = None
+    try:
+        current_watch_paths = list(config.watch_paths)
+        current_set = set(current_watch_paths)
+        new_set = set(new_paths)
+
+        added_paths = list(new_set - current_set)
+        removed_paths = list(current_set - new_set)
+
+        log.info(
+            "commands.update_config.paths_delta",
+            added=added_paths,
+            removed=removed_paths,
+        )
+
+        # Recargar fanotify
+        if detector is not None:
+            detector.reload_watch_paths(new_paths)
+        else:
+            log.warning("commands.update_config.no_detector")
+
+        # Scan solo paths nuevos
+        if added_paths:
+            baseline_engine.run_scan(added_paths)
+
+        # Actualizar config.yaml local
+        config_path = getattr(config, "_config_path", None)
+        if config_path is None:
+            # Buscar en ubicación estándar
+            config_path = "/etc/fim-agent/config.yaml"
+        try:
+            import os as _os
+            if _os.path.exists(str(config_path)):
+                with open(str(config_path)) as f:
+                    raw_config = yaml.safe_load(f) or {}
+                raw_config["watch_paths"] = new_paths
+                tmp_path = str(config_path) + ".tmp"
+                with open(tmp_path, "w") as f:
+                    yaml.dump(raw_config, f, default_flow_style=False)
+                _os.replace(tmp_path, str(config_path))
+                log.info("commands.update_config.config_yaml_updated", path=str(config_path))
+        except Exception as exc:
+            log.warning("commands.update_config.config_yaml_write_failed", error=str(exc))
+
+        # Actualizar watch_paths en el objeto config en memoria
+        config.watch_paths = new_paths  # type: ignore[assignment]
+
+        # Actualizar state.ruleset_version
+        state.ruleset_version = cmd_version
+        try:
+            save_state(state)
+        except Exception as exc:
+            log.warning("commands.update_config.save_state_failed", error=str(exc))
+
+        log.info(
+            "commands.update_config.done",
+            new_paths=new_paths,
+            ruleset_version=cmd_version,
+        )
+
+    except Exception as exc:
+        error_reason = str(exc)
+        log.error("commands.update_config.failed", error=error_reason)
+
+    await _publish_ack(
+        valkey_client, command_id, "update_config", event_id, config.agent_id,
+        ok=error_reason is None, error=error_reason,
+    )
+
+
+# ── Handler: rescan_baseline (C14) ────────────────────────────────────────────
+
+
+async def handle_rescan_baseline(
+    command: dict[str, Any],
+    baseline_engine: "BaselineEngine",
+    state: "AgentState",
+    valkey_client: "avalkey.Valkey",
+    config: "AgentConfig",
+) -> None:
+    """
+    Ejecuta scan completo de baseline sobre todos los watch_paths actuales (C14, D-C14-07).
+
+    1. Obtiene watch_paths actuales de config.
+    2. Llama baseline_engine.run_scan(watch_paths) para scan completo.
+    3. Publica event_ack con resultado.
+    """
+    command_id = command.get("command_id", "")
+    event_id = command.get("event_id")
+
+    error_reason: str | None = None
+    try:
+        watch_paths = list(config.watch_paths)
+        log.info("commands.rescan_baseline.starting", watch_paths=watch_paths)
+
+        baseline_engine.run_scan(watch_paths)
+
+        log.info("commands.rescan_baseline.done", watch_paths=watch_paths)
+
+    except Exception as exc:
+        error_reason = str(exc)
+        log.error("commands.rescan_baseline.failed", error=error_reason)
+
+    await _publish_ack(
+        valkey_client, command_id, "rescan_baseline", event_id, config.agent_id,
         ok=error_reason is None, error=error_reason,
     )

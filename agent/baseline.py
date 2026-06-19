@@ -389,6 +389,42 @@ class BaselineEngine:
             errors=errors,
         )
 
+    def run_scan(self, paths: list[str]) -> ScanReport:
+        """
+        Escaneo bajo demanda para una lista de paths dada (C14, D-C14-07).
+
+        Idéntico al scan inicial pero sin skip de entries existentes:
+        sobreescribe (upsert) cualquier entry ya presente — útil para
+        rescan_baseline y para paths recién añadidos en update_config.
+
+        Si un path no existe → log warning y continua (no lanza excepción).
+        """
+        scanned = skipped = oversize_count = errors = 0
+        for watch_path in paths:
+            p = Path(watch_path)
+            if not p.exists():
+                log.warning("baseline.run_scan.path_missing", path=watch_path)
+                continue
+            candidates = [p] if p.is_file() else list(p.rglob("*"))
+            for file_path in candidates:
+                if not file_path.is_file():
+                    continue
+                path_str = str(file_path)
+                try:
+                    entry = self.write_entry(path_str)
+                    scanned += 1
+                    if entry.oversize:
+                        oversize_count += 1
+                except OSError as exc:
+                    log.error("baseline.run_scan.error", path=path_str, error=str(exc))
+                    errors += 1
+        return ScanReport(
+            scanned=scanned,
+            skipped=skipped,
+            oversize=oversize_count,
+            errors=errors,
+        )
+
     def verify_entry(self, path: str) -> bool:
         """Verifica integridad GCM. True = íntegra. Raise BaselineIntegrityError si falló el tag."""
         ep = _entry_path(self._baseline_dir, path)

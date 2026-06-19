@@ -392,3 +392,70 @@ class FanotifyDetector:
         self._mark_paths(self._watch_paths)
         self._mark_exclusion()
         log.info("detector.paths_reloaded", watch_paths=self._watch_paths)
+
+    def reload_watch_paths(self, new_paths: list[str]) -> None:
+        """
+        Recarga watch_paths en caliente (C14, D-C14-06).
+
+        Desmarca de fanotify los paths que ya no están en new_paths,
+        marca los paths nuevos, y actualiza self._watch_paths.
+
+        Thread-safe: se ejecuta en el event loop del detector (llamado desde handler
+        async, que corre en el mismo loop que _process_event).
+
+        No llama init_scan/run_scan — eso lo hace el caller (handle_update_config).
+        """
+        current = set(self._watch_paths)
+        updated = set(new_paths)
+
+        removed = current - updated
+        added = updated - current
+
+        if not _HAS_FAN:
+            # En plataformas sin fanotify (Windows/test) solo actualiza el atributo
+            self._watch_paths = list(new_paths)
+            log.info(
+                "detector.reload_watch_paths.noop_no_fan",
+                added=list(added),
+                removed=list(removed),
+            )
+            return
+
+        # Desmarcar paths eliminados
+        for path in removed:
+            try:
+                _fan_mod.mark(
+                    self._fan,
+                    _fan_mod.FAN_MARK_REMOVE | _fan_mod.FAN_MARK_FILESYSTEM,
+                    _fan_mod.FAN_CLOSE_WRITE,
+                    _AT_FDCWD,
+                    path,
+                )
+            except Exception as exc:
+                log.warning("detector.reload_watch_paths.unmark_failed", path=path, error=str(exc))
+
+        # Marcar paths nuevos
+        for path in added:
+            try:
+                _fan_mod.mark(
+                    self._fan,
+                    _fan_mod.FAN_MARK_ADD | _fan_mod.FAN_MARK_FILESYSTEM,
+                    _fan_mod.FAN_CLOSE_WRITE,
+                    _AT_FDCWD,
+                    path,
+                )
+            except Exception as exc:
+                log.warning("detector.reload_watch_paths.mark_failed", path=path, error=str(exc))
+
+        self._watch_paths = list(new_paths)
+        log.info(
+            "detector.reload_watch_paths.done",
+            added=list(added),
+            removed=list(removed),
+            watch_paths=self._watch_paths,
+        )
+
+    @property
+    def watch_paths(self) -> list[str]:
+        """Retorna la lista actual de watch_paths."""
+        return list(self._watch_paths)

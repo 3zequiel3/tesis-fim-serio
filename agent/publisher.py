@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from agent.baseline import BaselineEngine
     from agent.config import AgentConfig
+    from agent.detector import FanotifyDetector
     from agent.journal import JournalManager
     from agent.state import AgentState
 
@@ -60,11 +61,12 @@ class Publisher:
         self._on_ack_cb: Callable[[str], None] | None = None
         self._on_update_config_cb: Callable[[list[str]], None] | None = None
         self._on_rule_sync_cb: Callable[[list, int], None] | None = None
-        # C13: referencias opcionales para dispatch de comandos del agente
+        # C13/C14: referencias opcionales para dispatch de comandos del agente
         self._baseline_engine: "BaselineEngine | None" = None
         self._agent_state: "AgentState | None" = None
         self._journal: "JournalManager | None" = None
         self._quarantine_dir: str | None = None
+        self._detector: "FanotifyDetector | None" = None
 
     # ── public ───────────────────────────────────────────────────────────────
 
@@ -104,16 +106,18 @@ class Publisher:
         state: "AgentState",
         journal: "JournalManager",
         quarantine_dir: str | None = None,
+        detector: "FanotifyDetector | None" = None,
     ) -> None:
         """
-        Registra las instancias necesarias para despachar comandos C13
-        (baseline_update, restore_file, quarantine_file).
-        Debe llamarse desde bootstrap después de inicializar baseline y state.
+        Registra las instancias necesarias para despachar comandos C13/C14
+        (baseline_update, restore_file, quarantine_file, update_config, rescan_baseline).
+        Debe llamarse desde bootstrap después de inicializar baseline, state y detector.
         """
         self._baseline_engine = baseline_engine
         self._agent_state = state
         self._journal = journal
         self._quarantine_dir = quarantine_dir
+        self._detector = detector
 
     def set_shutdown(self, value: bool) -> None:
         """Marca el estado de drenaje graceful para que el heartbeat lo vea."""
@@ -210,8 +214,11 @@ class Publisher:
             ):
                 self._on_rule_sync_cb(rules_payload, ruleset_version)
                 log.info("publisher.rule_sync_received", ruleset_version=ruleset_version)
-        elif cmd_type in ("baseline_update", "restore_file", "quarantine_file"):
-            # C13: despachar al módulo commands si las instancias están registradas
+        elif cmd_type in (
+            "baseline_update", "restore_file", "quarantine_file",
+            "update_config", "rescan_baseline",
+        ):
+            # C13/C14: despachar al módulo commands si las instancias están registradas
             if (
                 self._baseline_engine is not None
                 and self._agent_state is not None
@@ -225,6 +232,7 @@ class Publisher:
                     config=self._config,
                     journal=self._journal,
                     quarantine_dir=self._quarantine_dir,
+                    detector=self._detector,
                 )
             else:
                 log.warning(
