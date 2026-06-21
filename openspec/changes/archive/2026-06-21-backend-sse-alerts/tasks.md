@@ -33,4 +33,4 @@
 
 ## 7. Commit
 
-- [ ] 7.1 Commit `feat(backend): add SSE alerts stream and full alerts listing (C16)`
+- [x] 7.1 Commit `feat(backend): add SSE alerts stream and full alerts listing (C16)`
