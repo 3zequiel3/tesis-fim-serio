@@ -16,11 +16,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.database import engine
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
+from app.modules.alerts.stream import alerts_broadcaster
 from app.modules.alerts.notifier import (
     send_log_only,
     send_n8n,
@@ -95,6 +97,20 @@ async def notify_if_applicable(event: Event) -> None:
         session.refresh(alert)
 
     log.info("notify.alert_created", alert_id=alert.id, event_id=event.event_id, severity=severity)
+
+    # Publicar al broadcaster SSE (D-SSE-1): los clientes conectados reciben la alerta de inmediato
+    alerts_broadcaster.publish({
+        "id": alert.id,
+        "event_id": alert.event_id,
+        "severity": alert.severity.value,
+        "channel": None,
+        "delivered_at": None,
+        "failed_at": None,
+        "last_error": None,
+        "retry_count": 0,
+        "created_at": alert.created_at.isoformat(),
+    })
+
     await notify_event(alert, event)
 
 
@@ -180,6 +196,39 @@ async def _try_cascade(payload: dict[str, Any]) -> tuple[bool, AlertChannel | No
     # 4. log_only — siempre exitoso (RN-54)
     await send_log_only(payload)
     return True, AlertChannel.log_only
+
+
+# ── Listado completo de alertas ───────────────────────────────────────────────
+
+def list_alerts(
+    session: Session,
+    status: str | None = None,
+    severity: AlertSeverity | None = None,
+    page: int = 1,
+    size: int = 50,
+) -> tuple[list[Alert], int]:
+    """
+    Retorna (items, total) con paginación y filtros opcionales.
+    status: 'pending' | 'delivered' | 'failed'
+    """
+    def _apply_filters(stmt):
+        if status == "pending":
+            stmt = stmt.where(Alert.delivered_at.is_(None)).where(Alert.failed_at.is_(None))  # type: ignore[union-attr]
+        elif status == "delivered":
+            stmt = stmt.where(Alert.delivered_at.is_not(None))  # type: ignore[union-attr]
+        elif status == "failed":
+            stmt = stmt.where(Alert.failed_at.is_not(None))  # type: ignore[union-attr]
+        if severity is not None:
+            stmt = stmt.where(Alert.severity == severity)
+        return stmt
+
+    count_stmt = _apply_filters(select(func.count()).select_from(Alert))
+    total: int = session.exec(count_stmt).one()  # type: ignore[assignment]
+
+    items_stmt = _apply_filters(select(Alert)).order_by(Alert.created_at.desc()).offset((page - 1) * size).limit(size)
+    items = list(session.exec(items_stmt).all())
+
+    return items, total
 
 
 # ── Gestión de la DLQ ─────────────────────────────────────────────────────────

@@ -1,25 +1,35 @@
 """
-Router de gestión de alertas / DLQ para FIM Platform (C15 — backend-notifications).
+Router de alertas para FIM Platform (C15 + C16).
 
 Endpoints:
-  GET  /alerts/failed        — lista alertas fallidas (DLQ); requiere JWT admin
-  POST /alerts/{id}/retry    — reintenta una alerta fallida; requiere JWT admin
-  DELETE /alerts/{id}        — descarta una alerta de la DLQ; requiere JWT admin
+  GET  /alerts                — listado paginado completo con filtros (C16)
+  GET  /alerts/stream         — stream SSE de alertas nuevas (C16)
+  GET  /alerts/failed         — DLQ (C15)
+  POST /alerts/{id}/retry     — reintento desde DLQ (C15)
+  DELETE /alerts/{id}         — descartar de DLQ (C15)
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any, AsyncGenerator
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from jose import JWTError
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, select
+from sse_starlette.sse import EventSourceResponse
 
 from app.core.database import get_session
 from app.core.deps import require_admin
+from app.core.rate_limit import check_api_rate_limit
+from app.core.security import BLACKLIST_PREFIX, decode_token
+from app.core.valkey import get_valkey_client
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
-from app.modules.alerts.service import delete_alert, list_failed_alerts, retry_alert
+from app.modules.alerts.service import delete_alert, list_alerts, list_failed_alerts, retry_alert
+from app.modules.alerts.stream import alerts_broadcaster
 from app.modules.auth.models import User
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -32,6 +42,7 @@ class AlertResponse(BaseModel):
     event_id: int
     severity: AlertSeverity
     channel: AlertChannel | None
+    delivered_at: datetime | None
     failed_at: datetime | None
     last_error: str | None
     retry_count: int
@@ -45,7 +56,134 @@ class AlertListResponse(BaseModel):
     total: int
 
 
+class AlertPaginatedResponse(BaseModel):
+    items: list[AlertResponse]
+    total: int
+    page: int
+    size: int
+
+
+# ── Auth via query param para SSE (EventSource no soporta headers) ────────────
+
+_credentials_exc = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Could not validate credentials",
+)
+
+
+async def _require_admin_from_token(
+    token: str = Query(...),
+    session: Session = Depends(get_session),
+    valkey_client=Depends(get_valkey_client),
+) -> User:
+    """Dependency SSE: valida JWT de query param ?token= y exige rol admin."""
+    try:
+        payload = decode_token(token)
+    except JWTError:
+        raise _credentials_exc
+
+    jti: str | None = payload.get("jti")
+    if jti and valkey_client.exists(f"{BLACKLIST_PREFIX}{jti}"):
+        raise _credentials_exc
+
+    user_id: str | None = payload.get("sub")
+    if user_id is None:
+        raise _credentials_exc
+
+    if payload.get("scope") == "password_change_only":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="password_change_required")
+
+    check_api_rate_limit(int(user_id), valkey_client)
+
+    user = session.exec(select(User).where(User.id == int(user_id))).first()
+    if user is None or not user.is_active:
+        raise _credentials_exc
+
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_required")
+
+    return user
+
+
+# ── Generador SSE ─────────────────────────────────────────────────────────────
+
+def _alert_to_dict(alert: Alert) -> dict[str, Any]:
+    return {
+        "id": alert.id,
+        "event_id": alert.event_id,
+        "severity": alert.severity.value,
+        "channel": alert.channel.value if alert.channel else None,
+        "delivered_at": alert.delivered_at.isoformat() if alert.delivered_at else None,
+        "failed_at": alert.failed_at.isoformat() if alert.failed_at else None,
+        "last_error": alert.last_error,
+        "retry_count": alert.retry_count,
+        "created_at": alert.created_at.isoformat(),
+    }
+
+
+async def _alert_sse_generator(
+    request: Request,
+    session: Session,
+) -> AsyncGenerator[dict[str, Any], None]:
+    # 1. Replay via Last-Event-ID (D-SSE-3)
+    last_id_str = request.headers.get("last-event-id")
+    if last_id_str is not None:
+        try:
+            last_id = int(last_id_str)
+        except ValueError:
+            last_id = 0
+
+        missed_stmt = select(Alert).where(Alert.id > last_id).order_by(Alert.id.asc())  # type: ignore[arg-type]
+        missed = list(session.exec(missed_stmt).all())
+        for alert in missed:
+            yield {"id": str(alert.id), "data": json.dumps(_alert_to_dict(alert))}
+
+    # 2. Streaming en tiempo real desde el broadcaster (D-SSE-1)
+    queue: asyncio.Queue[dict[str, Any]] = alerts_broadcaster.subscribe()
+    try:
+        while True:
+            if await request.is_disconnected():
+                break
+            try:
+                alert_dict = await asyncio.wait_for(queue.get(), timeout=15.0)
+                yield {"id": str(alert_dict["id"]), "data": json.dumps(alert_dict)}
+            except asyncio.TimeoutError:
+                # Keepalive cada 15s para prevenir corte de proxies (D-SSE-4)
+                yield {"comment": "keepalive"}
+    finally:
+        alerts_broadcaster.unsubscribe(queue)
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────────
+
+@router.get("", response_model=AlertPaginatedResponse)
+async def list_all_alerts(
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    filter_status: str | None = Query(default=None, alias="status"),
+    severity: AlertSeverity | None = Query(default=None),
+    session: Session = Depends(get_session),
+    _admin: User = Depends(require_admin),
+) -> AlertPaginatedResponse:
+    """Listado paginado de todas las alertas con filtros opcionales por estado y severidad."""
+    items, total = list_alerts(session, status=filter_status, severity=severity, page=page, size=size)
+    return AlertPaginatedResponse(
+        items=[AlertResponse.model_validate(a) for a in items],
+        total=total,
+        page=page,
+        size=size,
+    )
+
+
+@router.get("/stream")
+async def stream_alerts(
+    request: Request,
+    session: Session = Depends(get_session),
+    _admin: User = Depends(_require_admin_from_token),
+) -> EventSourceResponse:
+    """Stream SSE de alertas nuevas. Auth via query param ?token=<jwt>."""
+    return EventSourceResponse(_alert_sse_generator(request, session))
+
 
 @router.get("/failed", response_model=AlertListResponse)
 async def get_failed_alerts(
@@ -71,7 +209,7 @@ async def retry_failed_alert(
         alert = await retry_alert(alert_id, session)
     except ValueError as exc:
         reason = str(exc)
-        if reason == "not_found" or reason == "event_not_found":
+        if reason in ("not_found", "event_not_found"):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="alert_not_found")
         if reason == "already_delivered":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="alert_already_delivered")
