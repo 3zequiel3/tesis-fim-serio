@@ -61,4 +61,4 @@
 
 ## 12. Commit
 
-- [ ] 12.1 Commit `feat(frontend): add scaffold, auth flows and layout shell (C17)`
+- [x] 12.1 Commit `feat(frontend): add scaffold, auth flows and layout shell (C17)`
