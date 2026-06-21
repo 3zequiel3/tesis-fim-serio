@@ -139,16 +139,17 @@ services:
       replicas: 1
 
   # ---------------------------------------------------------------------------
-  # frontend — React 19 + Vite (placeholder, Change 14)
+  # frontend — React 19 + Vite + nginx (C17: frontend-shell-auth)
   # profiles: ["app"] → no arranca sin --profile app.
-  # Puertos: definidos en Change 14. Hoy sin binding para evitar premature
-  # port reservation (D-04).
+  # Puerto 80: nginx sirve el SPA compilado con headers de seguridad.
   # ---------------------------------------------------------------------------
   frontend:
     build: ./frontend
     image: fim-frontend:dev
     profiles:
       - app
+    ports:
+      - "80:80"
     restart: unless-stopped
     depends_on:
       - backend

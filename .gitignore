@@ -17,6 +17,13 @@ backend/.vscode/
 # commands/, skills/) SÍ se versiona. settings.local.json es per-user.
 .claude/settings.local.json
 
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.env.development
+frontend/.env.local
+frontend/.env.*.local
+
 # Cache
 **/__pycache__/
 **/*.pyc
