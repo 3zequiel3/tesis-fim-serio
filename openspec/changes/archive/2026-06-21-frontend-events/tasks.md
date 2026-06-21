@@ -72,4 +72,4 @@
 
 - [x] 12.1 Correr `pnpm build` y `pnpm lint`; verificar 0 usos de `dangerouslySetInnerHTML` en todo `frontend/src`
 - [x] 12.2 Correr los tests unitarios (filtros, detección binario) y dejarlos verdes
-- [ ] 12.3 Commit con conventional commit (`feat(frontend): ...`), sin Co-Authored-By
+- [x] 12.3 Commit con conventional commit (`feat(frontend): ...`), sin Co-Authored-By
