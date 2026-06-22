@@ -1,28 +1,35 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 
-// Shape real del backend: GET /health/components retorna un objeto plano
 interface HealthResponse {
   postgres: string
   valkey: string
   n8n: string
-  agents: string
+  agents: { status: string; items: unknown[] }
+  checked_at: string
 }
+
+const MONITORED: Array<keyof Omit<HealthResponse, 'checked_at'>> = [
+  'postgres',
+  'valkey',
+  'n8n',
+  'agents',
+]
 
 export function SystemBanner() {
   const { data } = useQuery<HealthResponse>({
     queryKey: ['health'],
     queryFn: () => apiClient.get<HealthResponse>('/health/components').then((r) => r.data),
     refetchInterval: 10_000,
-    // No mostrar error — si falla el health check, simplemente no mostramos banner
     retry: false,
   })
 
-  // Iterar sobre los valores del objeto plano para detectar componentes no-ok
   const downComponents = data
-    ? Object.entries(data)
-        .filter(([, status]) => status !== 'ok')
-        .map(([name]) => name)
+    ? MONITORED.filter((name) => {
+        const value = data[name]
+        if (name === 'agents') return (value as { status: string }).status !== 'ok'
+        return value !== 'ok'
+      })
     : []
 
   if (downComponents.length === 0) return null

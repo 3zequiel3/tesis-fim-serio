@@ -204,9 +204,13 @@ def start_mtls_server(
             ssl_ca_certs=ca_cert_path,
             ssl_cert_reqs=ssl.CERT_REQUIRED,
             log_level="info",
+            lifespan="off",  # don't re-run the app lifespan in the mTLS thread
         )
         server = uvicorn.Server(config)
-        asyncio.run(server.serve())
+        try:
+            asyncio.run(server.serve())
+        except (SystemExit, Exception) as exc:
+            log.error("pki.mtls_server.exited", port=8443, error=str(exc))
 
     t = threading.Thread(target=_run, daemon=True, name="fim-mtls-8443")
     t.start()

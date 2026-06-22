@@ -46,9 +46,13 @@ async def _check_postgres(session: Session) -> str:
 
 
 async def _check_valkey(valkey_client: Any) -> str:
-    """Ejecuta PING con timeout 2s."""
+    """Ejecuta PING con timeout 2s (cliente sync — corre en threadpool)."""
     try:
-        result = await asyncio.wait_for(valkey_client.ping(), timeout=_VALKEY_TIMEOUT)
+        loop = asyncio.get_event_loop()
+        result = await asyncio.wait_for(
+            loop.run_in_executor(None, valkey_client.ping),
+            timeout=_VALKEY_TIMEOUT,
+        )
         return "ok" if result else "down"
     except Exception as exc:
         log.warning("health.valkey_down", error=str(exc))

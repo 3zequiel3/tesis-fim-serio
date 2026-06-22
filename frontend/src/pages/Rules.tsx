@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import axios from 'axios'
 import { useRules, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useRules'
 import { RuleForm } from '@/components/ui/RuleForm'
-import type { Rule } from '@/api/rules'
+import type { Rule, CreateRulePayload, UpdateRulePayload } from '@/api/rules'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,9 +57,9 @@ export function Rules() {
     setEditingRule(null)
   }
 
-  function handleFormSubmit(payload: Parameters<typeof createMutation.mutate>[0] | Parameters<typeof updateMutation.mutate>[0]) {
+  function handleFormSubmit(payload: CreateRulePayload | UpdateRulePayload) {
     if (formMode === 'create') {
-      createMutation.mutate(payload as Parameters<typeof createMutation.mutate>[0], {
+      createMutation.mutate(payload as CreateRulePayload, {
         onSuccess: () => {
           toast.success('Regla creada')
           closeForm()
@@ -73,7 +73,7 @@ export function Rules() {
       })
     } else if (formMode === 'edit' && editingRule) {
       updateMutation.mutate(
-        { id: editingRule.id, payload: payload as Parameters<typeof updateMutation.mutate>[0]['payload'] },
+        { id: editingRule.id, payload: payload as UpdateRulePayload },
         {
           onSuccess: () => {
             toast.success('Regla actualizada')

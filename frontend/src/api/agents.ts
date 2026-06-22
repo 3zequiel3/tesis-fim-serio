@@ -26,8 +26,8 @@ export interface RescanConflictError {
 // ─── Funciones API ────────────────────────────────────────────────────────────
 
 export async function getAgents(): Promise<Agent[]> {
-  const { data } = await apiClient.get<Agent[]>('/agents')
-  return data
+  const { data } = await apiClient.get<{ items: Agent[]; total: number }>('/agents')
+  return data.items
 }
 
 export async function getAgent(id: string): Promise<Agent> {

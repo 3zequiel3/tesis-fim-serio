@@ -40,8 +40,8 @@ export async function getAlerts(filters: AlertFilters = {}): Promise<AlertListRe
 }
 
 export async function getFailedAlerts(): Promise<Alert[]> {
-  const { data } = await apiClient.get<Alert[]>('/alerts/failed')
-  return data
+  const { data } = await apiClient.get<{ items: Alert[]; total: number }>('/alerts/failed')
+  return data.items
 }
 
 export async function retryAlert(id: number): Promise<void> {

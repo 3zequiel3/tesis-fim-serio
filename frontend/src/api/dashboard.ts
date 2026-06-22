@@ -20,12 +20,12 @@ export interface DashboardSummary {
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   // Obtener datos de 3 endpoints en paralelo
-  const [eventsRes, agentsRes, healthRes] = await Promise.all([
+  const [, agentsRes, healthRes] = await Promise.all([
     apiClient.get<{ total: number; items: Array<{ status: EventStatus; severity?: string }> }>('/events', {
       params: { page_size: 100 },
     }),
-    apiClient.get<Array<{ status: AgentStatus }>>('/agents'),
-    apiClient.get<{ postgres: string; valkey: string; n8n: string; agents: string }>('/health/components'),
+    apiClient.get<{ items: Array<{ status: AgentStatus }>; total: number }>('/agents'),
+    apiClient.get<{ postgres: string; valkey: string; n8n: string; agents: { status: string; items: unknown[] }; checked_at: string }>('/health/components'),
   ])
 
   // Contar eventos por estado — usamos un segundo call con page_size pequeño para obtener contadores
@@ -62,19 +62,26 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   ])
 
   // Contar agentes por status
+  const agentItems = agentsRes.data.items
   const agentStatuses: AgentStatus[] = ['online', 'offline', 'draining', 'dead']
   const agentsByStatus = agentStatuses.reduce(
     (acc, s) => {
-      acc[s] = agentsRes.data.filter((a) => a.status === s).length
+      acc[s] = agentItems.filter((a) => a.status === s).length
       return acc
     },
     {} as Record<AgentStatus, number>
   )
 
+  const h = healthRes.data
   return {
     eventsByStatus,
     pendingCriticalHigh: criticalPending + highPending,
     agentsByStatus,
-    health: healthRes.data,
+    health: {
+      postgres: h.postgres,
+      valkey: h.valkey,
+      n8n: h.n8n,
+      agents: h.agents.status,
+    },
   }
 }

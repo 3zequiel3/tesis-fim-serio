@@ -54,6 +54,10 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# Pre-crear /certs con ownership de app para que el volumen Docker
+# tome los permisos correctos en el primer arranque (volumen vacío).
+RUN mkdir /certs && chown app:app /certs
+
 # Copiar solo el paquete de aplicación (tests/, .env, __pycache__ excluidos
 # por .dockerignore).
 COPY --chown=app:app app/ /app/app/
