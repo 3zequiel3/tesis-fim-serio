@@ -1,0 +1,63 @@
+{
+  "__meta": {
+    "n8n_version": "2.16.1",
+    "description": "FIM Platform — Email alert workflow. Triggered via webhook when a FIM alert fires. Sends a formatted email with alert details.",
+    "credentials_required": [
+      "SMTP credentials configured in n8n as 'FIM SMTP' (host, port, user, password, from address)"
+    ],
+    "import_instructions": "Import via n8n UI > Workflows > Import from file. Configure the 'FIM SMTP' credential with your SMTP server settings before activating."
+  },
+  "name": "FIM — Email Alert",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "fim-email-alert",
+      "parameters": {
+        "path": "fim/alert/email",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Send Alert Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "smtp": {
+          "id": "fim-smtp",
+          "name": "FIM SMTP"
+        }
+      },
+      "parameters": {
+        "fromEmail": "={{ $credentials.smtp.from }}",
+        "toEmail": "={{ $json.body.recipient || 'security@example.com' }}",
+        "subject": "=[FIM Alert] {{ $json.body.severity | upper }} — {{ $json.body.path }}",
+        "emailFormat": "html",
+        "message": "=<h2>FIM Platform Alert</h2><table><tr><th>Field</th><th>Value</th></tr><tr><td>Event ID</td><td>{{ $json.body.event_id }}</td></tr><tr><td>Severity</td><td>{{ $json.body.severity }}</td></tr><tr><td>Path</td><td>{{ $json.body.path }}</td></tr><tr><td>Status</td><td>{{ $json.body.status }}</td></tr><tr><td>Agent ID</td><td>{{ $json.body.agent_id }}</td></tr><tr><td>Detected At</td><td>{{ $json.body.detected_at }}</td></tr></table>"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {"node": "Send Alert Email", "type": "main", "index": 0}
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "pinData": {}
+}

@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     environment: str = "dev"
     log_level: str = "INFO"
 
+    # Rate limiting (C20) — defaults idénticos a las constantes anteriores de rate_limit.py.
+    rate_limit_login_attempts: int = 5          # intentos máximos por ventana (LOGIN_MAX_ATTEMPTS)
+    rate_limit_login_window_seconds: int = 900  # ventana login en segundos
+    rate_limit_api_per_minute: int = 100        # req/min por user_id autenticado
+
     # Notificaciones — todas opcionales; si faltan, el canal correspondiente se salta.
     n8n_webhook_url: str = ""
     smtp_host: str = ""

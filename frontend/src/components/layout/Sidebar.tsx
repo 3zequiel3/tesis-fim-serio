@@ -7,11 +7,12 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { to: '/dashboard', label: 'Dashboard', icon: '📊' },
   { to: '/events', label: 'Eventos', icon: '📋' },
   { to: '/rules', label: 'Reglas', icon: '🛡️' },
   { to: '/agents', label: 'Agentes', icon: '🤖' },
-  { to: '/dashboard', label: 'Dashboard', icon: '📊' },
   { to: '/alerts', label: 'Alertas', icon: '🔔' },
+  { to: '/alerts/failed', label: 'Alertas fallidas', icon: '⚠️' },
 ]
 
 export function Sidebar() {
@@ -26,6 +27,7 @@ export function Sidebar() {
             <li key={to}>
               <NavLink
                 to={to}
+                end={to === '/alerts'}
                 className={({ isActive }) =>
                   [
                     'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',

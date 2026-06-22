@@ -1,0 +1,86 @@
+{
+  "__meta": {
+    "n8n_version": "2.16.1",
+    "description": "FIM Platform — Slack alert workflow. Triggered via webhook when a FIM alert fires. Posts a formatted message to a Slack webhook with event severity and path.",
+    "credentials_required": [
+      "slackWebhookUrl (HTTP Header Auth or plain URL stored as n8n credential 'Slack Webhook FIM')"
+    ],
+    "import_instructions": "Import via n8n UI > Workflows > Import from file. Configure the Slack Webhook URL credential before activating."
+  },
+  "name": "FIM — Slack Alert",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "fim-slack-alert",
+      "parameters": {
+        "path": "fim/alert/slack",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Build Slack Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 300],
+      "parameters": {
+        "mode": "manual",
+        "fields": {
+          "values": [
+            {
+              "name": "slack_text",
+              "type": "string",
+              "value": "=:rotating_light: *FIM Alert* | Severity: `{{ $json.body.severity }}` | Path: `{{ $json.body.path }}` | Event ID: `{{ $json.body.event_id }}` | Status: `{{ $json.body.status }}`"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.slackWebhookUrl }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "text": "={{ $json.slack_text }}"
+        },
+        "authentication": "none"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {"node": "Build Slack Message", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Build Slack Message": {
+      "main": [
+        [
+          {"node": "Post to Slack", "type": "main", "index": 0}
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "pinData": {}
+}

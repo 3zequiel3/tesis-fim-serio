@@ -1,0 +1,127 @@
+{
+  "__meta": {
+    "n8n_version": "2.16.1",
+    "description": "FIM Platform — Ticketing alert workflow (Jira / Linear). Triggered via webhook when a FIM alert fires. Creates an issue with severity, path and event_id.",
+    "credentials_required": [
+      "For Jira: Jira API token configured in n8n as 'FIM Jira' (base_url, email, api_token, project_key)",
+      "For Linear: HTTP Header Auth with 'Authorization: Bearer <LINEAR_API_KEY>' configured as 'FIM Linear'"
+    ],
+    "import_instructions": "Import via n8n UI > Workflows > Import from file. Select the target system (Jira or Linear) by enabling the corresponding branch node. Configure the relevant credential before activating."
+  },
+  "name": "FIM — Ticketing Alert",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "fim-ticketing-alert",
+      "parameters": {
+        "path": "fim/alert/ticket",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Route by System",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [460, 300],
+      "parameters": {
+        "mode": "expression",
+        "output": "={{ $json.body.ticketing_system || 'jira' }}"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Create Jira Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.jiraBaseUrl }}/rest/api/3/issue",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "fields": {
+            "project": {"key": "={{ $credentials.jiraProjectKey }}"},
+            "summary": "[FIM] {{ $json.body.severity | upper }}: {{ $json.body.path }}",
+            "description": {
+              "type": "doc",
+              "version": 1,
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "FIM Alert Details\n\nEvent ID: {{ $json.body.event_id }}\nSeverity: {{ $json.body.severity }}\nPath: {{ $json.body.path }}\nAgent: {{ $json.body.agent_id }}\nDetected At: {{ $json.body.detected_at }}"
+                    }
+                  ]
+                }
+              ]
+            },
+            "issuetype": {"name": "Bug"}
+          }
+        }
+      }
+    },
+    {
+      "id": "4",
+      "name": "Create Linear Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "query": "mutation IssueCreate($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id title } } }",
+          "variables": {
+            "input": {
+              "title": "[FIM] {{ $json.body.severity | upper }}: {{ $json.body.path }}",
+              "description": "**Event ID**: {{ $json.body.event_id }}\n**Severity**: {{ $json.body.severity }}\n**Path**: {{ $json.body.path }}\n**Agent**: {{ $json.body.agent_id }}\n**Detected At**: {{ $json.body.detected_at }}",
+              "priority": 1
+            }
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {"node": "Route by System", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Route by System": {
+      "main": [
+        [
+          {"node": "Create Jira Issue", "type": "main", "index": 0}
+        ],
+        [
+          {"node": "Create Linear Issue", "type": "main", "index": 0}
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "pinData": {}
+}

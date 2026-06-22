@@ -7,6 +7,11 @@ import { Login } from '@/pages/Login'
 import { ForcePasswordChange } from '@/pages/ForcePasswordChange'
 import { Events } from '@/pages/Events'
 import { EventDetail } from '@/pages/EventDetail'
+import { Rules } from '@/pages/Rules'
+import { Agents } from '@/pages/Agents'
+import { Dashboard } from '@/pages/Dashboard'
+import { Alerts } from '@/pages/Alerts'
+import { FailedAlerts } from '@/pages/FailedAlerts'
 
 export function App() {
   return (
@@ -35,30 +40,25 @@ export function App() {
         {/* Rutas protegidas */}
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
-            {/* Redirige / → /events (C18 agrega la página real) */}
-            <Route index element={<Navigate to="/events" replace />} />
+            {/* Redirige / → /dashboard (C19) */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+
+            {/* Dashboard — página por defecto post-login */}
+            <Route path="/dashboard" element={<Dashboard />} />
 
             {/* Página de eventos (C18) */}
             <Route path="/events" element={<Events />} />
             <Route path="/events/:id" element={<EventDetail />} />
 
-            {/* Placeholders para C19 */}
-            <Route
-              path="/rules"
-              element={<PlaceholderPage title="Reglas" />}
-            />
-            <Route
-              path="/agents"
-              element={<PlaceholderPage title="Agentes" />}
-            />
-            <Route
-              path="/dashboard"
-              element={<PlaceholderPage title="Dashboard" />}
-            />
-            <Route
-              path="/alerts"
-              element={<PlaceholderPage title="Alertas" />}
-            />
+            {/* Reglas (C19) */}
+            <Route path="/rules" element={<Rules />} />
+
+            {/* Agentes (C19) */}
+            <Route path="/agents" element={<Agents />} />
+
+            {/* Alertas (C19) */}
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/alerts/failed" element={<FailedAlerts />} />
 
             <Route
               path="*"
@@ -73,14 +73,5 @@ export function App() {
       </Routes>
     </BrowserRouter>
     </>
-  )
-}
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="text-center py-16 text-gray-400">
-      <p className="text-2xl font-semibold text-gray-300">{title}</p>
-      <p className="mt-2 text-sm">Esta sección se implementa en C18 / C19.</p>
-    </div>
   )
 }

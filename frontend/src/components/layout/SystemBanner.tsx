@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 
-interface HealthComponent {
-  name: string
-  status: 'ok' | 'degraded' | 'down'
-}
-
+// Shape real del backend: GET /health/components retorna un objeto plano
 interface HealthResponse {
-  components: HealthComponent[]
+  postgres: string
+  valkey: string
+  n8n: string
+  agents: string
 }
 
 export function SystemBanner() {
@@ -19,7 +18,12 @@ export function SystemBanner() {
     retry: false,
   })
 
-  const downComponents = data?.components.filter((c) => c.status === 'down') ?? []
+  // Iterar sobre los valores del objeto plano para detectar componentes no-ok
+  const downComponents = data
+    ? Object.entries(data)
+        .filter(([, status]) => status !== 'ok')
+        .map(([name]) => name)
+    : []
 
   if (downComponents.length === 0) return null
 
@@ -29,7 +33,7 @@ export function SystemBanner() {
       className="bg-red-600 text-white text-center text-sm font-medium py-2 px-4"
     >
       Sistema degradado —{' '}
-      {downComponents.map((c) => c.name).join(', ')} no disponible
+      {downComponents.join(', ')} no disponible
     </div>
   )
 }
