@@ -42,6 +42,9 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 18 | [`frontend-events`](#change-18--frontend-events) | frontend | M4 | 17, 13 |
 | 19 | [`frontend-rules-agents-dashboard`](#change-19--frontend-rules-agents-dashboard) | frontend | M4 | 18, 14, 12 |
 | 20 | [`backend-observability-hardening`](#change-20--backend-observability-hardening) | cross | M4 | 13, 15 |
+| 21 | [`agent-critical-fixes`](#change-21--agent-critical-fixes) | agente | — (remediación) | 05, 13, 14 |
+| 22 | [`backend-critical-fixes`](#change-22--backend-critical-fixes) | backend | — (remediación) | 02, 04, 13 |
+| 23 | [`agent-high-fixes`](#change-23--agent-high-fixes) | agente | — (remediación) ✓ | 21 |
 
 ---
 
@@ -481,6 +484,24 @@ Capacidades:
 Reglas: RN-76, RN-79. Decisiones: D3, D7, D8.
 
 **Done**: refresh token rechazado como Bearer access; usuario con `must_change_password` no lee events/rules; evento de integridad con error transitorio de DB se reintenta (queda en PEL); `compact_chain` con cadena larga no lanza `IntegrityError`; puerto 8443 arranca y los agentes conectan por mTLS; tests de regresión para token-type, scope-gate, no-ack-on-db-error, compact-chain-FK y mTLS-startup pasan.
+
+---
+
+### Change 23 — `agent-high-fixes`
+
+**Capa**: agente · **Depende de**: 21 (código ya existente, críticos del agente resueltos) · **Origen**: auditoría de bugs ([docs/audit_bugs.md](docs/audit_bugs.md), 2026-06-23)
+
+> **Nota**: change de remediación, no de feature nueva. Resuelve los 4 ALTOS del agente FIM que conviven con los archivos parcheados por C21 (H1–H4 del audit). No introduce suposiciones nuevas — cada fix hace cumplir una regla ya cerrada (RN-39, RN-84, RN-83, RN-78, RN-79, RN-16, RN-17, RN-30). La verificación de cert en H3 usa Ed25519 (no RSA/PKCS1v15), consistente con el `bootstrap.py` real.
+
+Capacidades:
+- **H1**: zero-pad del timestamp a 16 dígitos en el nombre de archivo de cola (`f"{detected_at_ms:016d}_{event_id}.json"`) — el sort lexicográfico de `_json_files` queda cronológicamente correcto, `drop-oldest` borra el evento más viejo (RN-39 FIFO, RN-84). Migración tolerante de nombres legacy sin pad ya en disco.
+- **H2**: journal con escritura atómica (tmp → fsync → `os.replace`, mismo patrón que `queue.py`) y HMAC-SHA256 sobre el JSON con `shared_secret`. Entradas truncadas o con HMAC inválido se descartan como corruptas; rehidratación de pendientes al reiniciar deja de perder acciones (RN-83).
+- **H3**: verificación criptográfica del material de bootstrap antes de persistir — cadena cert→CA (firma Ed25519 vía `ca_cert.public_key().verify(cert.signature, cert.tbs_certificate_bytes)`), CN del cert == `agent_id`, y clave pública del cert == clave pública local. Cualquier fallo → `RuntimeError`, no se escribe el cert. Cierra el MITM en bootstrap pre-mTLS (RN-78, RN-79).
+- **H4**: `update_from_command` lee el entry existente vía `read_entry` y mergea — preserva `snapshots` y `content_b64`, actualiza solo `hash`/`status`/metadata. `restore_file` posterior a un `baseline_update` deja de fallar con `no_baseline_content` (RN-16, RN-17, RN-30).
+
+Reglas: RN-16, RN-17, RN-30, RN-39, RN-78, RN-79, RN-83, RN-84. Decisiones: D8.
+
+**Done**: cola con timestamps de distinta longitud ordena cronológicamente y `drop-oldest` borra el más viejo; entrada de journal truncada o con HMAC inválido se descarta y no se rehidrata; cert de bootstrap con CN incorrecto o no firmado por la CA levanta error y no se persiste; `update_from_command` preserva `snapshots` y `content_b64` existentes; tests de regresión para sort-FIFO, journal-truncado, journal-HMAC-inválido, cert-CN-inválido, cert-CA-inválida y baseline-merge pasan.
 
 ---
 

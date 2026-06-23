@@ -37,4 +37,4 @@
 
 - [x] 5.1 Correr la suite de tests del agente; confirmar que los nuevos tests de regresión (H1–H4) pasan y no hay regresiones en los tests existentes.
 - [x] 5.2 Confirmar que no se introdujeron dependencias nuevas (`cryptography==44.0.2` ya pinneado) ni cambios en backend/frontend/infra ni en el protocolo de streams.
-- [ ] 5.3 Commit con conventional commits, sin Co-Authored-By (ej. `fix(agent): resolve 4 high-severity bugs in queue, journal, bootstrap, baseline (C23)`).
+- [x] 5.3 Commit con conventional commits, sin Co-Authored-By (ej. `fix(agent): resolve 4 high-severity bugs in queue, journal, bootstrap, baseline (C23)`).
