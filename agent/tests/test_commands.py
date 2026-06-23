@@ -97,8 +97,8 @@ def baseline_engine(agent_config: AgentConfig, master_secret: bytes) -> Baseline
 
 
 @pytest.fixture()
-def journal(tmp_dirs: dict[str, Path]) -> JournalManager:
-    return JournalManager(tmp_dirs["journal"])
+def journal(tmp_dirs: dict[str, Path], shared_secret: bytes) -> JournalManager:
+    return JournalManager(tmp_dirs["journal"], shared_secret)
 
 
 @pytest.fixture()

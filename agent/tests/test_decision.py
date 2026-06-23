@@ -28,7 +28,7 @@ def _make_engine(
     rules_cache = MagicMock(spec=RulesCache)
     rules_cache.evaluate.return_value = action
 
-    journal = JournalManager(journal_dir)
+    journal = JournalManager(journal_dir, shared_secret=b"test-secret-32-bytes-xxxxxxxxxx!")
 
     baseline = MagicMock()
 

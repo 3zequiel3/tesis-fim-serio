@@ -22,6 +22,7 @@ from agent.publisher import Publisher
 from agent.queue import EventQueue
 from agent.rules import RulesCache
 from agent.state import load_state
+from agent.streams import load_shared_secret
 
 _LINUX = platform.system() == "Linux"
 
@@ -62,6 +63,13 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     # RulesCache se auto-carga desde state.json (clave "rules")
     rules_cache = RulesCache(state_path)
 
+    try:
+        shared_secret = load_shared_secret(cfg.storage.secrets_dir)
+    except FileNotFoundError as exc:
+        log.error("agent.startup.missing_shared_secret", error=str(exc))
+        print(f"shared_secret not found — run bootstrap first: {exc}", file=sys.stderr)
+        sys.exit(1)
+
     master_secret = load_master_secret(cfg.storage.secrets_dir)
     engine = BaselineEngine(cfg, master_secret)
     report = engine.init_scan(cfg.watch_paths)
@@ -101,7 +109,7 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     heartbeat = HeartbeatPublisher(cfg, queue, state, valkey_client)
 
     quarantine_dir = Path(cfg.storage.journal_dir).parent / "quarantine"
-    journal = JournalManager(cfg.storage.journal_dir)
+    journal = JournalManager(cfg.storage.journal_dir, shared_secret)
     decision_engine = DecisionEngine(
         rules=rules_cache,
         journal=journal,

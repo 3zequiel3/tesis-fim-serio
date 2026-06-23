@@ -297,3 +297,73 @@ def test_load_master_secret_ok(secrets_dir: Path, master_secret: bytes) -> None:
     loaded = load_master_secret(secrets_dir)
     assert loaded == master_secret
     assert len(loaded) == 32
+
+
+# ── C23-H4: update_from_command preserva snapshots y content_b64 ──────────────
+
+def test_update_from_command_preserves_snapshots(
+    engine: BaselineEngine, sample_file: Path
+) -> None:
+    """update_from_command preserva los snapshots de la entrada existente."""
+    # Crear entry inicial con snapshot
+    engine.write_entry(str(sample_file))
+    engine.add_snapshot(str(sample_file))
+
+    existing = engine.read_entry(str(sample_file))
+    assert existing is not None
+    assert len(existing.snapshots) == 1
+
+    # Aplicar un baseline_update por aprobación de cambio
+    new_hash = "aabbccdd" * 8  # 64 chars hex
+    updated = engine.update_from_command(str(sample_file), new_hash, "present")
+
+    assert updated.hash == new_hash
+    assert len(updated.snapshots) == 1, "Los snapshots deben preservarse"
+    assert updated.snapshots[0].hash == existing.snapshots[0].hash
+
+
+def test_update_from_command_preserves_content_b64(
+    engine: BaselineEngine, sample_file: Path
+) -> None:
+    """update_from_command preserva content_b64 para que restore_file funcione."""
+    engine.write_entry(str(sample_file))
+    existing = engine.read_entry(str(sample_file))
+    assert existing is not None
+    original_content = existing.content_b64
+    assert original_content is not None  # el sample_file es pequeño, debe tener content
+
+    new_hash = "deadbeef" * 8
+    updated = engine.update_from_command(str(sample_file), new_hash, "present")
+
+    assert updated.content_b64 == original_content
+
+
+def test_update_from_command_no_existing_creates_empty(
+    engine: BaselineEngine, tmp_path: Path
+) -> None:
+    """Sin entry previo, update_from_command crea entry con content vacío."""
+    path = str(tmp_path / "new_file.txt")
+    result = engine.update_from_command(path, "abcd1234" * 8, "present")
+
+    assert result.snapshots == []
+    assert result.content_b64 is None
+    assert result.hash == "abcd1234" * 8
+
+
+def test_update_from_command_idempotent(
+    engine: BaselineEngine, sample_file: Path
+) -> None:
+    """Re-delivery del mismo comando es idempotente y no corrompe el content."""
+    engine.write_entry(str(sample_file))
+    original = engine.read_entry(str(sample_file))
+    assert original is not None
+
+    new_hash = "11223344" * 8
+    engine.update_from_command(str(sample_file), new_hash, "present")
+    engine.update_from_command(str(sample_file), new_hash, "present")  # re-delivery
+
+    final = engine.read_entry(str(sample_file))
+    assert final is not None
+    assert final.hash == new_hash
+    # El content_b64 original debe seguir presente
+    assert final.content_b64 == original.content_b64

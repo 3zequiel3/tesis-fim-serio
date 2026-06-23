@@ -131,3 +131,76 @@ def test_sweep_orphaned_tmp_on_init(tmp_path: Path) -> None:
     EventQueue(qdir)  # __init__ barre los .tmp
 
     assert not orphan.exists()
+
+
+# ── H1: regresión zero-pad y sort robusto ─────────────────────────────────────
+
+def test_enqueue_filename_zero_padded(queue: EventQueue) -> None:
+    """El nombre de archivo usa zero-pad a 16 dígitos en el prefijo timestamp."""
+    path = queue.enqueue(_make_event("pad-e1", "2026-01-01T00:00:00+00:00"))
+    # El stem tiene la forma {16 dígitos}_{uuid}
+    stem = path.stem
+    prefix = stem.split("_", 1)[0]
+    assert len(prefix) == 16
+    assert prefix.isdigit()
+
+
+def test_json_files_sorts_mixed_legacy_padded(queue: EventQueue) -> None:
+    """_json_files ordena correctamente con timestamps de longitud distinta (legacy y padded)."""
+    qdir = queue._dir
+    # Simula un archivo legacy con timestamp de 13 dígitos (enero 2026)
+    legacy_ts = 1751260800000  # 13 dígitos
+    # Simula un archivo padded con timestamp más reciente (16 dígitos)
+    padded_ts = 1751260900000
+    old_id = "aaaaaaaa-0000-0000-0000-000000000001"
+    new_id = "aaaaaaaa-0000-0000-0000-000000000002"
+    # Escribe primero el más nuevo para verificar que el sort no depende del orden de glob
+    (qdir / f"{padded_ts:016d}_{new_id}.json").write_text("{}")
+    (qdir / f"{legacy_ts}_{old_id}.json").write_text("{}")
+
+    files = queue._json_files()
+    prefixes = [int(f.stem.split("_", 1)[0]) for f in files]
+    assert prefixes == sorted(prefixes), "Los archivos deben estar en orden cronológico ascendente"
+    assert prefixes[0] == legacy_ts
+    assert prefixes[1] == padded_ts
+
+
+def test_drop_oldest_removes_chronologically_oldest(queue: EventQueue) -> None:
+    """Bajo presión de capacidad, drop-oldest borra el evento más viejo (no el más nuevo).
+
+    El límite se fija en 1 byte para garantizar que cualquier evento nuevo provoque
+    la eliminación del anterior, independientemente del tamaño real del payload.
+    """
+    import agent.queue as qmod
+    original = qmod._MAX_BYTES
+    try:
+        # 1 byte: cualquier evento nuevo supera el límite y dispara drop-oldest
+        qmod._MAX_BYTES = 1
+        q = EventQueue(queue._dir)
+
+        t_old = "2026-01-01T00:00:00+00:00"
+        t_new = "2026-06-01T00:00:00+00:00"
+        q.enqueue(_make_event("oldest-event", t_old))
+        q.enqueue(_make_event("newest-event", t_new))
+
+        ids = {e["event_id"] for e in q.iter_fifo()}
+        assert "newest-event" in ids
+        assert "oldest-event" not in ids
+    finally:
+        qmod._MAX_BYTES = original
+
+
+def test_iter_fifo_oldest_first(queue: EventQueue) -> None:
+    """iter_fifo devuelve los eventos en orden oldest-first (FIFO estricto)."""
+    times = [
+        "2026-03-01T00:00:00+00:00",
+        "2026-01-01T00:00:00+00:00",
+        "2026-06-01T00:00:00+00:00",
+    ]
+    ids = ["mid", "oldest", "newest"]
+    for eid, ts in zip(ids, times):
+        queue.enqueue(_make_event(eid, ts))
+
+    events = queue.iter_fifo()
+    result_ids = [e["event_id"] for e in events]
+    assert result_ids == ["oldest", "mid", "newest"]

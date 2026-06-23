@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import hmac
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,13 +23,19 @@ class JournalEntry:
     created_at: str
     updated_at: str
     error: str | None = None
+    hmac: str | None = None
 
 
 class JournalManager:
-    """Gestiona el journal de acciones: pending → completed / failed (RN-83)."""
+    """Gestiona el journal de acciones: pending → completed / failed (RN-83).
 
-    def __init__(self, journal_dir: str | Path) -> None:
+    Cada entrada se persiste con escritura atómica (tmp → fsync → os.replace)
+    y se protege con HMAC-SHA256 para detectar manipulación o truncamiento.
+    """
+
+    def __init__(self, journal_dir: str | Path, shared_secret: bytes) -> None:
         self._dir = Path(journal_dir)
+        self._secret = shared_secret
 
     # ── escritura ─────────────────────────────────────────────────────────────
 
@@ -64,7 +73,10 @@ class JournalManager:
     # ── lectura ───────────────────────────────────────────────────────────────
 
     def load_pending(self) -> list[JournalEntry]:
-        """Retorna todas las entradas con state='pending' del journal_dir."""
+        """Retorna todas las entradas con state='pending' del journal_dir.
+
+        Entradas truncadas o con HMAC inválido se descartan con warning.
+        """
         entries: list[JournalEntry] = []
         try:
             for f in self._dir.iterdir():
@@ -72,7 +84,10 @@ class JournalManager:
                     continue
                 try:
                     data = json.loads(f.read_text())
-                    entry = JournalEntry(**data)
+                    entry = self._verify_and_build(data)
+                    if entry is None:
+                        log.warning("journal.load_hmac_invalid", file=str(f))
+                        continue
                     if entry.state == "pending":
                         entries.append(entry)
                 except Exception as exc:
@@ -95,13 +110,60 @@ class JournalManager:
     def _path(self, event_id: str) -> Path:
         return self._dir / f"{event_id}.json"
 
+    def _canonical_bytes(self, entry: JournalEntry) -> bytes:
+        """JSON determinístico del entry excluyendo el campo hmac."""
+        d = dataclasses.asdict(entry)
+        d.pop("hmac", None)
+        return json.dumps(d, sort_keys=True, separators=(",", ":")).encode()
+
+    def _compute_hmac(self, entry: JournalEntry) -> str:
+        return hmac.new(self._secret, self._canonical_bytes(entry), hashlib.sha256).hexdigest()
+
     def _write(self, entry: JournalEntry) -> None:
-        self._path(entry.event_id).write_text(json.dumps(dataclasses.asdict(entry)))
+        entry.hmac = self._compute_hmac(entry)
+        payload = json.dumps(dataclasses.asdict(entry)).encode()
+
+        target = self._path(entry.event_id)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = Path(str(target) + ".tmp")
+        fd = os.open(str(tmp), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(payload)
+                f.flush()
+                os.fsync(f.fileno())
+        except Exception:
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+            raise
+        os.replace(str(tmp), str(target))
+
+    def _verify_and_build(self, data: dict) -> JournalEntry | None:
+        """Construye un JournalEntry verificando el HMAC.
+
+        Retorna None si el HMAC está ausente o no coincide.
+        """
+        stored_hmac = data.get("hmac")
+        if not stored_hmac:
+            return None
+        # Construir el entry sin hmac para calcular el canonical
+        data_no_hmac = {k: v for k, v in data.items() if k != "hmac"}
+        candidate = JournalEntry(**data_no_hmac)
+        expected = self._compute_hmac(candidate)
+        if not hmac.compare_digest(expected, stored_hmac):
+            return None
+        candidate.hmac = stored_hmac
+        return candidate
 
     def _read(self, event_id: str) -> JournalEntry | None:
         p = self._path(event_id)
         try:
             data = json.loads(p.read_text())
-            return JournalEntry(**data)
+            entry = self._verify_and_build(data)
+            if entry is None:
+                log.warning("journal.read_hmac_invalid", event_id=event_id)
+            return entry
         except Exception:
             return None

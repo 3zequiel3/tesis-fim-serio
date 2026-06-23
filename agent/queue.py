@@ -42,7 +42,12 @@ class EventQueue:
                 pass
 
     def _json_files(self) -> list[Path]:
-        return sorted(self._dir.glob("*.json"))
+        # Extrae el timestamp numérico del prefijo para ordenar correctamente
+        # con nombres legacy (sin pad) y padded mezclados.
+        return sorted(
+            self._dir.glob("*.json"),
+            key=lambda f: int(f.stem.split("_", 1)[0]),
+        )
 
     def _total_bytes(self) -> int:
         total = 0
@@ -77,8 +82,8 @@ class EventQueue:
             except OSError:
                 break
 
-        tmp = self._dir / f"{detected_at_ms}_{event_id}.json.tmp"
-        final = self._dir / f"{detected_at_ms}_{event_id}.json"
+        tmp = self._dir / f"{detected_at_ms:016d}_{event_id}.json.tmp"
+        final = self._dir / f"{detected_at_ms:016d}_{event_id}.json"
         fd = os.open(str(tmp), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
         try:
             with os.fdopen(fd, "wb") as f:

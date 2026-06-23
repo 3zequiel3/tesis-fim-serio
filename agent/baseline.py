@@ -446,27 +446,49 @@ class BaselineEngine:
         Actualiza (o crea) la entrada de baseline a partir de un comando baseline_update
         recibido desde el backend (C13, RN handler 8.3).
 
+        Si ya existe una entrada, preserva snapshots y content_b64 para que
+        restore_file siga funcionando tras una aprobación de cambio (C23-H4).
+        Actualiza solo hash, status y captured_at.
+
         Misma clave HKDF que el resto del motor. Nuevo nonce AES-GCM por escritura.
-        Sobreescribe la entrada existente si existe (idempotente: re-delivery seguro).
 
         Args:
             path: ruta del archivo monitorizado.
             hash_value: SHA-256 hexadecimal del archivo, o None si status=absent.
             baseline_status: "present" | "absent".
         """
-        entry = BaselineEntry(
-            path=path,
-            status=baseline_status,
-            hash=hash_value,
-            size=None,
-            mode=None,
-            uid=None,
-            gid=None,
-            mtime=None,
-            captured_at=_now_iso(),
-            snapshots=[],
-            content_b64=None,
-        )
+        existing = self.read_entry(path)
+
+        if existing is not None:
+            entry = BaselineEntry(
+                path=path,
+                status=baseline_status,
+                hash=hash_value,
+                size=existing.size,
+                mode=existing.mode,
+                uid=existing.uid,
+                gid=existing.gid,
+                mtime=existing.mtime,
+                captured_at=_now_iso(),
+                snapshots=existing.snapshots,
+                content_b64=existing.content_b64,
+                oversize=existing.oversize,
+            )
+        else:
+            entry = BaselineEntry(
+                path=path,
+                status=baseline_status,
+                hash=hash_value,
+                size=None,
+                mode=None,
+                uid=None,
+                gid=None,
+                mtime=None,
+                captured_at=_now_iso(),
+                snapshots=[],
+                content_b64=None,
+            )
+
         blob = self._encrypt_entry(entry)
         _atomic_write(_entry_path(self._baseline_dir, path), blob)
         log.info(
