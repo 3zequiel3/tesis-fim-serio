@@ -33,3 +33,4 @@ frontend/.env.*.local
 *.egg-info/
 
 skills-lock.json
+.atl/
