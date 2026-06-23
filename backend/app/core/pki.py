@@ -8,7 +8,6 @@ from __future__ import annotations
 import datetime
 import os
 import ssl
-import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -180,38 +179,36 @@ def start_mtls_server(
     ca_cert_path: str,
     cert_path: str,
     key_path: str,
-) -> None:
-    """Arranca un servidor uvicorn en puerto 8443 con mTLS (CERT_REQUIRED)."""
+) -> "uvicorn.Server | None":
+    """
+    Construye un servidor uvicorn para puerto 8443 con mTLS (CERT_REQUIRED)
+    y lo retorna sin arrancarlo. El caller es responsable de lanzar
+    asyncio.create_task(server.serve()) en el lifespan (C10).
+
+    Retorna None cuando los certificados no están disponibles.
+    """
+    import uvicorn
+
     if not all([ca_cert_path, cert_path, key_path]):
         log.warning("pki.mtls_server.skipped", reason="cert paths not configured")
-        return
+        return None
 
     if not Path(cert_path).exists() or not Path(key_path).exists():
         log.warning("pki.mtls_server.skipped", reason="cert or key file not found")
-        return
+        return None
 
-    def _run() -> None:
-        import asyncio
-
-        import uvicorn
-
-        config = uvicorn.Config(
-            app,
-            host="0.0.0.0",
-            port=8443,
-            ssl_keyfile=key_path,
-            ssl_certfile=cert_path,
-            ssl_ca_certs=ca_cert_path,
-            ssl_cert_reqs=ssl.CERT_REQUIRED,
-            log_level="info",
-            lifespan="off",  # don't re-run the app lifespan in the mTLS thread
-        )
-        server = uvicorn.Server(config)
-        try:
-            asyncio.run(server.serve())
-        except (SystemExit, Exception) as exc:
-            log.error("pki.mtls_server.exited", port=8443, error=str(exc))
-
-    t = threading.Thread(target=_run, daemon=True, name="fim-mtls-8443")
-    t.start()
-    log.info("pki.mtls_server.started", port=8443)
+    config = uvicorn.Config(
+        app,
+        host="0.0.0.0",
+        port=8443,
+        ssl_keyfile=key_path,
+        ssl_certfile=cert_path,
+        ssl_ca_certs=ca_cert_path,
+        ssl_cert_reqs=ssl.CERT_REQUIRED,
+        log_level="info",
+        lifespan="off",
+    )
+    config.install_signal_handlers = False
+    server = uvicorn.Server(config)
+    log.info("pki.mtls_server.configured", port=8443)
+    return server

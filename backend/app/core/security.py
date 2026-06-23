@@ -36,6 +36,7 @@ def create_access_token(
         "sub": str(user_id),
         "username": username,
         "jti": jti,
+        "type": "access",
         "iat": now,
         "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }

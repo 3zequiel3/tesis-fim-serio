@@ -118,13 +118,11 @@ def test_rate_limiter_sliding_window_expires() -> None:
 
 
 def test_reset_rate_limiter_clears_state() -> None:
-    from app.modules.events.consumer import _RateLimiter, reset_rate_limiter, _rate_limiter
-    _rate_limiter.check("x")
-    _rate_limiter.check("x")
-    _rate_limiter.check("x")
-    assert _rate_limiter.check("x") is False  # limite de 100 todavía no, pero verificamos reset
+    from app.modules.events.consumer import reset_rate_limiter, _rate_limiter
+    for _ in range(100):
+        _rate_limiter.check("x")
+    assert _rate_limiter.check("x") is False
     reset_rate_limiter()
-    # Después del reset, el contador vuelve a 0
     assert _rate_limiter.check("x") is True
 
 
@@ -169,8 +167,8 @@ def test_consumer_invalid_transition_xacks_and_does_not_persist(mem_engine, agen
 
     with patch.object(consumer_mod, "engine", mem_engine), \
          patch.object(svc_mod, "engine", mem_engine), \
-         patch("app.modules.events.service.ingest_event",
-               side_effect=InvalidTransitionError(EventStatus.approved, EventStatus.pending)):
+         patch.object(consumer_mod, "ingest_event",
+                      side_effect=InvalidTransitionError(EventStatus.approved, EventStatus.pending)):
         asyncio.run(consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload)))
 
     with Session(mem_engine) as session:

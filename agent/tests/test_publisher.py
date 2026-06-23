@@ -15,7 +15,7 @@ import pytest
 from agent.config import AgentConfig, StorageConfig
 from agent.publisher import Publisher, _ACK_TIMEOUT_S
 from agent.queue import EventQueue
-from agent.streams import verify_payload
+from agent.streams import sign_payload, verify_payload
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -161,3 +161,94 @@ def test_retry_republishes_after_timeout(publisher: Publisher) -> None:
 
     # 2 llamadas: la publicación inicial + el reintento
     assert publisher._client.xadd.call_count == 2
+
+
+# ── C2: HMAC verification en _verify_and_parse ───────────────────────────────
+
+def _make_signed_msg(secret: bytes, payload: dict) -> dict[str, str]:
+    """Construye un msg_data stream como lo haría el backend."""
+    sig = sign_payload(secret, payload)
+    full = {**payload, "signature": sig}
+    return {"data": json.dumps(full, sort_keys=True, separators=(",", ":"))}
+
+
+def test_verify_and_parse_accepts_valid_signature(
+    publisher: Publisher, shared_secret: bytes
+) -> None:
+    payload = {"type": "event_ack", "event_id": str(uuid.uuid4()), "agent_id": "test-agent-01"}
+    msg = _make_signed_msg(shared_secret, payload)
+    result = publisher._verify_and_parse(msg)
+    assert result is not None
+    assert result["type"] == "event_ack"
+
+
+def test_verify_and_parse_rejects_invalid_signature(publisher: Publisher) -> None:
+    payload = {"type": "event_ack", "event_id": str(uuid.uuid4()), "signature": "badsig"}
+    msg = {"data": json.dumps(payload)}
+    result = publisher._verify_and_parse(msg)
+    assert result is None
+
+
+def test_verify_and_parse_rejects_missing_signature(publisher: Publisher) -> None:
+    payload = {"type": "event_ack", "event_id": str(uuid.uuid4())}
+    msg = {"data": json.dumps(payload)}
+    result = publisher._verify_and_parse(msg)
+    assert result is None
+
+
+def test_verify_and_parse_rejects_malformed_json(publisher: Publisher) -> None:
+    msg = {"data": "not-valid-json{{{"}
+    result = publisher._verify_and_parse(msg)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_invalid_hmac_command_does_not_modify_queue(
+    publisher: Publisher, queue: EventQueue, shared_secret: bytes
+) -> None:
+    """Comando con firma inválida es descartado: queue no se modifica, callbacks no se invocan."""
+    update_config_called: list[bool] = []
+    publisher.register_callbacks(
+        on_update_config=lambda paths: update_config_called.append(True),
+    )
+
+    # Enqueue un evento real para que queue_size > 0
+    event_id = str(uuid.uuid4())
+    queue.enqueue({
+        "event_id": event_id, "agent_id": "test-agent-01",
+        "detected_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": 1, "path": "/etc/hosts", "signature": "",
+    })
+    initial_size = queue.queue_size
+
+    # Mensaje con firma inválida
+    bad_msg = {"data": json.dumps({
+        "type": "update_config", "watch_paths": ["/new/path"], "signature": "invalidsig"
+    })}
+    payload = publisher._verify_and_parse(bad_msg)
+    assert payload is None  # rechazado en el chokepoint
+
+    # Queue no fue modificada y callback no fue invocado
+    assert queue.queue_size == initial_size
+    assert update_config_called == []
+
+
+@pytest.mark.asyncio
+async def test_valid_event_ack_clears_pending(
+    publisher: Publisher, shared_secret: bytes
+) -> None:
+    """Un event_ack correctamente firmado limpia el pending del publisher."""
+    await publisher.publish({"path": "/etc/hosts", "hash_detected": "abc"})
+    event_id = list(publisher._pending.keys())[0]
+
+    ack_payload = {
+        "type": "event_ack",
+        "event_id": event_id,
+        "agent_id": "test-agent-01",
+    }
+    msg = _make_signed_msg(shared_secret, ack_payload)
+    verified = publisher._verify_and_parse(msg)
+    assert verified is not None
+    await publisher._handle_command_async(verified)
+
+    assert event_id not in publisher._pending

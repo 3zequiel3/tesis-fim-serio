@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
+import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
 
 
@@ -23,7 +24,10 @@ class Event(SQLModel, table=True):
     path: str = Field(index=True)
     hash_detected: str
     status: EventStatus = Field(index=True)
-    parent_event_id: int | None = Field(default=None, foreign_key="events.id")
+    parent_event_id: int | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.Integer, sa.ForeignKey("events.id", ondelete="SET NULL"), nullable=True),
+    )
     version: int = Field(default=0)
     process_pid: int | None = Field(default=None)
     process_uid: int | None = Field(default=None)

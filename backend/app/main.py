@@ -54,7 +54,8 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     )
     SQLModel.metadata.create_all(engine)
     seed_admin()
-    start_mtls_server(
+
+    mtls_server = start_mtls_server(
         app,
         ca_cert_path=settings.ca_cert_path,
         cert_path=settings.backend_cert_path,
@@ -67,6 +68,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     consumer_task = asyncio.create_task(run_consumer(async_valkey, stop_event))
     heartbeat_task = asyncio.create_task(run_heartbeat_consumer(async_valkey, stop_event))
     retention_task_handle = asyncio.create_task(retention_task())
+    mtls_task = asyncio.create_task(mtls_server.serve()) if mtls_server is not None else None
 
     yield
 
@@ -75,7 +77,11 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     consumer_task.cancel()
     heartbeat_task.cancel()
     retention_task_handle.cancel()
-    await asyncio.gather(consumer_task, heartbeat_task, retention_task_handle, return_exceptions=True)
+    tasks_to_gather = [consumer_task, heartbeat_task, retention_task_handle]
+    if mtls_task is not None:
+        mtls_task.cancel()
+        tasks_to_gather.append(mtls_task)
+    await asyncio.gather(*tasks_to_gather, return_exceptions=True)
     await async_valkey.aclose()
 
     close_valkey()

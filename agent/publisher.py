@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import structlog
 
 from agent.queue import EventQueue
-from agent.streams import SCHEMA_VERSION, load_shared_secret, sign_payload
+from agent.streams import SCHEMA_VERSION, load_shared_secret, sign_payload, verify_payload
 
 if TYPE_CHECKING:
     import valkey.asyncio as avalkey
@@ -162,8 +162,26 @@ class Publisher:
 
     # ── listener de event_ack ─────────────────────────────────────────────────
 
+    def _verify_and_parse(self, msg_data: dict[str, Any]) -> dict[str, Any] | None:
+        """
+        Único punto de entrada para mensajes del stream commands (RN-79).
+
+        Parsea el JSON del campo 'data' y verifica la firma HMAC-SHA256.
+        Retorna el payload verificado o None si el JSON es inválido o la firma no coincide.
+        Todo mensaje — presente o futuro — debe pasar por aquí antes de cualquier side effect.
+        """
+        raw = msg_data.get("data", "{}")
+        try:
+            payload = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return None
+        if not verify_payload(self._shared_secret, payload):
+            log.warning("publisher.command_signature_invalid")
+            return None
+        return payload
+
     async def _ack_listener(self, stop_event: asyncio.Event) -> None:
-        """Lee 'commands' y procesa event_ack (RN-40, RN-73, D5, RN-106) y comandos C13."""
+        """Lee 'commands', verifica HMAC y procesa comandos (RN-40, RN-73, RN-79, D5, RN-106)."""
         last_id = "$"
         while not stop_event.is_set():
             try:
@@ -173,19 +191,21 @@ class Publisher:
                 if results:
                     for _stream, messages in results:
                         for msg_id, msg_data in messages:
-                            await self._handle_command_async(msg_data)
+                            payload = self._verify_and_parse(msg_data)
                             last_id = msg_id
+                            if payload is None:
+                                continue
+                            await self._handle_command_async(payload)
             except Exception as exc:
                 log.warning("publisher.ack_listener_error", error=str(exc))
                 await asyncio.sleep(1)
 
-    async def _handle_command_async(self, msg_data: dict[str, Any]) -> None:
-        """Procesa un mensaje del stream commands (async — soporta dispatch C13)."""
-        raw = msg_data.get("data", "{}")
-        try:
-            payload = json.loads(raw)
-        except (json.JSONDecodeError, TypeError):
-            return
+    async def _handle_command_async(self, payload: dict[str, Any]) -> None:
+        """
+        Despacha un payload ya verificado y parseado por _verify_and_parse.
+
+        El target_agent_id filtering ocurre aquí (después de verificar la firma — D5, RN-106).
+        """
         # Filtrar por target_agent_id — D5, RN-106
         target = payload.get("target_agent_id")
         if target and target != self._config.agent_id:
@@ -199,11 +219,6 @@ class Publisher:
                 if self._on_ack_cb is not None:
                     self._on_ack_cb(event_id)
                 log.info("publisher.event_acked", event_id=event_id)
-        elif cmd_type == "update_config":
-            new_paths = payload.get("watch_paths")
-            if isinstance(new_paths, list) and self._on_update_config_cb is not None:
-                self._on_update_config_cb(new_paths)
-                log.info("publisher.update_config_received")
         elif cmd_type == "rule_sync":
             rules_payload = payload.get("rules")
             ruleset_version = payload.get("ruleset_version")
@@ -239,43 +254,6 @@ class Publisher:
                     "publisher.command_handler_not_registered",
                     cmd_type=cmd_type,
                 )
-
-    def _handle_command(self, msg_data: dict[str, Any]) -> None:
-        """Compatibilidad: wrapper sync que delega al handler async (no debe usarse directamente)."""
-        # Solo procesa tipos que no requieren await (event_ack, update_config, rule_sync).
-        # Los tipos C13 requieren _handle_command_async.
-        raw = msg_data.get("data", "{}")
-        try:
-            payload = json.loads(raw)
-        except (json.JSONDecodeError, TypeError):
-            return
-        target = payload.get("target_agent_id")
-        if target and target != self._config.agent_id:
-            return
-        cmd_type = payload.get("type") or payload.get("command_type") or ""
-        if cmd_type == "event_ack":
-            event_id = payload.get("event_id")
-            if event_id:
-                self._queue.remove(event_id)
-                self._pending.pop(event_id, None)
-                if self._on_ack_cb is not None:
-                    self._on_ack_cb(event_id)
-                log.info("publisher.event_acked", event_id=event_id)
-        elif cmd_type == "update_config":
-            new_paths = payload.get("watch_paths")
-            if isinstance(new_paths, list) and self._on_update_config_cb is not None:
-                self._on_update_config_cb(new_paths)
-                log.info("publisher.update_config_received")
-        elif cmd_type == "rule_sync":
-            rules_payload = payload.get("rules")
-            ruleset_version = payload.get("ruleset_version")
-            if (
-                isinstance(rules_payload, list)
-                and isinstance(ruleset_version, int)
-                and self._on_rule_sync_cb is not None
-            ):
-                self._on_rule_sync_cb(rules_payload, ruleset_version)
-                log.info("publisher.rule_sync_received", ruleset_version=ruleset_version)
 
     # ── retry loop ─────────────────────────────────────────────────────────────
 

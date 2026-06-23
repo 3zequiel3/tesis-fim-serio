@@ -446,6 +446,44 @@ Reglas: RN-45, RN-94, RN-98.
 
 ---
 
+### Change 21 — `agent-critical-fixes`
+
+**Capa**: agente · **Depende de**: 05, 13, 14 (código ya existente) · **Origen**: auditoría de bugs ([docs/audit_bugs.md](docs/audit_bugs.md), 2026-06-23)
+
+> **Nota**: change de remediación, no de feature nueva. Resuelve los 5 críticos del agente FIM (C1–C5 del audit). No introduce suposiciones nuevas — cada fix hace cumplir una regla ya cerrada (RN-79, RN-75, RN-83, RN-01, RN-93).
+
+Capacidades:
+- **C1**: llamar `register_command_handlers()` en `__main__.py` — restaura `restore_file`/`quarantine_file`/`rescan_baseline`/`baseline_update` de no-op silencioso a funcional.
+- **C2**: punto de entrada único `_verify_and_parse` que verifica HMAC de todo comando antes de cualquier side effect (cierra el bypass de RN-79 en `event_ack`/`update_config`/`rule_sync`).
+- **C3**: eliminar branch duplicado de `update_config` que esquivaba el chequeo de `ruleset_version` (RN-75). Depende de C1.
+- **C4**: índice inverso `_event_to_path` para `on_ack` O(1) sin riesgo de mutate-during-iterate.
+- **C5**: `_hash_file_async` con retry exponencial (3×, ≤150 ms) para evitar `file_absent` falso por race fanotify/hash (write-tmp+rename de editores).
+
+Reglas: RN-01, RN-40, RN-73, RN-75, RN-79, RN-83, RN-93. Decisiones: D5, D8.
+
+**Done**: comandos destructivos ejecutan; comando con HMAC inválido se descarta; `update_config` viejo se rechaza por versión; baseline sobrevive acks concurrentes y editores con escritura atómica; tests de regresión para invalid-HMAC, mutación concurrente de `_pending` y race fanotify/hash pasan.
+
+---
+
+### Change 22 — `backend-critical-fixes`
+
+**Capa**: backend · **Depende de**: 02, 04, 13 (código ya existente) · **Origen**: auditoría de bugs ([docs/audit_bugs.md](docs/audit_bugs.md), 2026-06-23)
+
+> **Nota**: change de remediación, no de feature nueva. Resuelve los 5 críticos del backend (C6–C10 del audit). No introduce suposiciones nuevas — cada fix hace cumplir una regla/decisión ya cerrada. C9 respeta D3 (sin Alembic): modelo SQLModel + script SQL idempotente versionado en `db/migrations/`.
+
+Capacidades:
+- **C6**: marcar `"type": "access"` en `create_access_token` y rechazar tokens no-access en `get_current_user` — un único punto de control cierra el bypass de TTL (refresh usado como access).
+- **C7**: cambiar `Depends(get_current_user)` por `Depends(require_full_access)` en `GET /events`, `GET /events/{id}`, `GET /rules`, `GET /rules/{id}` — cierra el bypass de `must_change_password`. Convención: `get_current_user` solo para endpoints de usuario propio.
+- **C8**: taxonomía explícita de resultados en el consumer (éxito/skip/error-de-datos → xack; error transitorio de DB → NO xack, dejar en PEL para retry del consumer group). Elimina la pérdida silenciosa de eventos de integridad.
+- **C9**: `ondelete="SET NULL"` en FK `parent_event_id` + `order_by DESC` en `compact_chain` + script SQL idempotente `db/migrations/001_fix_parent_event_id_ondelete.sql` para ambientes ya levantados (D3, sin Alembic).
+- **C10**: unificar el servidor mTLS 8443 en el event loop principal (`asyncio.create_task(mtls_server.serve())` con `install_signal_handlers=False`), mismo patrón que `consumer_task`/`heartbeat_task`/`retention_task_handle`. Elimina el thread secundario que rompía con `ValueError`.
+
+Reglas: RN-76, RN-79. Decisiones: D3, D7, D8.
+
+**Done**: refresh token rechazado como Bearer access; usuario con `must_change_password` no lee events/rules; evento de integridad con error transitorio de DB se reintenta (queda en PEL); `compact_chain` con cadena larga no lanza `IntegrityError`; puerto 8443 arranca y los agentes conectan por mTLS; tests de regresión para token-type, scope-gate, no-ack-on-db-error, compact-chain-FK y mTLS-startup pasan.
+
+---
+
 ## Decisiones de implementación cerradas — Abril 2026
 
 Las 8 suposiciones que estaban abiertas en una versión anterior de este roadmap se cerraron el 2026-04-24 y se documentaron formalmente en los appendices "Decisiones de implementación — Abril 2026" de:

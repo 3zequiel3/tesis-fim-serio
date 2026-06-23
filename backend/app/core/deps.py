@@ -39,6 +39,13 @@ async def get_current_user(
     except JWTError:
         raise _credentials_exc
 
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="token_type_invalid",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     jti: str | None = payload.get("jti")
     if jti and valkey_client.exists(f"{BLACKLIST_PREFIX}{jti}"):
         raise _credentials_exc

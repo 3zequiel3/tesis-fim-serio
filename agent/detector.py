@@ -108,6 +108,33 @@ def _hash_file(path: str) -> str | None:
         return None
 
 
+async def _hash_file_async(
+    path: str,
+    retries: int = 3,
+    base_delay: float = 0.05,
+) -> str | None:
+    """
+    Hash SHA-256 con backoff exponencial para absorber races de write-tmp+rename (RN-01, RN-93).
+
+    Happy path (archivo presente): retorna en el primer intento, sin ningún sleep.
+    Solo emite None después de agotar todos los reintentos, lo que produce file_absent
+    en _process_event. Budget máximo: 50 ms + 100 ms = 150 ms para archivos persistentemente ausentes.
+
+    Usa asyncio.sleep para no bloquear el event loop durante los waits (D8).
+    """
+    for attempt in range(retries):
+        try:
+            h = hashlib.sha256()
+            with open(path, "rb") as f:
+                while chunk := f.read(65536):
+                    h.update(chunk)
+            return h.hexdigest()
+        except FileNotFoundError:
+            if attempt < retries - 1:
+                await asyncio.sleep(base_delay * (2 ** attempt))
+    return None
+
+
 def _is_text(path: str) -> bool:
     try:
         with open(path, "rb") as f:
@@ -167,7 +194,8 @@ class FanotifyDetector:
         self._decision_engine = decision_engine
         self._fan: Any = None
         self._raw_queue: asyncio.Queue[FanotifyEvent | None] = asyncio.Queue()
-        self._pending: dict[str, str] = {}   # path → event_id del último evento encolado
+        self._pending: dict[str, str] = {}          # path → event_id del último evento encolado
+        self._event_to_path: dict[str, str] = {}    # event_id → path (índice inverso para ack O(1))
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
 
@@ -253,7 +281,7 @@ class FanotifyDetector:
         path = fan_event.path
         entry = self._baseline.read_entry(path)
         previous_hash = entry.hash if entry else None
-        current_hash = _hash_file(path)
+        current_hash = await _hash_file_async(path)
 
         # Descartar si el contenido no cambió
         if current_hash is not None and current_hash == previous_hash:
@@ -280,7 +308,15 @@ class FanotifyDetector:
 
         event_id = str(uuid.uuid4())
         parent_event_id = self._pending.get(path)
+
+        # Mantener el índice inverso en lockstep con _pending (sin await entre las dos escrituras).
+        # Invariante: _event_to_path[eid] == path  ⟺  _pending[path] == eid.
+        # No se necesita asyncio.Lock: on_ack y _process_event corren en el mismo event loop
+        # (D8, single-loop model); las regiones de mutación no contienen await.
+        if parent_event_id is not None:
+            self._event_to_path.pop(parent_event_id, None)
         self._pending[path] = event_id
+        self._event_to_path[event_id] = path
 
         change = DetectedChange(
             event_id=event_id,
@@ -366,9 +402,14 @@ class FanotifyDetector:
         log.info("detector.stopped")
 
     def on_ack(self, event_id: str) -> None:
-        """Llamado por el command consumer al recibir event_ack — limpia _pending."""
-        to_remove = [p for p, eid in self._pending.items() if eid == event_id]
-        for path in to_remove:
+        """
+        Llamado por el command consumer al recibir event_ack — limpia _pending en O(1).
+
+        Usa el índice inverso _event_to_path para evitar el scan O(N) anterior.
+        Safe no-op si event_id no está en el índice (ack duplicado o ya expirado).
+        """
+        path = self._event_to_path.pop(event_id, None)
+        if path is not None and self._pending.get(path) == event_id:
             del self._pending[path]
 
     async def drain(self, timeout: float = _DRAIN_TIMEOUT_S) -> None:

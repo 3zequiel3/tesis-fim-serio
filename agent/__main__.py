@@ -137,6 +137,13 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
             on_update_config=detector.reload_paths,
             on_rule_sync=_on_rule_sync,
         )
+        publisher.register_command_handlers(
+            baseline_engine=engine,
+            state=state,
+            journal=journal,
+            quarantine_dir=str(quarantine_dir),
+            detector=detector,
+        )
         coroutines.append(detector.start())
     else:
         log.warning("agent.detector.skipped", reason="fanotify only available on Linux")

@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import require_full_access
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus
 
@@ -60,7 +60,7 @@ async def list_events(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     session: Session = Depends(get_session),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_full_access),
 ) -> PaginatedEventsOut:
     q = select(Event)
 
@@ -97,7 +97,7 @@ async def list_events(
 async def get_event(
     event_id: int,
     session: Session = Depends(get_session),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_full_access),
 ) -> EventOut:
     event = session.exec(select(Event).where(Event.id == event_id)).first()
     if event is None:

@@ -1,5 +1,9 @@
-## ADDED Requirements
+# Spec: backend-rules
 
+## Purpose
+
+API REST del backend para gestión de reglas de decisión — CRUD de reglas, validación de patterns, y fan-out de sincronización a agentes.
+## Requirements
 ### Requirement: Crear una regla de decisión
 
 El sistema SHALL exponer `POST /rules` para crear una regla. La operación MUST estar restringida al rol admin (RN-29 análogo a escrituras administrativas). El cuerpo del request MUST contener `pattern` (string), `severity` (enum `RuleSeverity`) y `action` (enum `RuleAction`) (RN-08). Tras crear la regla, el sistema MUST incrementar el counter global `RulesetVersion` (RN-75), hacer fan-out del comando `rule_sync` (ver capability de sincronización), registrar en `published_commands` y escribir una fila en `audit_log` (RN-94).
@@ -36,10 +40,10 @@ El sistema SHALL validar todo `pattern` recibido como un glob compatible con `fn
 
 ### Requirement: Listar reglas ordenadas por severity
 
-El sistema SHALL exponer `GET /rules` para cualquier usuario autenticado. La respuesta MUST listar las reglas ordenadas por severity en el orden canónico critical → high → medium → low (RN-09), y dentro de cada severity por `id` ascendente.
+El sistema SHALL exponer `GET /rules` para cualquier usuario con acceso completo (`require_full_access`). Un usuario con `must_change_password=True` (token con `scope=password_change_only`) MUST recibir 403 `password_change_required` y no puede listar reglas hasta cambiar su password (C7). La respuesta MUST listar las reglas ordenadas por severity en el orden canónico critical → high → medium → low (RN-09), y dentro de cada severity por `id` ascendente.
 
 #### Scenario: Listado ordenado por severity
-- **WHEN** existen reglas con severities mezcladas y un usuario autenticado hace `GET /rules`
+- **WHEN** existen reglas con severities mezcladas y un usuario con acceso completo hace `GET /rules`
 - **THEN** el sistema retorna 200 con las reglas ordenadas critical primero, luego high, medium y low
 - **AND** dentro de la misma severity las ordena por `id` ascendente
 
@@ -47,17 +51,25 @@ El sistema SHALL exponer `GET /rules` para cualquier usuario autenticado. La res
 - **WHEN** se hace `GET /rules` sin token JWT válido
 - **THEN** el sistema retorna 401
 
+#### Scenario: Usuario con must_change_password retorna 403
+- **WHEN** se hace `GET /rules` con un access token cuyo `scope=password_change_only`
+- **THEN** el sistema retorna 403 con detalle `password_change_required`
+
 ### Requirement: Obtener una regla por id
 
-El sistema SHALL exponer `GET /rules/{id}` para cualquier usuario autenticado, retornando la regla solicitada.
+El sistema SHALL exponer `GET /rules/{id}` para cualquier usuario con acceso completo (`require_full_access`), retornando la regla solicitada. Un usuario con `must_change_password=True` MUST recibir 403 `password_change_required` (C7).
 
 #### Scenario: Regla existente
-- **WHEN** un usuario autenticado hace `GET /rules/{id}` de una regla existente
+- **WHEN** un usuario con acceso completo hace `GET /rules/{id}` de una regla existente
 - **THEN** el sistema retorna 200 con la regla
 
 #### Scenario: Regla inexistente
-- **WHEN** un usuario autenticado hace `GET /rules/{id}` de un id que no existe
+- **WHEN** un usuario con acceso completo hace `GET /rules/{id}` de un id que no existe
 - **THEN** el sistema retorna 404
+
+#### Scenario: Usuario con must_change_password retorna 403
+- **WHEN** se hace `GET /rules/{id}` con un access token cuyo `scope=password_change_only`
+- **THEN** el sistema retorna 403 con detalle `password_change_required`
 
 ### Requirement: Actualizar una regla
 
@@ -125,3 +137,4 @@ Por cada mensaje `rule_sync` publicado, el sistema SHALL insertar una fila en `p
 #### Scenario: Check de agente al día
 - **WHEN** se consulta `SELECT MAX(ruleset_version) FROM published_commands WHERE target_agent_id = :agent_id OR target_agent_id IS NULL`
 - **THEN** el resultado es la máxima versión de comando dirigida a ese agente, comparable con `Agent.ruleset_version_applied`
+

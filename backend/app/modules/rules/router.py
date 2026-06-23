@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlmodel import Session
 
 from app.core.database import get_session
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import require_admin, require_full_access
 from app.core.valkey import get_valkey_client
 from app.modules.auth.models import User
 from app.modules.rules.models import RuleAction, RuleSeverity
@@ -84,7 +84,7 @@ async def create_rule_endpoint(
 
 @router.get("", response_model=list[RuleOut])
 async def list_rules_endpoint(
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_full_access),
     session: Session = Depends(get_session),
 ) -> list[RuleOut]:
     """Lista reglas ordenadas por severity canónico (RN-09). Requiere autenticación."""
@@ -95,7 +95,7 @@ async def list_rules_endpoint(
 @router.get("/{rule_id}", response_model=RuleOut)
 async def get_rule_endpoint(
     rule_id: int,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_full_access),
     session: Session = Depends(get_session),
 ) -> RuleOut:
     """Obtiene una regla por id. 404 si no existe."""

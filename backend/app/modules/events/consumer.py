@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.core.database import engine
@@ -183,30 +184,58 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         return
 
     # ── camino feliz ───────────────────────────────────────────────────────────
-    event = _ingest(payload, received_at, detected_at)
-    await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
-    if event is not None and event_id:
-        await _publish_event_ack(client, event_id, agent_id, shared_secret)
+    try:
+        event = _ingest(payload, received_at, detected_at)
+    except InvalidTransitionError as exc:
+        # Dato inválido, no reintentable → XACK + audit log
+        await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
+        log.warning(
+            "consumer.invalid_transition",
+            event_id=event_id,
+            from_status=str(exc.from_status),
+            to_status=str(exc.to_status),
+        )
+        audit = RejectedEventAudit(
+            event_id=event_id,
+            agent_id=agent_id,
+            reason=RejectionReason.invalid_schema,
+            received_at=received_at,
+            detected_at=detected_at,
+            payload_dump=payload_dump,
+        )
+        with Session(engine) as s:
+            s.add(audit)
+            s.commit()
+        return
+    except SQLAlchemyError:
+        # Error transitorio de DB → NO XACK, dejar en PEL para reintento
+        log.error("consumer.db_error", event_id=event_id, exc_info=True)
+        return
+
+    if event is not None:
+        # Éxito → XACK + event_ack + notificación
+        await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
+        if event_id:
+            await _publish_event_ack(client, event_id, agent_id, shared_secret)
         log.info("consumer.event_persisted", event_id=event_id, agent_id=agent_id)
-        # Notificación asincrónica post-ingesta — fire-and-forget (D-C15-02)
         asyncio.create_task(notify_if_applicable(event))
-    elif event is None:
-        log.warning("consumer.event_ingest_skipped", event_id=event_id, reason="race_or_invalid_transition")
+    else:
+        # Skip legítimo (carrera en mark_superseded) → XACK sin re-insert
+        await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
+        log.info("consumer.event_ingest_skipped", event_id=event_id, reason="supersede_race")
 
 
 # ── helpers de ingesta ────────────────────────────────────────────────────────
 
 def _ingest(payload: dict[str, Any], received_at: datetime, detected_at: datetime) -> Event | None:
-    """Llama service.ingest_event; captura InvalidTransitionError."""
-    try:
-        return ingest_event(payload, received_at, detected_at)
-    except InvalidTransitionError as exc:
-        log.warning(
-            "consumer.invalid_transition",
-            from_status=str(exc.from_status),
-            to_status=str(exc.to_status),
-        )
-        return None
+    """
+    Llama service.ingest_event y surfacea los outcomes con taxonomía explícita:
+    - Retorna Event  → éxito
+    - Retorna None   → skip legítimo (carrera en mark_superseded)
+    - Lanza InvalidTransitionError → dato inválido, no reintentable
+    - Lanza SQLAlchemyError        → error transitorio, el caller NO hace XACK
+    """
+    return ingest_event(payload, received_at, detected_at)
 
 
 # ── helpers de base de datos ─────────────────────────────────────────────────

@@ -516,7 +516,7 @@ async def test_quarantine_handler_success(
     target.write_text("#!/bin/bash\nrm -rf /")
 
     quarantine_dir = tmp_path / "quarantine"
-    quarantine_dir.mkdir()
+    quarantine_dir.mkdir(exist_ok=True)
 
     cmd: dict = {
         "type": "quarantine_file",
@@ -562,7 +562,7 @@ async def test_quarantine_handler_file_not_found_publishes_error_ack(
     from agent import commands
 
     quarantine_dir = tmp_path / "quarantine2"
-    quarantine_dir.mkdir()
+    quarantine_dir.mkdir(exist_ok=True)
 
     cmd: dict = {
         "type": "quarantine_file",

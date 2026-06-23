@@ -86,18 +86,23 @@ async def test_second_event_has_parent_event_id(tmp_path: Path) -> None:
 
 def test_on_ack_removes_pending_entry(tmp_path: Path) -> None:
     detector, _ = _make_detector(tmp_path)
+    # Populamos ambos mapas (invariante: _pending y _event_to_path siempre en lockstep)
     detector._pending["/etc/hosts"] = "event-abc"
+    detector._event_to_path["event-abc"] = "/etc/hosts"
     detector._pending["/etc/passwd"] = "event-xyz"
+    detector._event_to_path["event-xyz"] = "/etc/passwd"
 
     detector.on_ack("event-abc")
 
     assert "/etc/hosts" not in detector._pending
+    assert "event-abc" not in detector._event_to_path
     assert "/etc/passwd" in detector._pending
 
 
 def test_on_ack_ignores_unknown_event_id(tmp_path: Path) -> None:
     detector, _ = _make_detector(tmp_path)
     detector._pending["/etc/hosts"] = "event-abc"
+    detector._event_to_path["event-abc"] = "/etc/hosts"
 
     detector.on_ack("event-unknown")  # no debe lanzar
 

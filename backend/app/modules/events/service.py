@@ -97,7 +97,7 @@ def compact_chain(session: Session, path: str) -> None:
     superseded = session.exec(
         select(Event)
         .where(Event.path == path, Event.status == EventStatus.superseded)
-        .order_by(Event.created_at.asc())
+        .order_by(Event.created_at.desc())
     ).all()
 
     if len(superseded) <= _MAX_CHAIN:
