@@ -166,6 +166,32 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ── Helper de selección de contenido restaurable ─────────────────────────────
+
+def select_restorable_content(entry: "BaselineEntry") -> tuple[bytes, str] | None:
+    """
+    Retorna (content_bytes, expected_hash) del mejor origen restaurable.
+
+    Primero intenta el contenido activo (entry.content_b64). Si es None,
+    itera entry.snapshots en orden inverso (más reciente primero) buscando
+    el primero con content_b64 no nulo — descomprimiendo si gzip=True.
+
+    Retorna None si no hay ningún origen restaurable.
+    """
+    if entry.content_b64 is not None:
+        return base64.b64decode(entry.content_b64), entry.hash or ""
+
+    for snap in reversed(entry.snapshots):
+        if snap.content_b64 is None:
+            continue
+        raw = base64.b64decode(snap.content_b64)
+        if snap.gzip:
+            raw = gzip.decompress(raw)
+        return raw, snap.hash
+
+    return None
+
+
 # ── Motor ─────────────────────────────────────────────────────────────────────
 
 class BaselineEngine:

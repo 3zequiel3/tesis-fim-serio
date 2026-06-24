@@ -125,12 +125,18 @@ class DecisionEngine:
     # ── acciones privadas ─────────────────────────────────────────────────────
 
     def _auto_restore(self, event_id: str, path: str, payload: dict[str, Any]) -> None:
-        """Restaura archivo desde content_b64 del baseline. Verifica SHA-256 (RN-30–33)."""
+        """Restaura archivo desde baseline o snapshot. Verifica SHA-256 (RN-30–33)."""
+        from agent.baseline import select_restorable_content
+
         entry = self._baseline.read_entry(path)
-        if entry is None or entry.content_b64 is None:
+        if entry is None:
             raise _ActionFailed("no_baseline_content")
 
-        content = base64.b64decode(entry.content_b64)
+        result = select_restorable_content(entry)
+        if result is None:
+            raise _ActionFailed("no_restorable_content")
+
+        content, expected_hash = result
 
         tmp_path = path + ".fim_restore_tmp"
         try:
@@ -145,7 +151,7 @@ class DecisionEngine:
             raise _ActionFailed(f"write_failed: {exc}") from exc
 
         restored_hash = _hash_bytes(content)
-        if entry.hash and restored_hash != entry.hash:
+        if expected_hash and restored_hash != expected_hash:
             raise _ActionFailed("hash_mismatch_after_restore")
 
         payload["event_type"] = "auto_restored"

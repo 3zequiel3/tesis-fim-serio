@@ -17,7 +17,10 @@ backend_url: http://localhost:8000
 
 # URL of the Valkey (Redis-compatible) server running in Docker Compose.
 # The agent uses Valkey Streams for all backend communication (RN-108).
-valkey_url: redis://localhost:6379
+# Use valkeys:// (or rediss://) to enable mTLS — required in production.
+# valkey:// and redis:// are plaintext and should only be used for local
+# development or CI environments where the Valkey server lacks TLS.
+valkey_url: valkeys://localhost:6380
 
 # Path to the CA certificate used to verify the backend's mTLS certificate
 # and to validate the agent's own certificate after bootstrap (Change 06).
@@ -55,3 +58,12 @@ storage:
   # TLS certificate and private key for mTLS communication (Change 06).
   # cert.pem: 0600, key.pem: 0600, owner fim-agent.
   certs_dir: /var/lib/fim-agent/certs
+
+# Publisher settings — controls the reconnect behavior when the agent restarts.
+publisher:
+  # Maximum time (in seconds) to spend flushing pending commands from the
+  # 'commands' stream before draining the local event queue. The flush reads
+  # all commands emitted while the agent was down and applies them so that the
+  # ruleset is up-to-date before events are published (Change 25, RN-109).
+  # Increase if the backend emits large bursts of commands and latency allows.
+  command_flush_timeout_s: 2.0

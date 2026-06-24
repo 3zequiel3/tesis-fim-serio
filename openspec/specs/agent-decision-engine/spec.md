@@ -81,6 +81,30 @@ Cuando la acción determinada es `auto_restore`, el `DecisionEngine` SHALL leer 
 - **WHEN** el archivo fue eliminado entre la detección y la ejecución de auto_restore
 - **THEN** el archivo es creado desde el contenido del baseline, hash verificado, evento publicado con `event_type: "auto_restored"`
 
+### Requirement: auto_restore cae a snapshots cuando el contenido activo es nulo
+
+Al ejecutar `auto_restore`, si la entrada de baseline tiene `content_b64` nulo (típicamente porque el archivo está en estado `absent`), el motor de decisión SHALL buscar el snapshot más reciente cuyo `content_b64` no sea nulo, descomprimirlo si `gzip=True`, y usar ese contenido para restaurar el archivo. El motor MUST verificar el SHA-256 del contenido restaurado contra el hash del snapshot usado. Si no existe ningún snapshot utilizable, el motor MUST fallar con el error `no_restorable_content` (RN-30–33, F3).
+
+#### Scenario: Restauración desde snapshot cuando el contenido activo es nulo
+
+- **WHEN** se gatilla `auto_restore` sobre un path cuya entrada de baseline tiene `content_b64=None` pero existe un snapshot con contenido
+- **THEN** el motor restaura el archivo desde el snapshot más reciente con contenido y verifica el hash
+
+#### Scenario: Snapshot comprimido se descomprime antes de restaurar
+
+- **WHEN** el snapshot seleccionado tiene `gzip=True`
+- **THEN** el motor descomprime el contenido antes de escribirlo y verificar el hash
+
+#### Scenario: Sin contenido restaurable falla con error claro
+
+- **WHEN** se gatilla `auto_restore` y ni el contenido activo ni ningún snapshot tienen contenido
+- **THEN** el motor falla la acción con el error `no_restorable_content` y journaliza el fallo
+
+#### Scenario: Contenido activo presente conserva el comportamiento previo
+
+- **WHEN** se gatilla `auto_restore` y la entrada de baseline tiene `content_b64` no nulo
+- **THEN** el motor restaura desde el contenido activo sin consultar snapshots
+
 ### Requirement: Acción quarantine — movimiento a directorio de cuarentena
 
 Cuando la acción determinada es `quarantine`, el `DecisionEngine` SHALL mover el archivo afectado a `/var/lib/fim-agent/quarantine/{event_id}_{basename}` usando `shutil.move()` (RN-34, RN-35). Si el archivo ya no existe al momento de ejecutar la cuarentena, la acción MUST fallar gracefully con `error: "file_not_found"` (RN-36). El evento MUST publicarse con `action: "quarantine"` y el `quarantine_path` resultante en el payload (RN-37).

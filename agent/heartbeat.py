@@ -6,6 +6,7 @@ Publica cada 10 s: {agent_id, timestamp, queue_size, ruleset_version,
 
 Durante el drenaje graceful (SIGTERM) publica shutdown=true (RN-93).
 ruleset_version se lee desde state.json (via AgentState).
+La señal de shutdown se lee desde publisher.shutdown (fuente de verdad, D-C26-4).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
     import valkey.asyncio as avalkey
 
     from agent.config import AgentConfig
+    from agent.publisher import Publisher
     from agent.queue import EventQueue
     from agent.state import AgentState
 
@@ -41,21 +43,29 @@ class HeartbeatPublisher:
         queue: "EventQueue",
         state: "AgentState",
         client: "avalkey.Valkey",
+        publisher: "Publisher | None" = None,
     ) -> None:
         self._config = config
         self._queue = queue
         self._state = state
         self._client = client
+        self._publisher = publisher
 
     async def run(self, stop_event: asyncio.Event, shutdown_flag: "asyncio.Event | None" = None) -> None:
-        """Loop de heartbeat. shutdown_flag se activa cuando el agente está drenando."""
+        """Loop de heartbeat. Lee publisher.shutdown como fuente de verdad (D-C26-4)."""
         while not stop_event.is_set():
-            is_shutdown = shutdown_flag is not None and shutdown_flag.is_set()
+            is_shutdown = self._is_shutdown(shutdown_flag)
             await self._publish(is_shutdown)
             try:
                 await asyncio.wait_for(stop_event.wait(), timeout=_INTERVAL_S)
             except asyncio.TimeoutError:
                 pass
+
+    def _is_shutdown(self, shutdown_flag: "asyncio.Event | None") -> bool:
+        """Determina el estado de shutdown: publisher.shutdown es la fuente de verdad."""
+        if self._publisher is not None:
+            return self._publisher.shutdown
+        return shutdown_flag is not None and shutdown_flag.is_set()
 
     async def _publish(self, shutdown: bool = False) -> None:
         payload: dict[str, Any] = {

@@ -22,6 +22,10 @@ class StorageConfig(BaseModel):
         return v
 
 
+class PublisherConfig(BaseModel):
+    command_flush_timeout_s: float = 2.0
+
+
 class AgentConfig(BaseModel):
     agent_id: str
     backend_url: str
@@ -29,6 +33,8 @@ class AgentConfig(BaseModel):
     ca_cert_path: str
     watch_paths: list[str]
     storage: StorageConfig
+    publisher: PublisherConfig = PublisherConfig()
+    cert_renewal_check_interval_h: float = 24.0
 
     @field_validator("agent_id", mode="before")
     @classmethod

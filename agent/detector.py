@@ -54,6 +54,7 @@ class FanotifyEvent:
     uid: int
     exe: str | None
     timestamp: str
+    mask: int = 0
 
 
 @dataclasses.dataclass
@@ -61,7 +62,8 @@ class DetectedChange:
     """Payload de cambio detectado — se envía al publisher."""
     event_id: str
     path: str
-    event_type: str          # "file_modified" | "file_absent"
+    event_type: str          # "file_modified" | "file_absent" | "file_deleted" | "file_created"
+    operation_type: str      # léxico canónico RN-71: mismos valores que event_type
     previous_hash: str | None
     current_hash: str | None
     diff_text: str | None
@@ -218,22 +220,36 @@ class FanotifyDetector:
             raise RuntimeError(f"fanotify init falló: {exc}") from exc
 
     def _mark_paths(self, paths: list[str]) -> None:
+        mask = (
+            _fan_mod.FAN_CLOSE_WRITE
+            | _fan_mod.FAN_DELETE
+            | _fan_mod.FAN_MOVED_FROM
+            | _fan_mod.FAN_MOVED_TO
+            | _fan_mod.FAN_CREATE
+        )
         for path in paths:
             _fan_mod.mark(
                 self._fan,
                 _fan_mod.FAN_MARK_ADD | _fan_mod.FAN_MARK_FILESYSTEM,
-                _fan_mod.FAN_CLOSE_WRITE,
+                mask,
                 _AT_FDCWD,
                 path,
             )
 
     def _mark_exclusion(self) -> None:
+        mask = (
+            _fan_mod.FAN_CLOSE_WRITE
+            | _fan_mod.FAN_DELETE
+            | _fan_mod.FAN_MOVED_FROM
+            | _fan_mod.FAN_MOVED_TO
+            | _fan_mod.FAN_CREATE
+        )
         _fan_mod.mark(
             self._fan,
             _fan_mod.FAN_MARK_ADD
             | _fan_mod.FAN_MARK_FILESYSTEM
             | _fan_mod.FAN_MARK_IGNORED_MASK,
-            _fan_mod.FAN_CLOSE_WRITE,
+            mask,
             _AT_FDCWD,
             _AGENT_WORK_DIR,
         )
@@ -266,21 +282,118 @@ class FanotifyDetector:
             for ev in raw_events:
                 if self._stop_event.is_set():
                     break
+                if ev.path is None:
+                    log.warning("detector.event_null_path", pid=ev.pid)
+                    continue
                 fan_event = FanotifyEvent(
                     path=ev.path,
                     pid=ev.pid,
                     uid=_get_uid(ev.pid),
                     exe=_get_exe(ev.pid),
                     timestamp=datetime.now(timezone.utc).isoformat(),
+                    mask=getattr(ev, "mask", 0),
                 )
                 self._loop.call_soon_threadsafe(self._raw_queue.put_nowait, fan_event)
 
     # ── Procesamiento async de eventos ─────────────────────────────────────────
 
+    def _classify_event(self, mask: int) -> str | None:
+        """
+        Clasifica el mask de fanotify en operation_type canónico (RN-71).
+
+        Retorna None si la máscara no corresponde a ningún tipo conocido.
+        El orden de evaluación importa: FAN_CLOSE_WRITE tiene prioridad sobre CREATE
+        para evitar clasificaciones incorrectas en kernels que combinan flags.
+        """
+        if not _HAS_FAN or _fan_mod is None:
+            return "file_modified"
+        if mask & _fan_mod.FAN_CLOSE_WRITE:
+            return "close_write"
+        if mask & _fan_mod.FAN_DELETE or mask & _fan_mod.FAN_MOVED_FROM:
+            return "file_deleted"
+        if mask & _fan_mod.FAN_CREATE or mask & _fan_mod.FAN_MOVED_TO:
+            return "file_created"
+        return None
+
     async def _process_event(self, fan_event: FanotifyEvent) -> None:
         path = fan_event.path
         entry = self._baseline.read_entry(path)
         previous_hash = entry.hash if entry else None
+
+        event_class = self._classify_event(fan_event.mask)
+
+        # ── Borrado / moved-from: sin hash, marcar ausente ─────────────────
+        if event_class == "file_deleted":
+            event_id = str(uuid.uuid4())
+            parent_event_id = self._pending.get(path)
+            if parent_event_id is not None:
+                self._event_to_path.pop(parent_event_id, None)
+            self._pending[path] = event_id
+            self._event_to_path[event_id] = path
+
+            change = DetectedChange(
+                event_id=event_id,
+                path=path,
+                event_type="file_deleted",
+                operation_type="file_deleted",
+                previous_hash=previous_hash,
+                current_hash=None,
+                diff_text=None,
+                process_pid=fan_event.pid,
+                process_uid=fan_event.uid,
+                process_exe=fan_event.exe,
+                detected_at=fan_event.timestamp,
+                parent_event_id=parent_event_id,
+            )
+            self._baseline.mark_absent(path)
+            enriched_payload = (
+                self._decision_engine.evaluate_and_act(change)
+                if self._decision_engine is not None
+                else change.to_event_data()
+            )
+            await self._publisher.publish(enriched_payload)
+            log.info("detector.change_detected", path=path, event_type="file_deleted", event_id=event_id)
+            return
+
+        # ── Creación / moved-to: hashear, crear entry ──────────────────────
+        if event_class == "file_created":
+            current_hash = await _hash_file_async(path)
+            if current_hash is None:
+                log.warning("detector.created_file_vanished", path=path)
+                return
+
+            event_id = str(uuid.uuid4())
+            parent_event_id = self._pending.get(path)
+            if parent_event_id is not None:
+                self._event_to_path.pop(parent_event_id, None)
+            self._pending[path] = event_id
+            self._event_to_path[event_id] = path
+
+            change = DetectedChange(
+                event_id=event_id,
+                path=path,
+                event_type="file_created",
+                operation_type="file_created",
+                previous_hash=None,
+                current_hash=current_hash,
+                diff_text=None,
+                process_pid=fan_event.pid,
+                process_uid=fan_event.uid,
+                process_exe=fan_event.exe,
+                detected_at=fan_event.timestamp,
+                parent_event_id=parent_event_id,
+            )
+            self._baseline.write_entry(path)
+            enriched_payload = (
+                self._decision_engine.evaluate_and_act(change)
+                if self._decision_engine is not None
+                else change.to_event_data()
+            )
+            await self._publisher.publish(enriched_payload)
+            log.info("detector.change_detected", path=path, event_type="file_created", event_id=event_id)
+            return
+
+        # ── FAN_CLOSE_WRITE o evento sin clasificar: lógica existente ──────
         current_hash = await _hash_file_async(path)
 
         # Descartar si el contenido no cambió
@@ -289,9 +402,11 @@ class FanotifyDetector:
 
         if current_hash is None:
             event_type = "file_absent"
+            operation_type = "file_absent"
             diff_text = None
         else:
             event_type = "file_modified"
+            operation_type = "file_modified"
             # Diff usando contenido anterior (antes de actualizar baseline)
             previous_content: str | None = None
             if entry and entry.content_b64 and not entry.oversize:
@@ -322,6 +437,7 @@ class FanotifyDetector:
             event_id=event_id,
             path=path,
             event_type=event_type,
+            operation_type=operation_type,
             previous_hash=previous_hash,
             current_hash=current_hash,
             diff_text=diff_text,
@@ -462,13 +578,21 @@ class FanotifyDetector:
             )
             return
 
+        fan_mask = (
+            _fan_mod.FAN_CLOSE_WRITE
+            | _fan_mod.FAN_DELETE
+            | _fan_mod.FAN_MOVED_FROM
+            | _fan_mod.FAN_MOVED_TO
+            | _fan_mod.FAN_CREATE
+        )
+
         # Desmarcar paths eliminados
         for path in removed:
             try:
                 _fan_mod.mark(
                     self._fan,
                     _fan_mod.FAN_MARK_REMOVE | _fan_mod.FAN_MARK_FILESYSTEM,
-                    _fan_mod.FAN_CLOSE_WRITE,
+                    fan_mask,
                     _AT_FDCWD,
                     path,
                 )
@@ -481,7 +605,7 @@ class FanotifyDetector:
                 _fan_mod.mark(
                     self._fan,
                     _fan_mod.FAN_MARK_ADD | _fan_mod.FAN_MARK_FILESYSTEM,
-                    _fan_mod.FAN_CLOSE_WRITE,
+                    fan_mask,
                     _AT_FDCWD,
                     path,
                 )

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable
@@ -24,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import structlog
 
 from agent.queue import EventQueue
+from agent.state import save_state
 from agent.streams import SCHEMA_VERSION, load_shared_secret, sign_payload, verify_payload
 
 if TYPE_CHECKING:
@@ -71,7 +73,8 @@ class Publisher:
     # ── public ───────────────────────────────────────────────────────────────
 
     async def run(self, stop_event: asyncio.Event) -> None:
-        """Lanza drenaje, listener y retry; termina cuando stop_event se activa."""
+        """Lanza flush de comandos, drenaje de eventos y listeners; termina cuando stop_event se activa."""
+        await self._flush_commands()
         await self._drain_queue()
         await asyncio.gather(
             self._ack_listener(stop_event),
@@ -160,6 +163,66 @@ class Publisher:
                 except Exception as exc:
                     log.warning("publisher.drain_error", event_id=event_id, error=str(exc))
 
+    # ── flush de comandos pendientes al arrancar ──────────────────────────────
+
+    async def _flush_commands(self) -> None:
+        """
+        Procesa los comandos pendientes del stream 'commands' desde el cursor
+        persistido antes de drenar la cola de eventos (RN-109, D11, D-D).
+
+        Lee en rondas de XREAD COUNT 100 con BLOCK acotado al budget restante.
+        Termina al recibir una ronda vacía o al superar command_flush_timeout_s.
+        Si se agota el timeout con mensajes pendientes, emite warning y continúa.
+        """
+        if self._agent_state is None:
+            log.warning(
+                "publisher.flush_commands.no_state",
+                reason="agent_state not injected; skipping flush (legacy mode)",
+            )
+            return
+
+        timeout_s = self._config.publisher.command_flush_timeout_s
+        deadline = time.monotonic() + timeout_s
+        cursor = self._agent_state.last_stream_command_id
+
+        while True:
+            remaining_s = deadline - time.monotonic()
+            if remaining_s <= 0:
+                log.warning(
+                    "publisher.flush_commands.timeout",
+                    cursor=cursor,
+                    timeout_s=timeout_s,
+                )
+                break
+
+            block_ms = max(1, int(min(remaining_s, 0.5) * 1000))
+            try:
+                results = await self._client.xread(
+                    {STREAM_COMMANDS: cursor}, block=block_ms, count=100
+                )
+            except Exception as exc:
+                log.warning("publisher.flush_commands.xread_error", error=str(exc))
+                break
+
+            if not results:
+                break
+
+            for _stream, messages in results:
+                for msg_id, msg_data in messages:
+                    cursor = msg_id
+                    payload = self._verify_and_parse(msg_data)
+                    if payload is not None:
+                        try:
+                            await self._handle_command_async(payload)
+                        except Exception as exc:
+                            log.warning(
+                                "publisher.flush_commands.dispatch_error",
+                                msg_id=msg_id,
+                                error=str(exc),
+                            )
+                    self._agent_state.last_stream_command_id = msg_id
+                    save_state(self._agent_state)
+
     # ── listener de event_ack ─────────────────────────────────────────────────
 
     def _verify_and_parse(self, msg_data: dict[str, Any]) -> dict[str, Any] | None:
@@ -182,7 +245,15 @@ class Publisher:
 
     async def _ack_listener(self, stop_event: asyncio.Event) -> None:
         """Lee 'commands', verifica HMAC y procesa comandos (RN-40, RN-73, RN-79, D5, RN-106)."""
-        last_id = "$"
+        if self._agent_state is not None:
+            last_id = self._agent_state.last_stream_command_id
+        else:
+            log.warning(
+                "publisher.ack_listener.no_state",
+                reason="agent_state not injected; starting from '$' (legacy mode)",
+            )
+            last_id = "$"
+
         while not stop_event.is_set():
             try:
                 results = await self._client.xread(
@@ -193,6 +264,9 @@ class Publisher:
                         for msg_id, msg_data in messages:
                             payload = self._verify_and_parse(msg_data)
                             last_id = msg_id
+                            if self._agent_state is not None:
+                                self._agent_state.last_stream_command_id = msg_id
+                                save_state(self._agent_state)
                             if payload is None:
                                 continue
                             await self._handle_command_async(payload)

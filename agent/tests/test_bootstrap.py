@@ -166,7 +166,7 @@ def test_bootstrap_cert_not_signed_by_ca_raises_runtime_error(tmp_path: Path) ->
         patch("httpx.post", return_value=mock_resp),
         patch("agent.bootstrap.generate_keypair", return_value=agent_key),
     ):
-        with pytest.raises(RuntimeError, match="not signed by received CA"):
+        with pytest.raises(RuntimeError, match="not signed by CA"):
             run(config, "bootstrap-secret")
 
     assert not (Path(config.storage.certs_dir) / "agent-cert.pem").exists()

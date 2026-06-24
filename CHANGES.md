@@ -45,6 +45,9 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 21 | [`agent-critical-fixes`](#change-21--agent-critical-fixes) | agente | — (remediación) | 05, 13, 14 |
 | 22 | [`backend-critical-fixes`](#change-22--backend-critical-fixes) | backend | — (remediación) | 02, 04, 13 |
 | 23 | [`agent-high-fixes`](#change-23--agent-high-fixes) | agente | — (remediación) ✓ | 21 |
+| 24 | [`agent-valkey-mtls`](#change-24--agent-valkey-mtls) | agente | — (tesis) | 23 |
+| 25 | [`agent-reconnect-order`](#change-25--agent-reconnect-order) | agente | — (tesis) | 24 |
+| 26 | [`agent-fanotify-and-lifecycle`](#change-26--agent-fanotify-and-lifecycle) | agente | — (tesis) | 25 |
 
 ---
 

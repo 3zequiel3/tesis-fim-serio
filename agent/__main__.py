@@ -2,18 +2,20 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import datetime
 import os
 import platform
 import signal
 import sys
 from pathlib import Path
 
+import httpx
 import structlog
 import valkey.asyncio as avalkey
 
 import agent.bootstrap as bootstrap
 from agent.baseline import BaselineEngine, load_master_secret
-from agent.config import load_config
+from agent.config import AgentConfig, load_config
 from agent.decision import DecisionEngine
 from agent.heartbeat import HeartbeatPublisher
 from agent.journal import JournalManager
@@ -23,10 +25,102 @@ from agent.queue import EventQueue
 from agent.rules import RulesCache
 from agent.state import load_state
 from agent.streams import load_shared_secret
+from agent.transport import create_valkey_client
 
 _LINUX = platform.system() == "Linux"
 
 log = structlog.get_logger()
+
+
+_CERT_RENEWAL_DAYS_THRESHOLD = 15
+_ATOMIC_CERT_SUFFIX = ".fim_cert_tmp"
+
+
+async def _cert_renewal_loop(cfg: AgentConfig, stop_event: asyncio.Event) -> None:
+    """
+    Verifica periódicamente el certificado mTLS y lo renueva si vence en ≤ 15 días (G3/RN-111).
+
+    Loop: duerme cert_renewal_check_interval_h horas (interruptible por stop_event),
+    luego verifica not_valid_after_utc. Si el margen es ≤ 15 días, llama POST /agents/renew
+    con el cert/key actuales como client cert + CA para autenticación mTLS.
+
+    Cualquier error → log.warning + continuar. Nunca interrumpe la operación del agente.
+    """
+    from cryptography import x509 as _x509
+
+    certs_dir = Path(cfg.storage.certs_dir)
+    cert_path = certs_dir / "agent-cert.pem"
+    key_path = certs_dir / "agent-key.pem"
+    ca_path = certs_dir / "ca.pem"
+    interval_s = cfg.cert_renewal_check_interval_h * 3600
+
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval_s)
+        except asyncio.TimeoutError:
+            pass
+
+        if stop_event.is_set():
+            break
+
+        try:
+            cert_pem = cert_path.read_bytes()
+            cert = _x509.load_pem_x509_certificate(cert_pem)
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            days_left = (cert.not_valid_after_utc - now_utc).days
+
+            if days_left > _CERT_RENEWAL_DAYS_THRESHOLD:
+                log.debug(
+                    "cert_renewal.skipped",
+                    days_left=days_left,
+                    threshold=_CERT_RENEWAL_DAYS_THRESHOLD,
+                )
+                continue
+
+            log.info("cert_renewal.triggering", days_left=days_left)
+            url = cfg.backend_url.rstrip("/") + "/agents/renew"
+
+            async with httpx.AsyncClient(
+                cert=(str(cert_path), str(key_path)),
+                verify=str(ca_path),
+                timeout=30.0,
+            ) as client:
+                resp = await client.post(url, json={"agent_id": cfg.agent_id})
+
+            if resp.status_code != 200:
+                log.warning(
+                    "cert_renewal.backend_error",
+                    status=resp.status_code,
+                    body=resp.text[:256],
+                )
+                continue
+
+            data = resp.json()
+            new_cert_pem: str = data["cert_pem"]
+            ca_cert_pem: str = data.get("ca_cert_pem", ca_path.read_text())
+
+            bootstrap.verify_cert(new_cert_pem, ca_cert_pem, cfg.agent_id)
+
+            tmp_path = Path(str(cert_path) + _ATOMIC_CERT_SUFFIX)
+            fd = os.open(str(tmp_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(new_cert_pem.encode())
+                    f.flush()
+                    os.fsync(f.fileno())
+            except Exception:
+                try:
+                    os.unlink(str(tmp_path))
+                except OSError:
+                    pass
+                raise
+            os.replace(str(tmp_path), str(cert_path))
+            os.chmod(str(cert_path), 0o600)
+
+            log.info("cert_renewal.complete", agent_id=cfg.agent_id)
+
+        except Exception as exc:
+            log.warning("cert_renewal.error", error=str(exc))
 
 
 async def _drain_then_stop(
@@ -94,6 +188,7 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
 
     def _shutdown(sig_name: str) -> None:
         log.info("shutting down", signal=sig_name)
+        publisher.set_shutdown(True)
         shutdown_flag.set()
         nonlocal _drain_task
         # Drena la cola y luego activa stop_event (RN-93)
@@ -102,11 +197,11 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     loop.add_signal_handler(signal.SIGTERM, lambda: _shutdown("SIGTERM"))
     loop.add_signal_handler(signal.SIGINT, lambda: _shutdown("SIGINT"))
 
-    valkey_client: avalkey.Valkey = avalkey.Valkey.from_url(cfg.valkey_url, decode_responses=True)
+    valkey_client: avalkey.Valkey = create_valkey_client(cfg)
 
     queue = EventQueue(cfg.storage.queue_dir)
     publisher = Publisher(cfg, queue, valkey_client)
-    heartbeat = HeartbeatPublisher(cfg, queue, state, valkey_client)
+    heartbeat = HeartbeatPublisher(cfg, queue, state, valkey_client, publisher=publisher)
 
     quarantine_dir = Path(cfg.storage.journal_dir).parent / "quarantine"
     journal = JournalManager(cfg.storage.journal_dir, shared_secret)
@@ -121,6 +216,10 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
         publisher.run(stop_event),
         heartbeat.run(stop_event, shutdown_flag),
     ]
+
+    # Renovación proactiva de certificado: solo si ya está bootstrapped (G3/RN-111)
+    if bootstrap.is_bootstrapped(Path(cfg.storage.certs_dir)):
+        coroutines.append(_cert_renewal_loop(cfg, stop_event))
 
     if _LINUX:
         from agent.detector import FanotifyDetector

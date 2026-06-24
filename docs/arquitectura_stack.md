@@ -1894,7 +1894,7 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes 8 decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)) el 2026-04-24. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11 se agregó el 2026-06-23. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
 
 ### Modelo de datos del backend
 
@@ -2071,6 +2071,55 @@ Ningún caso requiere request/response síncrono.
 **Excepción futura (out-of-scope MVP)**: si surge necesidad de debug interactivo local, exponer **Unix socket via systemd socket activation** (controlado por permisos de FS, sin TCP, sin certificado adicional). Nunca un puerto TCP.
 
 **Aplicación**: `agent/main.py` no instancia ningún server. Documentación de instalación menciona explícitamente que no hay puerto a abrir en el firewall del host.
+
+#### D12: Máscaras fanotify monitoreadas y léxico de operaciones de filesystem
+
+**Decisión**: El agente registra `FAN_CLOSE_WRITE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO | FAN_CREATE` en el mark del filesystem.
+
+Resolución de path: pyfanotify resuelve `ev.path` en el momento de captura para todos los tipos de evento. Si `ev.path` es `None`, el evento se descarta con log warning. No se usan flags adicionales de fanotify (`FAN_REPORT_DFID_NAME`, `FAN_REPORT_FID`) — pyfanotify maneja la resolución internamente.
+
+Procesamiento por tipo de evento:
+- `FAN_CLOSE_WRITE` → comportamiento actual (hash + compare + decide)
+- `FAN_DELETE` / `FAN_MOVED_FROM` → no hashear (archivo ausente), emitir `operation_type=file_deleted`, actualizar baseline con `mark_absent(path)`, evaluar regla (puede disparar `quarantine` en destino si aplica)
+- `FAN_CREATE` / `FAN_MOVED_TO` → hashear archivo nuevo, emitir `operation_type=file_created`, crear/actualizar entrada de baseline
+
+Campo `operation_type` (str, snake_case) se agrega al payload del evento: `file_modified`, `file_absent`, `file_deleted`, `file_created`. El backend indexa este campo para filtros UI. Payloads sin `operation_type` se tratan como `file_modified`.
+
+**Motivación**: Detectar solo `FAN_CLOSE_WRITE` deja sin cobertura eliminación y renombrado — operaciones de atacante frecuentes (replace binary, delete audit log). La tesis las menciona como operaciones monitorizadas.
+
+**Aplicación**: `agent/detector.py` (mark + dispatch por tipo), `agent/baseline.py` (`mark_absent` ya existe vía C21), `agent/streams.py` (field `operation_type` en payload), backend consumer (acepta `hash: null` para `file_deleted`/`file_absent`).
+
+#### D13: Renovación automática de certificado vía `/agents/renew`
+
+**Decisión**: El agente tiene una tarea asyncio en background (arranca junto con el loop principal) que verifica la vigencia del cert cada 24 h. Si el cert vence en ≤ 15 días: llama `POST /agents/renew` usando mTLS con el cert actual (sin `bootstrap_secret`). El backend emite un nuevo cert si el cert de cliente es válido y está firmado por la CA.
+
+El nuevo cert se escribe en `certs_dir` con escritura atómica (`tmp → fsync → os.replace`). Las nuevas conexiones Valkey (post-reconexión) usan el cert renovado.
+
+Si el endpoint retorna error o aún no existe (backend sin C26-backend), el agente registra una advertencia y reintenta en 24 h. La operación no se interrumpe.
+
+El endpoint `/agents/renew` es responsabilidad del backend (change futura). C26 implementa solo el lado agente.
+
+**Motivación**: Sin renovación proactiva, el cert expira en 90 días sin aviso y el agente pierde conectividad silenciosamente. La tesis (Fig.3) describe la renovación como parte del ciclo de vida normal del agente.
+
+**Aplicación**: `agent/__main__.py` (task `_cert_renewal_loop`), `agent/bootstrap.py` (extracción de función de renovación), `agent/config.py` (período de check configurable, default 24 h). El endpoint backend queda fuera de C26.
+
+#### D11: Cursor persistente del stream `commands` y orden de reconexión
+
+**Decisión**: El agente persiste el último `stream_id` procesado del stream `commands` en `AgentState` (`state.json`, campo `last_stream_command_id: str = "0-0"`). Este cursor se actualiza en disco tras cada mensaje procesado con éxito.
+
+**Primer arranque** (sin `state.json`): el cursor inicial es `"0-0"`, lo que instruye a Valkey a entregar todos los mensajes existentes en el stream desde el origen. Esto garantiza que el agente recupere comandos emitidos durante cualquier downtime previo, cerrando el gap de ejecución de RN-85.
+
+**Orden de arranque del Publisher** (cierra el requisito de la Tabla 14 de la tesis):
+1. Leer `last_stream_command_id` del estado persistido.
+2. Ejecutar el flush de comandos pendientes: `XREAD COUNT 100 BLOCK 0` en loop desde el cursor guardado, hasta que una ronda retorne vacío o se supere `command_flush_timeout_s` (configurable, default `2.0`). Durante el flush se aplican los comandos normalmente (actualización de ruleset, config, etc.).
+3. Recién entonces lanzar `_drain_queue()` para publicar eventos encolados.
+4. Arrancar el `_ack_listener` normal en background.
+
+**Parámetro `command_flush_timeout_s`**: configurable en `config.yaml` bajo la sección `[publisher]`. Default `2.0`. Permite ajuste según latencia del backend en producción. Documentar en `config.yaml.example`.
+
+**Motivación**: Sin cursor persistente, RN-85 ("consume y aplica todos los comandos pendientes") es inejecutable: `last_id = "$"` solo lee mensajes futuros. Sin el orden correcto, eventos encolados se evalúan contra el ruleset previo al crash, potencialmente con reglas obsoletas.
+
+**Aplicación**: `agent/state.py` (campo `last_stream_command_id`), `agent/publisher.py` (flush loop antes de `_drain_queue`, update cursor tras cada mensaje), `agent/config.py` (campo `command_flush_timeout_s` en config), `agent/deploy/config.yaml.example`.
 
 ### Organización del código
 

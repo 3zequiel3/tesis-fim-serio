@@ -93,6 +93,7 @@ def test_decision_auto_restore_no_content(tmp_path: Path) -> None:
     engine, journal, baseline = _make_engine(tmp_path, action="auto_restore")
     entry_mock = MagicMock()
     entry_mock.content_b64 = None
+    entry_mock.snapshots = []  # sin snapshots utilizables
     baseline.read_entry.return_value = entry_mock
 
     change = _make_change(tmp_path)
@@ -101,7 +102,7 @@ def test_decision_auto_restore_no_content(tmp_path: Path) -> None:
     assert payload["action_failed"] is True
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["state"] == "failed"
-    assert data["error"] == "no_baseline_content"
+    assert data["error"] == "no_restorable_content"
 
 
 def test_decision_auto_restore_hash_mismatch(tmp_path: Path) -> None:

@@ -21,7 +21,6 @@ Restricciones:
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import os
@@ -287,11 +286,17 @@ async def handle_restore_file(
     # 2. Restaurar
     error_reason: str | None = None
     try:
+        from agent.baseline import select_restorable_content
+
         entry = baseline_engine.read_entry(path)
-        if entry is None or entry.content_b64 is None:
+        if entry is None:
             raise ValueError("no_baseline_content")
 
-        content = base64.b64decode(entry.content_b64)
+        result = select_restorable_content(entry)
+        if result is None:
+            raise ValueError("no_restorable_content")
+
+        content, expected_hash = result
         tmp_path = path + ".fim_restore_tmp"
         try:
             with open(tmp_path, "wb") as f:
@@ -305,7 +310,7 @@ async def handle_restore_file(
             raise ValueError(f"write_failed: {exc}") from exc
 
         restored_hash = hashlib.sha256(content).hexdigest()
-        if entry.hash and restored_hash != entry.hash:
+        if expected_hash and restored_hash != expected_hash:
             raise ValueError("hash_mismatch_after_restore")
 
         log.info("commands.restore_file.done", path=path, command_id=command_id)

@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from agent.rules import Rule, RulesCache
+from agent.state import AgentState, load_state, save_state
 
 
 def _make_cache(tmp_path: Path, rules: list[dict] | None = None) -> RulesCache:
@@ -64,8 +65,7 @@ def test_rules_update_applies_newer_version(tmp_path: Path) -> None:
     state_path.write_text(json.dumps({"ruleset_version": 2, "rules": []}))
     cache = RulesCache(state_path)
 
-    state = MagicMock()
-    state.ruleset_version = 2
+    state = AgentState(ruleset_version=2, state_path=state_path)
 
     updated = cache.update(
         [{"pattern": "/opt/**", "action": "quarantine", "negated": False}],
@@ -76,8 +76,75 @@ def test_rules_update_applies_newer_version(tmp_path: Path) -> None:
     assert updated is True
     assert cache.evaluate("/opt/app/evil.sh") == "quarantine"
 
-    # Verificar que se persistió
+    # Verificar que se persistió via save_state (punto único)
     saved = json.loads(state_path.read_text())
     assert saved["ruleset_version"] == 3
     assert len(saved["rules"]) == 1
     assert saved["rules"][0]["pattern"] == "/opt/**"
+
+
+# ── F2 — Escritura unificada de state.json ────────────────────────────────────
+
+def test_save_state_preserves_rules(tmp_path: Path) -> None:
+    state_path = tmp_path / "state.json"
+    state = AgentState(
+        ruleset_version=5,
+        last_stream_command_id="1234-0",
+        rules=[{"pattern": "/etc/**", "action": "auto_restore", "negated": False}],
+        state_path=state_path,
+    )
+    save_state(state)
+
+    saved = json.loads(state_path.read_text())
+    assert saved["ruleset_version"] == 5
+    assert saved["last_stream_command_id"] == "1234-0"
+    assert len(saved["rules"]) == 1
+    assert saved["rules"][0]["pattern"] == "/etc/**"
+
+
+def test_rules_persist_via_state_not_direct(tmp_path: Path) -> None:
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps({
+        "ruleset_version": 1,
+        "last_stream_command_id": "9999-0",
+        "rules": [],
+    }))
+    cache = RulesCache(state_path)
+    state = AgentState(
+        ruleset_version=1,
+        last_stream_command_id="9999-0",
+        state_path=state_path,
+    )
+
+    cache.update(
+        [{"pattern": "/var/**", "action": "quarantine", "negated": False}],
+        ruleset_version=2,
+        state=state,
+    )
+
+    saved = json.loads(state_path.read_text())
+    # Todos los campos deben sobrevivir tras la escritura de reglas
+    assert saved["last_stream_command_id"] == "9999-0"
+    assert saved["ruleset_version"] == 2
+    assert len(saved["rules"]) == 1
+
+
+def test_cursor_persist_does_not_erase_rules(tmp_path: Path) -> None:
+    state_path = tmp_path / "state.json"
+    rules_data = [{"pattern": "/home/**", "action": "alert_only", "negated": False}]
+    state = AgentState(
+        ruleset_version=3,
+        last_stream_command_id="100-0",
+        rules=rules_data,
+        state_path=state_path,
+    )
+    save_state(state)
+
+    # Simular actualización de cursor (lo que hace publisher al leer commands)
+    state.last_stream_command_id = "200-0"
+    save_state(state)
+
+    saved = json.loads(state_path.read_text())
+    assert saved["last_stream_command_id"] == "200-0"
+    assert saved["rules"] == rules_data
+    assert saved["ruleset_version"] == 3

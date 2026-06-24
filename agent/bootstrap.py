@@ -87,6 +87,42 @@ def build_csr(private_key: Ed25519PrivateKey, agent_id: str) -> str:
     return csr.public_bytes(serialization.Encoding.PEM).decode()
 
 
+def verify_cert(
+    cert_pem: str,
+    ca_cert_pem: str,
+    agent_id: str,
+    private_key: "Ed25519PrivateKey | None" = None,
+) -> x509.Certificate:
+    """
+    Verifica que cert_pem sea válido: CA firma + CN == agent_id + clave pública (opcional).
+
+    Retorna el objeto Certificate si pasa todas las verificaciones.
+    Lanza RuntimeError en cualquier fallo.
+    """
+    cert = x509.load_pem_x509_certificate(cert_pem.encode())
+    ca_cert = x509.load_pem_x509_certificate(ca_cert_pem.encode())
+
+    try:
+        ca_cert.public_key().verify(cert.signature, cert.tbs_certificate_bytes)
+    except InvalidSignature as exc:
+        raise RuntimeError(f"cert not signed by CA: {exc}") from exc
+
+    cn_values = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+    if not cn_values or cn_values[0].value != agent_id:
+        got = cn_values[0].value if cn_values else "<none>"
+        raise RuntimeError(f"cert CN mismatch: expected '{agent_id}', got '{got}'")
+
+    if private_key is not None:
+        cert_pub = cert.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+        local_pub = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+        if cert_pub != local_pub:
+            raise RuntimeError(
+                "cert public key does not match local private key — possible MITM"
+            )
+
+    return cert
+
+
 def run(config: "AgentConfig", bootstrap_secret: str) -> None:
     certs_dir = Path(config.storage.certs_dir)
     secrets_dir = Path(config.storage.secrets_dir)
@@ -122,32 +158,12 @@ def run(config: "AgentConfig", bootstrap_secret: str) -> None:
 
     data = resp.json()
 
-    cert = x509.load_pem_x509_certificate(data["cert_pem"].encode())
-    ca_cert = x509.load_pem_x509_certificate(data["ca_cert_pem"].encode())
-
-    # Verificación 1: la CA firmó el cert (Ed25519 — sin padding ni hash algorithm)
-    try:
-        ca_cert.public_key().verify(cert.signature, cert.tbs_certificate_bytes)
-    except InvalidSignature as exc:
-        raise RuntimeError(
-            f"bootstrap cert not signed by received CA: {exc}"
-        ) from exc
-
-    # Verificación 2: el CN del cert coincide con el agent_id
-    cn_values = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
-    if not cn_values or cn_values[0].value != config.agent_id:
-        got = cn_values[0].value if cn_values else "<none>"
-        raise RuntimeError(
-            f"bootstrap cert CN mismatch: expected '{config.agent_id}', got '{got}'"
-        )
-
-    # Verificación 3: la clave pública del cert coincide con la clave local
-    cert_pub = cert.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-    local_pub = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-    if cert_pub != local_pub:
-        raise RuntimeError(
-            "bootstrap cert public key does not match local private key — possible MITM"
-        )
+    verify_cert(
+        data["cert_pem"],
+        data["ca_cert_pem"],
+        config.agent_id,
+        private_key=private_key,
+    )
 
     # Solo persistir si las 3 verificaciones pasan
     _write_file(certs_dir / _AGENT_CERT, data["cert_pem"].encode(), mode=0o600)

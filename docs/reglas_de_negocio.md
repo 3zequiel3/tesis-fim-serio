@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las 8 suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)) el 2026-04-24. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11/RN-109 se agregó el 2026-06-23. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -867,6 +867,58 @@ Sin esta semántica, agentes que no son target de comandos recientes aparecería
 
 Excepción futura (out-of-scope MVP): si se requiere debug interactivo local, se habilitará un **Unix socket via systemd socket activation** (sin puerto TCP, sin certificado adicional, controlado por permisos de FS). Nunca un puerto TCP.
 **Excepciones:** Ninguna en el MVP.
+
+#### D12 / RN-110: Máscaras fanotify monitoreadas y léxico de operaciones de filesystem
+
+**Descripción:** El agente registra las siguientes máscaras fanotify en el mark del filesystem:
+`FAN_CLOSE_WRITE`, `FAN_DELETE`, `FAN_MOVED_FROM`, `FAN_MOVED_TO`, `FAN_CREATE`.
+
+**Resolución de path:** pyfanotify resuelve `ev.path` para todos los tipos de evento en el momento de captura. Si `ev.path` es `None` (caso de borde bajo carga extrema de kernel), el evento se descarta con log warning. No se usa `FAN_REPORT_DFID_NAME` ni `FAN_REPORT_FID` — pyfanotify resuelve el path vía `/proc/self/fd/<fd>` internamente.
+
+**Léxico canónico de operaciones** (extiende RN-71 al campo `operation_type` del payload de evento, además de `status`):
+
+| Valor | Condición |
+|-------|-----------|
+| `file_modified` | `FAN_CLOSE_WRITE` y hash difiere del baseline |
+| `file_absent` | `FAN_CLOSE_WRITE` y el archivo no existe al momento de hashear (race condition) |
+| `file_deleted` | `FAN_DELETE` o `FAN_MOVED_FROM` |
+| `file_created` | `FAN_CREATE` o `FAN_MOVED_TO` |
+
+Todos en minúsculas snake_case. El backend indexa `operation_type` para filtros en UI. Los payloads sin `operation_type` (versión de agente anterior) se tratan como `file_modified`.
+
+**Condición:** Siempre que el agente esté registrado con fanotify sobre un filesystem monitorizado.
+
+**Excepciones:** `FAN_DELETE`/`FAN_MOVED_FROM` no producen hash (el archivo ya no existe); el payload omite el campo `hash` o lo envía como `null`. El backend acepta `hash: null` para estos tipos.
+
+#### D13 / RN-111: Renovación automática de certificado vía `/agents/renew`
+
+**Descripción:** El agente ejecuta una tarea asyncio en background que verifica la vigencia del cert cada 24 h. Si el cert vence en ≤ 15 días, llama al endpoint `POST /agents/renew` del backend usando mTLS con el cert actual (sin reusar el `bootstrap_secret`, que es de un solo uso).
+
+El endpoint `/agents/renew` (a implementar en el backend, fuera de C26) verifica que el cert del cliente sea válido y esté firmado por la CA, luego emite un nuevo cert. El agente guarda el nuevo cert en `certs_dir` con escritura atómica. Las nuevas conexiones Valkey (tras reconexión) usarán el cert renovado.
+
+Si el endpoint retorna error o no existe (backend no actualizado), el agente registra una advertencia y reintenta en 24 h. No interrumpe la operación normal.
+
+**Condición:** Tarea en background activa desde el arranque del agente, solo si los certs ya fueron bootstrapped.
+
+**Excepciones:** Si la renovación falla repetidamente y el cert expira, el agente continúa operando hasta que la conexión TLS sea rechazada por el servidor (el error de TLS es la condición de terminal, no la verificación proactiva). El backend refleja el estado de cert en el dashboard de agentes.
+
+#### D11 / RN-109: Cursor persistente del stream `commands` y orden de reconexión
+
+**Descripción:** El agente persiste el último `stream_id` procesado del stream `commands` en `AgentState` (`state.json`, campo `last_stream_command_id`). Este cursor se actualiza tras cada mensaje procesado con éxito. Al arrancar sin cursor previo (`"0-0"`), el agente consume todos los mensajes existentes en el stream desde el origen, recuperando comandos emitidos durante cualquier downtime.
+
+**Condición:** Todo arranque del agente y tras cada mensaje del stream `commands` procesado con éxito.
+
+**Resultado:**
+
+Orden de arranque obligatorio del Publisher:
+1. Leer `last_stream_command_id` del estado persistido (`"0-0"` si no existe).
+2. Flush de comandos pendientes: loop `XREAD COUNT 100 BLOCK 0` desde el cursor, hasta ronda vacía o hasta superar `command_flush_timeout_s` (configurable, default `2.0 s`). Aplicar cada comando normalmente durante el flush.
+3. Lanzar `_drain_queue()` (publicar eventos encolados).
+4. Arrancar el `_ack_listener` en background para comandos futuros.
+
+Este orden es el que la tesis describe en la Tabla 14 ("Comandos procesados antes que eventos encolados → Sí") y lo que hace ejecutable RN-85 ("consume y aplica todos los comandos pendientes"). Sin cursor persistente, `last_id = "$"` solo lee mensajes futuros y RN-85 es inejecutable.
+
+**Excepciones:** Si el flush supera `command_flush_timeout_s`, el agente continúa con el drain sin procesar los comandos pendientes restantes y emite una advertencia de log. El cursor queda apuntando al último mensaje procesado antes del timeout.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

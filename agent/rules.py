@@ -4,7 +4,6 @@ from __future__ import annotations
 import dataclasses
 import fnmatch
 import json
-import os
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -108,19 +107,13 @@ class RulesCache:
     # ── persistencia ──────────────────────────────────────────────────────────
 
     def _persist(self, state: "AgentState") -> None:
-        """Escribe ruleset_version + rules en state.json atómicamente (0600)."""
+        """Actualiza state.rules y delega la escritura a save_state (punto único de escritura)."""
+        from agent.state import save_state
+
         with self._lock:
             rules_data = [
                 {"pattern": r.pattern, "action": r.action, "negated": r.negated}
                 for r in self._rules
             ]
-        payload = json.dumps({"ruleset_version": state.ruleset_version, "rules": rules_data})
-        tmp = self._state_path.with_suffix(".tmp")
-        fd = os.open(str(tmp), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
-        try:
-            with os.fdopen(fd, "w") as f:
-                f.write(payload)
-        except Exception:
-            raise
-        os.replace(tmp, self._state_path)
-        os.chmod(self._state_path, 0o600)
+        state.rules = rules_data
+        save_state(state)
