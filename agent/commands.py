@@ -451,10 +451,7 @@ async def handle_update_config(
             baseline_engine.run_scan(added_paths)
 
         # Actualizar config.yaml local
-        config_path = getattr(config, "_config_path", None)
-        if config_path is None:
-            # Buscar en ubicación estándar
-            config_path = "/etc/fim-agent/config.yaml"
+        config_path = config._config_path or Path("/etc/fim-agent/config.yaml")
         try:
             import os as _os
             if _os.path.exists(str(config_path)):

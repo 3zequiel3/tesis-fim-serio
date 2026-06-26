@@ -688,7 +688,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 #### W16 / RN-92: Heartbeat y transiciones de estado de agente
 **Descripción:** El estado del agente se infiere de heartbeats periódicos.
 **Condición:** Siempre.
-**Resultado:** Agente publica al stream `agent_heartbeat` cada **10 s** con `{agent_id, timestamp, queue_size, ruleset_version, queue_pressure, shutdown}`. Sin heartbeat 30 s → `offline`. Sin heartbeat 5 min → `dead` + webhook n8n.
+**Resultado:** Agente publica al stream `agent_heartbeat` cada **10 s** con `{agent_id, timestamp, queue_size, ruleset_version, queue_pressure, shutdown, event_drops}`. Sin heartbeat 30 s → `offline`. Sin heartbeat 5 min → `dead` + webhook n8n. El campo `event_drops: int` acumula el total de eventos descartados por la cola interna del detector (asyncio.Queue llena) desde el arranque del agente; el backend lo expone en el dashboard de salud del agente. Payloads sin `event_drops` (versión anterior) se tratan como `event_drops: 0`.
 **Excepciones:** Durante shutdown graceful el agente publica con `shutdown: true` (estado `draining` — ver RN-93).
 
 #### W17 / RN-93: Graceful shutdown del agente

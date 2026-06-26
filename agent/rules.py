@@ -82,7 +82,7 @@ class RulesCache:
         state: "AgentState",
     ) -> bool:
         """Reemplaza reglas si la versión es mayor. Actualiza state en memoria y persiste."""
-        if ruleset_version <= state.ruleset_version:
+        if ruleset_version < state.ruleset_version:
             log.info(
                 "rules_cache.update_skipped",
                 current=state.ruleset_version,

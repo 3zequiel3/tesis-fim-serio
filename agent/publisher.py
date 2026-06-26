@@ -87,7 +87,7 @@ class Publisher:
         self._queue.enqueue(payload)
         await self._xadd(payload)
         self._pending[payload["event_id"]] = (
-            asyncio.get_event_loop().time(),
+            asyncio.get_running_loop().time(),
             payload,
         )
         log.info("publisher.event_published", event_id=payload["event_id"])
@@ -158,7 +158,7 @@ class Publisher:
             if event_id not in self._pending:
                 try:
                     await self._xadd(event)
-                    self._pending[event_id] = (asyncio.get_event_loop().time(), event)
+                    self._pending[event_id] = (asyncio.get_running_loop().time(), event)
                     log.info("publisher.queue_drained", event_id=event_id)
                 except Exception as exc:
                     log.warning("publisher.drain_error", event_id=event_id, error=str(exc))
@@ -335,7 +335,7 @@ class Publisher:
         """Re-publica eventos sin ack tras 60 s (RN-40, RN-73)."""
         while not stop_event.is_set():
             await asyncio.sleep(5)
-            now = asyncio.get_event_loop().time()
+            now = asyncio.get_running_loop().time()
             for event_id, (published_at, payload) in list(self._pending.items()):
                 if now - published_at >= _ACK_TIMEOUT_S:
                     try:

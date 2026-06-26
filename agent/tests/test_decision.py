@@ -79,12 +79,17 @@ def test_decision_auto_restore_success(tmp_path: Path) -> None:
     baseline.read_entry.return_value = entry_mock
 
     change = _make_change(tmp_path, path=str(target))
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
 
     assert payload["event_type"] == "auto_restored"
     assert payload.get("action_failed") is not True
     assert target.read_bytes() == content  # archivo restaurado
 
+    # Estado pending hasta que commit_fn sea invocado
+    data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
+    assert data["state"] == "pending"
+
+    commit_fn()
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["state"] == "completed"
 
@@ -97,9 +102,10 @@ def test_decision_auto_restore_no_content(tmp_path: Path) -> None:
     baseline.read_entry.return_value = entry_mock
 
     change = _make_change(tmp_path)
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
 
     assert payload["action_failed"] is True
+    commit_fn()
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["state"] == "failed"
     assert data["error"] == "no_restorable_content"
@@ -117,9 +123,10 @@ def test_decision_auto_restore_hash_mismatch(tmp_path: Path) -> None:
     baseline.read_entry.return_value = entry_mock
 
     change = _make_change(tmp_path, path=str(target))
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
 
     assert payload["action_failed"] is True
+    commit_fn()
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["error"] == "hash_mismatch_after_restore"
 
@@ -133,7 +140,7 @@ def test_decision_quarantine_success(tmp_path: Path) -> None:
     engine, journal, baseline = _make_engine(tmp_path, action="quarantine")
 
     change = _make_change(tmp_path, path=str(target))
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
 
     assert payload.get("action_failed") is not True
     assert "quarantine_path" in payload
@@ -142,6 +149,7 @@ def test_decision_quarantine_success(tmp_path: Path) -> None:
     assert q_path.exists()
     assert q_path.read_bytes() == b"rm -rf /"
 
+    commit_fn()
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["state"] == "completed"
 
@@ -151,9 +159,10 @@ def test_decision_quarantine_file_gone(tmp_path: Path) -> None:
     non_existent = str(tmp_path / "ghost.sh")
 
     change = _make_change(tmp_path, path=non_existent)
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
 
     assert payload["action_failed"] is True
+    commit_fn()
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["error"] == "file_not_found"
 
@@ -163,10 +172,11 @@ def test_decision_quarantine_file_gone(tmp_path: Path) -> None:
 def test_decision_alert_only(tmp_path: Path) -> None:
     engine, journal, baseline = _make_engine(tmp_path, action="alert_only")
     change = _make_change(tmp_path)
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
 
     assert "action_failed" not in payload
     assert payload["action"] == "alert_only"
+    commit_fn()
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["state"] == "completed"
 
@@ -174,10 +184,11 @@ def test_decision_alert_only(tmp_path: Path) -> None:
 def test_decision_manual_review(tmp_path: Path) -> None:
     engine, journal, baseline = _make_engine(tmp_path, action="manual_review")
     change = _make_change(tmp_path)
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
 
     assert "action_failed" not in payload
     assert payload["action"] == "manual_review"
+    commit_fn()
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["state"] == "completed"
 

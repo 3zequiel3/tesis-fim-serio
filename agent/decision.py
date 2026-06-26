@@ -6,7 +6,7 @@ import hashlib
 import os
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import structlog
 
@@ -49,33 +49,47 @@ class DecisionEngine:
 
     # ── API pública ───────────────────────────────────────────────────────────
 
-    def evaluate_and_act(self, change: "DetectedChange") -> dict[str, Any]:
-        """Evalúa acción, journaliza pending, ejecuta, actualiza journal. Retorna payload enriquecido."""
+    def evaluate_and_act(
+        self, change: "DetectedChange"
+    ) -> tuple[dict[str, Any], Callable[[], None]]:
+        """Evalúa acción, journaliza pending, ejecuta. Retorna (payload, commit_fn).
+
+        commit_fn aplica la transición terminal del journal (completed/failed).
+        El caller DEBE invocar commit_fn() solo tras un publish exitoso; si el
+        publish falla, la entrada queda pending y se rehidrata al reiniciar (FA3).
+        """
         action = self._rules.evaluate(change.path)
         self._journal.write_pending(change.event_id, change.path, action)
 
         payload = change.to_event_data()
         payload["action"] = action
 
+        event_id = change.event_id
         try:
             if action == "auto_restore":
-                self._auto_restore(change.event_id, change.path, payload)
+                self._auto_restore(event_id, change.path, payload)
             elif action == "quarantine":
-                self._quarantine(change.event_id, change.path, payload)
+                self._quarantine(event_id, change.path, payload)
             # manual_review y alert_only: sin acción física
-            self._journal.mark_completed(change.event_id)
+
+            def commit_fn() -> None:
+                self._journal.mark_completed(event_id)
+
         except _ActionFailed as exc:
-            self._journal.mark_failed(change.event_id, exc.error)
             payload["action_failed"] = True
+            _error = exc.error
+
+            def commit_fn() -> None:  # type: ignore[no-redef]
+                self._journal.mark_failed(event_id, _error)
 
         log.info(
             "decision.evaluated",
-            event_id=change.event_id,
+            event_id=event_id,
             path=change.path,
             action=action,
             action_failed=payload.get("action_failed", False),
         )
-        return payload
+        return payload, commit_fn
 
     async def rehydrate(self, publisher: "Publisher") -> None:
         """Rehidrata journal pending al arrancar: reintenta automáticas, descarta manuales (RN-83)."""

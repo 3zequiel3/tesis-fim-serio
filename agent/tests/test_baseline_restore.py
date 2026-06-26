@@ -203,7 +203,7 @@ def test_auto_restore_absent_file_uses_snapshot(tmp_path: Path) -> None:
         "parent_event_id": None,
     }
 
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
 
     assert payload.get("action_failed") is not True
     assert payload["event_type"] == "auto_restored"
@@ -255,7 +255,7 @@ def test_auto_restore_no_restorable_content_fails(tmp_path: Path) -> None:
         "parent_event_id": None,
     }
 
-    payload = engine.evaluate_and_act(change)
+    payload, commit_fn = engine.evaluate_and_act(change)
     assert payload["action_failed"] is True
 
 

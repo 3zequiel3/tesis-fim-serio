@@ -129,8 +129,8 @@ async def _drain_then_stop(
     timeout: float = 30.0,
 ) -> None:
     """Espera hasta que la cola offline drene o se cumpla el timeout, luego señala stop."""
-    deadline = asyncio.get_event_loop().time() + timeout
-    while asyncio.get_event_loop().time() < deadline:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while asyncio.get_running_loop().time() < deadline:
         if queue.queue_size == 0:
             break
         await asyncio.sleep(0.5)
@@ -186,7 +186,12 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     loop = asyncio.get_running_loop()
     _drain_task: asyncio.Task | None = None
 
+    queue: EventQueue | None = None
+    publisher: Publisher | None = None
+
     def _shutdown(sig_name: str) -> None:
+        if queue is None or publisher is None:
+            return
         log.info("shutting down", signal=sig_name)
         publisher.set_shutdown(True)
         shutdown_flag.set()
@@ -194,14 +199,13 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
         # Drena la cola y luego activa stop_event (RN-93)
         _drain_task = loop.create_task(_drain_then_stop(queue, stop_event))
 
-    loop.add_signal_handler(signal.SIGTERM, lambda: _shutdown("SIGTERM"))
-    loop.add_signal_handler(signal.SIGINT, lambda: _shutdown("SIGINT"))
-
     valkey_client: avalkey.Valkey = create_valkey_client(cfg)
 
     queue = EventQueue(cfg.storage.queue_dir)
     publisher = Publisher(cfg, queue, valkey_client)
-    heartbeat = HeartbeatPublisher(cfg, queue, state, valkey_client, publisher=publisher)
+
+    loop.add_signal_handler(signal.SIGTERM, lambda: _shutdown("SIGTERM"))
+    loop.add_signal_handler(signal.SIGINT, lambda: _shutdown("SIGINT"))
 
     quarantine_dir = Path(cfg.storage.journal_dir).parent / "quarantine"
     journal = JournalManager(cfg.storage.journal_dir, shared_secret)
@@ -212,15 +216,7 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
         quarantine_dir=quarantine_dir,
     )
 
-    coroutines = [
-        publisher.run(stop_event),
-        heartbeat.run(stop_event, shutdown_flag),
-    ]
-
-    # Renovación proactiva de certificado: solo si ya está bootstrapped (G3/RN-111)
-    if bootstrap.is_bootstrapped(Path(cfg.storage.certs_dir)):
-        coroutines.append(_cert_renewal_loop(cfg, stop_event))
-
+    detector = None
     if _LINUX:
         from agent.detector import FanotifyDetector
 
@@ -251,13 +247,28 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
             quarantine_dir=str(quarantine_dir),
             detector=detector,
         )
-        coroutines.append(detector.start())
     else:
         log.warning("agent.detector.skipped", reason="fanotify only available on Linux")
+
+    heartbeat = HeartbeatPublisher(cfg, queue, state, valkey_client, publisher=publisher, detector=detector)
+
+    coroutines = [
+        publisher.run(stop_event),
+        heartbeat.run(stop_event, shutdown_flag),
+    ]
+
+    # Renovación proactiva de certificado: solo si ya está bootstrapped (G3/RN-111)
+    if bootstrap.is_bootstrapped(Path(cfg.storage.certs_dir)):
+        coroutines.append(_cert_renewal_loop(cfg, stop_event))
+
+    if detector is not None:
+        coroutines.append(detector.start())
 
     try:
         await asyncio.gather(*coroutines)
     finally:
+        if detector is not None:
+            detector.close()
         await valkey_client.aclose()
         sys.exit(0)
 

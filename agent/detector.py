@@ -195,7 +195,8 @@ class FanotifyDetector:
         self._stop_event = stop_event
         self._decision_engine = decision_engine
         self._fan: Any = None
-        self._raw_queue: asyncio.Queue[FanotifyEvent | None] = asyncio.Queue()
+        self._raw_queue: asyncio.Queue[FanotifyEvent | None] = asyncio.Queue(maxsize=1000)
+        self._event_drops: int = 0
         self._pending: dict[str, str] = {}          # path → event_id del último evento encolado
         self._event_to_path: dict[str, str] = {}    # event_id → path (índice inverso para ack O(1))
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -293,7 +294,24 @@ class FanotifyDetector:
                     timestamp=datetime.now(timezone.utc).isoformat(),
                     mask=getattr(ev, "mask", 0),
                 )
-                self._loop.call_soon_threadsafe(self._raw_queue.put_nowait, fan_event)
+                self._loop.call_soon_threadsafe(self._try_enqueue, fan_event)
+
+    def _try_enqueue(self, fan_event: FanotifyEvent) -> None:
+        """Intenta encolar un evento; si la cola está llena incrementa el contador de drops."""
+        try:
+            self._raw_queue.put_nowait(fan_event)
+        except asyncio.QueueFull:
+            self._event_drops += 1
+            log.warning(
+                "detector.event_dropped",
+                path=fan_event.path,
+                total_drops=self._event_drops,
+            )
+
+    @property
+    def event_drops(self) -> int:
+        """Contador acumulado de eventos descartados por cola llena."""
+        return self._event_drops
 
     # ── Procesamiento async de eventos ─────────────────────────────────────────
 
@@ -346,12 +364,17 @@ class FanotifyDetector:
                 parent_event_id=parent_event_id,
             )
             self._baseline.mark_absent(path)
-            enriched_payload = (
-                self._decision_engine.evaluate_and_act(change)
-                if self._decision_engine is not None
-                else change.to_event_data()
-            )
-            await self._publisher.publish(enriched_payload)
+            if self._decision_engine is not None:
+                enriched_payload, commit_fn = self._decision_engine.evaluate_and_act(change)
+            else:
+                enriched_payload = change.to_event_data()
+                commit_fn = None
+            try:
+                await self._publisher.publish(enriched_payload)
+                if commit_fn is not None:
+                    commit_fn()
+            except Exception as exc:
+                log.warning("detector.publish_failed", event_id=event_id, error=str(exc))
             log.info("detector.change_detected", path=path, event_type="file_deleted", event_id=event_id)
             return
 
@@ -384,12 +407,17 @@ class FanotifyDetector:
                 parent_event_id=parent_event_id,
             )
             self._baseline.write_entry(path)
-            enriched_payload = (
-                self._decision_engine.evaluate_and_act(change)
-                if self._decision_engine is not None
-                else change.to_event_data()
-            )
-            await self._publisher.publish(enriched_payload)
+            if self._decision_engine is not None:
+                enriched_payload, commit_fn = self._decision_engine.evaluate_and_act(change)
+            else:
+                enriched_payload = change.to_event_data()
+                commit_fn = None
+            try:
+                await self._publisher.publish(enriched_payload)
+                if commit_fn is not None:
+                    commit_fn()
+            except Exception as exc:
+                log.warning("detector.publish_failed", event_id=event_id, error=str(exc))
             log.info("detector.change_detected", path=path, event_type="file_created", event_id=event_id)
             return
 
@@ -451,11 +479,12 @@ class FanotifyDetector:
         # Motor de decisión evalúa y actúa ANTES de actualizar el baseline,
         # para que auto_restore pueda leer el content_b64 anterior (RN-30).
         if self._decision_engine is not None:
-            enriched_payload = self._decision_engine.evaluate_and_act(change)
+            enriched_payload, commit_fn = self._decision_engine.evaluate_and_act(change)
             action = enriched_payload.get("action")
             action_failed = enriched_payload.get("action_failed", False)
         else:
             enriched_payload = change.to_event_data()
+            commit_fn = None
             action = None
             action_failed = False
 
@@ -474,7 +503,12 @@ class FanotifyDetector:
                 self._baseline.add_snapshot(path)
                 self._baseline.write_entry(path)
 
-        await self._publisher.publish(enriched_payload)
+        try:
+            await self._publisher.publish(enriched_payload)
+            if commit_fn is not None:
+                commit_fn()
+        except Exception as exc:
+            log.warning("detector.publish_failed", event_id=event_id, error=str(exc))
         log.info(
             "detector.change_detected",
             path=path,
@@ -530,8 +564,8 @@ class FanotifyDetector:
 
     async def drain(self, timeout: float = _DRAIN_TIMEOUT_S) -> None:
         """Espera hasta que la cola offline drene o se cumpla el timeout (RN-93)."""
-        deadline = asyncio.get_event_loop().time() + timeout
-        while asyncio.get_event_loop().time() < deadline:
+        deadline = asyncio.get_running_loop().time() + timeout
+        while asyncio.get_running_loop().time() < deadline:
             if self._publisher._queue.queue_size == 0:
                 break
             await asyncio.sleep(0.5)
@@ -619,6 +653,26 @@ class FanotifyDetector:
             removed=list(removed),
             watch_paths=self._watch_paths,
         )
+
+    def close(self) -> None:
+        """Cierra el fd de fanotify y espera a que el hilo lector termine.
+
+        Idempotente: una segunda llamada es un no-op seguro.
+        El hilo reader bloqueado en read() desbloquea al cerrarse el fd.
+        """
+        fan = self._fan
+        if fan is None:
+            return
+        self._fan = None
+        try:
+            if _HAS_FAN and _fan_mod is not None:
+                _fan_mod.close(fan)
+        except OSError:
+            pass
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=5.0)
+            if self._thread.is_alive():
+                log.warning("detector.close.join_timeout", thread=self._thread.name)
 
     @property
     def watch_paths(self) -> list[str]:

@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     import valkey.asyncio as avalkey
 
     from agent.config import AgentConfig
+    from agent.detector import FanotifyDetector
     from agent.publisher import Publisher
     from agent.queue import EventQueue
     from agent.state import AgentState
@@ -44,12 +45,14 @@ class HeartbeatPublisher:
         state: "AgentState",
         client: "avalkey.Valkey",
         publisher: "Publisher | None" = None,
+        detector: "FanotifyDetector | None" = None,
     ) -> None:
         self._config = config
         self._queue = queue
         self._state = state
         self._client = client
         self._publisher = publisher
+        self._detector = detector
 
     async def run(self, stop_event: asyncio.Event, shutdown_flag: "asyncio.Event | None" = None) -> None:
         """Loop de heartbeat. Lee publisher.shutdown como fuente de verdad (D-C26-4)."""
@@ -76,6 +79,7 @@ class HeartbeatPublisher:
             "ruleset_version": self._state.ruleset_version,
             "shutdown": shutdown,
             "schema_version": SCHEMA_VERSION,
+            "event_drops": self._detector.event_drops if self._detector is not None else 0,
         }
         data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         try:

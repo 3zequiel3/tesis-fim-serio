@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, PrivateAttr, field_validator
 
 
 class StorageConfig(BaseModel):
@@ -36,6 +36,8 @@ class AgentConfig(BaseModel):
     publisher: PublisherConfig = PublisherConfig()
     cert_renewal_check_interval_h: float = 24.0
 
+    _config_path: Path | None = PrivateAttr(default=None)
+
     @field_validator("agent_id", mode="before")
     @classmethod
     def _agent_id_not_empty(cls, v: object) -> object:
@@ -59,7 +61,9 @@ def load_config(path: str | Path = "/etc/fim-agent/config.yaml") -> AgentConfig:
     try:
         with open(path) as f:
             data = yaml.safe_load(f) or {}
-        return AgentConfig.model_validate(data)
+        cfg = AgentConfig.model_validate(data)
+        cfg._config_path = Path(path)
+        return cfg
     except SystemExit:
         raise
     except Exception as exc:
