@@ -425,6 +425,15 @@ async def handle_update_config(
     new_paths: list[str] = command.get("watch_paths") or []
     cmd_version: int = command.get("ruleset_version", 0)
 
+    # Monotonic version guard — mirrors handle_baseline_update (BUG-12)
+    if cmd_version < state.ruleset_version:
+        log.debug(
+            "commands.update_config.stale_version",
+            cmd_version=cmd_version,
+            local_version=state.ruleset_version,
+        )
+        return
+
     error_reason: str | None = None
     try:
         current_watch_paths = list(config.watch_paths)

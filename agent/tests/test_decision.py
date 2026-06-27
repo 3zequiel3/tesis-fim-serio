@@ -90,8 +90,10 @@ def test_decision_auto_restore_success(tmp_path: Path) -> None:
     assert data["state"] == "pending"
 
     commit_fn()
-    data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
-    assert data["state"] == "completed"
+    # BUG-10 fix: commit_fn calls delete(event_id) after mark_completed — file is gone
+    assert not (tmp_path / "journal" / "test-event-001.json").exists(), (
+        "journal file must be deleted after successful commit"
+    )
 
 
 def test_decision_auto_restore_no_content(tmp_path: Path) -> None:
@@ -150,8 +152,10 @@ def test_decision_quarantine_success(tmp_path: Path) -> None:
     assert q_path.read_bytes() == b"rm -rf /"
 
     commit_fn()
-    data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
-    assert data["state"] == "completed"
+    # BUG-10 fix: commit_fn deletes the journal file after mark_completed
+    assert not (tmp_path / "journal" / "test-event-001.json").exists(), (
+        "journal file must be deleted after successful quarantine commit"
+    )
 
 
 def test_decision_quarantine_file_gone(tmp_path: Path) -> None:
@@ -177,8 +181,8 @@ def test_decision_alert_only(tmp_path: Path) -> None:
     assert "action_failed" not in payload
     assert payload["action"] == "alert_only"
     commit_fn()
-    data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
-    assert data["state"] == "completed"
+    # BUG-10 fix: commit_fn deletes the journal file after mark_completed
+    assert not (tmp_path / "journal" / "test-event-001.json").exists()
 
 
 def test_decision_manual_review(tmp_path: Path) -> None:
@@ -189,8 +193,8 @@ def test_decision_manual_review(tmp_path: Path) -> None:
     assert "action_failed" not in payload
     assert payload["action"] == "manual_review"
     commit_fn()
-    data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
-    assert data["state"] == "completed"
+    # BUG-10 fix: commit_fn deletes the journal file after mark_completed
+    assert not (tmp_path / "journal" / "test-event-001.json").exists()
 
 
 # ── rehidratación ─────────────────────────────────────────────────────────────

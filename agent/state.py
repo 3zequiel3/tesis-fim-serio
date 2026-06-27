@@ -6,6 +6,10 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import structlog
+
+log = structlog.get_logger()
+
 _DEFAULT_STATE_PATH = Path("/var/lib/fim-agent/state.json")
 
 
@@ -31,8 +35,22 @@ def load_state(path: Path = _DEFAULT_STATE_PATH) -> AgentState:
             state_path=path,
         )
     except (json.JSONDecodeError, ValueError) as exc:
-        print(f"State file corrupt: {path}: {exc}", file=sys.stderr)
-        sys.exit(1)
+        bak = path.with_suffix(".json.bak")
+        try:
+            path.rename(bak)
+        except OSError as rename_exc:
+            log.warning("state.load_corrupt.rename_failed", path=str(path), error=str(rename_exc))
+        log.warning(
+            "state.load_corrupt",
+            path=str(path),
+            backup=str(bak),
+            error=str(exc),
+        )
+        print(
+            f"State file corrupt (renamed to {bak}): {path}: {exc}",
+            file=sys.stderr,
+        )
+        return AgentState(state_path=path)
 
 
 def save_state(state: AgentState, path: Path | None = None) -> None:

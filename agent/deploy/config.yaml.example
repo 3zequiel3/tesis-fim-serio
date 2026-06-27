@@ -22,8 +22,17 @@ backend_url: http://localhost:8000
 # development or CI environments where the Valkey server lacks TLS.
 valkey_url: valkeys://localhost:6380
 
-# Path to the CA certificate used to verify the backend's mTLS certificate
-# and to validate the agent's own certificate after bootstrap (Change 06).
+# Path to the CA certificate used to verify the backend's HTTPS connection
+# during bootstrap AND to validate Valkey mTLS (D16 / C28 — RN-114).
+#
+# MANDATORY (operational): this file MUST exist on disk BEFORE the agent
+# performs its first bootstrap. The agent calls sys.exit(1) with a clear
+# error message if the file is absent. Obtain the CA certificate from your
+# PKI/backend operator and place it here with permissions 0644 or 0600.
+#
+# Example (copy the backend's CA cert):
+#   sudo cp /path/to/your/ca.pem /etc/fim-agent/certs/ca.pem
+#   sudo chmod 0644 /etc/fim-agent/certs/ca.pem
 ca_cert_path: /etc/fim-agent/certs/ca.pem
 
 # Filesystem paths to monitor with fanotify (Change 09).

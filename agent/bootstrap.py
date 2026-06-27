@@ -124,6 +124,19 @@ def verify_cert(
 
 
 def run(config: "AgentConfig", bootstrap_secret: str) -> None:
+    # D16: CA cert must be pre-provisioned by the operator before first bootstrap
+    ca_cert_path = Path(config.ca_cert_path)
+    if not ca_cert_path.exists():
+        log.error(
+            "agent.bootstrap.missing_ca_cert",
+            ca_cert_path=str(ca_cert_path),
+        )
+        print(
+            f"CA cert not found at {ca_cert_path} — pre-provision ca_cert_path before bootstrap",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     certs_dir = Path(config.storage.certs_dir)
     secrets_dir = Path(config.storage.secrets_dir)
 
@@ -143,7 +156,7 @@ def run(config: "AgentConfig", bootstrap_secret: str) -> None:
                 "bootstrap_secret": bootstrap_secret,
             },
             timeout=30.0,
-            verify=False,  # Bootstrap pre-mTLS — CA aún no confiada localmente
+            verify=str(ca_cert_path),
         )
     except httpx.ConnectError as exc:
         log.error("agent.bootstrap.connection_error", error=str(exc))

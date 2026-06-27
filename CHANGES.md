@@ -49,6 +49,7 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 25 | [`agent-reconnect-order`](#change-25--agent-reconnect-order) | agente | — (tesis) ✓ | 24 |
 | 26 | [`agent-fanotify-and-lifecycle`](#change-26--agent-fanotify-and-lifecycle) | agente | — (tesis) ✓ | 25 |
 | 27 | [`agent-stability-fixes`](#change-27--agent-stability-fixes) | agente | — (remediación) ✓ | 26 |
+| 28 | [`agent-audit-fixes`](#change-28--agent-audit-fixes) | agente | — (auditoría 2026-06-26) | 27 |
 
 ---
 
@@ -506,6 +507,32 @@ Capacidades:
 Reglas: RN-16, RN-17, RN-30, RN-39, RN-78, RN-79, RN-83, RN-84. Decisiones: D8.
 
 **Done**: cola con timestamps de distinta longitud ordena cronológicamente y `drop-oldest` borra el más viejo; entrada de journal truncada o con HMAC inválido se descarta y no se rehidrata; cert de bootstrap con CN incorrecto o no firmado por la CA levanta error y no se persiste; `update_from_command` preserva `snapshots` y `content_b64` existentes; tests de regresión para sort-FIFO, journal-truncado, journal-HMAC-inválido, cert-CN-inválido, cert-CA-inválida y baseline-merge pasan.
+
+---
+
+### Change 28 — `agent-audit-fixes`
+
+**Capa**: agente · **Depende de**: 27 (`agent-stability-fixes`) · **Origen**: auditoría 2026-06-26 · **Decisiones**: D14 (RN-112), D15 (RN-113), D16 (RN-114), D17 (RN-115)
+
+> **Nota**: change de remediación pura. Corrige 14 defectos encontrados en la segunda pasada de auditoría del agente FIM. No introduce features nuevas ni nuevas suposiciones — todas las decisiones (D14–D17) fueron cerradas en los appendices canónicos el 2026-06-26.
+
+Bugs corregidos:
+- **BUG-01/02/03 (CRITICAL, D14)** — `detector.py`: reordenamiento en los tres branches de eventos para que `evaluate_and_act` corra ANTES de mutar el baseline. `auto_restore` puede leer `content_b64`. El branch non-restore de `file_modified` solo llama `add_snapshot` (sin `write_entry`) para mantener el baseline activo apuntando al estado known-good.
+- **BUG-04 (CRITICAL)** — `decision.py` `rehydrate()`: `publisher.publish()` envuelto en `try/except`; Valkey caído al restart ya no aborta el ciclo de rehidratación.
+- **BUG-05 (CRITICAL)** — `decision.py` `_quarantine()`: `mkdir(parents=True, exist_ok=True)` antes de `shutil.move()`; auto-quarantine ya no falla siempre con `move_failed`.
+- **BUG-06 (HIGH)** — `__main__.py` `_cert_renewal_loop`: carga `agent-key.pem` y lo pasa como `private_key=` a `verify_cert`; el binding cert↔clave se verifica en renovaciones.
+- **BUG-07 (HIGH, D16)** — `bootstrap.py`: `verify=False` reemplazado por `verify=str(config.ca_cert_path)`; validación de existencia del CA cert al inicio de `run()` con `sys.exit(1)` si falta. **BREAKING operacional**: el operador debe pre-provisionar `ca_cert_path` antes del primer bootstrap.
+- **BUG-08 (HIGH, D17)** — `transport.py`: `ssl_check_hostname=True` en el cliente `valkeys://`; cierra la posibilidad de MITM por CN incorrecto.
+- **BUG-09 (HIGH)** — `publisher.py` `_ack_listener`: cursor guardado DESPUÉS del dispatch (at-least-once).
+- **BUG-10 (MEDIUM, D15)** — `decision.py` commit path + `journal.py`: `commit_fn` llama `delete(event_id)` tras `mark_completed`; el journal no crece indefinidamente.
+- **BUG-11 (MEDIUM)** — `state.py`: `state.json` corrupto → renombrar a `.bak`, reiniciar con defaults, warn; elimina el crash-restart loop.
+- **BUG-12 (MEDIUM)** — `commands.py` `handle_update_config`: guard monotónico de `ruleset_version` (igual que `handle_baseline_update`).
+- **BUG-13 (MEDIUM)** — `publisher.py` `_flush_commands`: `save_state` envuelto en `try/except`; disco lleno ya no impide el startup.
+- **BUG-14 (MEDIUM)** — `__main__.py`: excepción inesperada de `asyncio.gather` → `sys.exit(1)` para que systemd `Restart=on-failure` active.
+
+Reglas: RN-30, RN-36, RN-79, RN-83, RN-85, RN-112–RN-115. Decisiones aplicadas: D14, D15, D16, D17.
+
+**Done**: 14 bugs corregidos con 247/247 tests pasando (20 regresiones nuevas + 227 existentes).
 
 ---
 

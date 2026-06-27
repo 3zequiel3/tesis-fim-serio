@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-108 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-115 |
 
 ---
 
@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11/RN-109 se agregó el 2026-06-23. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -919,6 +919,52 @@ Orden de arranque obligatorio del Publisher:
 Este orden es el que la tesis describe en la Tabla 14 ("Comandos procesados antes que eventos encolados → Sí") y lo que hace ejecutable RN-85 ("consume y aplica todos los comandos pendientes"). Sin cursor persistente, `last_id = "$"` solo lee mensajes futuros y RN-85 es inejecutable.
 
 **Excepciones:** Si el flush supera `command_flush_timeout_s`, el agente continúa con el drain sin procesar los comandos pendientes restantes y emite una advertencia de log. El cursor queda apuntando al último mensaje procesado antes del timeout.
+
+#### D14 / RN-112: Modelo de tracking de baseline — "último aprobado", no "último visto"
+
+**Descripción:** El baseline activo (`content_b64`, `hash`) siempre refleja el **último estado aprobado/conocido-bueno** de cada archivo monitoreado. Cuando se detecta una modificación que NO resulta en auto_restore (regla `alert_only`, `manual_review`, o auto_restore fallido), el baseline activo NO se actualiza con el nuevo contenido — solo se agrega un snapshot de auditoría del contenido nuevo vía `add_snapshot`.
+
+Consecuencia directa: `select_restorable_content(entry)` leyendo `content_b64` activo siempre retorna el estado conocido-bueno. `restore_file` siempre restaura al estado aprobado, nunca al contenido del atacante.
+
+**Orden de operaciones corregido:**
+
+| Tipo de evento | Orden correcto |
+|----------------|---------------|
+| `file_deleted` / `file_moved_from` | `evaluate_and_act` PRIMERO → luego `mark_absent(path)` (solo si no fue restaurado) |
+| `file_created` / `file_moved_to` | `evaluate_and_act` PRIMERO → luego `write_entry(path)` (solo si no fue puesto en cuarentena) |
+| `file_modified` (non-restore) | Solo `add_snapshot(path, new_hash, new_content)` — NO llamar `write_entry` con el nuevo contenido |
+
+El baseline debe estar disponible para el motor de decisión durante la evaluación (`evaluate_and_act`). Mutarlo antes destruye la información necesaria para auto_restore.
+
+**Condición:** Siempre que un evento de filesystem sea evaluado por el motor de decisión.
+
+**Excepciones:** Ninguna en el MVP.
+
+#### D15 / RN-113: Lifecycle de entradas del journal — borrar al confirmar
+
+**Descripción:** Las journal entries se borran inmediatamente cuando se llama `mark_completed()` (dentro del commit_fn). Secuencia del commit_fn: `journal.mark_completed(event_id)` → `journal.delete(event_id)` (borra el archivo JSON del journal_dir). Las entradas con estado `failed` se retienen indefinidamente en el MVP (sin limpieza automática). Esto evita la acumulación ilimitada de archivos en el journal_dir.
+
+**Condición:** Cada publish exitoso que dispara commit_fn.
+
+**Excepciones:** Ninguna en el MVP.
+
+#### D16 / RN-114: Trust anchor del bootstrap vía `ca_cert_path`
+
+**Descripción:** La llamada HTTP inicial del bootstrap (`POST /backend/bootstrap`) usa `config.ca_cert_path` como ancla de confianza TLS: `httpx.post(..., verify=str(config.ca_cert_path))`. `verify=False` queda **prohibido**. El operador debe pre-provisionar el cert del CA del backend en `ca_cert_path` antes de ejecutar el bootstrap. Si el archivo no existe al iniciar, el bootstrap falla con mensaje explicativo y `sys.exit(1)`.
+
+El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmará el `agent-cert.pem` para mTLS — puede ser el mismo CA del backend o uno diferente; esa es una decisión operativa. No sustituye al `config.ca_cert_path` como ancla de confianza del endpoint HTTPS.
+
+**Condición:** Siempre durante el bootstrap inicial.
+
+**Excepciones:** Ninguna. El flag `verify=False` no se expone como opción configurable.
+
+#### D17 / RN-115: Verificación de hostname en mTLS Valkey
+
+**Descripción:** La conexión Valkey con esquema `valkeys://` activa `ssl_check_hostname=True`. El CN o SAN del certificado del servidor Valkey debe coincidir con el hostname en `valkey_url`. En entornos de desarrollo con `valkeys://localhost:6380`, el cert del servidor Valkey debe incluir `localhost` como CN o SAN.
+
+**Condición:** Toda conexión con esquema `valkeys://`.
+
+**Excepciones:** Ninguna. El check de hostname es obligatorio — no se provee un flag de override para deshabilitarlo en el MVP.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

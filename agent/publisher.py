@@ -221,7 +221,13 @@ class Publisher:
                                 error=str(exc),
                             )
                     self._agent_state.last_stream_command_id = msg_id
-                    save_state(self._agent_state)
+                    try:
+                        save_state(self._agent_state)
+                    except Exception as save_exc:
+                        log.warning(
+                            "publisher.flush_commands.save_state_failed",
+                            error=str(save_exc),
+                        )
 
     # ── listener de event_ack ─────────────────────────────────────────────────
 
@@ -264,12 +270,29 @@ class Publisher:
                         for msg_id, msg_data in messages:
                             payload = self._verify_and_parse(msg_data)
                             last_id = msg_id
-                            if self._agent_state is not None:
-                                self._agent_state.last_stream_command_id = msg_id
-                                save_state(self._agent_state)
                             if payload is None:
+                                # Advance cursor for verification-failed messages (not retried)
+                                if self._agent_state is not None:
+                                    self._agent_state.last_stream_command_id = msg_id
+                                    try:
+                                        save_state(self._agent_state)
+                                    except Exception as save_exc:
+                                        log.warning(
+                                            "publisher.ack_listener.save_state_failed",
+                                            error=str(save_exc),
+                                        )
                                 continue
                             await self._handle_command_async(payload)
+                            # Persist cursor AFTER successful dispatch (at-least-once)
+                            if self._agent_state is not None:
+                                self._agent_state.last_stream_command_id = msg_id
+                                try:
+                                    save_state(self._agent_state)
+                                except Exception as save_exc:
+                                    log.warning(
+                                        "publisher.ack_listener.save_state_failed",
+                                        error=str(save_exc),
+                                    )
             except Exception as exc:
                 log.warning("publisher.ack_listener_error", error=str(exc))
                 await asyncio.sleep(1)

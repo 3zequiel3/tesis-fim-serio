@@ -74,6 +74,7 @@ class DecisionEngine:
 
             def commit_fn() -> None:
                 self._journal.mark_completed(event_id)
+                self._journal.delete(event_id)
 
         except _ActionFailed as exc:
             payload["action_failed"] = True
@@ -128,7 +129,14 @@ class DecisionEngine:
                 self._journal.mark_failed(entry.event_id, "rehydrated_without_action")
                 payload["action"] = "alert_only"
 
-            await publisher.publish(payload)
+            try:
+                await publisher.publish(payload)
+            except Exception as pub_exc:
+                log.warning(
+                    "decision.rehydrate.publish_failed",
+                    event_id=entry.event_id,
+                    error=str(pub_exc),
+                )
             log.info(
                 "decision.rehydrate.entry",
                 event_id=entry.event_id,
@@ -172,6 +180,7 @@ class DecisionEngine:
 
     def _quarantine(self, event_id: str, path: str, payload: dict[str, Any]) -> None:
         """Mueve archivo a directorio de cuarentena (RN-34–37)."""
+        self._quarantine_dir.mkdir(parents=True, exist_ok=True)
         basename = os.path.basename(path)
         quarantine_path = str(self._quarantine_dir / f"{event_id}_{basename}")
         try:

@@ -511,18 +511,23 @@ def test_journal_stays_pending_if_publish_fails(tmp_path: Path) -> None:
 
 
 def test_journal_completed_after_successful_publish(tmp_path: Path) -> None:
-    """Invocar commit_fn tras publish exitoso marca la entrada como completed."""
+    """Invocar commit_fn tras publish exitoso completa la transacción y borra el journal."""
     engine, journal, baseline = _make_engine(tmp_path, action="alert_only")
     change = _make_change(tmp_path)
 
     payload, commit_fn = engine.evaluate_and_act(change)
 
+    entry_path = tmp_path / "journal" / "test-event-c27.json"
+    assert entry_path.exists(), "journal must exist before commit"
+
     # Simula publish exitoso → invocar commit_fn
     commit_fn()
 
-    entry_path = tmp_path / "journal" / "test-event-c27.json"
-    data = json.loads(entry_path.read_text())
-    assert data["state"] == "completed"
+    # BUG-10 fix: commit_fn calls delete(event_id) after mark_completed
+    # Journal file is removed — the entry is considered durably committed
+    assert not entry_path.exists(), (
+        "journal file must be deleted after successful commit (BUG-10 fix)"
+    )
 
 
 def test_journal_completed_after_failed_action(tmp_path: Path) -> None:

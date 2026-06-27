@@ -363,12 +363,22 @@ class FanotifyDetector:
                 detected_at=fan_event.timestamp,
                 parent_event_id=parent_event_id,
             )
-            self._baseline.mark_absent(path)
+            # BUG-01 (D14): evaluate FIRST so auto_restore can read baseline content;
+            # only mutate baseline AFTER the decision is made.
             if self._decision_engine is not None:
                 enriched_payload, commit_fn = self._decision_engine.evaluate_and_act(change)
+                action = enriched_payload.get("action")
+                action_failed = enriched_payload.get("action_failed", False)
             else:
                 enriched_payload = change.to_event_data()
                 commit_fn = None
+                action = None
+                action_failed = False
+            if action == "auto_restore" and not action_failed:
+                # File was restored — re-record as present/known-good
+                self._baseline.write_entry(path)
+            else:
+                self._baseline.mark_absent(path)
             try:
                 await self._publisher.publish(enriched_payload)
                 if commit_fn is not None:
@@ -406,12 +416,22 @@ class FanotifyDetector:
                 detected_at=fan_event.timestamp,
                 parent_event_id=parent_event_id,
             )
-            self._baseline.write_entry(path)
+            # BUG-02 (D14): evaluate FIRST so quarantine can act on the file before
+            # the baseline records it as present.
             if self._decision_engine is not None:
                 enriched_payload, commit_fn = self._decision_engine.evaluate_and_act(change)
+                action = enriched_payload.get("action")
+                action_failed = enriched_payload.get("action_failed", False)
             else:
                 enriched_payload = change.to_event_data()
                 commit_fn = None
+                action = None
+                action_failed = False
+            if action == "quarantine" and not action_failed:
+                # File was quarantined — record as absent (file was moved away)
+                self._baseline.mark_absent(path)
+            else:
+                self._baseline.write_entry(path)
             try:
                 await self._publisher.publish(enriched_payload)
                 if commit_fn is not None:
@@ -500,8 +520,10 @@ class FanotifyDetector:
             elif action == "quarantine" and not action_failed:
                 self._baseline.mark_absent(path)  # archivo movido
             else:
+                # BUG-03 (D14): only snapshot for audit; do NOT write_entry with attacker
+                # content. Active content_b64/hash stay pinned to known-good so
+                # select_restorable_content always returns the last approved state.
                 self._baseline.add_snapshot(path)
-                self._baseline.write_entry(path)
 
         try:
             await self._publisher.publish(enriched_payload)

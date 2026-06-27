@@ -41,6 +41,7 @@ def create_valkey_client(config: AgentConfig) -> avalkey.Valkey:
             ssl_keyfile=str(keyfile),
             ssl_ca_certs=str(ca_certs),
             ssl_cert_reqs="required",
+            ssl_check_hostname=True,
             decode_responses=True,
         )
 

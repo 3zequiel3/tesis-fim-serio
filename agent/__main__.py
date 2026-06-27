@@ -99,7 +99,12 @@ async def _cert_renewal_loop(cfg: AgentConfig, stop_event: asyncio.Event) -> Non
             new_cert_pem: str = data["cert_pem"]
             ca_cert_pem: str = data.get("ca_cert_pem", ca_path.read_text())
 
-            bootstrap.verify_cert(new_cert_pem, ca_cert_pem, cfg.agent_id)
+            # BUG-06: load local private key and verify cert↔key binding
+            from cryptography.hazmat.primitives import serialization as _serialization
+            agent_key = _serialization.load_pem_private_key(
+                key_path.read_bytes(), password=None
+            )
+            bootstrap.verify_cert(new_cert_pem, ca_cert_pem, cfg.agent_id, private_key=agent_key)
 
             tmp_path = Path(str(cert_path) + _ATOMIC_CERT_SUFFIX)
             fd = os.open(str(tmp_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
@@ -264,13 +269,17 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     if detector is not None:
         coroutines.append(detector.start())
 
+    _exit_code = 0
     try:
         await asyncio.gather(*coroutines)
+    except Exception as exc:
+        log.error("agent.unexpected_crash", error=str(exc))
+        _exit_code = 1
     finally:
         if detector is not None:
             detector.close()
         await valkey_client.aclose()
-        sys.exit(0)
+        sys.exit(_exit_code)
 
 
 def _parse_args() -> argparse.Namespace:

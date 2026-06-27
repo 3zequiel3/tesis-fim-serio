@@ -81,6 +81,8 @@ def _make_config(tmp_path: Path, agent_id: str = "test-agent-001") -> AgentConfi
     secrets_dir = tmp_path / "secrets"
     certs_dir.mkdir(parents=True)
     secrets_dir.mkdir(parents=True)
+    # D16: ca_cert_path must exist before bootstrap.run() (BUG-07 fix)
+    (certs_dir / "ca.pem").write_bytes(b"dummy-ca-for-tests")
     return AgentConfig(
         agent_id=agent_id,
         backend_url="http://localhost:8000",

@@ -1894,7 +1894,7 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11 se agregó el 2026-06-23. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
 
 ### Modelo de datos del backend
 
@@ -2121,6 +2121,47 @@ El endpoint `/agents/renew` es responsabilidad del backend (change futura). C26 
 
 **Aplicación**: `agent/state.py` (campo `last_stream_command_id`), `agent/publisher.py` (flush loop antes de `_drain_queue`, update cursor tras cada mensaje), `agent/config.py` (campo `command_flush_timeout_s` en config), `agent/deploy/config.yaml.example`.
 
+#### D14: Modelo de tracking de baseline — "último aprobado", no "último visto"
+
+**Decisión**: El campo activo del baseline (`content_b64`, `hash`) siempre refleja el **último estado aprobado/conocido-bueno**. Para modificaciones que no resultan en auto_restore, el baseline activo NO se actualiza — solo se agrega un snapshot del contenido nuevo para auditoría.
+
+Corrección del orden de operaciones en `agent/detector.py`:
+- `file_deleted` / `file_moved_from`: `evaluate_and_act` primero, `mark_absent` después (solo si no restaurado)
+- `file_created` / `file_moved_to`: `evaluate_and_act` primero, `write_entry` después (solo si no quarantined)
+- `file_modified` non-restore: solo `add_snapshot(path, new_hash, new_content)` — no `write_entry`
+
+Garantía: `select_restorable_content(entry)` leyendo `content_b64` activo siempre retorna el estado known-good; `restore_file` siempre restaura al estado aprobado.
+
+**Motivación**: El orden incorrecto (baseline mutado antes de `evaluate_and_act`) destruye el contenido para auto_restore en delete, y actualizar el activo con contenido modificado hace que `restore_file` restaure el estado del atacante. Ambos son fallos fundamentales de la semántica del sistema.
+
+**Aplicación**: `agent/detector.py` (reordenamiento en los 3 branches de tipo de evento). `agent/baseline.py` no requiere cambios de interfaz — `add_snapshot` ya existe.
+
+#### D15: Lifecycle de journal entries — borrar al confirmar
+
+**Decisión**: Las journal entries se borran inmediatamente tras `mark_completed()` dentro del commit_fn. Secuencia: `journal.mark_completed(event_id)` → `journal.delete(event_id)`. Las entradas `failed` no tienen limpieza automática en el MVP.
+
+**Motivación**: Sin borrado, el journal crece sin límite — un host activo genera un archivo por evento permanentemente, agotando inodes o espacio en disco en producción.
+
+**Aplicación**: `agent/journal.py` (método `delete(event_id)`), `agent/decision.py` (commit_fn llama `journal.delete` después de `mark_completed`).
+
+#### D16: Trust anchor del bootstrap vía `ca_cert_path`
+
+**Decisión**: La llamada `POST /backend/bootstrap` usa `config.ca_cert_path` como CA de verificación TLS: `httpx.post(..., verify=str(config.ca_cert_path))`. `verify=False` queda eliminado. El operador pre-provisiona el cert del CA en `ca_cert_path` antes del bootstrap. Si el archivo no existe, `sys.exit(1)` con mensaje explicativo.
+
+El `ca_cert_pem` de la respuesta del bootstrap es el CA que firma los certs mTLS del agente — puede diferir del CA del endpoint HTTPS. No reemplaza a `config.ca_cert_path`.
+
+**Motivación**: Con `verify=False`, un MITM puede inyectar su propio CA en la respuesta, envenenar el `shared_secret` y la `master_key`, y comprometer toda comunicación futura. Fijar el CA antes de la primera llamada cierra esta vulnerabilidad.
+
+**Aplicación**: `agent/bootstrap.py` (reemplazar `verify=False` por `verify=str(config.ca_cert_path)`; validar existencia del archivo al inicio de `run()`).
+
+#### D17: Verificación de hostname en mTLS Valkey
+
+**Decisión**: `agent/transport.py` agrega `ssl_check_hostname=True` a la conexión `valkeys://`. El CN o SAN del cert del servidor Valkey debe coincidir con el hostname en `valkey_url`. No se provee flag para deshabilitarlo.
+
+**Motivación**: Sin verificación de hostname, cualquier cert firmado por el CA privado (incluyendo certs de otros agentes) puede hacerse pasar por el servidor Valkey, reduciendo mTLS a solo verificación de cadena.
+
+**Aplicación**: `agent/transport.py` (agregar `ssl_check_hostname=True` a los kwargs de `Valkey.from_url()`).
+
 ### Organización del código
 
 #### D7: Cross-cutting distribuido, no centralizado al final
@@ -2162,6 +2203,13 @@ Lo que SÍ queda en el change final (`backend-observability-hardening`):
 | D8 (NO HTTP en agente) | Change 13 | Cerrada |
 | D9 (Fan-out HMAC en broadcast) | Change 12 | Cerrada |
 | D10 (`published_commands` table owner) | Change 12 | Cerrada |
+| D11 (Cursor persistente stream `commands`) | Change 25 (C25) | Cerrada |
+| D12 (Máscaras fanotify + léxico de operaciones) | Change 26 (C26) | Cerrada |
+| D13 (Renovación cert vía `/agents/renew`) | Change 26 (C26) | Cerrada |
+| D14 (Baseline tracking "último aprobado") | Change 28 (C28) | Cerrada |
+| D15 (Journal lifecycle — borrar al confirmar) | Change 28 (C28) | Cerrada |
+| D16 (Bootstrap TLS trust anchor `ca_cert_path`) | Change 28 (C28) | Cerrada |
+| D17 (mTLS Valkey hostname verification) | Change 28 (C28) | Cerrada |
 
 #### D9: Fan-out para comandos broadcast — un mensaje firmado por agente
 **Decisión**: Cuando el backend publica un comando con semántica "broadcast" (e.g. `rule_sync` global), NO publica un único mensaje con `target_agent_id: null`. En cambio, publica N mensajes físicos en el stream `commands`, uno por cada agente registrado, cada uno con `target_agent_id = agent_id` y firmado con el `shared_secret` específico de ese agente.
