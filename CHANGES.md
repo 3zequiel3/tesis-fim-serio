@@ -49,7 +49,8 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 25 | [`agent-reconnect-order`](#change-25--agent-reconnect-order) | agente | — (tesis) ✓ | 24 |
 | 26 | [`agent-fanotify-and-lifecycle`](#change-26--agent-fanotify-and-lifecycle) | agente | — (tesis) ✓ | 25 |
 | 27 | [`agent-stability-fixes`](#change-27--agent-stability-fixes) | agente | — (remediación) ✓ | 26 |
-| 28 | [`agent-audit-fixes`](#change-28--agent-audit-fixes) | agente | — (auditoría 2026-06-26) | 27 |
+| 28 | [`agent-audit-fixes`](#change-28--agent-audit-fixes) | agente | — (auditoría 2026-06-26) ✓ | 27 |
+| 29 | [`agent-resilience-fixes`](#change-29--agent-resilience-fixes) | agente | — (auditoría 2026-06-26) | 28 |
 
 ---
 
@@ -533,6 +534,29 @@ Bugs corregidos:
 Reglas: RN-30, RN-36, RN-79, RN-83, RN-85, RN-112–RN-115. Decisiones aplicadas: D14, D15, D16, D17.
 
 **Done**: 14 bugs corregidos con 247/247 tests pasando (20 regresiones nuevas + 227 existentes).
+
+---
+
+### Change 29 — `agent-resilience-fixes`
+
+**Capa**: agente · **Depende de**: 28 (`agent-audit-fixes`) · **Origen**: auditoría 2026-06-26 · **Decisiones**: D18 (RN-116), D19 (RN-117), D20 (RN-118)
+
+> **Nota**: change de remediación (9 fixes, MEDIUM/LOW/HIGH). No introduce features nuevas. Todas las decisiones (D18–D20) fueron cerradas en los appendices canónicos el 2026-06-26.
+
+Bugs corregidos:
+- **FIX-01 (HIGH)** — `detector.py` `_process_event`: guard `path.endswith(".fim_restore_tmp")` al inicio — previene eventos espurios del mecanismo de restauración atómica y el loop infinito de `auto_restore` (D19 / RN-117).
+- **FIX-02 (MEDIUM)** — `__main__.py`: `rehydrate()` movido dentro del `try:` principal — el `finally:` con `detector.close()` y `valkey_client.aclose()` se garantiza incluso si `rehydrate` falla por OSError de journal.
+- **FIX-03 (MEDIUM)** — `publisher.py` `publish()`: `_pending[event_id]` asignado ANTES de `_xadd()`; XADD envuelto en `try/except pass` — un fallo de Valkey en publish ya no descarta el evento del ciclo de retry.
+- **FIX-04 (MEDIUM)** — `commands.py` `handle_quarantine_file` y `handle_restore_file`: validación `os.path.realpath(path)` contra `config.watch_paths` al inicio; rechaza y publica error-ack si el path está fuera o si `watch_paths` está vacío (D18 / RN-116).
+- **FIX-05 (MEDIUM)** — `config.py` + `transport.py` + `config.yaml.example`: `AgentConfig.allow_plaintext_valkey: bool = False`; warning prominente en `create_valkey_client` cuando el esquema es `valkey://`/`redis://` y el flag es False — hace visible un `valkeys://` mal escrito que desactivaría mTLS en silencio (D20 / RN-118).
+- **FIX-06 (LOW)** — `state.py` `load_state()`: bak renombrado con timestamp (`state.{ts}.json.bak`) — múltiples corrupciones no sobrescriben el mismo `.bak`.
+- **FIX-07 (LOW)** — `decision.py` `rehydrate()`: `except Exception` agregado después de `except _ActionFailed` en el loop interno — OSError de `mark_completed()` o `delete()` hace `continue` sin crashear la rehidratación de entradas restantes.
+- **FIX-08 (LOW)** — `bootstrap.py` `verify_cert()`: check `not_valid_before_utc <= now <= not_valid_after_utc` después de verificar firma CA y CN — certs expirados o no-aún-válidos son rechazados.
+- **FIX-09 (LOW)** — `state.py` `save_state()`: `f.flush(); os.fsync(f.fileno())` antes de cerrar el tmp — consistente con journal, queue y baseline; previene escrituras truncadas en crash.
+
+Reglas: RN-116, RN-117, RN-118. Decisiones aplicadas: D18, D19, D20.
+
+**Done**: 9 fixes implementados; 267/267 tests pasando (20 nuevos en `test_resilience_fixes.py`).
 
 ---
 

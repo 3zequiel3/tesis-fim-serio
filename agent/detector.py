@@ -335,6 +335,8 @@ class FanotifyDetector:
 
     async def _process_event(self, fan_event: FanotifyEvent) -> None:
         path = fan_event.path
+        if path.endswith(".fim_restore_tmp"):
+            return  # suppress agent-internal atomic write tmp files (D19)
         entry = self._baseline.read_entry(path)
         previous_hash = entry.hash if entry else None
 

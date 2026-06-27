@@ -35,6 +35,7 @@ class AgentConfig(BaseModel):
     storage: StorageConfig
     publisher: PublisherConfig = PublisherConfig()
     cert_renewal_check_interval_h: float = 24.0
+    allow_plaintext_valkey: bool = False
 
     _config_path: Path | None = PrivateAttr(default=None)
 

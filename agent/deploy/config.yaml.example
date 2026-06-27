@@ -76,3 +76,10 @@ publisher:
   # ruleset is up-to-date before events are published (Change 25, RN-109).
   # Increase if the backend emits large bursts of commands and latency allows.
   command_flush_timeout_s: 2.0
+
+# Set to true ONLY in local development or CI environments where Valkey runs
+# without TLS (D20 / RN-118). When false (default) and the valkey_url scheme
+# is plaintext (valkey:// or redis://), the agent emits a prominent WARNING
+# at startup. This is not enforced with sys.exit() to allow dev environments;
+# in production, use valkeys:// and keep this field absent or false.
+allow_plaintext_valkey: false

@@ -277,6 +277,23 @@ async def handle_restore_file(
     event_id = command.get("event_id")
     path = command.get("path", "")
 
+    # D18 / RN-116: validate path containment within watch_paths
+    if not config.watch_paths:
+        log.error("commands.path_outside_watch.no_watch_paths", path=path)
+        await _publish_ack(
+            valkey_client, command_id, "restore_file", event_id, config.agent_id,
+            ok=False, error="no_watch_paths_configured",
+        )
+        return
+    real = os.path.realpath(path)
+    if not any(real.startswith(str(w)) for w in config.watch_paths):
+        log.warning("commands.path_outside_watch", path=path)
+        await _publish_ack(
+            valkey_client, command_id, "restore_file", event_id, config.agent_id,
+            ok=False, error="path_outside_watch_paths",
+        )
+        return
+
     # Usar command_id como event_id del journal para unicidad
     journal_key = command_id or str(uuid.uuid4())
 
@@ -349,6 +366,23 @@ async def handle_quarantine_file(
     command_id = command.get("command_id", "")
     event_id = command.get("event_id")
     path = command.get("path", "")
+
+    # D18 / RN-116: validate path containment within watch_paths
+    if not config.watch_paths:
+        log.error("commands.path_outside_watch.no_watch_paths", path=path)
+        await _publish_ack(
+            valkey_client, command_id, "quarantine_file", event_id, config.agent_id,
+            ok=False, error="no_watch_paths_configured",
+        )
+        return
+    real = os.path.realpath(path)
+    if not any(real.startswith(str(w)) for w in config.watch_paths):
+        log.warning("commands.path_outside_watch", path=path)
+        await _publish_ack(
+            valkey_client, command_id, "quarantine_file", event_id, config.agent_id,
+            ok=False, error="path_outside_watch_paths",
+        )
+        return
 
     journal_key = command_id or str(uuid.uuid4())
 

@@ -112,6 +112,13 @@ def verify_cert(
         got = cn_values[0].value if cn_values else "<none>"
         raise RuntimeError(f"cert CN mismatch: expected '{agent_id}', got '{got}'")
 
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if not (cert.not_valid_before_utc <= now <= cert.not_valid_after_utc):
+        raise RuntimeError(
+            f"cert validity period invalid: not_before={cert.not_valid_before_utc}, "
+            f"not_after={cert.not_valid_after_utc}"
+        )
+
     if private_key is not None:
         cert_pub = cert.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
         local_pub = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)

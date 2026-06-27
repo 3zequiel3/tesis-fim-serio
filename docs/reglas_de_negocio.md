@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-115 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-118 |
 
 ---
 
@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -965,6 +965,38 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 **Condición:** Toda conexión con esquema `valkeys://`.
 
 **Excepciones:** Ninguna. El check de hostname es obligatorio — no se provee un flag de override para deshabilitarlo en el MVP.
+
+#### D18 / RN-116: Validación de path containment en handlers de archivo de comandos
+
+**Descripción:** Los handlers `handle_quarantine_file` y `handle_restore_file` en el agente deben validar que el `path` solicitado esté contenido dentro de alguno de los `watch_paths` antes de ejecutar cualquier operación de filesystem. La validación usa `os.path.realpath(path)` para resolver symlinks y verifica `any(realpath.startswith(w) for w in state.watch_paths)`. Si el path no cumple: publicar un `event_ack` de error y retornar sin ejecutar la operación.
+
+**Condición:** Cualquier ejecución de `handle_quarantine_file` o `handle_restore_file`.
+
+**Resultado:** Los handlers rechazan operaciones sobre paths fuera de watch_paths aunque la firma HMAC sea válida.
+
+**Excepciones:** Si `state.watch_paths` está vacío (estado corrupto), rechazar la operación con log de error. Esta validación es defensa en profundidad sobre la garantía HMAC.
+
+#### D19 / RN-117: Sufijo `.fim_restore_tmp` filtrado en el detector
+
+**Descripción:** El detector ignora todos los eventos de fanotify para paths cuyo nombre de archivo (`path.name`) termina en `.fim_restore_tmp`. Este sufijo es el mecanismo interno de escritura atómica del agente para restauración de archivos (`_auto_restore` y `handle_restore_file`). El filtro se aplica al inicio de `_process_event`, antes de cualquier clasificación.
+
+**Limitación conocida:** Crea un punto ciego deliberado — archivos externos que por coincidencia terminen en `.fim_restore_tmp` no serán monitoreados. El riesgo es negligible dado lo específico del sufijo.
+
+**Condición:** Siempre en `_process_event`, para todos los tipos de evento.
+
+**Motivación:** Sin este filtro, cada restauración genera eventos espurios (FAN_CREATE, FAN_CLOSE_WRITE, FAN_MOVED_FROM para el tmp) que contaminan el baseline y el backend. Con una regla `file_created + auto_restore` activa, el FAN_MOVED_TO que emite `os.replace` dispara una nueva restauración, generando un loop infinito.
+
+**Excepciones:** Ninguna.
+
+#### D20 / RN-118: Guard explícito para conexión Valkey en texto plano
+
+**Descripción:** `AgentConfig` agrega el campo `allow_plaintext_valkey: bool = False`. En `transport.create_valkey_client()`, si el esquema de `valkey_url` es `valkey://` o `redis://` (texto plano) y `allow_plaintext_valkey` es `False`, se emite un log de nivel `WARNING` prominente advirtiendo que el mTLS está desactivado. La conexión continúa (no es `sys.exit(1)`) para no bloquear entornos de desarrollo. En producción, el operador debe usar `valkeys://` y puede configurar monitoreo sobre la aparición de este warning.
+
+**Condición:** Al crear el cliente Valkey en `__main__.py`.
+
+**Motivación:** Un error tipográfico en la configuración (`valkey://` en vez de `valkeys://`) desactiva todo el mTLS de D17 silenciosamente. El warning hace visible el problema en lugar de silenciarlo.
+
+**Excepciones:** En entornos CI/test donde Valkey corre sin TLS, el warning es esperado e ignorable.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

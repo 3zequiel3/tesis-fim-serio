@@ -158,7 +158,7 @@ def test_load_state_corrupt_returns_defaults(tmp_path: Path) -> None:
 
 
 def test_load_state_corrupt_creates_bak(tmp_path: Path) -> None:
-    """Corrupt state.json is renamed to state.json.bak before returning defaults."""
+    """Corrupt state.json is renamed to a timestamped .bak file before returning defaults."""
     from agent.state import load_state
 
     state_path = tmp_path / "state.json"
@@ -166,9 +166,10 @@ def test_load_state_corrupt_creates_bak(tmp_path: Path) -> None:
 
     load_state(state_path)
 
-    bak = tmp_path / "state.json.bak"
-    assert bak.exists(), "backup file must exist"
-    assert bak.read_text() == "not-json"
+    # FIX-06: bak filename now includes a timestamp (state.{ts}.json.bak)
+    bak_files = list(tmp_path.glob("state.*.json.bak"))
+    assert len(bak_files) == 1, f"expected one .bak file, got {bak_files}"
+    assert bak_files[0].read_text() == "not-json"
 
 
 # ── BUG-13 (1.3) ──────────────────────────────────────────────────────────────

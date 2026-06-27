@@ -1894,7 +1894,7 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
 
 ### Modelo de datos del backend
 
@@ -2162,6 +2162,30 @@ El `ca_cert_pem` de la respuesta del bootstrap es el CA que firma los certs mTLS
 
 **Aplicación**: `agent/transport.py` (agregar `ssl_check_hostname=True` a los kwargs de `Valkey.from_url()`).
 
+#### D18: Validación de path containment en handlers de archivo de comandos
+
+**Decisión**: `handle_quarantine_file` y `handle_restore_file` en `agent/commands.py` validan que `os.path.realpath(path)` esté dentro de alguno de los `state.watch_paths` antes de ejecutar operaciones de filesystem. Si el path está fuera: publicar `event_ack` de error y retornar.
+
+**Motivación**: Sin validación, los handlers son primitivas destructivas root sobre archivos arbitrarios del sistema si el backend o el `shared_secret` se comprometen. La validación es defensa en profundidad sobre la garantía HMAC.
+
+**Aplicación**: `agent/commands.py` (validación al inicio de ambos handlers, antes de cualquier I/O).
+
+#### D19: Sufijo `.fim_restore_tmp` filtrado en el detector
+
+**Decisión**: `agent/detector.py` ignora eventos de fanotify para `path.name.endswith(".fim_restore_tmp")` al inicio de `_process_event`. Crea un punto ciego deliberado de monitoreo para archivos con ese sufijo exacto (negligible en práctica).
+
+**Motivación**: Sin filtro, cada `os.replace(tmp, path)` del mecanismo de restauración atómica genera eventos espurios (FAN_CREATE + FAN_CLOSE_WRITE del tmp + FAN_MOVED_FROM del tmp al renombrarse). Con regla `file_created + auto_restore`, el FAN_MOVED_TO para `path` desencadena un loop infinito de restauraciones.
+
+**Aplicación**: `agent/detector.py` (guard al inicio de `_process_event`).
+
+#### D20: Guard de warning para conexión Valkey en texto plano
+
+**Decisión**: `AgentConfig` agrega `allow_plaintext_valkey: bool = False`. En `transport.create_valkey_client()`, si el esquema es `valkey://`/`redis://` y el flag es `False`, emitir log WARNING prominente y continuar (no `sys.exit(1)`). Permite dev/CI sin TLS pero hace visible el riesgo en producción.
+
+**Motivación**: Un error tipográfico (`valkey://` en vez de `valkeys://`) desactiva D17 silenciosamente.
+
+**Aplicación**: `agent/config.py` (campo `allow_plaintext_valkey`), `agent/transport.py` (check + warning), `agent/deploy/config.yaml.example` (campo documentado).
+
 ### Organización del código
 
 #### D7: Cross-cutting distribuido, no centralizado al final
@@ -2210,6 +2234,9 @@ Lo que SÍ queda en el change final (`backend-observability-hardening`):
 | D15 (Journal lifecycle — borrar al confirmar) | Change 28 (C28) | Cerrada |
 | D16 (Bootstrap TLS trust anchor `ca_cert_path`) | Change 28 (C28) | Cerrada |
 | D17 (mTLS Valkey hostname verification) | Change 28 (C28) | Cerrada |
+| D18 (Path containment en handlers de archivo) | Change 29 (C29) | Cerrada |
+| D19 (`.fim_restore_tmp` filtrado en detector) | Change 29 (C29) | Cerrada |
+| D20 (Guard warning Valkey plaintext) | Change 29 (C29) | Cerrada |
 
 #### D9: Fan-out para comandos broadcast — un mensaje firmado por agente
 **Decisión**: Cuando el backend publica un comando con semántica "broadcast" (e.g. `rule_sync` global), NO publica un único mensaje con `target_agent_id: null`. En cambio, publica N mensajes físicos en el stream `commands`, uno por cada agente registrado, cada uno con `target_agent_id = agent_id` y firmado con el `shared_secret` específico de ese agente.

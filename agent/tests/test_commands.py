@@ -76,18 +76,23 @@ def agent_config(tmp_dirs: dict[str, Path], shared_secret: bytes) -> AgentConfig
     secret_path = tmp_dirs["secrets"] / "shared_secret"
     secret_path.write_bytes(shared_secret)
 
+    # Include tmp_path (parent of all tmp_dirs) in watch_paths so that tests
+    # creating files under tmp_path pass the FIX-04 path containment check (D18).
+    tmp_root = str(tmp_dirs["baseline"].parent)
+
     return AgentConfig(
         agent_id="test-agent-001",
         backend_url="https://localhost:8443",
         valkey_url="valkey://localhost:6379",
         ca_cert_path="/tmp/ca.pem",
-        watch_paths=["/etc"],
+        watch_paths=["/etc", tmp_root],
         storage=StorageConfig(
             baseline_dir=str(tmp_dirs["baseline"]),
             queue_dir=str(tmp_dirs["queue"]),
             journal_dir=str(tmp_dirs["journal"]),
             secrets_dir=str(tmp_dirs["secrets"]),
         ),
+        allow_plaintext_valkey=True,
     )
 
 
@@ -477,12 +482,13 @@ async def test_restore_handler_no_baseline_publishes_error_ack(
     """Restore sin baseline → event_ack con status=error."""
     from agent import commands
 
+    # Use a path inside /etc so it passes the FIX-04 containment check (D18)
     cmd: dict = {
         "type": "restore_file",
         "command_id": "cmd-restore-002",
         "event_id": 11,
         "target_agent_id": agent_config.agent_id,
-        "path": "/nonexistent/path/file.txt",
+        "path": "/etc/nonexistent_test_fim_file",
         "issued_at": "2026-01-01T00:00:00+00:00",
     }
     cmd["signature"] = sign_payload(shared_secret, cmd)
@@ -564,12 +570,13 @@ async def test_quarantine_handler_file_not_found_publishes_error_ack(
     quarantine_dir = tmp_path / "quarantine2"
     quarantine_dir.mkdir(exist_ok=True)
 
+    # Use a path inside /etc so it passes the FIX-04 containment check (D18)
     cmd: dict = {
         "type": "quarantine_file",
         "command_id": "cmd-quarantine-002",
         "event_id": 21,
         "target_agent_id": agent_config.agent_id,
-        "path": "/nonexistent/file.txt",
+        "path": "/etc/nonexistent_test_fim_file",
         "issued_at": "2026-01-01T00:00:00+00:00",
     }
     cmd["signature"] = sign_payload(shared_secret, cmd)

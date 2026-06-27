@@ -85,11 +85,15 @@ class Publisher:
         """Encola y publica un evento. event_data son los campos del cambio detectado."""
         payload = self._build_payload(event_data)
         self._queue.enqueue(payload)
-        await self._xadd(payload)
+        # Register in _pending BEFORE xadd so _retry_loop can pick it up if xadd fails.
         self._pending[payload["event_id"]] = (
             asyncio.get_running_loop().time(),
             payload,
         )
+        try:
+            await self._xadd(payload)
+        except Exception:
+            pass  # event stays in _pending; _retry_loop will retry
         log.info("publisher.event_published", event_id=payload["event_id"])
 
     def register_callbacks(

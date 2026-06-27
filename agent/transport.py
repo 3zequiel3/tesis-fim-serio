@@ -3,9 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlparse
 
+import structlog
 import valkey.asyncio as avalkey
 
 from agent.config import AgentConfig
+
+log = structlog.get_logger()
 
 _TLS_SCHEMES = {"valkeys", "rediss"}
 _PLAIN_SCHEMES = {"valkey", "redis"}
@@ -46,6 +49,12 @@ def create_valkey_client(config: AgentConfig) -> avalkey.Valkey:
         )
 
     if scheme in _PLAIN_SCHEMES:
+        if not config.allow_plaintext_valkey:
+            log.warning(
+                "transport.plaintext_valkey_warning",
+                url=config.valkey_url,
+                hint="mTLS is disabled — use valkeys:// in production or set allow_plaintext_valkey=true to suppress this warning (D20)",
+            )
         return avalkey.Valkey.from_url(config.valkey_url, decode_responses=True)
 
     raise ValueError(

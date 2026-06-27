@@ -296,6 +296,8 @@ async def test_handle_restore_file_from_snapshot(tmp_path: Path) -> None:
 
     config_mock = MagicMock()
     config_mock.agent_id = "test-agent-001"
+    # FIX-04 (D18): watch_paths must include the target path for containment check
+    config_mock.watch_paths = [str(tmp_path)]
 
     command = {
         "command_id": "cmd-snap-restore-001",
@@ -336,11 +338,15 @@ async def test_handle_restore_file_no_restorable_content(tmp_path: Path) -> None
 
     config_mock = MagicMock()
     config_mock.agent_id = "test-agent-001"
+    # FIX-04 (D18): watch_paths must include the path for containment check.
+    # Using /etc so the path /etc/nonexistent_fim_test passes; there is no baseline
+    # for it so the test still hits the "no_restorable_content" error.
+    config_mock.watch_paths = ["/etc"]
 
     command = {
         "command_id": "cmd-no-content-001",
         "event_id": "evt-002",
-        "path": "/nonexistent/file",
+        "path": "/etc/nonexistent_fim_test_file",
     }
 
     await handle_restore_file(

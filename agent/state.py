@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -35,7 +36,7 @@ def load_state(path: Path = _DEFAULT_STATE_PATH) -> AgentState:
             state_path=path,
         )
     except (json.JSONDecodeError, ValueError) as exc:
-        bak = path.with_suffix(".json.bak")
+        bak = path.with_name(f"state.{int(time.time())}.json.bak")
         try:
             path.rename(bak)
         except OSError as rename_exc:
@@ -65,6 +66,8 @@ def save_state(state: AgentState, path: Path | None = None) -> None:
     try:
         with os.fdopen(fd, "w") as f:
             f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
     except Exception:
         raise
     os.replace(tmp, target)

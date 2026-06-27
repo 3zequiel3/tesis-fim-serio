@@ -225,9 +225,6 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     if _LINUX:
         from agent.detector import FanotifyDetector
 
-        # Rehidratación del journal antes de arrancar el detector (RN-83)
-        await decision_engine.rehydrate(publisher)
-
         detector = FanotifyDetector(
             agent_id=cfg.agent_id,
             watch_paths=cfg.watch_paths,
@@ -271,6 +268,10 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
 
     _exit_code = 0
     try:
+        # Rehidratación del journal antes de arrancar el detector (RN-83).
+        # Inside the try so the finally block always runs cleanup on failure.
+        if _LINUX and detector is not None:
+            await decision_engine.rehydrate(publisher)
         await asyncio.gather(*coroutines)
     except Exception as exc:
         log.error("agent.unexpected_crash", error=str(exc))

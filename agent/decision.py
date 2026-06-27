@@ -124,6 +124,13 @@ class DecisionEngine:
                 except _ActionFailed as exc:
                     self._journal.mark_failed(entry.event_id, exc.error)
                     payload["action_failed"] = True
+                except Exception as exc:
+                    log.warning(
+                        "decision.rehydrate.unexpected",
+                        event_id=entry.event_id,
+                        error=str(exc),
+                    )
+                    continue
             else:
                 # manual_review o alert_only: fallan sin acción, se re-publican como alert_only
                 self._journal.mark_failed(entry.event_id, "rehydrated_without_action")
