@@ -80,6 +80,14 @@
       "sessions": 2,
       "memories": 36,
       "prompts": 10
+    },
+    {
+      "id": "96f0ab71",
+      "created_by": "ezequiel",
+      "created_at": "2026-06-30T15:40:30Z",
+      "sessions": 0,
+      "memories": 3,
+      "prompts": 7
     }
   ]
 }
