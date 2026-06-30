@@ -39,13 +39,7 @@ try:
 except ImportError:
     pytest.skip("psycopg/libpq not available on this platform", allow_module_level=True)
 
-os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
-os.environ.setdefault("VALKEY_URL", "valkey://localhost:6379")
-os.environ.setdefault("JWT_SECRET_CURRENT", "test-secret-current-32-chars-xxxxx")
-os.environ.setdefault("JWT_SECRET_PREVIOUS", "")
-os.environ.setdefault("ADMIN_USERNAME", "admin")
-os.environ.setdefault("ADMIN_PASSWORD", "AdminPassword123!")
-os.environ.setdefault("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+from sqlalchemy.pool import StaticPool
 
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
 from app.modules.alerts.notifier import send_log_only, send_n8n, send_smtp, send_webhook_fallback
@@ -69,7 +63,13 @@ from app.modules.rules.models import Rule, RuleAction, RuleSeverity
 
 @pytest.fixture()
 def mem_engine():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    # StaticPool ensures all connections (including TestClient threads) share the same
+    # in-memory SQLite database — without it, each thread gets an empty database.
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     SQLModel.metadata.create_all(engine)
     return engine
 
@@ -560,9 +560,14 @@ async def test_health_all_ok(session):
 
 @pytest.mark.asyncio
 async def test_health_valkey_down(session):
-    """Valkey no responde → resultado 'down' para valkey."""
-    mock_valkey = AsyncMock()
-    mock_valkey.ping = AsyncMock(side_effect=Exception("connection refused"))
+    """Valkey no responde → resultado 'down' para valkey.
+
+    _check_valkey calls valkey_client.ping() synchronously inside
+    run_in_executor, so the mock must be a regular MagicMock (not AsyncMock)
+    for the side_effect to trigger when ping() is called without await.
+    """
+    mock_valkey = MagicMock()
+    mock_valkey.ping = MagicMock(side_effect=Exception("connection refused"))
 
     mock_settings = MagicMock()
     mock_settings.n8n_webhook_url = ""

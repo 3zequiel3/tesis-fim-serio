@@ -11,12 +11,6 @@ from unittest.mock import MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-# Asegurar JWT_SECRET antes de que se importe la app.
-os.environ.setdefault("JWT_SECRET_CURRENT", "test-secret-current-32-chars-xxxxx")
-os.environ.setdefault("JWT_SECRET_PREVIOUS", "")
-os.environ.setdefault("ADMIN_USERNAME", "admin")
-os.environ.setdefault("ADMIN_PASSWORD", "AdminPassword123!")
-
 
 @pytest.fixture
 def mock_valkey():
@@ -45,7 +39,7 @@ async def auth_client(mock_valkey):
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
-        base_url="http://testserver",
+        base_url="https://testserver",
     ) as ac:
         yield ac
 
@@ -100,20 +94,23 @@ async def test_login_usuario_inexistente_retorna_401(auth_client):
 
 # ─── Tests: rate limit login ─────────────────────────────────────────────────
 
-async def test_rate_limit_login_6to_intento_retorna_429(mock_valkey, auth_client):
+async def test_rate_limit_login_6to_intento_retorna_429(_patch_async_valkey, auth_client):
     """
     Cuando el counter de Valkey supera LOGIN_MAX_ATTEMPTS (5),
     el endpoint debe devolver 429 con Retry-After.
+
+    check_login_rate_limit usa el cliente async (get_async_valkey_client),
+    mockeado por el fixture autouse _patch_async_valkey del conftest.
     """
-    mock_valkey.incr.return_value = 6  # simula 6to intento
+    _patch_async_valkey.incr.return_value = 6  # simula 6to intento
 
     resp = await _login(auth_client)
     assert resp.status_code == 429
     assert "Retry-After" in resp.headers
 
 
-async def test_rate_limit_login_5_intentos_pasan(mock_valkey, auth_client):
-    mock_valkey.incr.return_value = 5  # exactamente en el límite, no supera
+async def test_rate_limit_login_5_intentos_pasan(_patch_async_valkey, auth_client):
+    _patch_async_valkey.incr.return_value = 5  # exactamente en el límite, no supera
 
     resp = await _login(auth_client)
     # No debe ser 429 (puede ser 200 o 401 según credenciales)

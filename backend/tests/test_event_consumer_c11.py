@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 try:
@@ -21,21 +22,17 @@ try:
 except ImportError:
     pytest.skip("psycopg/libpq not available on this platform", allow_module_level=True)
 
-os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
-os.environ.setdefault("VALKEY_URL", "valkey://localhost:6379")
-os.environ.setdefault("JWT_SECRET_CURRENT", "test-secret-current-32-chars-xxxxx")
-os.environ.setdefault("JWT_SECRET_PREVIOUS", "")
-os.environ.setdefault("ADMIN_USERNAME", "admin")
-os.environ.setdefault("ADMIN_PASSWORD", "AdminPassword123!")
-os.environ.setdefault("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
-
 from app.modules.agents.models import Agent, AgentStatus
 from app.modules.events.models import Event, RejectedEventAudit, RejectionReason
 
 
 @pytest.fixture()
 def mem_engine():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     SQLModel.metadata.create_all(engine)
     return engine
 

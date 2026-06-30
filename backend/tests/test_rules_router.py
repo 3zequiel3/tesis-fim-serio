@@ -12,7 +12,6 @@ Usa httpx ASGI transport + monkeypatch de deps para evitar DB/Valkey reales.
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,14 +21,6 @@ try:
     import psycopg  # noqa: F401
 except ImportError:
     pytest.skip("psycopg/libpq not available on this platform", allow_module_level=True)
-
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-os.environ.setdefault("VALKEY_URL", "valkey://localhost:6379")
-os.environ.setdefault("JWT_SECRET_CURRENT", "test-secret-current-32-chars-xxxxx")
-os.environ.setdefault("JWT_SECRET_PREVIOUS", "")
-os.environ.setdefault("ADMIN_USERNAME", "admin")
-os.environ.setdefault("ADMIN_PASSWORD", "AdminPassword123!")
-os.environ.setdefault("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 
 from app.core.security import create_access_token
 from app.modules.auth.models import User
@@ -104,52 +95,56 @@ async def test_delete_rule_no_auth_returns_401() -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_rules_non_admin_returns_403(monkeypatch) -> None:
-    from app.core import deps
+async def test_post_rules_non_admin_returns_403() -> None:
+    # monkeypatch.setattr on deps.get_current_user does NOT work with FastAPI:
+    # Depends() captures the original function object at definition time.
+    # Override require_full_access directly so require_admin receives a
+    # non-admin user and raises 403.
+    from app.core.deps import require_full_access
+    from app.main import app
 
-    async def _fake_user():
-        return _make_regular_user()
-
-    monkeypatch.setattr(deps, "get_current_user", _fake_user)
-
-    async with await _get_client() as ac:
-        resp = await ac.post(
-            "/rules",
-            json={"pattern": "/etc/*", "severity": "critical", "action": "auto_restore"},
-            headers=_user_headers(),
-        )
+    app.dependency_overrides[require_full_access] = lambda: _make_regular_user()
+    try:
+        async with await _get_client() as ac:
+            resp = await ac.post(
+                "/rules",
+                json={"pattern": "/etc/*", "severity": "critical", "action": "auto_restore"},
+                headers=_admin_headers(),
+            )
+    finally:
+        app.dependency_overrides.pop(require_full_access, None)
     assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_put_rule_non_admin_returns_403(monkeypatch) -> None:
-    from app.core import deps
+async def test_put_rule_non_admin_returns_403() -> None:
+    from app.core.deps import require_full_access
+    from app.main import app
 
-    async def _fake_user():
-        return _make_regular_user()
-
-    monkeypatch.setattr(deps, "get_current_user", _fake_user)
-
-    async with await _get_client() as ac:
-        resp = await ac.put(
-            "/rules/1",
-            json={"pattern": "/etc/*", "severity": "high", "action": "alert_only"},
-            headers=_user_headers(),
-        )
+    app.dependency_overrides[require_full_access] = lambda: _make_regular_user()
+    try:
+        async with await _get_client() as ac:
+            resp = await ac.put(
+                "/rules/1",
+                json={"pattern": "/etc/*", "severity": "high", "action": "alert_only"},
+                headers=_admin_headers(),
+            )
+    finally:
+        app.dependency_overrides.pop(require_full_access, None)
     assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_delete_rule_non_admin_returns_403(monkeypatch) -> None:
-    from app.core import deps
+async def test_delete_rule_non_admin_returns_403() -> None:
+    from app.core.deps import require_full_access
+    from app.main import app
 
-    async def _fake_user():
-        return _make_regular_user()
-
-    monkeypatch.setattr(deps, "get_current_user", _fake_user)
-
-    async with await _get_client() as ac:
-        resp = await ac.delete("/rules/1", headers=_user_headers())
+    app.dependency_overrides[require_full_access] = lambda: _make_regular_user()
+    try:
+        async with await _get_client() as ac:
+            resp = await ac.delete("/rules/1", headers=_admin_headers())
+    finally:
+        app.dependency_overrides.pop(require_full_access, None)
     assert resp.status_code == 403
 
 

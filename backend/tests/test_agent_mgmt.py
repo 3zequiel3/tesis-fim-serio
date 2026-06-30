@@ -27,20 +27,13 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 try:
     import psycopg  # noqa: F401
 except ImportError:
     pytest.skip("psycopg/libpq not available on this platform", allow_module_level=True)
-
-os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
-os.environ.setdefault("VALKEY_URL", "valkey://localhost:6379")
-os.environ.setdefault("JWT_SECRET_CURRENT", "test-secret-current-32-chars-xxxxx")
-os.environ.setdefault("JWT_SECRET_PREVIOUS", "")
-os.environ.setdefault("ADMIN_USERNAME", "admin")
-os.environ.setdefault("ADMIN_PASSWORD", "AdminPassword123!")
-os.environ.setdefault("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 
 from app.core.streams import verify_payload
 from app.modules.agents.models import Agent, AgentStatus
@@ -55,7 +48,11 @@ from app.modules.rules.models import RulesetVersion
 
 @pytest.fixture()
 def mem_engine():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     SQLModel.metadata.create_all(engine)
     return engine
 
@@ -365,7 +362,8 @@ def test_dead_transition(mem_engine, agent_with_secret):
 
 def test_dead_to_online_on_heartbeat(mem_engine, agent_with_secret):
     """Agente dead vuelve a online al recibir heartbeat."""
-    agent, _ = agent_with_secret
+    from app.core.streams import sign_payload
+    agent, secret = agent_with_secret
 
     # Poner el agente dead
     with Session(mem_engine) as session:
@@ -374,17 +372,17 @@ def test_dead_to_online_on_heartbeat(mem_engine, agent_with_secret):
         session.add(a)
         session.commit()
 
-    hb_msg = {
-        "data": json.dumps({
-            "agent_id": agent.agent_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "queue_size": 0,
-            "queue_pressure": 0.1,
-            "ruleset_version": 0,
-            "shutdown": False,
-            "schema_version": 1,
-        })
+    hb_payload = {
+        "agent_id": agent.agent_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "queue_size": 0,
+        "queue_pressure": 0.1,
+        "ruleset_version": 0,
+        "shutdown": False,
+        "schema_version": 1,
     }
+    hb_payload["signature"] = sign_payload(secret, hb_payload)
+    hb_msg = {"data": json.dumps(hb_payload)}
 
     import app.modules.agents.heartbeat_consumer as hc
     with patch.object(hc, "engine", mem_engine):

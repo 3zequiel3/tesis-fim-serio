@@ -24,7 +24,7 @@ def seed_admin() -> None:
             password_hash=hash_password(settings.admin_password.get_secret_value()),
             role="admin",
             is_active=True,
-            must_change_password=False,
+            must_change_password=True,  # RN-62, RN-100/W20
         )
         session.add(admin)
         session.commit()

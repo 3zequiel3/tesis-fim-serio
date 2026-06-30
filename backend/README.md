@@ -33,19 +33,41 @@ docker compose logs backend
 
 ## Cómo correr los tests
 
+Los tests corren contra un PostgreSQL 18.3 y un Valkey 9.0.3 efímeros.
+Levantar los servicios de backing antes de ejecutar la suite:
+
+```bash
+# Postgres efímero (base fim_test, usuario fim, password test)
+docker run --rm -d --name fim-test-db \
+  -e POSTGRES_USER=fim -e POSTGRES_PASSWORD=test -e POSTGRES_DB=fim_test \
+  -p 5432:5432 postgres:18.3
+
+# Valkey efímero
+docker run --rm -d --name fim-test-valkey -p 6379:6379 valkey/valkey:9.0.3
+```
+
 Desde el directorio `backend/`:
 
 ```bash
-# Instalar dependencias de desarrollo (en un venv)
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
+# Instalar dependencias de desarrollo (uv recomendado)
+uv pip install -r requirements-dev.txt
 
-# Correr los tests
-python -m pytest tests/ -v
+# Correr la suite completa
+uv run pytest
 ```
 
-Los tests montan la app en memoria (no necesitan DB ni Valkey corriendo).
+El conftest root (`backend/tests/conftest.py`) crea el schema y siembra el admin
+exactamente una vez por sesión, y aísla cada test mediante `TRUNCATE ... RESTART
+IDENTITY CASCADE` + reseed antes de cada test. No es necesario pre-sembrar la base.
+
+Para un reset completo entre runs:
+
+```bash
+docker exec fim-test-db psql -U fim -d postgres \
+  -c "DROP DATABASE IF EXISTS fim_test WITH (FORCE);" \
+  -c "CREATE DATABASE fim_test;"
+docker exec fim-test-valkey valkey-cli flushall
+```
 
 ## Layout de directorios
 

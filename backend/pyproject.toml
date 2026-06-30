@@ -5,6 +5,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = ["-v", "--tb=short"]
+timeout = 60
 
 [tool.ruff]
 line-length = 100
