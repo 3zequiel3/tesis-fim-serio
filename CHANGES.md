@@ -8,7 +8,7 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 - [docs/historias_de_usuario.md](docs/historias_de_usuario.md) — historias priorizadas
 - [docs/reglas_de_negocio.md](docs/reglas_de_negocio.md) — 16 dominios, ~103 reglas
 
-**Estado actual**: backend/, agent/, frontend/ vacíos. Documentación 100% terminada y validada (33 decisiones de auditoría + 10 decisiones de diseño + **8 decisiones de implementación** aplicadas en Abril 2026).
+**Estado actual**: backend/, agent/, frontend/ vacíos. Documentación 100% terminada y validada (33 decisiones de auditoría + 10 decisiones de diseño + **28 decisiones de implementación** aplicadas en D1–D28).
 
 **Decisiones de implementación cerradas (2026-04-24)**: las 8 suposiciones que estaban abiertas en una versión anterior de este roadmap fueron resueltas y documentadas en los appendices "Decisiones de implementación — Abril 2026" de [docs/reglas_de_negocio.md](docs/reglas_de_negocio.md) y [docs/arquitectura_stack.md](docs/arquitectura_stack.md). Este roadmap ya las incorpora.
 
@@ -51,6 +51,10 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 27 | [`agent-stability-fixes`](#change-27--agent-stability-fixes) | agente | — (remediación) ✓ | 26 |
 | 28 | [`agent-audit-fixes`](#change-28--agent-audit-fixes) | agente | — (auditoría 2026-06-26) ✓ | 27 |
 | 29 | [`agent-resilience-fixes`](#change-29--agent-resilience-fixes) | agente | — (auditoría 2026-06-26) | 28 |
+| 30 | [`backend-async-io-fixes`](#change-30--backend-async-io-fixes) | backend | — (auditoría 2026-06-26) | 22, 29 |
+| 31 | [`backend-event-correctness`](#change-31--backend-event-correctness) | backend | — (auditoría 2026-06-26) | 30 |
+| 32 | [`backend-sse-security-fixes`](#change-32--backend-sse-security-fixes) | backend | — (auditoría 2026-06-26) | 31 |
+| 33 | [`backend-test-harness`](#change-33--backend-test-harness) | backend | — (remediación 2026-06-29) | 30 |
 
 ---
 
@@ -557,6 +561,83 @@ Bugs corregidos:
 Reglas: RN-116, RN-117, RN-118. Decisiones aplicadas: D18, D19, D20.
 
 **Done**: 9 fixes implementados; 267/267 tests pasando (20 nuevos en `test_resilience_fixes.py`).
+
+---
+
+### Change 30 — `backend-async-io-fixes`
+
+**Capa**: backend · **Depende de**: 22 (`backend-critical-fixes`), 29 (`agent-resilience-fixes`) · **Origen**: auditoría 2026-06-26 · **Decisiones**: D21, D22 (RN-119)
+
+> **Nota**: change de remediación. Corrige el I/O bloqueante sistémico de consumers y dependencias FastAPI, agrega HMAC al heartbeat consumer, y resuelve bugs de resiliencia en los loops de consumer. Todas las decisiones (D21–D22) están cerradas en los appendices canónicos el 2026-06-26.
+
+Fixes:
+- **FIX-01 (CRÍTICO)** — `events/consumer.py` + `heartbeat_consumer.py`: wrap de funciones DB síncronas (`_get_shared_secret`, `_event_exists`, `_reject`, `_handle_heartbeat`, `_sweep_offline`) con `run_in_executor` en sus call sites (D21).
+- **FIX-02 (CRÍTICO)** — `core/valkey.py` + `core/deps.py` + `core/rate_limit.py`: agregar cliente Valkey async (`valkey.asyncio.Valkey`) y convertir blacklist check + rate limit a async en las dependencias FastAPI (D21).
+- **FIX-03 (CRÍTICO)** — `agents/heartbeat_consumer.py`: agregar verificación HMAC-SHA256 en `_handle_heartbeat` antes de actualizar estado del agente (D22 / RN-119).
+- **FIX-04 (ALTO)** — `events/consumer.py:221`, `alerts/service.py:272`, `core/health.py:155`: guardar referencias de `asyncio.create_task()` en un `_background_tasks: set` module-level con callback `discard` para evitar GC prematuro.
+- **FIX-05 (ALTO)** — `events/consumer.py:93-95`: envolver `_ensure_group` y `_process_batch("0")` en try/except antes del loop — Valkey no disponible al startup no mata el consumer permanentemente.
+- **FIX-06 (MEDIO)** — `agents/heartbeat_consumer.py:88-97`: envolver `_sweep_offline()` en try/except dentro de `_sweep_loop` — errores de DB no colapsan el heartbeat consumer completo.
+
+Reglas: RN-119. Decisiones aplicadas: D21, D22.
+
+---
+
+### Change 31 — `backend-event-correctness`
+
+**Capa**: backend · **Depende de**: 30 (`backend-async-io-fixes`) · **Origen**: auditoría 2026-06-26 · **Decisiones**: D23 (RN-120), D25 (RN-121)
+
+> **Nota**: change de remediación. Corrige lógica de negocio de eventos, notificaciones y acciones. No introduce features nuevas. Todas las decisiones (D23, D25) están cerradas en los appendices canónicos el 2026-06-26.
+
+Fixes:
+- **FIX-01 (CRÍTICO)** — `alerts/service.py`: `_try_cascade` retorna `(False, None)` cuando canales primarios configurados fallan — activa retry loop, `failed_at` y DLQ (D23 / RN-120).
+- **FIX-02 (ALTO)** — `actions/service.py:204,273-276`: `publish_baseline_update`, `publish_restore_file`, `publish_quarantine_file` movidos a DESPUÉS de `db.commit()` en `_approve_single` y `_reject_single`.
+- **FIX-03 (ALTO)** — `events/service.py`: en `ingest_event`, cuando `mark_superseded` retorna `False`, re-consultar pending antes de descartar el nuevo evento (D25 / RN-121).
+- **FIX-04 (ALTO)** — `events/router.py:82-86`: paginación SQL real con `LIMIT/OFFSET/ORDER BY` en `list_events` — elimina full table scan.
+- **FIX-05 (MEDIO)** — `events/service.py:97-124`: `compact_chain` corregido de `.desc()` a `.asc()` — retiene eventos más viejos, descarta los recientes (correcto).
+- **FIX-06 (MEDIO)** — `events/consumer.py:171-184`: check de rate limit movido DESPUÉS del dedup — re-deliveries no gastan presupuesto.
+- **FIX-07 (MEDIO)** — `events/consumer.py:178`: validar que `event_id` sea no-vacío antes del dedup; rechazar con `invalid_schema` si ausente.
+- **FIX-08 (MEDIO)** — `events/consumer.py:167`: normalizar `detected_at` a UTC-aware antes de la resta; si no parseable → rechazar con `clock_skew` explícito.
+- **FIX-09 (INFO)** — `events/service.py`, `rules/service.py`, `actions/service.py`: reemplazar `datetime.utcnow()` por `datetime.now(timezone.utc)` en 5+ lugares.
+
+Reglas: RN-120, RN-121. Decisiones aplicadas: D23, D25.
+
+---
+
+### Change 32 — `backend-sse-security-fixes`
+
+**Capa**: backend · **Depende de**: 31 (`backend-event-correctness`) · **Origen**: auditoría 2026-06-26 · **Decisiones**: D24, D26 (RN-122), D27 (sin código), D28 (sin código)
+
+> **Nota**: change de remediación. Resuelve la fuga de conexiones DB en SSE, la queue ilimitada, y la soft revocation de agentes. D27 y D28 se documentan como limitaciones aceptadas sin cambio de código. Todas las decisiones (D24–D28) están cerradas en los appendices canónicos el 2026-06-26.
+
+Fixes:
+- **FIX-01 (ALTO)** — `alerts/stream.py` + `alerts/router.py`: sesión DB liberada tras replay inicial; `asyncio.Queue(maxsize=100)` con drop-newest + log WARNING en `QueueFull` (D24).
+- **FIX-02 (ALTO)** — `agents/models.py` + `events/consumer.py` + `agents/heartbeat_consumer.py`: agregar `AgentStatus.revoked`; consumers verifican `agent.status != revoked` antes de procesar mensajes (D26 / RN-122).
+- **FIX-03 (BAJO)** — `actions/streams.py`: insertar `PublishedCommand` para todos los tipos de comando de acción (no solo `rule_sync`), completando la trazabilidad de D10.
+- **D27 (limitación documentada)** — `shared_secret_hex` en plaintext en DB. Sin cambio de código. Documentar en tesis como trabajo futuro.
+- **D28 (tradeoff documentado)** — Heartbeat consumer con `last_id="$"` pierde heartbeats en restart del backend. Sin cambio de código. Impacto: falso positivo de `offline` por <30 s.
+
+Reglas: RN-122. Decisiones aplicadas: D24, D26, D27, D28.
+
+---
+
+### Change 33 — `backend-test-harness`
+
+**Capa**: backend · **Depende de**: 30 (`backend-async-io-fixes`) · **Origen**: remediación 2026-06-29 · **Decisiones**: D3 (lifespan seed/create_all, espejado en el harness)
+
+> **Nota**: change de remediación de infraestructura de tests. La suite del backend no era reproducible: solo pasaba contra la base `fim` del compose de desarrollo (que ya tenía schema + admin sembrado por el lifespan real). Contra una base limpia fallan 38 tests (`relation "users" does not exist`); sin base, 49 (`connection refused`). No introduce features ni nuevas reglas; corrige dos defectos que el harness roto enmascaraba. No requiere delta specs (precedente C28 `agent-audit-fixes`).
+
+Fixes:
+- **FIX-01 (CRÍTICO)** — `backend/tests/conftest.py` (root): owner único del schema (`create_all` session-scoped), del seed del admin, y del aislamiento por test vía `TRUNCATE ... RESTART IDENTITY CASCADE` + reseed (function-scoped autouse) sobre el engine real de Postgres. Elimina la dependencia de orden/estado y la falsa premisa de que `httpx.AsyncClient + ASGITransport` ejecuta el lifespan de FastAPI (no lo hace).
+- **FIX-02 (ALTO)** — `auth/service.py::seed_admin`: corregir `must_change_password=False` → `True`. Bug de producción que viola RN-62 y RN-100/W20 y el spec `backend-auth` vigente. Agregar helper de test para el flujo de cambio forzado (scope `password_change_only` → 403 hasta completar el cambio).
+- **FIX-03 (ALTO)** — resolver el conflicto de `ADMIN_USERNAME` entre `test_auth.py` (`admin`) y `test_user_management.py` (`admin@fim.local`): `Settings()` se instancia una vez al import, first-writer-wins. Fijar un admin de test canónico (`admin`) en el conftest root antes de cualquier import de la app.
+- **FIX-04 (ALTO)** — consolidar los patrones B (schema sin aislamiento) y C (sin nada, depende de DB pre-sembrada) sobre el harness canónico. El patrón A (in-memory + `dependency_overrides`) se deja como está (ya aísla). Muchos tests usan `Session(engine)` directo (consumers/services), por eso se elige truncate-reseed sobre el engine real en vez de rollback transaccional (que no los aislaría).
+- **FIX-05 (MEDIO)** — `test_logging_sanitize.py`: reescribir los tests. Usaban `structlog.testing.capture_logs()`, que reemplaza la cadena de processors y nunca ejecuta `sanitize_secrets` (por eso fallaban 6 tests, no solo el case-insensitive). El sanitizer de producción ya es correcto (match case-insensitive con `k.lower()`, recursivo) — el defecto está en los tests, NO en `app/core/logging.py`.
+- **FIX-06 (MEDIO)** — `test_sse_alerts.py`: acotar el test de stream SSE (consumir N eventos / read-timeout) para que termine deterministicamente; agregar `pytest-timeout` a `requirements-dev.txt` con timeout global como red de seguridad (la suite colgaba indefinidamente).
+- **FIX-07 (BAJO)** — corregir docs obsoletas: `backend/README.md` ("Los tests montan la app en memoria — no necesitan DB ni Valkey") y el docstring del conftest. Documentar el run canónico: Postgres+Valkey efímeros, `uv run pytest` desde `backend/`.
+
+Reglas: RN-62, RN-100, RN-89. Decisiones aplicadas: D3.
+
+**Done**: con Postgres+Valkey efímeros y base `fim_test` limpia, `uv run pytest` desde `backend/` queda 100% verde e independiente del orden; ningún test cuelga.
 
 ---
 

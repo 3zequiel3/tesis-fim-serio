@@ -16,6 +16,8 @@ import json
 from datetime import datetime
 from typing import Annotated, Any, AsyncGenerator
 
+import anyio
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from jose import JWTError
 from pydantic import BaseModel
@@ -93,7 +95,7 @@ async def _require_admin_from_token(
     if payload.get("scope") == "password_change_only":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="password_change_required")
 
-    check_api_rate_limit(int(user_id), valkey_client)
+    await check_api_rate_limit(int(user_id))
 
     user = session.exec(select(User).where(User.id == int(user_id))).first()
     if user is None or not user.is_active:
@@ -106,6 +108,11 @@ async def _require_admin_from_token(
 
 
 # ── Generador SSE ─────────────────────────────────────────────────────────────
+
+# Keepalive interval in seconds. Module-level so tests can patch it via
+# unittest.mock.patch.object if needed without touching the generator body.
+_KEEPALIVE_INTERVAL: float = 15.0
+
 
 def _alert_to_dict(alert: Alert) -> dict[str, Any]:
     return {
@@ -139,17 +146,25 @@ async def _alert_sse_generator(
             yield {"id": str(alert.id), "data": json.dumps(_alert_to_dict(alert))}
 
     # 2. Streaming en tiempo real desde el broadcaster (D-SSE-1)
+    #
+    # anyio.move_on_after is used instead of asyncio.wait_for for the keepalive
+    # timeout because asyncio.wait_for creates an internal asyncio Task that
+    # breaks anyio cancel-scope ownership — causing RuntimeError when the ASGI
+    # response is cancelled on client disconnect.
     queue: asyncio.Queue[dict[str, Any]] = alerts_broadcaster.subscribe()
     try:
         while True:
             if await request.is_disconnected():
                 break
-            try:
-                alert_dict = await asyncio.wait_for(queue.get(), timeout=15.0)
-                yield {"id": str(alert_dict["id"]), "data": json.dumps(alert_dict)}
-            except asyncio.TimeoutError:
+            alert_dict: dict[str, Any] | None = None
+            with anyio.move_on_after(_KEEPALIVE_INTERVAL) as cancel_scope:
+                alert_dict = await queue.get()
+            if cancel_scope.cancelled_caught:
                 # Keepalive cada 15s para prevenir corte de proxies (D-SSE-4)
                 yield {"comment": "keepalive"}
+            else:
+                assert alert_dict is not None
+                yield {"id": str(alert_dict["id"]), "data": json.dumps(alert_dict)}
     finally:
         alerts_broadcaster.unsubscribe(queue)
 

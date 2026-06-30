@@ -47,6 +47,14 @@ from app.modules.events.service import InvalidTransitionError, ingest_event
 log = structlog.get_logger()
 
 _CLOCK_SKEW_S = 300  # 5 minutos (RN-90)
+
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _fire_and_forget(coro) -> None:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 _MAX_PAYLOAD_DUMP = 4 * 1024  # 4 KB (RN-105)
 _BLOCK_MS = 2000
 _BATCH_SIZE = 50
@@ -90,9 +98,22 @@ def reset_rate_limiter() -> None:
 
 async def run_consumer(client: Any, stop_event: asyncio.Event) -> None:
     """Tarea asyncio principal del consumer de eventos."""
-    await _ensure_group(client)
-    # Releer pendientes al arrancar (RN-76)
-    await _process_batch(client, "0")
+    while True:
+        try:
+            await _ensure_group(client)
+            # Releer pendientes al arrancar (RN-76)
+            try:
+                await _process_batch(client, "0")
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log.error("consumer.startup_pending_error", error=str(exc))
+            break
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.error("consumer.startup_error", error=str(exc))
+            await asyncio.sleep(1)
     log.info("consumer.started", group=CONSUMER_GROUP)
 
     while not stop_event.is_set():
@@ -152,7 +173,8 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         return
 
     # ── 2. unknown_agent ─────────────────────────────────────────────────────
-    shared_secret = _get_shared_secret(agent_id)
+    loop = asyncio.get_running_loop()
+    shared_secret = await loop.run_in_executor(None, _get_shared_secret, agent_id)
     if shared_secret is None:
         await _reject(client, msg_id, event_id, agent_id, RejectionReason.unknown_agent, received_at, payload, payload_dump)
         return
@@ -175,7 +197,8 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         return
 
     # ── 6. dedup ──────────────────────────────────────────────────────────────
-    if event_id and _event_exists(event_id):
+    event_exists = await loop.run_in_executor(None, _event_exists, event_id) if event_id else False
+    if event_id and event_exists:
         # Re-entrega legítima: XACK + event_ack, no re-insertar, no auditar
         await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
         if event_id:
@@ -203,9 +226,7 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
             detected_at=detected_at,
             payload_dump=payload_dump,
         )
-        with Session(engine) as s:
-            s.add(audit)
-            s.commit()
+        await loop.run_in_executor(None, _write_rejection_audit, audit)
         return
     except SQLAlchemyError:
         # Error transitorio de DB → NO XACK, dejar en PEL para reintento
@@ -218,7 +239,7 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         if event_id:
             await _publish_event_ack(client, event_id, agent_id, shared_secret)
         log.info("consumer.event_persisted", event_id=event_id, agent_id=agent_id)
-        asyncio.create_task(notify_if_applicable(event))
+        _fire_and_forget(notify_if_applicable(event))
     else:
         # Skip legítimo (carrera en mark_superseded) → XACK sin re-insert
         await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
@@ -260,6 +281,12 @@ def _event_exists(event_id: str) -> bool:
     return existing is not None
 
 
+def _write_rejection_audit(audit: RejectedEventAudit) -> None:
+    with Session(engine) as session:
+        session.add(audit)
+        session.commit()
+
+
 # ── helpers de rechazo ────────────────────────────────────────────────────────
 
 async def _reject(
@@ -281,9 +308,8 @@ async def _reject(
         detected_at=detected_at,
         payload_dump=payload_dump,
     )
-    with Session(engine) as session:
-        session.add(audit)
-        session.commit()
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _write_rejection_audit, audit)
     await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
     log.warning("consumer.event_rejected", event_id=event_id, agent_id=agent_id, reason=reason)
 

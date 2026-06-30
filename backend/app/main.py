@@ -26,7 +26,7 @@ from app.core.logging import configure_logging, log
 from app.core.middleware.cors import CORSOriginMiddleware
 from app.core.middleware.trace_id import TraceIdMiddleware
 from app.core.pki import ensure_ca, start_mtls_server
-from app.core.valkey import close_valkey, get_valkey_client, init_valkey
+from app.core.valkey import close_async_valkey, close_valkey, get_valkey_client, init_async_valkey, init_valkey
 from app.modules.agents.heartbeat_consumer import run_heartbeat_consumer
 from app.modules.agents.router import router as agents_router
 from app.modules.auth.router import router as auth_router
@@ -46,6 +46,7 @@ configure_logging()
 async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     log.info("backend.startup", environment=settings.environment)
     init_valkey(settings.valkey_url)
+    init_async_valkey(settings.valkey_url)
     ensure_ca(
         cert_path=settings.ca_cert_path,
         key_path=settings.ca_key_path,
@@ -84,6 +85,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     await asyncio.gather(*tasks_to_gather, return_exceptions=True)
     await async_valkey.aclose()
 
+    await close_async_valkey()
     close_valkey()
     log.info("backend.shutdown")
 

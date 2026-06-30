@@ -57,10 +57,9 @@ async def login(
     request: Request,
     response: Response,
     session: Session = Depends(get_session),
-    valkey_client=Depends(get_valkey_client),
 ) -> LoginResponse:
     ip = request.client.host if request.client else "unknown"
-    check_login_rate_limit(body.username, ip, valkey_client)
+    await check_login_rate_limit(body.username, ip)
 
     user = session.exec(select(User).where(User.username == body.username)).first()
     if user is None or not verify_password(body.password, user.password_hash):

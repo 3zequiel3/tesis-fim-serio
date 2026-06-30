@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-118 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-122 |
 
 ---
 
@@ -987,6 +987,48 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 **Motivación:** Sin este filtro, cada restauración genera eventos espurios (FAN_CREATE, FAN_CLOSE_WRITE, FAN_MOVED_FROM para el tmp) que contaminan el baseline y el backend. Con una regla `file_created + auto_restore` activa, el FAN_MOVED_TO que emite `os.replace` dispara una nueva restauración, generando un loop infinito.
 
 **Excepciones:** Ninguna.
+
+#### D22 / RN-119: Verificación HMAC en el stream `agent_heartbeat`
+
+**Descripción:** El consumer del stream `agent_heartbeat` verifica la firma HMAC-SHA256 del payload antes de actualizar el estado del agente. Sigue el mismo protocolo que el consumer de eventos (RN-79): tras obtener el agente de DB, se llama `verify_payload(shared_secret_bytes, payload)` con `hmac.compare_digest`. Un payload con firma inválida o de un agente desconocido se descarta sin actualizar estado.
+
+**Condición:** Cada mensaje procesado por `_handle_heartbeat` en `modules/agents/heartbeat_consumer.py`.
+
+**Resultado:** Agentes desconocidos o con firma inválida no pueden modificar el estado de liveness de otros agentes. Simétrico con la verificación de eventos (RN-79).
+
+**Excepciones:** Si el agente tiene `shared_secret_hex` vacío (estado de migración incompleta), el heartbeat se descarta con log de error.
+
+#### D23 / RN-120: Semántica de `log_only` en la cascada de notificaciones
+
+**Descripción:** La cascada de notificaciones (`_try_cascade`) distingue entre el canal `log_only` como resultado intencionado y como resultado de fallo degradado. Si al menos un canal primario (`n8n_webhook_url`, `smtp_host`, `webhook_fallback_url`) está configurado pero todos fallaron, la función retorna `(False, None)` activando el retry loop con delays `[5, 30, 120]` s. Tras agotar los reintentos, `failed_at` se persiste y la alerta entra en la DLQ. Si ningún canal primario está configurado, `log_only` es el canal intencionado y la alerta se marca como `delivered`.
+
+**Condición:** Cada ejecución de `notify_event` en `modules/alerts/service.py`.
+
+**Resultado:** La DLQ (`list_failed_alerts`, `retry_alert`) y el retry loop son operacionales en entornos con canales configurados. En entornos sin canales externos (dev/CI), `log_only` sigue siendo éxito sin retry.
+
+**Excepciones:** `log_only` nunca falla — es el piso del sistema de notificaciones (RN-54).
+
+#### D25 / RN-121: Inserción del evento nuevo cuando falla `mark_superseded`
+
+**Descripción:** Cuando `mark_superseded` no afecta ninguna fila (el evento pending fue resuelto concurrentemente por un approve/reject), `ingest_event` re-consulta si existe un pending activo para el mismo path. Si no hay pending activo, el nuevo evento se inserta como pending independiente sin `parent_event_id`. Si todavía hay pending, el skip es legítimo.
+
+**Condición:** Toda llamada a `ingest_event` donde `mark_superseded` retorna `False`.
+
+**Resultado:** Ningún cambio real del filesystem reportado por el agente se descarta silenciosamente por una condición de carrera resuelta en el backend.
+
+**Excepciones:** En single-instance con asyncio cooperativo, la carrera genuina es imposible (no hay preemption entre `get_pending_event_for_path` y `mark_superseded`). La corrección protege ante extensiones futuras de la arquitectura.
+
+#### D26 / RN-122: Revocación de agentes — soft revocation a nivel aplicación
+
+**Descripción:** El sistema implementa revocación de agentes a nivel aplicación mediante el estado `revoked` en `Agent.status`. Los consumers de eventos y heartbeat verifican `agent.status != AgentStatus.revoked` antes de procesar mensajes. Un agente revocado no puede publicar eventos ni actualizar su estado de liveness; sus mensajes se descartan con log de error.
+
+**Limitación conocida:** La revocación a nivel TLS (verificar el serial del cert en el handshake mTLS) no está implementada. Un agente con cert revocado puede establecer la conexión mTLS hasta la expiración natural del cert (máx 90 días, D13/RN-111).
+
+**Condición:** Cada mensaje procesado por `_get_shared_secret` (events consumer) y `_handle_heartbeat` (heartbeat consumer).
+
+**Resultado:** Tras setear `status=revoked`, el agente queda silenciado a nivel aplicación. Para evicción inmediata a nivel TLS es necesario intervención manual (revocar el cert en el servidor Valkey o reiniciar el agente con credenciales inválidas).
+
+**Excepciones:** Si `AgentStatus.revoked` no está presente (migración en curso), las conexiones previas a la actualización del enum no son afectadas.
 
 #### D20 / RN-118: Guard explícito para conexión Valkey en texto plano
 

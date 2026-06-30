@@ -34,6 +34,15 @@ from app.modules.rules.models import Rule, RuleSeverity
 
 log = structlog.get_logger()
 
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _fire_and_forget(coro) -> None:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 # Delays entre reintentos en segundos (D-C15-03)
 RETRY_DELAYS: list[int] = [5, 30, 120]
 
@@ -268,8 +277,8 @@ async def retry_alert(alert_id: int, session: Session) -> Alert:
     if event is None:
         raise ValueError("event_not_found")
 
-    # Re-intentar en background
-    asyncio.create_task(notify_event(alert, event))
+    # Re-intentar en background con referencia fuerte para evitar GC prematuro
+    _fire_and_forget(notify_event(alert, event))
     return alert
 
 

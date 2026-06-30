@@ -7,6 +7,9 @@ require_full_access: bloquea tokens con scope=password_change_only.
 El payload del JWT se adjunta al objeto User vía __dict__ para que
 require_full_access y change-password puedan leer el scope y jti
 sin re-decodificar el token.
+
+Las verificaciones de Valkey (blacklist JTI, rate limit) usan el cliente async
+para no bloquear el event loop (D21).
 """
 
 from fastapi import Depends, HTTPException, status
@@ -17,7 +20,7 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.rate_limit import check_api_rate_limit
 from app.core.security import BLACKLIST_PREFIX, decode_token
-from app.core.valkey import get_valkey_client
+from app.core.valkey import get_async_valkey_client
 from app.modules.auth.models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -32,7 +35,6 @@ _credentials_exc = HTTPException(
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
-    valkey_client=Depends(get_valkey_client),
 ) -> User:
     try:
         payload = decode_token(token)
@@ -47,14 +49,16 @@ async def get_current_user(
         )
 
     jti: str | None = payload.get("jti")
-    if jti and valkey_client.exists(f"{BLACKLIST_PREFIX}{jti}"):
-        raise _credentials_exc
+    if jti:
+        async_client = get_async_valkey_client()
+        if await async_client.exists(f"{BLACKLIST_PREFIX}{jti}"):
+            raise _credentials_exc
 
     user_id: str | None = payload.get("sub")
     if user_id is None:
         raise _credentials_exc
 
-    check_api_rate_limit(int(user_id), valkey_client)
+    await check_api_rate_limit(int(user_id))
 
     user = session.exec(select(User).where(User.id == int(user_id))).first()
     if user is None or not user.is_active:

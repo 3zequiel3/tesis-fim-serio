@@ -24,6 +24,15 @@ from app.modules.agents.models import Agent, AgentStatus
 
 log = structlog.get_logger()
 
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _fire_and_forget(coro) -> None:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 # Cache del último estado (solo para detectar cambios — D-C15-05)
 _last_state: dict[str, str] = {}
 
@@ -152,7 +161,7 @@ async def check_components(
                         "new_status": new_status,
                         "checked_at": checked_at,
                     }
-                    asyncio.create_task(
+                    _fire_and_forget(
                         send_n8n(change_payload, settings.n8n_webhook_url, timeout=5.0)
                     )
 

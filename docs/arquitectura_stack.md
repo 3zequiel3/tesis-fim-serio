@@ -1894,7 +1894,7 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
 
 ### Modelo de datos del backend
 
@@ -2186,6 +2186,83 @@ El `ca_cert_pem` de la respuesta del bootstrap es el CA que firma los certs mTLS
 
 **Aplicación**: `agent/config.py` (campo `allow_plaintext_valkey`), `agent/transport.py` (check + warning), `agent/deploy/config.yaml.example` (campo documentado).
 
+### Correcciones del backend — 2026-06-26
+
+#### D21: I/O asíncrono en consumers y dependencias FastAPI
+
+**Decisión**: Se adopta `run_in_executor` como estrategia para desbloquear el event loop de asyncio en dos contextos:
+
+1. **Consumers** (`modules/events/consumer.py`, `modules/agents/heartbeat_consumer.py`): las funciones síncronas que acceden a PostgreSQL (`_get_shared_secret`, `_event_exists`, `_reject`, `_handle_heartbeat`, `_sweep_offline`) se envuelven con `await asyncio.get_running_loop().run_in_executor(None, fn, *args)` en sus call sites. Las funciones síncronas no cambian su interfaz.
+
+2. **Dependencias FastAPI** (`core/deps.py`, `core/rate_limit.py`): se agrega un cliente Valkey async (`valkey.asyncio.Valkey`) en `core/valkey.py`. Las dependencias de autenticación y rate limit usan el cliente async para blacklist check y contadores.
+
+No se migra a `AsyncSession` de SQLAlchemy — el costo de refactor es desproporcionado para un backend single-instance (RN-76). Los route handlers quedan como `async def` con `Session` sync (aceptable dado el perfil de carga de un dashboard de seguridad).
+
+**Motivación**: Los consumers asyncio corren en loop infinito en el mismo event loop que los endpoints HTTP. Cada operación DB síncrona bloquea todo el proceso durante el round-trip a PostgreSQL (~1-10 ms), degradando latencia de endpoints y consumers bajo carga.
+
+**Aplicación**: `backend/app/core/valkey.py` (agregar `init_async_valkey`, `get_async_valkey_client`), `backend/app/core/deps.py` (cliente async en blacklist check), `backend/app/core/rate_limit.py` (versiones async de check functions), `backend/app/modules/events/consumer.py` (run_in_executor para funciones DB síncronas), `backend/app/modules/agents/heartbeat_consumer.py` (run_in_executor para `_handle_heartbeat`, `_sweep_offline`).
+
+#### D22: Verificación HMAC en el stream `agent_heartbeat`
+
+**Decisión**: El consumer del stream `agent_heartbeat` verifica la firma HMAC-SHA256 del payload antes de actualizar el estado del agente en DB. El `shared_secret` del agente ya está disponible desde la consulta previa para obtener el agente. Flujo: parsear JSON → buscar agent_id en DB → si no existe: log warning + return → verificar HMAC con `verify_payload(shared_secret_bytes, payload)` → si falla: log warning + return → actualizar `last_heartbeat`, `queue_pressure`, `status`.
+
+**Motivación**: Asimetría injustificada con el events consumer (RN-79). Sin verificación, cualquier cliente con acceso al stream `agent_heartbeat` puede mantener oculto un agente comprometido mostrándolo como `online`.
+
+**Aplicación**: `backend/app/modules/agents/heartbeat_consumer.py` (`_handle_heartbeat`). Regla normativa: RN-119.
+
+#### D23: Semántica de `log_only` en la cascada de notificaciones
+
+**Decisión**: `_try_cascade` en `modules/alerts/service.py` distingue dos escenarios:
+
+1. **Ningún canal primario configurado** (todos los settings `n8n_webhook_url`, `smtp_host`, `webhook_fallback_url` son None/vacío): `log_only` es el canal intencionado → retornar `(True, AlertChannel.log_only)`. Sin retry.
+
+2. **Canal primario configurado pero fallido**: retornar `(False, None)` → el retry loop en `notify_event` reintenta con `RETRY_DELAYS = [5, 30, 120]` → tras 4 intentos fallidos, `failed_at` se persiste y la alerta entra en la DLQ.
+
+**Motivación**: Con la implementación original (`log_only` siempre retorna `True`), el retry loop, los delays y la DLQ eran código muerto. Un operador con n8n configurado no recibía indicación de que las alertas estaban fallando.
+
+**Aplicación**: `backend/app/modules/alerts/service.py` (`_try_cascade`). Regla normativa: RN-120.
+
+#### D24: SSE — liberación de sesión DB y cota de queue
+
+**Decisión**: El endpoint `GET /alerts/stream` introduce dos correcciones:
+
+1. **Liberación de sesión DB**: la sesión se usa SOLO para el replay inicial (query `Alert WHERE id > last_id`). El generador SSE abre una sesión local `with Session(engine) as session:` para el replay y la cierra antes del `while True`. Se elimina `session: Session = Depends(get_session)` del endpoint SSE para no mantener una conexión del pool abierta durante horas.
+
+2. **Cola acotada**: `asyncio.Queue(maxsize=100)`. La función `publish()` captura `asyncio.QueueFull` (política drop-newest), registra log WARNING y continúa. Las alertas perdidas en el buffer están en DB vía replay con el `last_id` del cliente.
+
+**Motivación**: 15+ clientes SSE simultáneos agotaban el pool de conexiones PostgreSQL (default 15 total), bloqueando todos los endpoints HTTP. La queue sin límite acumulaba memoria indefinidamente bajo ráfagas de alertas con clientes lentos.
+
+**Aplicación**: `backend/app/modules/alerts/stream.py` (`maxsize=100`, captura `QueueFull`), `backend/app/modules/alerts/router.py` (sesión local en generador, eliminar dep `get_session` del endpoint SSE).
+
+#### D25: Inserción del evento nuevo cuando falla `mark_superseded`
+
+**Decisión**: Cuando `mark_superseded` retorna `False` (el evento pending fue resuelto concurrentemente), `ingest_event` re-consulta si existe un pending activo para ese path. Si no hay pending → insertar el nuevo evento como pending independiente (sin `parent_event_id`). Si todavía hay pending → skip legítimo.
+
+**Motivación**: El comportamiento original descartaba silenciosamente un cambio real del filesystem. En single-instance con asyncio cooperativo la carrera genuina es imposible, pero la corrección protege ante extensiones futuras de la arquitectura.
+
+**Aplicación**: `backend/app/modules/events/service.py` (`ingest_event`). Regla normativa: RN-121.
+
+#### D26: Revocación de agentes — soft revocation a nivel aplicación
+
+**Decisión**: La revocación a nivel TLS no está implementada — **limitación conocida**: un agente con cert revocado puede establecer la conexión mTLS hasta que el cert expire. Se implementa soft revocation a nivel aplicación:
+
+- `AgentStatus` agrega el valor `revoked`.
+- `_get_shared_secret` (events consumer) verifica `agent.status != AgentStatus.revoked` antes de retornar el secret.
+- `_handle_heartbeat` verifica el mismo flag antes de actualizar estado.
+- La tabla `RevokedCertificate` y `is_revoked()` en `core/pki.py` se documentan como no operacionales para TLS-layer revocation.
+
+**Motivación**: Sin ningún mecanismo de revocación, un agente comprometido con cert vigente puede publicar eventos autenticados indefinidamente. La soft revocation limita el daño al tier aplicación.
+
+**Aplicación**: `backend/app/modules/agents/models.py` (`AgentStatus.revoked`), `backend/app/modules/events/consumer.py`, `backend/app/modules/agents/heartbeat_consumer.py`. Regla normativa: RN-122.
+
+#### D27: `shared_secret_hex` en plaintext — limitación aceptada
+
+**Decisión**: No se implementa cifrado en reposo del `shared_secret_hex`. El campo no puede ser hasheado porque el backend lo necesita en claro para HMAC de eventos y comandos. El cifrado en reposo requeriría key management fuera del scope de la tesis. Documentar en tesis como trabajo futuro (key wrapping con master key de env o KMS).
+
+#### D28: Pérdida de heartbeats en restart — tradeoff aceptado
+
+**Decisión**: El heartbeat consumer usa `last_id = "$"`. Heartbeats recibidos durante downtime del backend se pierden; el sweep puede marcar agentes como `offline` por hasta ~30 s. El primer heartbeat real restaura el estado. Migrar a consumer group añade complejidad desproporcionada para este impacto. Aceptado para la tesis — documentar en operaciones.
+
 ### Organización del código
 
 #### D7: Cross-cutting distribuido, no centralizado al final
@@ -2237,6 +2314,14 @@ Lo que SÍ queda en el change final (`backend-observability-hardening`):
 | D18 (Path containment en handlers de archivo) | Change 29 (C29) | Cerrada |
 | D19 (`.fim_restore_tmp` filtrado en detector) | Change 29 (C29) | Cerrada |
 | D20 (Guard warning Valkey plaintext) | Change 29 (C29) | Cerrada |
+| D21 (run_in_executor + async Valkey deps) | Change 30 (C30) | Cerrada |
+| D22 (HMAC en heartbeat consumer) | Change 30 (C30) | Cerrada |
+| D23 (Semántica log_only en cascade) | Change 31 (C31) | Cerrada |
+| D24 (SSE: sesión DB + queue maxsize) | Change 32 (C32) | Cerrada |
+| D25 (Inserción evento en race de supersede) | Change 31 (C31) | Cerrada |
+| D26 (Soft revocation + documentar gap TLS) | Change 32 (C32) | Cerrada |
+| D27 (shared_secret plaintext — limitación conocida) | — (sin código) | Cerrada |
+| D28 (heartbeat last_id — tradeoff aceptado) | — (sin código) | Cerrada |
 
 #### D9: Fan-out para comandos broadcast — un mensaje firmado por agente
 **Decisión**: Cuando el backend publica un comando con semántica "broadcast" (e.g. `rule_sync` global), NO publica un único mensaje con `target_agent_id: null`. En cambio, publica N mensajes físicos en el stream `commands`, uno por cada agente registrado, cada uno con `target_agent_id = agent_id` y firmado con el `shared_secret` específico de ese agente.

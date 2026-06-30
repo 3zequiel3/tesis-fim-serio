@@ -9,6 +9,10 @@ constantes hardcodeadas anteriores (no breaking change).
 
 El incremento ocurre ANTES de la verificación para contar también los
 intentos rechazados y evitar timing oracle.
+
+Las funciones usan el cliente Valkey async (get_async_valkey_client) para no
+bloquear el event loop. El parámetro valkey_client es opcional para permitir
+inyección en tests; si no se provee, se usa el singleton async.
 """
 
 from fastapi import HTTPException
@@ -19,13 +23,16 @@ LOGIN_RL_PREFIX = "fim:rl:login:"
 API_RL_PREFIX = "fim:rl:api:"
 
 
-def check_login_rate_limit(username: str, ip: str, valkey_client) -> None:
+async def check_login_rate_limit(username: str, ip: str, valkey_client=None) -> None:
+    if valkey_client is None:
+        from app.core.valkey import get_async_valkey_client
+        valkey_client = get_async_valkey_client()
     max_attempts = settings.rate_limit_login_attempts
     window_seconds = settings.rate_limit_login_window_seconds
     key = f"{LOGIN_RL_PREFIX}{username}:{ip}"
-    count = valkey_client.incr(key)
+    count = await valkey_client.incr(key)
     if count == 1:
-        valkey_client.expire(key, window_seconds)
+        await valkey_client.expire(key, window_seconds)
     if count > max_attempts:
         raise HTTPException(
             status_code=429,
@@ -34,12 +41,15 @@ def check_login_rate_limit(username: str, ip: str, valkey_client) -> None:
         )
 
 
-def check_api_rate_limit(user_id: int, valkey_client) -> None:
+async def check_api_rate_limit(user_id: int, valkey_client=None) -> None:
+    if valkey_client is None:
+        from app.core.valkey import get_async_valkey_client
+        valkey_client = get_async_valkey_client()
     max_requests = settings.rate_limit_api_per_minute
     window_seconds = 60
     key = f"{API_RL_PREFIX}{user_id}"
-    count = valkey_client.incr(key)
+    count = await valkey_client.incr(key)
     if count == 1:
-        valkey_client.expire(key, window_seconds)
+        await valkey_client.expire(key, window_seconds)
     if count > max_requests:
         raise HTTPException(status_code=429, detail="API rate limit exceeded")

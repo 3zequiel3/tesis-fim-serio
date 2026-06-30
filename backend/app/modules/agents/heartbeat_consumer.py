@@ -2,10 +2,14 @@
 Consumer del stream 'agent_heartbeat' y tarea de barrido de agentes offline.
 
 Por heartbeat recibido:
+  - Verifica HMAC-SHA256 del payload (D22 / RN-119).
   - Actualiza Agent.last_heartbeat, Agent.queue_pressure, status = online.
   - Si shutdown=true → status = draining (RN-93).
 
 Barrido periódico (~10 s): marca offline a agentes con last_heartbeat > 30 s (RN-92).
+
+Las funciones síncronas de DB (_handle_heartbeat, _sweep_offline) se ejecutan
+vía run_in_executor para no bloquear el event loop (D21).
 """
 
 from __future__ import annotations
@@ -19,7 +23,7 @@ import structlog
 from sqlmodel import Session, select
 
 from app.core.database import engine
-from app.core.streams import STREAM_HEARTBEAT
+from app.core.streams import STREAM_HEARTBEAT, verify_payload
 from app.modules.agents.models import Agent, AgentStatus
 
 log = structlog.get_logger()
@@ -41,6 +45,7 @@ async def run_heartbeat_consumer(client: Any, stop_event: asyncio.Event) -> None
 async def _reader_loop(client: Any, stop_event: asyncio.Event) -> None:
     last_id = "$"
     log.info("heartbeat_consumer.started")
+    loop = asyncio.get_running_loop()
     while not stop_event.is_set():
         try:
             results = await client.xread(
@@ -49,7 +54,7 @@ async def _reader_loop(client: Any, stop_event: asyncio.Event) -> None:
             if results:
                 for _stream, messages in results:
                     for msg_id, msg_data in messages:
-                        _handle_heartbeat(msg_data)
+                        await loop.run_in_executor(None, _handle_heartbeat, msg_data)
                         last_id = msg_id
         except asyncio.CancelledError:
             raise
@@ -75,6 +80,20 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
         if agent is None:
             log.warning("heartbeat_consumer.unknown_agent", agent_id=agent_id)
             return
+
+        # HMAC verification (D22 / RN-119)
+        if not agent.shared_secret_hex:
+            log.error("heartbeat_consumer.missing_secret", agent_id=agent_id)
+            return
+        try:
+            secret = bytes.fromhex(agent.shared_secret_hex)
+        except ValueError:
+            log.error("heartbeat_consumer.invalid_secret_hex", agent_id=agent_id)
+            return
+        if not verify_payload(secret, payload):
+            log.warning("heartbeat_consumer.invalid_signature", agent_id=agent_id)
+            return
+
         agent.last_heartbeat = datetime.now(timezone.utc)
         if isinstance(queue_pressure, (int, float)):
             agent.queue_pressure = float(queue_pressure)
@@ -87,6 +106,7 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
 
 async def _sweep_loop(stop_event: asyncio.Event) -> None:
     """Marca offline a agentes sin heartbeat en los últimos 30 s (RN-92)."""
+    loop = asyncio.get_running_loop()
     while not stop_event.is_set():
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=_SWEEP_INTERVAL_S)
@@ -94,7 +114,10 @@ async def _sweep_loop(stop_event: asyncio.Event) -> None:
             pass
         if stop_event.is_set():
             break
-        _sweep_offline()
+        try:
+            await loop.run_in_executor(None, _sweep_offline)
+        except Exception as exc:
+            log.error("heartbeat_consumer.sweep_error", error=str(exc))
 
 
 def _sweep_offline() -> None:
