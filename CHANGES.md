@@ -55,6 +55,7 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 31 | [`backend-event-correctness`](#change-31--backend-event-correctness) | backend | — (auditoría 2026-06-26) | 30 |
 | 32 | [`backend-sse-security-fixes`](#change-32--backend-sse-security-fixes) | backend | — (auditoría 2026-06-26) | 31 |
 | 33 | [`backend-test-harness`](#change-33--backend-test-harness) | backend | — (remediación 2026-06-29) | 30 |
+| 34 | [`backend-residual-fixes`](#change-34--backend-residual-fixes) | backend | — (auditoría 2026-06-23, residual) | 32 |
 
 ---
 
@@ -638,6 +639,28 @@ Fixes:
 Reglas: RN-62, RN-100, RN-89. Decisiones aplicadas: D3.
 
 **Done**: con Postgres+Valkey efímeros y base `fim_test` limpia, `uv run pytest` desde `backend/` queda 100% verde e independiente del orden; ningún test cuelga.
+
+---
+
+### Change 34 — `backend-residual-fixes`
+
+**Capa**: backend · **Depende de**: 32 (`backend-sse-security-fixes`) · **Origen**: auditoría 2026-06-23 ([docs/audit_bugs.md](docs/audit_bugs.md)), bugs residuales · **Decisiones**: D29 (User.email — pendiente de cerrar en appendix antes de apply)
+
+> **Nota**: change de remediación. Captura los 8 bugs **backend** de la auditoría 2026-06-23 que nunca tuvieron change asignada: el 1 ALTO y 7 MEDIOS que no entraron en C22 (solo críticos C6–C10) ni fueron rescatados por C30/C31/C32 (que solo levantaron H5, H7, H8, M2). Verificados como STILL-PRESENT contra el código actual el 2026-06-30. No es feature nueva. **Bloqueante**: M3 introduce el campo `User.email` — cerrar D29 en el appendix de implementación de [docs/arquitectura_stack.md](docs/arquitectura_stack.md) y [docs/reglas_de_negocio.md](docs/reglas_de_negocio.md) ANTES de implementar.
+
+Fixes:
+- **H6 (ALTO)** — `rules/service.py`: `publish_rule_sync` commitea `Rule` + `RulesetVersion` a Postgres ANTES de publicar a Valkey. Si Valkey está caído, la versión avanza pero los agentes nunca reciben las reglas. Implementar outbox: persistir el mensaje pendiente en la misma transacción y publicar en un background task con retry.
+- **M1 (MEDIO)** — `core/rate_limit.py`: el `expire` solo se setea cuando `count == 1`; si `incr` tiene éxito pero `expire` falla, la key queda sin TTL → lockout permanente del `(user+IP)`. Setear el TTL de forma atómica/idempotente en cada incremento. Corregir el docstring que dice "sliding-window" siendo fixed-window. (C30 portó esto a async pero mantuvo el defecto.)
+- **M3 (MEDIO)** — `users/models.py` + `users/schemas.py` + `users/router.py`: agregar el campo `email` a `User` (**NOT NULL + UNIQUE**, validado con `EmailStr`). Hoy `UserItem` devuelve `username` en el campo `email` y `CreateUserRequest.email` acepta cualquier string. Script SQL idempotente `db/migrations/` para la columna (D3, sin Alembic). Seed admin con email vía env `ADMIN_EMAIL` (default `admin@fim.local`). **Decisión D29.**
+- **M4 (MEDIO)** — `agents/heartbeat_consumer.py` `_sweep_offline`: `Agent.last_heartbeat < threshold` excluye filas `NULL` (en SQL `NULL < x` es NULL) → agentes que nunca latieron nunca pasan a `offline`/`dead`. Incluir explícitamente `last_heartbeat IS NULL` usando `created_at`/registro como referencia.
+- **M5 (MEDIO)** — `agents/service.py` `update_agent_config`: el `detail` del audit log se arma con f-string sobre `str(list)` → JSON inválido (comillas simples) y rompe si un path contiene `"` o `\`. Usar `json.dumps(...)`.
+- **M6 (MEDIO)** — `rules/service.py` + `actions/service.py`: `RulesetVersion.increment` hace `SELECT` + `version += 1` + `flush` sin `SELECT FOR UPDATE` → race entre requests concurrentes. Dos implementaciones duplicadas. Unificar en un único `UPDATE ruleset_versions SET version = version + 1 RETURNING version` atómico.
+- **M8 (MEDIO)** — `actions/service.py` `_reject_single`: el no-op sobre baseline `absent` es **correcto** por RN-74 (no publica `restore_file` ni `quarantine_file`, "Excepciones: Ninguna"), pero el código no devuelve `baseline_absent: true` en la respuesta. Hacer cumplir RN-74: retornar el flag para que el frontend avise al admin. **No cambia el comportamiento de no-op.**
+- **M9 (MEDIO)** — `core/health.py` `_check_n8n`: `client.head()` sin `raise_for_status()` → el `except httpx.HTTPStatusError` es dead code (un 500 de n8n se reporta como OK). Chequear el status code e implementar el fallback GET documentado.
+
+Reglas: RN-44, RN-45, RN-74, RN-75, RN-79, RN-92, RN-94. Decisiones aplicadas: D3, D29 (a cerrar).
+
+**Done**: regla creada con Valkey caído se reentrega al recuperarse (outbox); `expire` que falla no bloquea permanentemente; `User.email` real, único y validado, con admin sembrado vía `ADMIN_EMAIL`; agente sin heartbeat inicial pasa a `dead`; audit log de config es JSON válido; `ruleset_version` no se pisa bajo concurrencia; reject sobre baseline absent retorna `baseline_absent: true`; `/health` reporta n8n caído como `down`. Tests de regresión por cada fix.
 
 ---
 
