@@ -72,6 +72,14 @@
       "sessions": 0,
       "memories": 3,
       "prompts": 0
+    },
+    {
+      "id": "fc349c0d",
+      "created_by": "ezequiel",
+      "created_at": "2026-06-30T15:24:38Z",
+      "sessions": 2,
+      "memories": 36,
+      "prompts": 10
     }
   ]
 }
