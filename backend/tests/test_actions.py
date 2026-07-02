@@ -15,6 +15,8 @@ Cubre:
   12.11 test_no_get_file_hash_published
   12.12 test_audit_log_on_approve
   12.13 test_audit_log_on_reject
+  12.14 test_bulk_approve_rollback_isolates_failed_item (C35 / FIX-04)
+  12.15 test_bulk_reject_rollback_isolates_failed_item (C35 / FIX-04)
 
 Usa SQLite in-memory. Salta si psycopg no está disponible (Windows sin PostgreSQL).
 """
@@ -24,7 +26,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -400,6 +402,107 @@ def test_bulk_reject_partial(session, mock_valkey, admin_user, agent_with_secret
     assert result["failed"][0]["reason"] == "conflict"
     # M8: baseline_absent mapea cada evento exitoso; e1 tiene baseline presente.
     assert result["baseline_absent"] == {e1.id: False}
+
+
+# ── 12.14 test_bulk_approve_rollback_isolates_failed_item (C35 / FIX-04) ──────
+
+
+def test_bulk_approve_rollback_isolates_failed_item(session, mock_valkey, admin_user, agent_with_secret):
+    """
+    Regresión C35/FIX-04: antes del fix, `approve_bulk` no llamaba `db.rollback()`
+    en el `except Exception` genérico. El ítem que falla ya había ejecutado su UPDATE
+    optimista (dejando la fila `event` mutada pero sin commit); sin rollback, ese
+    cambio "fantasma" queda pegado a la MISMA transacción y termina commiteado junto
+    con el ítem siguiente que sí tiene éxito — el evento fallido queda incorrectamente
+    aprobado en la base pese a reportarse como `failed`.
+
+    Simula un fallo real a mitad de `_approve_single` (después del UPDATE optimista,
+    antes del commit) parcheando `_increment_ruleset_version` para que falle
+    exactamente en el segundo ítem del batch.
+    """
+    agent, _ = agent_with_secret
+    e1 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="111aaa", path="/etc/a")
+    e2 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="222bbb", path="/etc/b")
+    e3 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="333ccc", path="/etc/c")
+
+    import app.modules.actions.service as actions_service
+
+    real_incr = actions_service._increment_ruleset_version
+    call_count = {"n": 0}
+
+    def _flaky_incr(db):
+        call_count["n"] += 1
+        if call_count["n"] == 2:
+            raise RuntimeError("simulated_transient_failure")
+        return real_incr(db)
+
+    items = [
+        {"event_id": e1.id, "version": 0, "confirm_absent": False},
+        {"event_id": e2.id, "version": 0, "confirm_absent": False},
+        {"event_id": e3.id, "version": 0, "confirm_absent": False},
+    ]
+
+    with patch.object(actions_service, "_increment_ruleset_version", side_effect=_flaky_incr):
+        result = actions_service.approve_bulk(session, mock_valkey, items, admin_user.id)
+
+    assert sorted(result["succeeded"]) == sorted([e1.id, e3.id])
+    assert len(result["failed"]) == 1
+    assert result["failed"][0]["event_id"] == e2.id
+    assert result["failed"][0]["reason"] == "internal_error"
+
+    # La aserción crítica: el ítem que falló NO debe quedar aprobado en la DB —
+    # sin el rollback del fix, su UPDATE optimista queda pegado a la transacción
+    # de e3 y se commitea igual, aprobándolo "fantasma".
+    session.refresh(e2)
+    assert e2.status == EventStatus.pending
+    assert e2.version == 0
+
+    # e3, procesado DESPUÉS del fallo, se aprobó correctamente (no cascadeó).
+    session.refresh(e3)
+    assert e3.status == EventStatus.approved
+
+
+# ── 12.15 test_bulk_reject_rollback_isolates_failed_item (C35 / FIX-04) ───────
+
+
+def test_bulk_reject_rollback_isolates_failed_item(session, mock_valkey, admin_user, agent_with_secret):
+    """Regresión C35/FIX-04, camino reject_bulk: mismo patrón que 12.14 pero para reject_bulk."""
+    agent, _ = agent_with_secret
+    e1 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="444ddd", path="/etc/d")
+    e2 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="555eee", path="/etc/e")
+    e3 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="666fff", path="/etc/f")
+
+    import app.modules.actions.service as actions_service
+
+    real_write_audit = actions_service._write_audit
+    call_count = {"n": 0}
+
+    def _flaky_write_audit(*args, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] == 2:
+            raise RuntimeError("simulated_transient_failure")
+        return real_write_audit(*args, **kwargs)
+
+    items = [
+        {"event_id": e1.id, "version": 0, "action": "restore"},
+        {"event_id": e2.id, "version": 0, "action": "restore"},
+        {"event_id": e3.id, "version": 0, "action": "restore"},
+    ]
+
+    with patch.object(actions_service, "_write_audit", side_effect=_flaky_write_audit):
+        result = actions_service.reject_bulk(session, mock_valkey, items, admin_user.id)
+
+    assert sorted(result["succeeded"]) == sorted([e1.id, e3.id])
+    assert len(result["failed"]) == 1
+    assert result["failed"][0]["event_id"] == e2.id
+    assert result["failed"][0]["reason"] == "internal_error"
+
+    session.refresh(e2)
+    assert e2.status == EventStatus.pending
+    assert e2.version == 0
+
+    session.refresh(e3)
+    assert e3.status == EventStatus.rejected
 
 
 # ── 12.10 test_baseline_update_hmac_valid ────────────────────────────────────

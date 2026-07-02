@@ -324,10 +324,13 @@ def approve_bulk(
             )
             succeeded.append(event_id)
         except AbsentConfirmationRequired:
+            db.rollback()
             failed.append({"event_id": event_id, "reason": "absent_confirmation_required"})
         except ConflictError:
+            db.rollback()
             failed.append({"event_id": event_id, "reason": "conflict"})
         except Exception as exc:
+            db.rollback()
             log.error("service.actions.approve_bulk.unexpected", event_id=event_id, error=str(exc))
             failed.append({"event_id": event_id, "reason": "internal_error"})
 
@@ -365,8 +368,10 @@ def reject_bulk(
             succeeded.append(event_id)
             baseline_absent_by_event[event_id] = baseline_absent
         except ConflictError:
+            db.rollback()
             failed.append({"event_id": event_id, "reason": "conflict"})
         except Exception as exc:
+            db.rollback()
             log.error("service.actions.reject_bulk.unexpected", event_id=event_id, error=str(exc))
             failed.append({"event_id": event_id, "reason": "internal_error"})
 
