@@ -25,7 +25,11 @@ export type EventSeverity = 'critical' | 'high' | 'medium' | 'low'
 export interface EventListItem {
   id: number
   path: string
-  hash_detected: string | null
+  // Contrato C11/C38: EventOut.hash_detected es str no-nullable — el backend
+  // nunca envía null (a lo sumo cadena vacía para eventos sin hash). El flujo
+  // de archivo ausente (confirm_absent/baseline_absent) va por el 422 del
+  // backend, no por este campo.
+  hash_detected: string
   status: EventStatus
   severity: EventSeverity
   parent_event_id: number | null

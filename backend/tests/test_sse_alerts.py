@@ -330,6 +330,57 @@ def test_get_alerts_filter_severity_high(session):
         app.dependency_overrides.clear()
 
 
+def test_get_alerts_serializa_status_derivado(session):
+    """C38 (FIX-02): AlertResponse serializa status (pending|delivered|failed)."""
+    event = _make_event(session)
+    delivered = _make_alert(session, event.id, delivered=True)
+    failed = _make_alert(session, event.id, failed=True)
+    pending = _make_alert(session, event.id)
+
+    app = _make_test_app(session)
+    try:
+        with TestClient(app) as tc:
+            resp = tc.get("/alerts")
+        assert resp.status_code == 200
+        by_id = {item["id"]: item["status"] for item in resp.json()["items"]}
+        assert by_id[delivered.id] == "delivered"
+        assert by_id[failed.id] == "failed"
+        assert by_id[pending.id] == "pending"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_alerts_status_delivered_gana_sobre_failed(session):
+    """Una alerta entregada tras reintentos fallidos reporta delivered."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id, failed=True, delivered=True)
+
+    app = _make_test_app(session)
+    try:
+        with TestClient(app) as tc:
+            resp = tc.get("/alerts")
+        assert resp.status_code == 200
+        item = next(i for i in resp.json()["items"] if i["id"] == alert.id)
+        assert item["status"] == "delivered"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_failed_alerts_serializa_status(session):
+    """C38 (FIX-02): la DLQ también expone el status derivado."""
+    event = _make_event(session)
+    _make_alert(session, event.id, failed=True)
+
+    app = _make_test_app(session)
+    try:
+        with TestClient(app) as tc:
+            resp = tc.get("/alerts/failed")
+        assert resp.status_code == 200
+        assert resp.json()["items"][0]["status"] == "failed"
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_get_alerts_pagination(session):
     """GET /alerts?page=2&size=1 retorna página correcta."""
     event = _make_event(session)

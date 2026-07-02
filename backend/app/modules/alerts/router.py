@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime
-from typing import Annotated, Any, AsyncGenerator
+from typing import Annotated, Any, AsyncGenerator, Literal
 
 import anyio
 
@@ -39,6 +39,9 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 # ── Schemas de respuesta ──────────────────────────────────────────────────────
 
+AlertDerivedStatus = Literal["pending", "delivered", "failed"]
+
+
 class AlertResponse(BaseModel):
     id: int
     event_id: int
@@ -49,8 +52,34 @@ class AlertResponse(BaseModel):
     last_error: str | None
     retry_count: int
     created_at: datetime
+    # C38 (FIX-02): estado derivado de delivered_at/failed_at — misma semántica
+    # que el filtro filter_status de list_alerts. Antes solo se computaba
+    # server-side para filtrar y la columna "Estado" del frontend quedaba vacía.
+    status: AlertDerivedStatus
 
-    model_config = {"from_attributes": True}
+
+def _derive_alert_status(alert: Alert) -> AlertDerivedStatus:
+    """delivered_at ⊃ delivered; failed_at (sin delivered) ⊃ failed; resto pending."""
+    if alert.delivered_at is not None:
+        return "delivered"
+    if alert.failed_at is not None:
+        return "failed"
+    return "pending"
+
+
+def _to_alert_response(alert: Alert) -> AlertResponse:
+    return AlertResponse(
+        id=alert.id,  # type: ignore[arg-type]
+        event_id=alert.event_id,
+        severity=alert.severity,
+        channel=alert.channel,
+        delivered_at=alert.delivered_at,
+        failed_at=alert.failed_at,
+        last_error=alert.last_error,
+        retry_count=alert.retry_count,
+        created_at=alert.created_at,
+        status=_derive_alert_status(alert),
+    )
 
 
 class AlertListResponse(BaseModel):
@@ -119,6 +148,7 @@ def _alert_to_dict(alert: Alert) -> dict[str, Any]:
         "id": alert.id,
         "event_id": alert.event_id,
         "severity": alert.severity.value,
+        "status": _derive_alert_status(alert),
         "channel": alert.channel.value if alert.channel else None,
         "delivered_at": alert.delivered_at.isoformat() if alert.delivered_at else None,
         "failed_at": alert.failed_at.isoformat() if alert.failed_at else None,
@@ -198,7 +228,7 @@ async def list_all_alerts(
     """Listado paginado de todas las alertas con filtros opcionales por estado y severidad."""
     items, total = list_alerts(session, status=filter_status, severity=severity, page=page, size=size)
     return AlertPaginatedResponse(
-        items=[AlertResponse.model_validate(a) for a in items],
+        items=[_to_alert_response(a) for a in items],
         total=total,
         page=page,
         size=size,
@@ -223,7 +253,7 @@ async def get_failed_alerts(
     """Lista alertas con failed_at NOT NULL y delivered_at IS NULL, ordenadas por failed_at DESC."""
     alerts = list_failed_alerts(session)
     return AlertListResponse(
-        items=[AlertResponse.model_validate(a) for a in alerts],
+        items=[_to_alert_response(a) for a in alerts],
         total=len(alerts),
     )
 
@@ -244,7 +274,7 @@ async def retry_failed_alert(
         if reason == "already_delivered":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="alert_already_delivered")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=reason)
-    return AlertResponse.model_validate(alert)
+    return _to_alert_response(alert)
 
 
 @router.delete("/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)

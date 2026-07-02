@@ -95,6 +95,9 @@ async def notify_if_applicable(event: Event) -> None:
         "id": alert.id,
         "event_id": alert.event_id,
         "severity": alert.severity.value,
+        # C38 (FIX-02): estado derivado — una alerta recién creada aún no fue
+        # entregada ni falló (ver _derive_alert_status en alerts/router.py).
+        "status": "pending",
         "channel": None,
         "delivered_at": None,
         "failed_at": None,
