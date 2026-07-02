@@ -37,6 +37,7 @@ from app.modules.events.service import retention_task
 from app.modules.actions.router import router as actions_router
 from app.modules.alerts.router import router as alerts_router
 from app.modules.rules.router import router as rules_router
+from app.modules.rules.service import outbox_publisher_task
 from app.modules.users.router import router as users_router
 
 configure_logging()
@@ -69,6 +70,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     consumer_task = asyncio.create_task(run_consumer(async_valkey, stop_event))
     heartbeat_task = asyncio.create_task(run_heartbeat_consumer(async_valkey, stop_event))
     retention_task_handle = asyncio.create_task(retention_task())
+    outbox_publisher_handle = asyncio.create_task(outbox_publisher_task())  # H6
     mtls_task = asyncio.create_task(mtls_server.serve()) if mtls_server is not None else None
 
     yield
@@ -78,7 +80,8 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     consumer_task.cancel()
     heartbeat_task.cancel()
     retention_task_handle.cancel()
-    tasks_to_gather = [consumer_task, heartbeat_task, retention_task_handle]
+    outbox_publisher_handle.cancel()
+    tasks_to_gather = [consumer_task, heartbeat_task, retention_task_handle, outbox_publisher_handle]
     if mtls_task is not None:
         mtls_task.cancel()
         tasks_to_gather.append(mtls_task)

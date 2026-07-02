@@ -38,7 +38,19 @@ class RulesetVersion(SQLModel, table=True):
 
 
 class PublishedCommand(SQLModel, table=True):
-    """Registro histórico de comandos versionados publicados al stream commands (D10)."""
+    """Outbox de comandos versionados hacia el stream commands (D9, D10, H6).
+
+    Para el fan-out `rule_sync` (H6), la fila se inserta como `pending` con el
+    payload firmado completo en la MISMA transacción que avanza `Rule` +
+    `RulesetVersion`; un background task (`publish_pending_commands`) hace el
+    `XADD` de forma diferida con retry y marca la fila `published` al
+    confirmar. Esto garantiza que un fallo de Valkey no pierda el comando ni
+    deje la versión avanzada sin comando entregable.
+
+    El resto de los comandos (baseline_update, restore_file, quarantine_file —
+    C13/D10) se siguen insertando como `published` de forma síncrona, sin
+    pasar por el outbox — su publicación ya ocurre post-commit del evento.
+    """
 
     __tablename__ = "published_commands"
 
@@ -46,4 +58,6 @@ class PublishedCommand(SQLModel, table=True):
     command_type: str
     target_agent_id: str | None = Field(default=None)
     ruleset_version: int
-    published_at: datetime = Field(default_factory=datetime.utcnow)
+    payload: str = Field(default="")
+    status: str = Field(default="published", index=True)  # "pending" | "published"
+    published_at: datetime | None = Field(default=None)

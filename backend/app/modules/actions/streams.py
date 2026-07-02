@@ -47,6 +47,8 @@ def _record_published_command(
         command_type=command_type,
         target_agent_id=agent_id,
         ruleset_version=ruleset_version,
+        status="published",
+        published_at=datetime.now(timezone.utc),
     )
     session.add(cmd)
 
