@@ -13,6 +13,7 @@ from jose import JWTError
 from sqlmodel import Session, select
 
 from app.core.audit import write_audit_log
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.core.rate_limit import check_login_rate_limit
@@ -42,19 +43,25 @@ _REFRESH_MAX_AGE = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
+    # secure=True exige HTTPS: el navegador descarta la cookie en HTTP. En dev
+    # (HTTP local) se desactiva para que login/refresh funcionen; en prod (HTTPS)
+    # queda activo.
+    # path="/": el frontend consume la API detrás del proxy nginx bajo /api/, así
+    # que el navegador pide /api/auth/refresh. Un path acotado a /auth/refresh no
+    # coincidiría y la cookie no viajaría. httponly + samesite=strict la protegen.
     response.set_cookie(
         key=_REFRESH_COOKIE,
         value=token,
         httponly=True,
-        secure=True,
+        secure=settings.environment != "dev",
         samesite="strict",
-        path="/auth/refresh",
+        path="/",
         max_age=_REFRESH_MAX_AGE,
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
-    response.delete_cookie(key=_REFRESH_COOKIE, path="/auth/refresh")
+    response.delete_cookie(key=_REFRESH_COOKIE, path="/")
 
 
 def _to_auth_user_out(user: User) -> AuthUserOut:
