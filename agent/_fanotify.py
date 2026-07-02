@@ -25,6 +25,7 @@ import ctypes
 import os
 import select
 import struct
+import threading
 from typing import NamedTuple
 
 # ── Constantes fanotify (asm-generic; estables entre arquitecturas Linux) ──────
@@ -41,13 +42,13 @@ FAN_REPORT_DFID_NAME = FAN_REPORT_DIR_FID | FAN_REPORT_NAME  # 0xC00
 # mark() flags
 FAN_MARK_ADD = 0x00000001
 FAN_MARK_REMOVE = 0x00000002
-FAN_MARK_IGNORED_MASK = 0x00000004
+FAN_MARK_IGNORED_MASK = 0x00000020
 FAN_MARK_MOUNT = 0x00000010
 FAN_MARK_IGNORED_SURV_MODIFY = 0x00000040
 FAN_MARK_FLUSH = 0x00000080
 FAN_MARK_FILESYSTEM = 0x00000100
 FAN_MARK_INODE = 0x00000000
-FAN_MARK_DONT_FOLLOW = 0x00000002  # (para name_to_handle_at; no usado aquí)
+FAN_MARK_DONT_FOLLOW = 0x00000004  # 0x04 real (asm-generic); no usado aquí
 
 # Máscara de eventos
 FAN_ACCESS = 0x00000001
@@ -93,12 +94,17 @@ class FanEvent(NamedTuple):
 class _Context:
     """Estado por descriptor fanotify: fds de montaje para resolver handles."""
 
-    __slots__ = ("fan_fd", "mount_fds")
+    __slots__ = ("fan_fd", "mount_fds", "lock")
 
     def __init__(self, fan_fd: int) -> None:
         self.fan_fd = fan_fd
         # path marcado → fd O_PATH sobre ese filesystem (para open_by_handle_at)
         self.mount_fds: dict[str, int] = {}
+        # Protege mount_fds: mutado en el hilo del event loop (mark/close),
+        # leído en el hilo lector bloqueante (read). Sin esto, un reload de
+        # config concurrente con read() dispara RuntimeError (dict changed
+        # size during iteration) que escapa y mata el hilo lector.
+        self.lock = threading.Lock()
 
 
 _libc = ctypes.CDLL(None, use_errno=True)
@@ -141,9 +147,10 @@ def mark(fan_fd: int, flags: int, mask: int, dirfd: int, pathname: str) -> None:
     if flags & FAN_MARK_FLUSH:
         _do_mark(fan_fd, flags, 0, dirfd, None)
         if ctx is not None:
-            for mfd in ctx.mount_fds.values():
-                _safe_close(mfd)
-            ctx.mount_fds.clear()
+            with ctx.lock:
+                for mfd in ctx.mount_fds.values():
+                    _safe_close(mfd)
+                ctx.mount_fds.clear()
         return
 
     pb = pathname.encode() if pathname else None
@@ -154,12 +161,14 @@ def mark(fan_fd: int, flags: int, mask: int, dirfd: int, pathname: str) -> None:
     if ctx is None or not pathname or (flags & FAN_MARK_IGNORED_MASK):
         return
     if flags & FAN_MARK_ADD:
-        if pathname not in ctx.mount_fds:
-            mfd = _open_mount_fd(pathname)
-            if mfd is not None:
-                ctx.mount_fds[pathname] = mfd
+        with ctx.lock:
+            if pathname not in ctx.mount_fds:
+                mfd = _open_mount_fd(pathname)
+                if mfd is not None:
+                    ctx.mount_fds[pathname] = mfd
     elif flags & FAN_MARK_REMOVE:
-        mfd = ctx.mount_fds.pop(pathname, None)
+        with ctx.lock:
+            mfd = ctx.mount_fds.pop(pathname, None)
         if mfd is not None:
             _safe_close(mfd)
 
@@ -174,7 +183,11 @@ def read(fan_fd: int) -> list[FanEvent]:
         return []
     buf = os.read(fan_fd, 64 * 1024)
     ctx = _contexts.get(fan_fd)
-    mount_fds = list(ctx.mount_fds.values()) if ctx is not None else []
+    if ctx is not None:
+        with ctx.lock:
+            mount_fds = list(ctx.mount_fds.values())
+    else:
+        mount_fds = []
     return _parse_events(buf, mount_fds)
 
 
@@ -182,8 +195,10 @@ def close(fan_fd: int) -> None:
     """Cierra el fd fanotify y libera los fds de montaje asociados."""
     ctx = _contexts.pop(fan_fd, None)
     if ctx is not None:
-        for mfd in ctx.mount_fds.values():
-            _safe_close(mfd)
+        with ctx.lock:
+            for mfd in ctx.mount_fds.values():
+                _safe_close(mfd)
+            ctx.mount_fds.clear()
     _safe_close(fan_fd)
 
 

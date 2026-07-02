@@ -318,7 +318,8 @@ class FanotifyDetector:
             self._fan,
             _fan_mod.FAN_MARK_ADD
             | _fan_mod.FAN_MARK_FILESYSTEM
-            | _fan_mod.FAN_MARK_IGNORED_MASK,
+            | _fan_mod.FAN_MARK_IGNORED_MASK
+            | _fan_mod.FAN_MARK_IGNORED_SURV_MODIFY,
             mask,
             _AT_FDCWD,
             _AGENT_WORK_DIR,
