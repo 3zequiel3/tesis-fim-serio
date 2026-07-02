@@ -4,6 +4,8 @@ from enum import Enum
 import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
 
+from app.modules.rules.models import RuleSeverity
+
 
 class EventStatus(str, Enum):
     pending = "pending"
@@ -24,6 +26,10 @@ class Event(SQLModel, table=True):
     path: str = Field(index=True)
     hash_detected: str
     status: EventStatus = Field(index=True)
+    # D34/RN-128 (C38): severidad calculada al ingerir con la lógica compartida
+    # de D-C15-01 (rules/service.py::determine_severity_for_path). Snapshot al
+    # momento de la ingesta — cambios posteriores del ruleset no re-etiquetan.
+    severity: RuleSeverity = Field(default=RuleSeverity.low, index=True)
     # D33/RN-127 (C39): symlink-as-object. is_symlink distingue un evento sobre
     # un symlink (nunca se sigue el link) de uno sobre un archivo regular;
     # symlink_target es el string crudo de os.readlink, sin normalizar.

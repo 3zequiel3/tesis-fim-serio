@@ -18,6 +18,7 @@ from sqlmodel import Session, select
 from app.core.database import engine
 from app.modules.audit.models import AuditLog
 from app.modules.events.models import Event, EventStatus
+from app.modules.rules.service import determine_severity_for_path
 
 log = structlog.get_logger()
 
@@ -171,6 +172,9 @@ def ingest_event(
             path=path,
             hash_detected=event_data.get("hash_detected") or "",
             status=status,
+            # D34/RN-128 (C38): severidad persistida, calculada con la misma
+            # lógica que el pipeline de alertas (D-C15-01).
+            severity=determine_severity_for_path(path, session),
             parent_event_id=parent_event_id,
             process_pid=event_data.get("process_pid"),
             process_uid=event_data.get("process_uid"),

@@ -19,18 +19,14 @@ export interface DashboardSummary {
 // ─── Funciones API ────────────────────────────────────────────────────────────
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  // Obtener datos de 3 endpoints en paralelo
-  const [, agentsRes, healthRes] = await Promise.all([
-    apiClient.get<{ total: number; items: Array<{ status: EventStatus; severity?: string }> }>('/events', {
-      params: { page_size: 100 },
-    }),
+  // Agentes e infraestructura en paralelo
+  const [agentsRes, healthRes] = await Promise.all([
     apiClient.get<{ items: Array<{ status: AgentStatus }>; total: number }>('/agents'),
     apiClient.get<{ postgres: string; valkey: string; n8n: string; agents: { status: string; items: unknown[] }; checked_at: string }>('/health/components'),
   ])
 
-  // Contar eventos por estado — usamos un segundo call con page_size pequeño para obtener contadores
-  // El backend retorna el total, pero no agrega por status directamente.
-  // Hacemos calls por cada status relevante para obtener los totales.
+  // Contar eventos por estado: el backend no agrega por status, se usa el
+  // total de una request page_size=1 por cada status relevante.
   const statuses: EventStatus[] = ['pending', 'approved', 'rejected', 'auto_restored', 'quarantined', 'alert_only']
 
   const countResults = await Promise.all(
@@ -49,17 +45,19 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     {} as Record<EventStatus, number>
   )
 
-  // Pending críticos y altos — calls adicionales
-  const [criticalPending, highPending] = await Promise.all([
-    apiClient
-      .get<{ total: number }>('/events', { params: { status: 'pending', severity: 'critical', page_size: 1 } })
-      .then((r) => r.data.total)
-      .catch(() => 0),
-    apiClient
-      .get<{ total: number }>('/events', { params: { status: 'pending', severity: 'high', page_size: 1 } })
-      .then((r) => r.data.total)
-      .catch(() => 0),
-  ])
+  // KPI real de pendings criticos/altos: una sola request con el filtro
+  // severity persistido en el evento (D34/RN-128). El parametro es repetible,
+  // igual que status.
+  const pendingCriticalHigh = await apiClient
+    .get<{ total: number }>('/events', {
+      params: new URLSearchParams([
+        ['status', 'pending'],
+        ['severity', 'critical'],
+        ['severity', 'high'],
+        ['page_size', '1'],
+      ]),
+    })
+    .then((r) => r.data.total)
 
   // Contar agentes por status
   const agentItems = agentsRes.data.items
@@ -75,7 +73,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const h = healthRes.data
   return {
     eventsByStatus,
-    pendingCriticalHigh: criticalPending + highPending,
+    pendingCriticalHigh,
     agentsByStatus,
     health: {
       postgres: h.postgres,

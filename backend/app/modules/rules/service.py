@@ -52,6 +52,32 @@ VALID_SEVERITIES: frozenset[str] = frozenset(SEVERITY_ORDER)
 VALID_ACTIONS: frozenset[str] = frozenset(a.value for a in RuleAction)
 
 
+# ── Severidad por path (D-C15-01, D34/RN-128) ────────────────────────────────
+
+
+def determine_severity_for_path(path: str, session: Session) -> RuleSeverity:
+    """
+    Retorna la severidad más alta entre las reglas cuyo patrón glob (fnmatch)
+    matchea el path. Sin matches → RuleSeverity.low (D-C15-01).
+
+    Única fuente de cálculo de severidad, compartida por el pipeline de
+    alertas (RN-52/RN-53, alerts/service.py) y la ingesta de eventos
+    (D34/RN-128, events/service.py) — no duplicar esta lógica.
+    """
+    rules = session.exec(select(Rule)).all()
+    best = RuleSeverity.low
+    best_order = SEVERITY_ORDER[RuleSeverity.low.value]
+
+    for rule in rules:
+        if fnmatch.fnmatch(path, rule.pattern):
+            order = SEVERITY_ORDER.get(rule.severity.value, SEVERITY_ORDER["low"])
+            if order < best_order:
+                best_order = order
+                best = rule.severity
+
+    return best
+
+
 # ── Validación ────────────────────────────────────────────────────────────────
 
 

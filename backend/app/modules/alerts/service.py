@@ -11,7 +11,6 @@ Responsabilidades:
 from __future__ import annotations
 
 import asyncio
-import fnmatch
 from datetime import datetime, timezone
 from typing import Any
 
@@ -30,7 +29,8 @@ from app.modules.alerts.notifier import (
     send_webhook_fallback,
 )
 from app.modules.events.models import Event, EventStatus
-from app.modules.rules.models import Rule, RuleSeverity
+from app.modules.rules.models import RuleSeverity
+from app.modules.rules.service import determine_severity_for_path
 
 log = structlog.get_logger()
 
@@ -46,35 +46,18 @@ def _fire_and_forget(coro) -> None:
 # Delays entre reintentos en segundos (D-C15-03)
 RETRY_DELAYS: list[int] = [5, 30, 120]
 
-# Orden de severidades para comparación
-_SEVERITY_RANK: dict[str, int] = {
-    RuleSeverity.low: 0,
-    RuleSeverity.medium: 1,
-    RuleSeverity.high: 2,
-    RuleSeverity.critical: 3,
-}
-
 
 # ── Determinación de severidad ────────────────────────────────────────────────
 
 def _determine_severity(event: Event, session: Session) -> RuleSeverity:
     """
-    Busca todas las reglas cuyo patrón (glob) matchee event.path con fnmatch.
-    Retorna la severidad más alta de los matches.
-    Si no hay matches → RuleSeverity.low (D-C15-01).
+    Severidad máxima entre las reglas cuyo patrón (glob) matchea event.path;
+    sin matches → RuleSeverity.low (D-C15-01).
+
+    Delega en el helper compartido de rules/service.py — la misma lógica que
+    persiste Event.severity al ingerir (D34/RN-128).
     """
-    rules = session.exec(select(Rule)).all()
-    max_rank = -1
-    max_severity = RuleSeverity.low
-
-    for rule in rules:
-        if fnmatch.fnmatch(event.path, rule.pattern):
-            rank = _SEVERITY_RANK.get(rule.severity, 0)
-            if rank > max_rank:
-                max_rank = rank
-                max_severity = rule.severity
-
-    return max_severity
+    return determine_severity_for_path(event.path, session)
 
 
 # ── Punto de entrada post-ingesta ─────────────────────────────────────────────

@@ -19,7 +19,7 @@ from app.core.database import get_session
 from app.core.deps import require_full_access
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus
-from app.modules.rules.models import PublishedCommand
+from app.modules.rules.models import PublishedCommand, RuleSeverity
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -31,6 +31,8 @@ class EventOut(BaseModel):
     path: str
     hash_detected: str
     status: EventStatus
+    # D34/RN-128 (C38): severidad persistida al ingerir (snapshot, D-C15-01).
+    severity: RuleSeverity = RuleSeverity.low
     parent_event_id: int | None
     version: int
     process_pid: int | None
@@ -61,6 +63,8 @@ class PaginatedEventsOut(BaseModel):
 @router.get("", response_model=PaginatedEventsOut)
 async def list_events(
     status_filter: Annotated[list[EventStatus], Query(alias="status")] = [],
+    # D34/RN-128 (C38): filtro repetible por severidad, mismo patrón que status.
+    severity_filter: Annotated[list[RuleSeverity], Query(alias="severity")] = [],
     path_prefix: str | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
@@ -77,6 +81,9 @@ async def list_events(
 
     if status_filter:
         q = q.where(Event.status.in_(status_filter))
+
+    if severity_filter:
+        q = q.where(Event.severity.in_(severity_filter))
 
     if path_prefix:
         q = q.where(Event.path.startswith(path_prefix))

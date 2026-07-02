@@ -17,11 +17,17 @@ export type EventStatus =
 // confirmable asociado.
 export type CommandAckStatus = 'pending' | 'acked' | 'failed' | 'timeout'
 
+// Severidad persistida del evento (D34/RN-128, C38): calculada al ingerir
+// con la logica compartida de D-C15-01 (severidad maxima de las reglas que
+// matchean el path; sin matches -> low).
+export type EventSeverity = 'critical' | 'high' | 'medium' | 'low'
+
 export interface EventListItem {
   id: number
   path: string
   hash_detected: string | null
   status: EventStatus
+  severity: EventSeverity
   parent_event_id: number | null
   version: number
   process_pid: number | null
