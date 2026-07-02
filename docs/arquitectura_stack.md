@@ -1894,7 +1894,7 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26; D29 se agregó el 2026-07-01. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
 
 ### Modelo de datos del backend
 
@@ -2259,9 +2259,21 @@ No se migra a `AsyncSession` de SQLAlchemy — el costo de refactor es despropor
 
 **Decisión**: No se implementa cifrado en reposo del `shared_secret_hex`. El campo no puede ser hasheado porque el backend lo necesita en claro para HMAC de eventos y comandos. El cifrado en reposo requeriría key management fuera del scope de la tesis. Documentar en tesis como trabajo futuro (key wrapping con master key de env o KMS).
 
+**Limitación conocida (C32)**: La columna `shared_secret_hex` de la tabla `agents` se almacena en **plaintext** en la base de datos PostgreSQL. Cualquier actor con acceso de lectura a la DB puede leer los secretos compartidos de todos los agentes. Esta es una limitación deliberada para mantener el scope de la tesis; el uso de key wrapping (master key en variable de entorno) o integración con un KMS (AWS KMS, Vault) es trabajo futuro explícito y no está contemplado en ningún change del roadmap actual.
+
 #### D28: Pérdida de heartbeats en restart — tradeoff aceptado
 
 **Decisión**: El heartbeat consumer usa `last_id = "$"`. Heartbeats recibidos durante downtime del backend se pierden; el sweep puede marcar agentes como `offline` por hasta ~30 s. El primer heartbeat real restaura el estado. Migrar a consumer group añade complejidad desproporcionada para este impacto. Aceptado para la tesis — documentar en operaciones.
+
+**Limitación conocida (C32)**: Durante un restart del backend, el heartbeat consumer inicializa con `last_id="$"` y por lo tanto **no procesa los heartbeats publicados mientras el backend estuvo caído**. Consecuencia observable: el sweep de inactividad (~10 s de intervalo, umbral 30 s) puede marcar agentes como `offline` durante un ventana máxima de ~30 segundos tras el reinicio, generando un falso positivo de estado. El primer heartbeat real recibido después del restart restaura el estado a `online`. Este comportamiento es **aceptable para la tesis** dado el volumen de agentes esperado (decenas, no miles) y la baja frecuencia de reinicios del backend.
+
+#### D29: `User.email` — campo obligatorio, único y validado
+
+**Decisión**: El modelo `User` agrega el campo `email: EmailStr` con constraint `NOT NULL UNIQUE` en la base de datos. El campo es validado con `pydantic.EmailStr` tanto en `CreateUserRequest` como en `UserItem`. El admin inicial se siembra con el valor de la variable de entorno `ADMIN_EMAIL` (default `admin@fim.local`). La columna se agrega vía script SQL idempotente en `db/migrations/` (convención D3, sin Alembic).
+
+**Motivación**: El campo `email` es necesario para el envío de notificaciones por correo (M3, n8n). Sin `email` real, las notificaciones a usuarios no se pueden enrutar. Hoy `UserItem` retorna `username` en el campo `email` y `CreateUserRequest.email` acepta cualquier string — ambos son defectos de la auditoría 2026-06-23 (M3).
+
+**Aplicación**: `backend/app/modules/users/models.py`, `backend/app/modules/users/schemas.py`, `backend/app/modules/users/router.py`, `backend/app/core/seed.py` (variable `ADMIN_EMAIL`), `backend/db/migrations/`. Regla normativa: RN-123.
 
 ### Organización del código
 
@@ -2322,6 +2334,7 @@ Lo que SÍ queda en el change final (`backend-observability-hardening`):
 | D26 (Soft revocation + documentar gap TLS) | Change 32 (C32) | Cerrada |
 | D27 (shared_secret plaintext — limitación conocida) | — (sin código) | Cerrada |
 | D28 (heartbeat last_id — tradeoff aceptado) | — (sin código) | Cerrada |
+| D29 (`User.email` — campo obligatorio, único y validado) | Change 34 (C34) | Cerrada |
 
 #### D9: Fan-out para comandos broadcast — un mensaje firmado por agente
 **Decisión**: Cuando el backend publica un comando con semántica "broadcast" (e.g. `rule_sync` global), NO publica un único mensaje con `target_agent_id: null`. En cambio, publica N mensajes físicos en el stream `commands`, uno por cada agente registrado, cada uno con `target_agent_id = agent_id` y firmado con el `shared_secret` específico de ese agente.
