@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { EventListItem } from '@/api/events'
+import { getAckStatusMeta } from '@/utils/ackStatus'
 
 interface EventsTableProps {
   items: EventListItem[]
@@ -72,6 +73,7 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
             </th>
             <th className="px-4 py-3">Path</th>
             <th className="px-4 py-3 w-40">Estado</th>
+            <th className="px-4 py-3 w-40">Ejecución</th>
             <th className="px-4 py-3 w-48">Detectado</th>
             <th className="px-4 py-3 w-10"></th>
           </tr>
@@ -111,6 +113,17 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                   >
                     {item.status}
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {(() => {
+                    const ackMeta = getAckStatusMeta(item.ack_status)
+                    if (!ackMeta) return null
+                    return (
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-mono ${ackMeta.className}`}>
+                        {item.ack_status}
+                      </span>
+                    )
+                  })()}
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">
                   {new Date(item.detected_at).toLocaleString('es-AR')}

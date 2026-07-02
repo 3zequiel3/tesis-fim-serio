@@ -11,6 +11,12 @@ export type EventStatus =
   | 'quarantined'
   | 'alert_only'
 
+// Estado de EJECUCIÓN del comando asociado al evento (D30/RN-124, C36).
+// Indicador secundario, distinto de EventStatus — NO forma parte de la
+// máquina de estados del evento (RN-72). Ausente cuando no hay comando
+// confirmable asociado.
+export type CommandAckStatus = 'pending' | 'acked' | 'failed' | 'timeout'
+
 export interface EventListItem {
   id: number
   path: string
@@ -26,6 +32,7 @@ export interface EventListItem {
   created_at: string
   resolved_at: string | null
   resolved_by: number | null
+  ack_status?: CommandAckStatus | null
 }
 
 // El detalle del evento tiene los mismos campos que el listado

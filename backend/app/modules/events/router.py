@@ -19,6 +19,7 @@ from app.core.database import get_session
 from app.core.deps import require_full_access
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus
+from app.modules.rules.models import PublishedCommand
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -40,6 +41,9 @@ class EventOut(BaseModel):
     created_at: datetime
     resolved_at: datetime | None
     resolved_by: int | None
+    # C36 (D30/RN-124): estado de ejecución del comando asociado, indicador
+    # secundario — NO forma parte de la máquina de estados del evento (RN-72).
+    ack_status: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -87,11 +91,12 @@ async def list_events(
     items_q = q.order_by(Event.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     items = list(session.exec(items_q).all())
 
+    ack_map = _get_ack_status_map(session, [e.id for e in items if e.id is not None])
     return PaginatedEventsOut(
         total=total,
         page=page,
         page_size=page_size,
-        items=[EventOut.model_validate(e) for e in items],
+        items=[_to_event_out(e, ack_map) for e in items],
     )
 
 
@@ -104,4 +109,34 @@ async def get_event(
     event = session.exec(select(Event).where(Event.id == event_id)).first()
     if event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-    return EventOut.model_validate(event)
+    ack_map = _get_ack_status_map(session, [event.id] if event.id is not None else [])
+    return _to_event_out(event, ack_map)
+
+
+# ── Helpers — indicador secundario de ejecución (C36, D30/RN-124) ───────────────
+
+
+def _get_ack_status_map(session: Session, event_ids: list[int]) -> dict[int, str]:
+    """
+    Retorna {event_id: ack_status} usando el PublishedCommand más reciente
+    (mayor id) asociado a cada evento, con ack_status no nulo. No altera
+    Event ni su máquina de estados (RN-72) — es un lookup de solo lectura.
+    """
+    if not event_ids:
+        return {}
+    rows = session.exec(
+        select(PublishedCommand)
+        .where(PublishedCommand.event_id.in_(event_ids))  # type: ignore[union-attr]
+        .order_by(PublishedCommand.id.desc())
+    ).all()
+    result: dict[int, str] = {}
+    for row in rows:
+        if row.event_id is not None and row.event_id not in result and row.ack_status is not None:
+            result[row.event_id] = row.ack_status
+    return result
+
+
+def _to_event_out(event: Event, ack_map: dict[int, str]) -> EventOut:
+    out = EventOut.model_validate(event)
+    out.ack_status = ack_map.get(event.id) if event.id is not None else None
+    return out

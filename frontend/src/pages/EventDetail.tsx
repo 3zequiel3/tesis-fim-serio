@@ -6,6 +6,8 @@ import { DiffViewer } from '@/components/ui/DiffViewer'
 import { EventTimeline } from '@/components/ui/EventTimeline'
 import { RejectModal } from '@/components/ui/RejectModal'
 import type { RejectAction } from '@/api/actions'
+import { getAckStatusMeta } from '@/utils/ackStatus'
+import type { CommandAckStatus } from '@/api/events'
 
 export function EventDetail() {
   const { id } = useParams<{ id: string }>()
@@ -85,7 +87,10 @@ export function EventDetail() {
             {event.path}
           </h1>
         </div>
-        <StatusBadge status={event.status} />
+        <div className="flex items-center gap-2 shrink-0">
+          <StatusBadge status={event.status} />
+          <AckStatusBadge ackStatus={event.ack_status} />
+        </div>
       </div>
 
       {/* Acciones (solo si está pendiente o alert_only) */}
@@ -260,6 +265,19 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`shrink-0 px-2.5 py-1 rounded border text-sm font-mono ${cls}`}>
       {status}
+    </span>
+  )
+}
+
+// Indicador secundario de estado de EJECUCIÓN del comando asociado
+// (D30/RN-124, C36). Visualmente distinto de StatusBadge; se omite si no
+// hay comando confirmable asociado al evento (RN-72 intacto).
+function AckStatusBadge({ ackStatus }: { ackStatus?: CommandAckStatus | null }) {
+  const meta = getAckStatusMeta(ackStatus)
+  if (!meta) return null
+  return (
+    <span className={`shrink-0 px-2.5 py-1 rounded border text-xs font-mono ${meta.className}`}>
+      {meta.label}
     </span>
   )
 }
