@@ -60,6 +60,7 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 36 | [`backend-command-ack-consumer`](#change-36--backend-command-ack-consumer) | backend + agente | — (auditoría dual-judge 2026-07-02) | 34, 35 |
 | 37 | [`agent-fanotify-scope-filter`](#change-37--agent-fanotify-scope-filter) | agente | — (auditoría dual-judge 2026-07-02) | 34, 35 |
 | 38 | [`frontend-contract-fixes`](#change-38--frontend-contract-fixes) | frontend + backend | — (auditoría dual-judge 2026-07-02) | 35 |
+| 39 | [`agent-scope-filter-symlink-hardening`](#change-39--agent-scope-filter-symlink-hardening) | agente + backend + frontend | — (dual-review C37, 2026-07-02) | 37 |
 
 ---
 
@@ -736,6 +737,27 @@ Fixes:
 > **Pendiente adicional (fuera de esta change)**: la auditoría del frontend fue **solo de comunicación/contratos**. La calidad del front (arquitectura de componentes, manejo de estado, UX, accesibilidad, diseño) nunca se auditó — pendiente si se quiere un panorama completo antes de dar el frontend por terminado.
 
 Reglas: — (contrato front↔backend, sin regla nueva). Decisiones aplicadas: ninguna nueva.
+
+---
+
+### Change 39 — `agent-scope-filter-symlink-hardening`
+
+**Capa**: agente + backend + frontend · **Depende de**: 37 (`agent-fanotify-scope-filter`) · **Origen**: dual-review de C37 (hallazgo MEDIUM-2), 2026-07-02 · **Decisiones**: D33 (RN-127)
+
+> **Nota**: change de hardening que cierra el hallazgo MEDIUM-2 de la revisión dual-judge de C37 (un symlink de escape creado dentro de un `watch_path` es invisible porque el containment por `realpath` completo de D31 dereferencia el destino final antes de comparar contra `watch_paths`). D33/RN-127 se cerró el 2026-07-02 y refina la cláusula de symlinks de D31/RN-125 sin reescribirla. Scope completo cross-capa (agente + backend + frontend) — el metadato del symlink se persiste y se expone en la UI, no queda como slice opcional.
+
+Capacidades:
+- Containment por ubicación del link: `_path_location_in_scope` (nueva en `agent/detector.py`) canonicaliza el directorio padre del path y compara el basename literal, sin seguir el componente final; reemplaza al containment por `realpath` completo en el punto de descarte de `_read_loop`.
+- Symlink-as-object: todo symlink en scope se reporta con el léxico canónico de RN-71 (`file_created`/`file_deleted`/`file_modified`, sin `event_type` nuevo); `hash_detected = sha256(os.readlink(path))`; el agente nunca abre, hashea ni cifra el contenido del destino, esté dentro o fuera de scope.
+- Baseline: nueva función `write_symlink_entry` (`os.lstat`/`os.readlink`); `BaselineEntry` gana `symlink_target: str | None`; `init_scan`/`run_scan` chequean `is_symlink()` antes de `is_file()`.
+- Persistencia del metadato en `Event` (`is_symlink`, `symlink_target`) + migración SQL idempotente en `backend/db/migrations/` (convención D3, sin Alembic).
+- `EventOut` expone `is_symlink`/`symlink_target`; el frontend agrega un badge/indicador que distingue un evento de symlink de un evento de archivo regular, mostrando el `symlink_target`.
+- Resuelve como efecto colateral el hallazgo LOW-1 de la misma revisión (`file_deleted` espurio al borrar un symlink que antes no se registraba en baseline).
+- Hardlinks quedan documentados como limitación conocida (no resuelta) más un contador detective opcional `hardlink_suspected` en el heartbeat (`st_nlink >= 2`), sin cambio de comportamiento.
+
+Reglas: RN-04, RN-125, RN-127. Decisiones aplicadas: D33.
+
+**Done**: la creación de un symlink de escape dentro de un `watch_path` ya no es invisible — se reporta como `file_created` con hash de la cadena del destino; el contenido del destino out-of-scope nunca se lee ni se cifra; el re-pointing de un symlink existente se detecta como `file_modified`; la UI muestra que el evento corresponde a un symlink y su `symlink_target`; el hardlink queda documentado como limitación conocida en los appendices canónicos.
 
 ---
 

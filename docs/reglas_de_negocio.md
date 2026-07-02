@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-126 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-127 |
 
 ---
 
@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1084,6 +1084,8 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 
 **Excepciones:** Ninguna. Un `watch_path` que sea a su vez un symlink se canonicaliza una sola vez y ese `realpath` define el límite de containment.
 
+**Refinada por D33/RN-127 (2026-07-02)**: la cláusula de symlinks (omitir del baseline los que apuntan afuera) se reemplaza por el reporte del symlink como objeto de filesystem propio; ver D33.
+
 #### D32 / RN-126: Transición a `dead` para agentes que nunca enviaron heartbeat
 
 **Descripción:** El modelo `Agent` incorpora el campo `registered_at` (datetime, seteado en el momento del registro del agente). Un agente cuyo `last_heartbeat` es `NULL` (nunca llegó a enviar un heartbeat) transiciona a `dead` cuando el tiempo transcurrido desde `registered_at` supera el mismo umbral usado para la transición `offline → dead`: **300 segundos (5 minutos)**.
@@ -1093,6 +1095,24 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 **Resultado:** El barrido evalúa `now - registered_at > 300 s` para agentes sin heartbeat, en lugar de depender de la comparación `last_heartbeat < threshold` (que en SQL excluye filas `NULL` sin marcarlas, por lo que nunca las transicionaba). Se usa el mismo umbral que `offline → dead` (no el umbral más corto de `online → offline`, 30 segundos) para no marcar `dead` a un agente que está en pleno proceso de arranque/instalación.
 
 **Excepciones:** Ninguna. Los agentes existentes al momento de la migración reciben `registered_at` con el timestamp de ejecución de la migración como valor de backfill, dado que no hay dato histórico real de cuándo se registraron.
+
+#### D33 / RN-127: Symlink como objeto de filesystem propio — containment por ubicación del link, nunca por destino resuelto
+
+**Descripción:** Esta decisión refina D31/RN-125 y cierra el hallazgo MEDIUM-2 de la revisión dual-judge de C37 (2026-07-02): un symlink de escape creado dentro de un `watch_path` (p. ej. `/etc/evil -> /root/.ssh/authorized_keys`) es invisible para el filtro de containment por `realpath` completo, porque `os.path.realpath()` resuelve el symlink final y descarta el evento por caer el destino fuera de alcance — pese a que la creación del link **en sí misma** es un evento en scope (vector de persistencia) que un FIM debe reportar. La decisión reemplaza el containment "por destino resuelto" (usado en el punto de descarte del detector) por un containment "por ubicación del link": se canonicaliza únicamente el directorio padre del path, sin seguir el componente final si este es un symlink. El symlink deja de tratarse como un proxy transparente de su destino y pasa a reportarse como un objeto de filesystem propio.
+
+**Condición:** Todo evento fanotify cuyo path final sea o involucre un symlink, y todo symlink encontrado durante el escaneo de baseline (inicial o re-scan).
+
+**Resultado:**
+- Nueva función de containment `_path_location_in_scope(path, watch_paths)`: canonicaliza el directorio padre del path (`os.path.realpath(os.path.dirname(path))`) y compara el basename literal contra los `watch_paths` — **no** resuelve (no sigue) el componente final aunque sea un symlink. Esta función reemplaza al containment por `realpath` completo (D31) en el punto de descarte del detector.
+- **Symlink-as-object**: para todo symlink en scope (por ubicación), el agente nunca sigue el link ni lee/hashea/cifra el contenido del destino, esté este dentro o fuera de scope. El evento se reporta con el léxico canónico ya existente de RN-71 (`file_created`, `file_deleted`, `file_modified` — no se introduce un `event_type` nuevo). El hash reportado es `sha256(os.readlink(path))` (hash de la cadena del destino, no de su contenido); el campo `diff`/contenido queda `None`.
+- **Baseline**: `write_symlink_entry` usa `os.lstat`/`os.readlink` (nunca sigue el link) y agrega `symlink_target: str | None` a la entrada de baseline. `init_scan` y el re-scan chequean `is_symlink()` **antes** que `is_file()` (`is_file()` sigue symlinks y produciría un falso "archivo regular").
+- Se elimina la asimetría create/delete introducida por D31: como el symlink ahora se reporta y se registra en el baseline en el momento de su creación, ya no hay `file_deleted` espurio cuando luego se borra (la entrada de baseline existe para poder distinguir el borrado real de un `file_absent`).
+- **Persistencia y exposición (scope completo — agente + backend + frontend)**: el metadato `is_symlink`/`symlink_target` se persiste en el modelo `Event` del backend, se expone en el schema de salida de eventos, y se muestra en la interfaz mediante un badge/indicador visual que distingue un evento sobre un symlink de un evento sobre un archivo regular.
+- Un symlink intermedio (no el componente final) que apunta fuera de scope sigue resolviendo su archivo final como fuera de alcance (el contenido real vive afuera) — pero el symlink intermedio en sí, si está en un `watch_path`, se reporta como objeto propio. Un symlink intermedio que permanece dentro de scope no cambia el comportamiento existente.
+
+**Excepciones:**
+- **Hardlinks**: quedan documentados como limitación conocida, no resuelta por esta decisión. Un hardlink es, para el filesystem, un segundo nombre para el mismo inodo — `realpath`/`lstat` no lo distinguen de un archivo regular, y determinar si otro nombre del mismo inodo cae fuera de scope requeriría un escaneo completo del filesystem (incompatible con el diseño de cola acotada y reactivo del agente). Esta limitación es inherente a POSIX, no un defecto de implementación. Mitigación: el baseline permanece cifrado con AES-256-GCM y bajo permisos `0700`, limitando el impacto de un hardlink no detectado. Se admite, como contador detective opcional (sin cambio de comportamiento), `hardlink_suspected` en el heartbeat cuando se crea un archivo regular con `st_nlink >= 2`.
+- Un `watch_path` que sea él mismo un symlink conserva el tratamiento de D31: se canonicaliza una sola vez y ese `realpath` define el límite de containment (esta excepción no cambia).
 
 ### Decisiones técnicas referenciadas en otros documentos
 

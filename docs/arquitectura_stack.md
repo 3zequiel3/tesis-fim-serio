@@ -1894,7 +1894,7 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26; D29 se agregó el 2026-07-01; D30–D32 se agregaron el 2026-07-02. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26; D29 se agregó el 2026-07-01; D30–D32 se agregaron el 2026-07-02; D33 se agregó el 2026-07-02. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
 
 ### Modelo de datos del backend
 
@@ -2317,6 +2317,8 @@ No se migra a `AsyncSession` de SQLAlchemy — el costo de refactor es despropor
 
 **Aplicación**: `agent/detector.py` (`_read_loop`, `start`, `reload_paths`, `reload_watch_paths`), `agent/baseline.py` (`init_scan` y rescan), heartbeat del agente (contador `out_of_scope_drops`). Regla normativa: RN-125.
 
+> **Refinada por D33 (2026-07-02)**: la cláusula de symlinks de esta decisión (omitir del baseline los que apuntan afuera) queda reemplazada por el reporte del symlink como objeto de filesystem propio, con containment por ubicación del link en vez de por destino resuelto. Ver D33.
+
 #### D32: `Agent.registered_at` + grace period para agentes sin heartbeat inicial
 
 **Decisión**: Se agrega la columna `Agent.registered_at: datetime`, seteada en `register_agent` (`backend/app/modules/agents/service.py:33`) en el momento del registro. Migración SQL idempotente (`backend/db/migrations/`, convención D3, sin Alembic) con backfill: los agentes existentes reciben el timestamp de ejecución de la migración como valor de `registered_at`, dado que no hay dato histórico real de cuándo se registraron.
@@ -2331,6 +2333,26 @@ No se migra a `AsyncSession` de SQLAlchemy — el costo de refactor es despropor
 **Excepciones**: Ninguna.
 
 **Aplicación**: `backend/app/modules/agents/models.py` (`Agent.registered_at`), `backend/app/modules/agents/service.py` (`register_agent`), `backend/app/modules/agents/heartbeat_consumer.py` (`_sweep_offline`), `backend/db/migrations/` (script idempotente + backfill). Regla normativa: RN-126.
+
+#### D33: Symlink como objeto de filesystem propio — containment por ubicación del link (agente + backend + frontend)
+
+**Decisión**: `agent/detector.py` incorpora `_path_location_in_scope(path, watch_paths)` — canonicaliza únicamente el directorio padre del path (`os.path.realpath(os.path.dirname(path))`) y compara el basename literal contra los `watch_paths`, sin resolver (sin seguir) el componente final aunque sea un symlink. Esta función reemplaza al containment por `realpath` completo de D31 en el punto de descarte de `_read_loop`. El hardening es **cross-capa**: agente (detección + baseline), backend (persistencia del metadato) y frontend (badge de UI) — no es un slice opcional de backend.
+
+**Problema base**: la revisión dual-judge de C37 (hallazgo MEDIUM-2, 2026-07-02) encontró que el containment por `realpath` completo de D31 dereferencia el symlink final antes de comparar contra `watch_paths`. Un symlink `/etc/evil -> /root/.ssh/authorized_keys` creado dentro de un `watch_path` es, en sí mismo, una nueva entrada de directorio en scope (vector de persistencia clásico), pero D31 lo descarta silenciosamente porque su `realpath` resuelve a un destino fuera de alcance — la creación del link queda invisible para el FIM. D31 conflaba dos preguntas distintas: "¿el link está en scope?" (ubicación) vs. "¿el destino resuelto está en scope?" (contenido).
+
+**Resultado**:
+- `agent/detector.py`: `_path_location_in_scope` (nueva) decide containment por ubicación del link y reemplaza el uso de `_realpath_in_scope` en el punto de descarte de `_read_loop`. La función anterior se conserva (renombrada `_target_in_scope`) para checks de metadata que sí necesiten saber si el destino resuelto cae en scope. `_process_event` gana la rama symlink-as-object: para todo path en scope cuyo componente final sea un symlink, el agente hace `os.lstat`/`os.readlink` — nunca abre, hashea o cifra el contenido del destino, esté este dentro o fuera de scope. El evento se reporta con el léxico canónico existente de RN-71 (`file_created`/`file_deleted`/`file_modified`, sin `event_type` nuevo); `hash_detected = sha256(os.readlink(path))` (hash de la cadena del destino); no hay diff de contenido.
+- `agent/baseline.py`: nueva función `write_symlink_entry` (usa `os.lstat`/`os.readlink`, `content_b64=None`, `hash=sha256(target)`); `BaselineEntry` agrega `symlink_target: str | None = None` (default retrocompatible vía `from_dict`). `init_scan` y `run_scan` chequean `p.is_symlink()` **antes** de `p.is_file()` (`is_file()` sigue symlinks y produciría una clasificación incorrecta como archivo regular).
+- Se elimina la asimetría create/delete que dejaba D31: al reportarse y registrarse en baseline en el momento de creación, el borrado posterior del symlink ya no genera un `file_deleted` espurio (LOW-1 de la misma revisión dual-judge queda resuelto como consecuencia).
+- `backend/app/modules/events/models.py`: `Event` agrega columnas `is_symlink: bool = False` y `symlink_target: str | None = None`. Migración SQL idempotente en `backend/db/migrations/` (convención D3, sin Alembic; próximo número de secuencia tras `004_add_command_ack_tracking.sql`).
+- `backend/app/modules/events/router.py`: `EventOut` expone `is_symlink`/`symlink_target` junto al resto de campos del evento (mismo patrón que el campo `ack_status` agregado por D30/C36).
+- Frontend: badge/indicador visual en la tabla y el detalle de eventos que distingue un evento sobre un symlink (mostrando `symlink_target`) de un evento sobre un archivo regular.
+
+**Excepciones**:
+- **Hardlinks (documentados como limitación conocida, no resuelta)**: `os.path.realpath`/`os.lstat` no distinguen un hardlink de un archivo regular — ambos nombres apuntan al mismo inodo sin metadata que lo indique salvo `st_nlink >= 2`. Determinar si otro nombre del mismo inodo cae fuera de scope requeriría un escaneo completo del filesystem, lo cual es incompatible con el diseño de cola acotada (`maxsize=1000`) y reactivo del agente (revertiría el tradeoff arquitectónico de `FAN_MARK_FILESYSTEM`). Es una limitación inherente a POSIX, no un defecto de esta implementación. Mitigación: el baseline permanece cifrado con AES-256-GCM y bajo `0700` (D-existente), acotando el impacto de un hardlink no detectado. Contador detective opcional (sin cambio de comportamiento): `hardlink_suspected` en el heartbeat, incrementado cuando se crea un archivo regular en scope con `st_nlink >= 2`.
+- Un `watch_path` que sea él mismo un symlink conserva el tratamiento de D31 (se canonicaliza una sola vez).
+
+**Aplicación**: `agent/detector.py` (`_path_location_in_scope` nuevo, `_target_in_scope` renombrado, `_read_loop`, `_process_event`, manejo de `lstat`/`readlink`), `agent/baseline.py` (`write_symlink_entry` nuevo, `BaselineEntry.symlink_target`, `init_scan`/`run_scan` chequeo `is_symlink()` antes de `is_file()`), `backend/app/modules/events/models.py` (columnas `is_symlink`/`symlink_target` en `Event`), `backend/db/migrations/` (migración idempotente), `backend/app/modules/events/router.py` (`EventOut` expone el metadato), frontend (badge de symlink en tabla/detalle de eventos). Regla normativa: RN-127.
 
 ### Organización del código
 
@@ -2395,6 +2417,7 @@ Lo que SÍ queda en el change final (`backend-observability-hardening`):
 | D30 (Consumer `command_ack` + tracking en `PublishedCommand`) | Change 36 (C36) | Cerrada |
 | D31 (Filtro de containment `realpath` en detector/baseline) | Change 37 (C37) | Cerrada |
 | D32 (`Agent.registered_at` + grace period sin heartbeat) | Change 34 (C34), M4 | Cerrada |
+| D33 (Symlink como objeto propio — containment por ubicación del link) | Change 39 (C39) | Cerrada |
 
 #### D9: Fan-out para comandos broadcast — un mensaje firmado por agente
 **Decisión**: Cuando el backend publica un comando con semántica "broadcast" (e.g. `rule_sync` global), NO publica un único mensaje con `target_agent_id: null`. En cambio, publica N mensajes físicos en el stream `commands`, uno por cada agente registrado, cada uno con `target_agent_id = agent_id` y firmado con el `shared_secret` específico de ese agente.
