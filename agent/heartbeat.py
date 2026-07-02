@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from agent.streams import SCHEMA_VERSION
+from agent.streams import SCHEMA_VERSION, sign_payload
 
 if TYPE_CHECKING:
     import valkey.asyncio as avalkey
@@ -46,6 +46,7 @@ class HeartbeatPublisher:
         client: "avalkey.Valkey",
         publisher: "Publisher | None" = None,
         detector: "FanotifyDetector | None" = None,
+        shared_secret: bytes | None = None,
     ) -> None:
         self._config = config
         self._queue = queue
@@ -53,6 +54,10 @@ class HeartbeatPublisher:
         self._client = client
         self._publisher = publisher
         self._detector = detector
+        # Mismo shared_secret que el Publisher: el heartbeat también debe ir firmado
+        # con HMAC o el heartbeat_consumer del backend lo descarta (invalid_signature).
+        # En producción lo inyecta __main__; se pasa por parámetro (no I/O en __init__).
+        self._shared_secret = shared_secret
 
     async def run(self, stop_event: asyncio.Event, shutdown_flag: "asyncio.Event | None" = None) -> None:
         """Loop de heartbeat. Lee publisher.shutdown como fuente de verdad (D-C26-4)."""
@@ -84,6 +89,8 @@ class HeartbeatPublisher:
             # D33/RN-127: contador detective opcional, sin cambio de comportamiento.
             "hardlink_suspected": self._detector.hardlink_suspected if self._detector is not None else 0,
         }
+        if self._shared_secret is not None:
+            payload["signature"] = sign_payload(self._shared_secret, payload)
         data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         try:
             await self._client.xadd(STREAM_HEARTBEAT, {"data": data})

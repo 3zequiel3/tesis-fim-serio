@@ -252,7 +252,10 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     else:
         log.warning("agent.detector.skipped", reason="fanotify only available on Linux")
 
-    heartbeat = HeartbeatPublisher(cfg, queue, state, valkey_client, publisher=publisher, detector=detector)
+    heartbeat = HeartbeatPublisher(
+        cfg, queue, state, valkey_client, publisher=publisher, detector=detector,
+        shared_secret=shared_secret,
+    )
 
     coroutines = [
         publisher.run(stop_event),

@@ -390,6 +390,42 @@ async def test_heartbeat_payload_includes_out_of_scope_drops() -> None:
 
 
 @pytest.mark.asyncio
+async def test_heartbeat_payload_is_signed_and_verifiable() -> None:
+    """El heartbeat va firmado con HMAC y el backend puede verificarlo.
+
+    Regresión: el heartbeat se publicaba SIN el campo 'signature', así que el
+    heartbeat_consumer del backend lo descartaba (invalid_signature) y marcaba al
+    agente offline pese a estar sano. Ahora, con shared_secret inyectado, el
+    payload lleva firma verificable con el mismo contrato que el backend.
+    """
+    from agent.streams import verify_payload
+
+    secret = b"s" * 32
+    queue = MagicMock()
+    queue.queue_size = 0
+    queue.queue_pressure = 0.0
+    state = MagicMock()
+    state.ruleset_version = 1
+    client = MagicMock()
+    client.xadd = AsyncMock(return_value="1-0")
+
+    hb = HeartbeatPublisher(
+        config=_make_heartbeat_config(),
+        queue=queue,
+        state=state,
+        client=client,
+        shared_secret=secret,
+    )
+    await hb._publish(False)
+
+    data = json.loads(client.xadd.call_args[0][1]["data"])
+    assert "signature" in data
+    assert verify_payload(secret, data) is True
+    # La firma es real (no un placeholder): con otro secreto NO verifica.
+    assert verify_payload(b"other-secret-32-bytes-long-xxxxx", data) is False
+
+
+@pytest.mark.asyncio
 async def test_heartbeat_out_of_scope_drops_zero_without_detector() -> None:
     queue = MagicMock()
     queue.queue_size = 0
