@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1039,6 +1039,21 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 **Motivación:** Un error tipográfico en la configuración (`valkey://` en vez de `valkeys://`) desactiva todo el mTLS de D17 silenciosamente. El warning hace visible el problema en lugar de silenciarlo.
 
 **Excepciones:** En entornos CI/test donde Valkey corre sin TLS, el warning es esperado e ignorable.
+
+#### D29 / RN-123: `User.email` — campo de email obligatorio, único y validado
+
+**Descripción:** El modelo `User` agrega el campo `email` con las siguientes propiedades:
+- Tipo: `EmailStr` (validación de formato RFC 5321).
+- Constraint en DB: `NOT NULL UNIQUE`.
+- El admin inicial se siembra con el valor de `ADMIN_EMAIL` (env var, default `admin@fim.local`).
+- `CreateUserRequest.email` valida formato; `UserItem` expone el email real (no el username).
+- Migración: script SQL idempotente en `backend/db/migrations/` (convención D3, sin Alembic).
+
+**Condición:** Aplica a todos los endpoints que crean o devuelven usuarios (`POST /users`, `GET /users`, `GET /users/{id}`).
+
+**Motivación:** El campo es requerido para enrutar notificaciones por email via n8n (M3 de la auditoría 2026-06-23). Sin email real, las notificaciones no se pueden entregar al usuario responsable del evento. El campo también es necesario para el reset de password y auditoría de identidad.
+
+**Excepciones:** En entornos donde no se configura n8n, el email puede ser un placeholder válido (ej. `admin@fim.local`) pero el formato debe ser válido según RFC 5321.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
