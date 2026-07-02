@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth.store'
+import { refreshApi } from '@/api/auth'
 
 // Grafo de dependencias (sin ciclo):
 //   client.ts  →  auth.store.ts  →  api/auth.ts  (no importa client.ts)
@@ -71,15 +72,10 @@ apiClient.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const { data } = await axios.post<{
-          access_token: string
-          user?: {
-            id: number
-            username: string
-            role: string
-            must_change_password: boolean
-          }
-        }>('/auth/refresh', {}, { baseURL: BASE_URL, withCredentials: true })
+        // Usa el refreshApi single-flight compartido: si ProtectedRoute u otra
+        // request ya dispararon un refresh, este espera la MISMA promesa en vez de
+        // mandar un segundo /auth/refresh que rotaría el token y se auto-revocaría.
+        const data = await refreshApi()
 
         const newToken = data.access_token
         const currentUser = useAuthStore.getState().user

@@ -42,9 +42,23 @@ export async function loginApi(credentials: LoginCredentials): Promise<LoginResp
   return data
 }
 
+// Single-flight: dedupe los refreshes concurrentes en una sola request. Sin esto,
+// al recargar la página las queries que dan 401 + el refresh de ProtectedRoute
+// disparan varios /auth/refresh en paralelo con el MISMO refresh token; la
+// rotación single-use del backend blacklistea el primero y los demás reciben
+// "Refresh token revoked" → deslogueo espurio. Todos los llamadores comparten la
+// promesa en curso.
+let inFlightRefresh: Promise<RefreshResponse> | null = null
+
 export async function refreshApi(): Promise<RefreshResponse> {
-  const { data } = await authAxios.post<RefreshResponse>('/auth/refresh')
-  return data
+  if (inFlightRefresh) return inFlightRefresh
+  inFlightRefresh = authAxios
+    .post<RefreshResponse>('/auth/refresh')
+    .then((r) => r.data)
+    .finally(() => {
+      inFlightRefresh = null
+    })
+  return inFlightRefresh
 }
 
 export async function logoutApi(): Promise<void> {
