@@ -41,6 +41,14 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _REFRESH_COOKIE = "refresh_token"
 _REFRESH_MAX_AGE = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
 
+# Ventana de gracia para refreshes CONCURRENTES. La rotación single-use blacklistea
+# el token viejo al usarlo; sin gracia, dos refreshes casi simultáneos con el mismo
+# token (recarga de página que dispara varias requests, múltiples tabs, reconexión
+# SSE) hacen que uno gane y el otro reciba "revoked" → deslogueo espurio. Durante la
+# ventana, el refresh perdedor recibe la sesión ya rotada por el ganador.
+_REFRESH_GRACE_PREFIX = "fim:refresh_grace:"
+_REFRESH_GRACE_TTL_S = 10
+
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
     # secure=True exige HTTPS: el navegador descarta la cookie en HTTP. En dev
@@ -48,13 +56,19 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
     # queda activo.
     # path="/": el frontend consume la API detrás del proxy nginx bajo /api/, así
     # que el navegador pide /api/auth/refresh. Un path acotado a /auth/refresh no
-    # coincidiría y la cookie no viajaría. httponly + samesite=strict la protegen.
+    # coincidiría y la cookie no viajaría.
+    # samesite="lax": elección estándar para cookies de sesión. Viaja en requests
+    # same-origin (el frontend consume /api same-origin) y en navegaciones
+    # top-level same-site, y se bloquea en POST cross-site, manteniendo la
+    # protección CSRF de /auth/refresh (POST). httponly evita el acceso desde JS.
+    # (El deslogueo al recargar NO era por SameSite —la cookie viajaba también con
+    # Strict— sino por la race de refresh concurrente; ver la ventana de gracia.)
     response.set_cookie(
         key=_REFRESH_COOKIE,
         value=token,
         httponly=True,
         secure=settings.environment != "dev",
-        samesite="strict",
+        samesite="lax",
         path="/",
         max_age=_REFRESH_MAX_AGE,
     )
@@ -134,7 +148,28 @@ async def refresh(
 
     old_jti: str | None = payload.get("jti")
     if old_jti and valkey_client.exists(f"{BLACKLIST_PREFIX}{old_jti}"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked")
+        # El token ya fue rotado. Si estamos dentro de la ventana de gracia es un
+        # refresh concurrente (no reuso malicioso): devolvemos la sesión ya rotada
+        # por el ganador en vez de 401. Pasada la ventana, es reuso real → 401.
+        grace = valkey_client.get(f"{_REFRESH_GRACE_PREFIX}{old_jti}")
+        if grace is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked"
+            )
+        winning_refresh = grace.decode() if isinstance(grace, (bytes, bytearray)) else grace
+        user = session.exec(select(User).where(User.id == int(payload["sub"]))).first()
+        if user is None or not user.is_active:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        access_token = create_access_token(
+            user_id=user.id,  # type: ignore[arg-type]
+            username=user.username,
+            must_change_password=user.must_change_password,
+            jti=str(uuid4()),
+        )
+        # Devolver el MISMO refresh que emitió el ganador → ambos clientes quedan
+        # con una sesión coherente.
+        _set_refresh_cookie(response, winning_refresh)
+        return RefreshResponse(access_token=access_token, user=_to_auth_user_out(user))
 
     if old_jti:
         blacklist_token(old_jti, payload["exp"], valkey_client)
@@ -153,6 +188,10 @@ async def refresh(
         jti=jti_access,
     )
     new_refresh = create_refresh_token(user_id=user.id, jti=jti_refresh)  # type: ignore[arg-type]
+    # Guardar el refresh "ganador" para que un refresh concurrente con el token
+    # viejo (dentro de la ventana) reciba esta misma sesión en vez de 401.
+    if old_jti:
+        valkey_client.setex(f"{_REFRESH_GRACE_PREFIX}{old_jti}", _REFRESH_GRACE_TTL_S, new_refresh)
     _set_refresh_cookie(response, new_refresh)
 
     return RefreshResponse(access_token=access_token, user=_to_auth_user_out(user))
