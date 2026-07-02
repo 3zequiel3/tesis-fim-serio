@@ -13,6 +13,7 @@ efectiva (best-effort inmediato + background task de retry).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from unittest.mock import MagicMock
@@ -30,6 +31,7 @@ from app.core.streams import verify_payload
 from app.modules.agents.models import Agent, AgentStatus
 from app.modules.auth.models import User
 from app.modules.rules.models import PublishedCommand
+import app.modules.rules.service as rules_service
 from app.modules.rules.service import create_rule, publish_pending_commands
 
 
@@ -178,3 +180,42 @@ def test_transient_failure_stops_batch_without_losing_pending_rows(
     ).all()
     assert len(cmds) == 2
     assert all(c.status == "pending" for c in cmds)
+
+
+async def test_outbox_poller_survives_unexpected_exception(monkeypatch) -> None:
+    """
+    H6: el background poller NUNCA debe morir. Antes del fix, el try/except
+    solo cubría RuntimeError de get_valkey_client; cualquier otra excepción de
+    publish_pending_commands (DB, XADD no-ValkeyError) escapaba del `while
+    True` y mataba el poller para siempre, anulando la durabilidad de H6.
+
+    Mockeamos publish_pending_commands para que lance una excepción inesperada
+    en el primer ciclo y verificamos que el poller sigue iterando después.
+    """
+    import app.core.valkey as valkey_mod
+
+    monkeypatch.setattr(rules_service, "_OUTBOX_POLL_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(valkey_mod, "get_valkey_client", lambda: MagicMock())
+
+    calls = {"n": 0}
+
+    def fake_publish(session, client) -> None:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("fallo inesperado en el primer ciclo")
+
+    monkeypatch.setattr(rules_service, "publish_pending_commands", fake_publish)
+
+    task = asyncio.create_task(rules_service.outbox_publisher_task())
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + 3.0
+    while calls["n"] < 3 and loop.time() < deadline:
+        await asyncio.sleep(0.01)
+
+    task.cancel()
+    # Si el poller hubiera muerto por la excepción, await re-lanzaría el
+    # RuntimeError en vez de CancelledError y este bloque fallaría.
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert calls["n"] >= 3, "el poller debe seguir corriendo tras una excepción inesperada"

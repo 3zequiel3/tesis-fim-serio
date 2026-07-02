@@ -364,11 +364,23 @@ async def outbox_publisher_task() -> None:
     `pending` (outbox de rule_sync) que quedaron sin entregar por una caída
     de Valkey en el intento inmediato de create/update/delete_rule. Corrida
     desde el lifespan de FastAPI (ver main.py), igual que `retention_task`.
+
+    `publish_pending_commands` usa el cliente Valkey SYNC (xadd) y un
+    commit por fila, así que se ejecuta en el threadpool
+    (run_in_executor) para NO bloquear el event loop cada 30s. Cualquier
+    excepción inesperada (DB, XADD que no sea ValkeyError, etc.) se loguea y
+    el poller CONTINÚA: nunca debe morir, o se anula la durabilidad de H6.
     """
     import asyncio
 
     from app.core.database import engine
     from app.core.valkey import get_valkey_client
+
+    loop = asyncio.get_running_loop()
+
+    def _publish_batch(client) -> None:
+        with Session(engine) as session:
+            publish_pending_commands(session, client)
 
     while True:
         await asyncio.sleep(_OUTBOX_POLL_INTERVAL_SECONDS)
@@ -377,5 +389,10 @@ async def outbox_publisher_task() -> None:
         except RuntimeError:
             # Valkey todavía no fue inicializado (arranque temprano) — reintentar en el próximo ciclo.
             continue
-        with Session(engine) as session:
-            publish_pending_commands(session, valkey_client)
+        try:
+            # Corre en threadpool: publish_pending_commands es I/O sync bloqueante.
+            await loop.run_in_executor(None, _publish_batch, valkey_client)
+        except Exception as exc:
+            # Nunca matar el poller: loguear y seguir en el próximo ciclo (durabilidad H6).
+            log.error("outbox_publisher.cycle_failed", error=str(exc))
+            continue
