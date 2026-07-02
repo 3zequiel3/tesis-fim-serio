@@ -77,9 +77,17 @@ async def _check_n8n(n8n_webhook_url: str) -> str:
     era dead code porque `head()` sin `raise_for_status()` nunca lo lanzaba.
 
     Preferimos HEAD sobre GET porque un GET a un webhook n8n podría disparar
-    el workflow; si HEAD falla (conexión/timeout) o el endpoint no lo
-    soporta (405), reintentamos con GET como fallback documentado antes de
-    decidir el resultado final.
+    el workflow; si HEAD falla (conexión/timeout) o el endpoint no soporta
+    HEAD, reintentamos con GET como fallback documentado antes de decidir el
+    resultado final. Un webhook n8n sano suele responder 404 ("not
+    registered for HEAD") — NO 405 —, así que tanto 404 como 405 disparan el
+    fallback; de lo contrario un n8n sano se reportaría `down` en cada check.
+
+    NOTA (efecto secundario): el fallback usa la misma URL (webhook). Un GET a
+    un webhook productivo puede disparar el workflow n8n. Si se dispone de un
+    endpoint de health/base de n8n, es preferible apuntar el fallback ahí; se
+    deja como mejora acotada para no cambiar el contrato de configuración
+    (settings.n8n_webhook_url) en este fix.
     """
     if not n8n_webhook_url:
         return "degraded"
@@ -92,14 +100,14 @@ async def _check_n8n(n8n_webhook_url: str) -> str:
                 response.raise_for_status()
                 return "ok"
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code != 405:
-                    # Error real (4xx que no es "método no soportado", o 5xx) — down directo.
+                if exc.response.status_code not in (404, 405):
+                    # Error real (4xx que no indica "HEAD no soportado", o 5xx) — down directo.
                     log.warning(
                         "health.n8n_error_status",
                         status_code=exc.response.status_code,
                     )
                     return "down"
-                # 405 — HEAD no soportado, fallback a GET.
+                # 404/405 — HEAD no soportado por el webhook n8n, fallback a GET.
             except httpx.HTTPError as exc:
                 # HEAD falló por conexión/timeout — fallback a GET.
                 log.warning("health.n8n_head_failed", error=str(exc))

@@ -9,8 +9,10 @@ httpx.HTTPStatusError` era dead code porque `head()` nunca lo lanzaba sin
 o no estaba soportado.
 
 El fix usa `raise_for_status()` para tratar cualquier 4xx/5xx como `down`,
-con la excepción de 405 (método no soportado) que dispara un fallback a GET
-antes de decidir el resultado final.
+con la excepción de 404 y 405 (el webhook no soporta HEAD) que disparan un
+fallback a GET antes de decidir el resultado final. Un webhook n8n sano
+responde 404 a un HEAD ("not registered for HEAD"), así que 404 NO debe
+reportarse `down` directo: debe reintentar con GET.
 """
 
 from __future__ import annotations
@@ -52,21 +54,24 @@ async def test_n8n_down_on_500(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result == "down"
 
 
-async def test_n8n_down_on_404_not_method_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    """M9: un 404 (no es 405) se reporta down directo, sin fallback a GET."""
+async def test_n8n_fallback_to_get_when_head_returns_404(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M9: un webhook n8n sano responde 404 a HEAD ("not registered for HEAD")
+    → fallback a GET; si el GET responde 2xx, el resultado es `ok`, no `down`."""
     calls: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request.method)
-        return httpx.Response(404)
+        if request.method == "HEAD":
+            return httpx.Response(404)
+        return httpx.Response(200)
 
     _patched_async_client(monkeypatch, handler)
     result = await _check_n8n("http://n8n.local/webhook/fim")
-    assert result == "down"
-    assert calls == ["HEAD"], "un 404 no debe disparar el fallback a GET"
+    assert result == "ok"
+    assert calls == ["HEAD", "GET"], "un 404 en HEAD debe disparar el fallback a GET"
 
 
-async def test_n8n_fallback_to_get_when_head_not_supported(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_n8n_fallback_to_get_when_head_returns_405(monkeypatch: pytest.MonkeyPatch) -> None:
     """M9: HEAD devuelve 405 (no soportado) → fallback a GET, que decide el resultado."""
     calls: list[str] = []
 
@@ -80,6 +85,20 @@ async def test_n8n_fallback_to_get_when_head_not_supported(monkeypatch: pytest.M
     result = await _check_n8n("http://n8n.local/webhook/fim")
     assert result == "ok"
     assert calls == ["HEAD", "GET"]
+
+
+async def test_n8n_down_on_403_no_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M9: un 4xx que NO indica "HEAD no soportado" (p. ej. 403) → down directo, sin fallback."""
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.method)
+        return httpx.Response(403)
+
+    _patched_async_client(monkeypatch, handler)
+    result = await _check_n8n("http://n8n.local/webhook/fim")
+    assert result == "down"
+    assert calls == ["HEAD"], "un 403 no debe disparar el fallback a GET"
 
 
 async def test_n8n_fallback_to_get_still_fails(monkeypatch: pytest.MonkeyPatch) -> None:
