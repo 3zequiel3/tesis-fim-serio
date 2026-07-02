@@ -69,19 +69,44 @@ async def _check_valkey(valkey_client: Any) -> str:
 
 
 async def _check_n8n(n8n_webhook_url: str) -> str:
-    """GET/HEAD al webhook de n8n con timeout 3s."""
+    """
+    HEAD al webhook de n8n con timeout 3s (M9). Cualquier status de error
+    (4xx/5xx) se reporta `down` vía `raise_for_status()` — antes, el check
+    comparaba `status_code < 500`, que trataba erróneamente los 4xx (p. ej.
+    405 Method Not Allowed) como `ok`, y el `except httpx.HTTPStatusError`
+    era dead code porque `head()` sin `raise_for_status()` nunca lo lanzaba.
+
+    Preferimos HEAD sobre GET porque un GET a un webhook n8n podría disparar
+    el workflow; si HEAD falla (conexión/timeout) o el endpoint no lo
+    soporta (405), reintentamos con GET como fallback documentado antes de
+    decidir el resultado final.
+    """
     if not n8n_webhook_url:
         return "degraded"
     try:
         import httpx
 
-        # Intentar HEAD primero (menos costoso), luego GET si falla
         async with httpx.AsyncClient(timeout=_N8N_TIMEOUT) as client:
             try:
                 response = await client.head(n8n_webhook_url)
-                return "ok" if response.status_code < 500 else "down"
-            except httpx.HTTPStatusError:
-                return "down"
+                response.raise_for_status()
+                return "ok"
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 405:
+                    # Error real (4xx que no es "método no soportado", o 5xx) — down directo.
+                    log.warning(
+                        "health.n8n_error_status",
+                        status_code=exc.response.status_code,
+                    )
+                    return "down"
+                # 405 — HEAD no soportado, fallback a GET.
+            except httpx.HTTPError as exc:
+                # HEAD falló por conexión/timeout — fallback a GET.
+                log.warning("health.n8n_head_failed", error=str(exc))
+
+            response = await client.get(n8n_webhook_url)
+            response.raise_for_status()
+            return "ok"
     except Exception as exc:
         log.warning("health.n8n_down", error=str(exc))
         return "down"
