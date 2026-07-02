@@ -367,3 +367,75 @@ def test_update_from_command_idempotent(
     assert final.hash == new_hash
     # El content_b64 original debe seguir presente
     assert final.content_b64 == original.content_b64
+
+
+# ── C37: skip de symlinks fuera de scope en el scan (RN-04/RN-125, D31) ──────
+
+def test_init_scan_skips_symlink_escaping_watch_path(
+    engine: BaselineEngine, tmp_path: Path
+) -> None:
+    """Un symlink dentro del watch_path que apunta afuera (p. ej. /root/.ssh) se
+    omite del baseline con warning en vez de cifrarse; el archivo regular
+    in-scope se baseline normalmente."""
+    watch = tmp_path / "watched_scope"
+    watch.mkdir()
+    outside_dir = tmp_path / "root_ssh"
+    outside_dir.mkdir()
+    secret_file = outside_dir / "id_rsa"
+    secret_file.write_bytes(b"super secret key material")
+
+    escape_link = watch / "escape_link"
+    escape_link.symlink_to(secret_file)
+    (watch / "regular.txt").write_bytes(b"in scope content")
+
+    report = engine.init_scan([str(watch)])
+
+    assert report.scanned == 1
+    assert report.skipped == 1
+    assert report.errors == 0
+
+    from agent.baseline import _entry_path
+    assert _entry_path(engine._baseline_dir, str(watch / "regular.txt")).exists()
+    assert not _entry_path(engine._baseline_dir, str(escape_link)).exists()
+
+
+def test_init_scan_in_scope_file_baselined_normally(
+    engine: BaselineEngine, tmp_path: Path
+) -> None:
+    watch = tmp_path / "watched_scope_ok"
+    watch.mkdir()
+    (watch / "a.txt").write_bytes(b"file a")
+
+    report = engine.init_scan([str(watch)])
+
+    assert report.scanned == 1
+    assert report.skipped == 0
+
+    entry = engine.read_entry(str(watch / "a.txt"))
+    assert entry is not None
+    assert entry.status == "present"
+
+
+def test_run_scan_skips_symlink_escaping_watch_path(
+    engine: BaselineEngine, tmp_path: Path
+) -> None:
+    """run_scan aplica el mismo criterio de containment que init_scan."""
+    watch = tmp_path / "watched_scope_rescan"
+    watch.mkdir()
+    outside_dir = tmp_path / "root_ssh_rescan"
+    outside_dir.mkdir()
+    secret_file = outside_dir / "id_rsa"
+    secret_file.write_bytes(b"super secret key material")
+
+    escape_link = watch / "escape_link"
+    escape_link.symlink_to(secret_file)
+    (watch / "regular.txt").write_bytes(b"in scope content")
+
+    report = engine.run_scan([str(watch)])
+
+    assert report.scanned == 1
+    assert report.skipped == 1
+
+    from agent.baseline import _entry_path
+    assert _entry_path(engine._baseline_dir, str(watch / "regular.txt")).exists()
+    assert not _entry_path(engine._baseline_dir, str(escape_link)).exists()

@@ -30,6 +30,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from agent.detector import _realpath_in_scope
+
 if TYPE_CHECKING:
     from agent.config import AgentConfig
 
@@ -392,11 +394,16 @@ class BaselineEngine:
             if not p.exists():
                 log.warning("baseline.watch_path_missing", path=watch_path)
                 continue
+            watch_path_real = os.path.realpath(watch_path)
             candidates = [p] if p.is_file() else list(p.rglob("*"))
             for file_path in candidates:
                 if not file_path.is_file():
                     continue
                 path_str = str(file_path)
+                if not _realpath_in_scope(path_str, [watch_path_real]):
+                    log.warning("baseline.out_of_scope_skip", path=path_str)
+                    skipped += 1
+                    continue
                 if _entry_path(self._baseline_dir, path_str).exists():
                     skipped += 1
                     continue
@@ -431,11 +438,16 @@ class BaselineEngine:
             if not p.exists():
                 log.warning("baseline.run_scan.path_missing", path=watch_path)
                 continue
+            watch_path_real = os.path.realpath(watch_path)
             candidates = [p] if p.is_file() else list(p.rglob("*"))
             for file_path in candidates:
                 if not file_path.is_file():
                     continue
                 path_str = str(file_path)
+                if not _realpath_in_scope(path_str, [watch_path_real]):
+                    log.warning("baseline.out_of_scope_skip", path=path_str)
+                    skipped += 1
+                    continue
                 try:
                     entry = self.write_entry(path_str)
                     scanned += 1
