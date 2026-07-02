@@ -105,13 +105,17 @@ class TestPublishedCommand:
         )
         assert cmd.target_agent_id is None
 
-    def test_published_at_has_default(self):
-        from datetime import datetime
-
+    def test_published_at_defaults_to_none_pending_outbox_row(self):
+        """
+        H6: published_at ya no tiene default_factory=utcnow — el outbox de
+        rule_sync inserta filas `pending` con published_at=None y recién lo
+        setea el background task al confirmar el XADD (ver rules/service.py).
+        Los callers síncronos (actions/streams.py) lo setean explícitamente.
+        """
         cmd = PublishedCommand(
             command_type="rule_sync",
             target_agent_id="agent-001",
             ruleset_version=3,
         )
-        assert cmd.published_at is not None
-        assert isinstance(cmd.published_at, datetime)
+        assert cmd.published_at is None
+        assert cmd.status == "published"  # default backward-compat para callers síncronos
