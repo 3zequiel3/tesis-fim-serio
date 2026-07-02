@@ -12,6 +12,16 @@ El ruleset_version para baseline_update ya fue incrementado por el caller
 FIX-03 (D10): Cada función inserta un registro PublishedCommand ANTES del XADD
 para garantizar trazabilidad de auditoría. Si el XADD falla, el INSERT se
 revierte junto con la transacción del caller.
+
+C36 (D30/RN-124): cada función ahora persiste `command_id` (antes se generaba
+y se descartaba) y `event_id` en la fila PublishedCommand, para que el
+consumer de `command_ack` (agents/command_ack_consumer.py) pueda correlacionar
+la confirmación de ejecución. Se agrega además `session.commit()` inmediato
+tras el XADD exitoso: estas funciones se invocan DESPUÉS de que el caller ya
+hizo `db.commit()` (post-commit del evento), así que sin este commit propio
+la fila quedaba agregada a la sesión pero nunca llegaba a Postgres (bug
+descubierto durante el apply de C36 — el rollback-on-XADD-failure existente
+se preserva, ver test_published_command_inserted_before_xadd_atomicity).
 """
 
 from __future__ import annotations
@@ -36,16 +46,25 @@ def _record_published_command(
     session: Session,
     agent_id: str,
     command_type: str,
+    command_id: str,
+    event_id: int | None = None,
     ruleset_version: int = 0,
 ) -> None:
     """
-    Inserta un registro PublishedCommand en la sesión (sin commit).
+    Inserta un registro PublishedCommand en la sesión (sin commit — el caller
+    debe comitear después del XADD exitoso, ver C36).
     FIX-03 / D10: garantiza trazabilidad de auditoría para todos los tipos de comando.
     La inserción ocurre antes del XADD — si el XADD falla, el INSERT se revierte.
+    C36 / D30: persiste `command_id` y `event_id` para correlacionar el
+    `command_ack` de ejecución; `ack_status="pending"` marca el comando como
+    confirmable (distinto de `status`, que es el estado de outbox).
     """
     cmd = PublishedCommand(
         command_type=command_type,
         target_agent_id=agent_id,
+        event_id=event_id,
+        command_id=command_id,
+        ack_status="pending",
         ruleset_version=ruleset_version,
         status="published",
         published_at=datetime.now(timezone.utc),
@@ -94,9 +113,10 @@ def publish_baseline_update(
     hash_value: str | None = event.hash_detected if event.hash_detected else None
     baseline_status = "absent" if hash_value is None else "present"
 
+    command_id = str(uuid.uuid4())
     payload: dict[str, Any] = {
         "type": "baseline_update",
-        "command_id": str(uuid.uuid4()),
+        "command_id": command_id,
         "event_id": event.id,
         "target_agent_id": event.agent_id,
         "path": event.path,
@@ -110,14 +130,20 @@ def publish_baseline_update(
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     # FIX-03: registrar ANTES del XADD para atomicidad (D10)
-    _record_published_command(session, event.agent_id, "baseline_update", ruleset_version)
+    _record_published_command(
+        session, event.agent_id, "baseline_update", command_id,
+        event_id=event.id, ruleset_version=ruleset_version,
+    )
     valkey_client.xadd(STREAM_COMMANDS, {"data": data})
+    # C36: commit propio — esta función corre post-commit del caller (ver docstring del módulo)
+    session.commit()
 
     log.info(
         "streams.actions.baseline_update_published",
         event_id=event.id,
         agent_id=event.agent_id,
         ruleset_version=ruleset_version,
+        command_id=command_id,
     )
 
 
@@ -138,9 +164,10 @@ def publish_restore_file(
         log.error("streams.actions.publish_restore_file.no_secret", agent_id=event.agent_id, error=str(exc))
         return
 
+    command_id = str(uuid.uuid4())
     payload: dict[str, Any] = {
         "type": "restore_file",
-        "command_id": str(uuid.uuid4()),
+        "command_id": command_id,
         "event_id": event.id,
         "target_agent_id": event.agent_id,
         "path": event.path,
@@ -151,13 +178,16 @@ def publish_restore_file(
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     # FIX-03: registrar ANTES del XADD para atomicidad (D10)
-    _record_published_command(session, event.agent_id, "restore_file")
+    _record_published_command(session, event.agent_id, "restore_file", command_id, event_id=event.id)
     valkey_client.xadd(STREAM_COMMANDS, {"data": data})
+    # C36: commit propio — esta función corre post-commit del caller (ver docstring del módulo)
+    session.commit()
 
     log.info(
         "streams.actions.restore_file_published",
         event_id=event.id,
         agent_id=event.agent_id,
+        command_id=command_id,
     )
 
 
@@ -178,9 +208,10 @@ def publish_quarantine_file(
         log.error("streams.actions.publish_quarantine_file.no_secret", agent_id=event.agent_id, error=str(exc))
         return
 
+    command_id = str(uuid.uuid4())
     payload: dict[str, Any] = {
         "type": "quarantine_file",
-        "command_id": str(uuid.uuid4()),
+        "command_id": command_id,
         "event_id": event.id,
         "target_agent_id": event.agent_id,
         "path": event.path,
@@ -191,11 +222,14 @@ def publish_quarantine_file(
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     # FIX-03: registrar ANTES del XADD para atomicidad (D10)
-    _record_published_command(session, event.agent_id, "quarantine_file")
+    _record_published_command(session, event.agent_id, "quarantine_file", command_id, event_id=event.id)
     valkey_client.xadd(STREAM_COMMANDS, {"data": data})
+    # C36: commit propio — esta función corre post-commit del caller (ver docstring del módulo)
+    session.commit()
 
     log.info(
         "streams.actions.quarantine_file_published",
         event_id=event.id,
         agent_id=event.agent_id,
+        command_id=command_id,
     )

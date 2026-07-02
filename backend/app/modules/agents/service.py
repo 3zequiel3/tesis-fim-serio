@@ -155,10 +155,10 @@ def update_agent_config(
     # Incrementar ruleset_version (mismo counter que C12/C13)
     new_version = increment_ruleset_version(db)
 
-    # Actualizar ruleset_version_applied en el agente
-    agent.ruleset_version_applied = new_version
-    db.add(agent)
-    db.flush()
+    # D5/RN-106 (C36): ruleset_version_applied NO avanza acá — solo avanza
+    # cuando el consumer de command_ack confirma la ejecución del comando
+    # update_config (agents/command_ack_consumer.py). Antes de C36 este
+    # método lo avanzaba al publicar, violando la semántica normativa.
 
     # Registrar audit_log — M5: JSON válido vía json.dumps (antes: f-string
     # sobre str(list), que produce comillas simples inválidas en JSON y se
