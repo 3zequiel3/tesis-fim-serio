@@ -307,6 +307,31 @@ class FanotifyDetector:
             )
 
     def _mark_exclusion(self) -> None:
+        # FAN_MARK_FILESYSTEM aplica la máscara de IGNORADOS a TODO el superblock.
+        # Si el work dir comparte filesystem (st_dev) con algún watch_path, ignorar
+        # su fs cegaría también los paths vigilados → pérdida silenciosa de eventos.
+        # En ese caso se OMITE la exclusión: es solo una optimización y el filtro de
+        # scope (_path_location_in_scope) ya descarta los eventos del work dir.
+        try:
+            work_dev = os.stat(_AGENT_WORK_DIR).st_dev
+            watch_devs = {
+                os.stat(p).st_dev
+                for p in self._watch_paths_real
+                if os.path.exists(p)
+            }
+        except OSError as exc:
+            log.warning("detector.mark_exclusion_stat_failed", error=str(exc))
+            return
+        if work_dev in watch_devs:
+            log.warning(
+                "detector.mark_exclusion_skipped_same_fs",
+                work_dir=_AGENT_WORK_DIR,
+                reason=(
+                    "work dir comparte filesystem con watch_paths; una marca "
+                    "FILESYSTEM de ignorados los cegaría. Se delega en el filtro de scope."
+                ),
+            )
+            return
         mask = (
             _fan_mod.FAN_CLOSE_WRITE
             | _fan_mod.FAN_DELETE
