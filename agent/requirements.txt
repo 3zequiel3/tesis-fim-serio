@@ -1,9 +1,13 @@
 # Runtime dependencies — FIM Agent
-# Pinned 2026-06-11. Anchor: pyfanotify==0.3.0 (Linux only)
-# pyfanotify requires Linux kernel >= 5.1 and CAP_SYS_ADMIN — not installable on other platforms.
-# structlog, valkey, cryptography, pydantic-settings pinned to match backend versions.
+# Pinned 2026-06-11. structlog, valkey, cryptography, pydantic-settings pinned to
+# match backend versions.
+#
+# fanotify: se usa un backend interno sobre syscalls crudas (agent/_fanotify.py,
+# ctypes → glibc), en modo FID (FAN_REPORT_DFID_NAME). No se depende de pyfanotify:
+# su API pública (clase Fanotify + socket) es incompatible con el hilo lector
+# bloqueante del detector, y el modo fd no entrega eventos de create/delete/move.
+# Requiere Linux kernel >= 5.1, CAP_SYS_ADMIN y CAP_DAC_READ_SEARCH.
 
-pyfanotify==0.3.0
 structlog==25.1.0
 valkey==6.1.0
 cryptography==44.0.2

@@ -11,9 +11,12 @@ WorkingDirectory=/opt/fim-agent
 
 ExecStart=/opt/fim-agent/venv/bin/python -m agent --config /etc/fim-agent/config.yaml
 
-# Capabilities — fanotify requires CAP_SYS_ADMIN to mark full filesystems
-AmbientCapabilities=CAP_SYS_ADMIN
-CapabilityBoundingSet=CAP_SYS_ADMIN
+# Capabilities:
+#  - CAP_SYS_ADMIN: fanotify_init + marcar filesystems completos.
+#  - CAP_DAC_READ_SEARCH: open_by_handle_at(2), usado para resolver el path de los
+#    eventos en modo FID (creación/borrado/renombrado y objetos ya inexistentes).
+AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH
 
 # Hardening — restrict what the process can access
 ProtectSystem=strict

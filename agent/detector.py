@@ -35,7 +35,7 @@ _AT_FDCWD = -100  # Linux AT_FDCWD
 
 if _LINUX:
     try:
-        import pyfanotify as _fan_mod
+        from agent import _fanotify as _fan_mod
         _HAS_FAN = True
     except ImportError:
         _HAS_FAN = False
@@ -712,7 +712,14 @@ class FanotifyDetector:
         self._watch_paths_real = [os.path.realpath(p) for p in self._watch_paths]
         self._init_fan()
         self._mark_paths(self._watch_paths)
-        self._mark_exclusion()
+        # Exclusión del work dir: optimización, no correctitud. El filtro de scope
+        # (_path_location_in_scope) ya descarta cualquier path fuera de watch_paths.
+        # En modo FID la marca de ignorados puede ser rechazada (EINVAL) según kernel;
+        # no debe abortar el arranque.
+        try:
+            self._mark_exclusion()
+        except OSError as exc:
+            log.warning("detector.mark_exclusion_skipped", error=str(exc))
 
         self._thread = threading.Thread(
             target=self._read_loop, daemon=True, name="fan-reader"
@@ -771,7 +778,10 @@ class FanotifyDetector:
         self._watch_paths = list(new_paths)
         self._watch_paths_real = [os.path.realpath(p) for p in self._watch_paths]
         self._mark_paths(self._watch_paths)
-        self._mark_exclusion()
+        try:
+            self._mark_exclusion()
+        except OSError as exc:
+            log.warning("detector.mark_exclusion_skipped", error=str(exc))
         log.info("detector.paths_reloaded", watch_paths=self._watch_paths)
 
     def reload_watch_paths(self, new_paths: list[str]) -> None:
