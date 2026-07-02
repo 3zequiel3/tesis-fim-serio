@@ -14,6 +14,7 @@ import platform
 import threading
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -175,6 +176,25 @@ def _generate_diff(previous_content: str, current_path: str) -> str | None:
     return "".join(diff) if diff else None
 
 
+# ── Helpers de scope (RN-04, D31/RN-125) ──────────────────────────────────────
+
+def _realpath_in_scope(path: str, canonical_roots: list[str]) -> bool:
+    """
+    True si el `realpath` de `path` está contenido (`is_relative_to`) en alguno
+    de los `canonical_roots` ya canonicalizados con `os.path.realpath`.
+
+    Se usa `is_relative_to` (no `startswith`) para evitar falsos positivos por
+    prefijo (p. ej. `/etc/apple` vs root `/etc/app`).
+
+    Lista de roots vacía → False: nada está en scope (RN-04, "excepciones: ninguna").
+    Reutilizado por `agent/baseline.py` para el mismo criterio de containment.
+    """
+    if not canonical_roots:
+        return False
+    real = Path(os.path.realpath(path))
+    return any(real.is_relative_to(root) for root in canonical_roots)
+
+
 # ── Clase principal ───────────────────────────────────────────────────────────
 
 class FanotifyDetector:
@@ -196,6 +216,9 @@ class FanotifyDetector:
     ) -> None:
         self._agent_id = agent_id
         self._watch_paths = list(watch_paths)
+        self._watch_paths_real: list[str] = [
+            os.path.realpath(p) for p in self._watch_paths
+        ]
         self._baseline = baseline
         self._publisher = publisher
         self._stop_event = stop_event
@@ -203,6 +226,7 @@ class FanotifyDetector:
         self._fan: Any = None
         self._raw_queue: asyncio.Queue[FanotifyEvent | None] = asyncio.Queue(maxsize=1000)
         self._event_drops: int = 0
+        self._out_of_scope_drops: int = 0
         self._pending: dict[str, str] = {}          # path → event_id del último evento encolado
         self._event_to_path: dict[str, str] = {}    # event_id → path (índice inverso para ack O(1))
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -292,6 +316,14 @@ class FanotifyDetector:
                 if ev.path is None:
                     log.warning("detector.event_null_path", pid=ev.pid)
                     continue
+                if not _realpath_in_scope(ev.path, self._watch_paths_real):
+                    self._out_of_scope_drops += 1
+                    log.warning(
+                        "detector.out_of_scope_drop",
+                        path=ev.path,
+                        total_drops=self._out_of_scope_drops,
+                    )
+                    continue
                 fan_event = FanotifyEvent(
                     path=ev.path,
                     pid=ev.pid,
@@ -318,6 +350,11 @@ class FanotifyDetector:
     def event_drops(self) -> int:
         """Contador acumulado de eventos descartados por cola llena."""
         return self._event_drops
+
+    @property
+    def out_of_scope_drops(self) -> int:
+        """Contador acumulado de eventos descartados por caer fuera de watch_paths (RN-04)."""
+        return self._out_of_scope_drops
 
     # ── Procesamiento async de eventos ─────────────────────────────────────────
 
@@ -551,6 +588,7 @@ class FanotifyDetector:
     async def start(self) -> None:
         """Arranca el detector: inicializa fanotify, lanza hilo lector, consume eventos."""
         self._loop = asyncio.get_running_loop()
+        self._watch_paths_real = [os.path.realpath(p) for p in self._watch_paths]
         self._init_fan()
         self._mark_paths(self._watch_paths)
         self._mark_exclusion()
@@ -610,6 +648,7 @@ class FanotifyDetector:
         except Exception as exc:
             log.warning("detector.flush_error", error=str(exc))
         self._watch_paths = list(new_paths)
+        self._watch_paths_real = [os.path.realpath(p) for p in self._watch_paths]
         self._mark_paths(self._watch_paths)
         self._mark_exclusion()
         log.info("detector.paths_reloaded", watch_paths=self._watch_paths)
@@ -635,6 +674,7 @@ class FanotifyDetector:
         if not _HAS_FAN:
             # En plataformas sin fanotify (Windows/test) solo actualiza el atributo
             self._watch_paths = list(new_paths)
+            self._watch_paths_real = [os.path.realpath(p) for p in self._watch_paths]
             log.info(
                 "detector.reload_watch_paths.noop_no_fan",
                 added=list(added),
@@ -677,6 +717,7 @@ class FanotifyDetector:
                 log.warning("detector.reload_watch_paths.mark_failed", path=path, error=str(exc))
 
         self._watch_paths = list(new_paths)
+        self._watch_paths_real = [os.path.realpath(p) for p in self._watch_paths]
         log.info(
             "detector.reload_watch_paths.done",
             added=list(added),

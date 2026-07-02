@@ -80,6 +80,7 @@ class HeartbeatPublisher:
             "shutdown": shutdown,
             "schema_version": SCHEMA_VERSION,
             "event_drops": self._detector.event_drops if self._detector is not None else 0,
+            "out_of_scope_drops": self._detector.out_of_scope_drops if self._detector is not None else 0,
         }
         data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         try:

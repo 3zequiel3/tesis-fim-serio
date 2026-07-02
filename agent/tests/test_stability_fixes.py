@@ -450,6 +450,7 @@ async def test_event_drops_in_heartbeat(tmp_path: Path) -> None:
 
     detector = FanotifyDetector.__new__(FanotifyDetector)
     detector._event_drops = 42
+    detector._out_of_scope_drops = 0
 
     hb = HeartbeatPublisher(
         config=cfg,
