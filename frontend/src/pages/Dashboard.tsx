@@ -1,4 +1,5 @@
 import { useDashboard } from '@/hooks/useDashboard'
+import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import type { EventStatus } from '@/api/events'
 import type { AgentStatus } from '@/api/agents'
 
@@ -83,7 +84,7 @@ const EVENT_STATUSES: EventStatus[] = [
 const AGENT_STATUSES: AgentStatus[] = ['online', 'offline', 'draining', 'dead', 'revoked']
 
 export function Dashboard() {
-  const { data, isLoading, dataUpdatedAt } = useDashboard()
+  const { data, isLoading, isError, refetch, dataUpdatedAt } = useDashboard()
 
   const lastUpdate = dataUpdatedAt
     ? new Date(dataUpdatedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -103,6 +104,8 @@ export function Dashboard() {
 
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Cargando dashboard...</div>
+      ) : isError ? (
+        <QueryErrorState resource="el dashboard" onRetry={() => refetch()} />
       ) : (
         <>
           {/* Sección: Pending crítico/alto — énfasis visual diferenciado */}

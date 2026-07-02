@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
 import { useAlerts } from '@/hooks/useAlerts'
+import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import type { AlertFilters, AlertStatus, AlertSeverity } from '@/api/alerts'
 
 // ─── URL param helpers ────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ export function Alerts() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = parseAlertFilters(searchParams)
 
-  const { data, isLoading, isFetching } = useAlerts(filters)
+  const { data, isLoading, isFetching, isError, refetch } = useAlerts(filters)
 
   function updateFilter(updates: Partial<AlertFilters>) {
     const newFilters = { ...filters, ...updates, page: 1 }
@@ -123,6 +124,8 @@ export function Alerts() {
       {/* Tabla */}
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Cargando alertas...</div>
+      ) : isError ? (
+        <QueryErrorState resource="las alertas" onRetry={() => refetch()} />
       ) : !data || data.items.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
           <p className="text-sm">No hay alertas con los filtros seleccionados.</p>

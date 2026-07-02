@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useEvents } from '@/hooks/useEvents'
 import { EventsTable } from '@/components/ui/EventsTable'
 import { BulkActionBar } from '@/components/ui/BulkActionBar'
+import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import { parseEventFilters, serializeEventFilters } from '@/utils/eventFilters'
 import type { EventFilters } from '@/api/events'
 
@@ -25,7 +26,7 @@ export function Events() {
     setSelected(new Set())
   }, [searchParams.toString()])
 
-  const { data, isLoading, isFetching } = useEvents(filters)
+  const { data, isLoading, isFetching, isError, refetch } = useEvents(filters)
 
   // Debounce para path_prefix
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -167,6 +168,8 @@ export function Events() {
       {/* Tabla de eventos */}
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Cargando eventos...</div>
+      ) : isError ? (
+        <QueryErrorState resource="los eventos" onRetry={() => refetch()} />
       ) : (
         <EventsTable
           items={data?.items ?? []}

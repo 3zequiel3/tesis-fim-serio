@@ -3,6 +3,8 @@ import { toast } from 'sonner'
 import axios from 'axios'
 import { useRules, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useRules'
 import { RuleForm } from '@/components/ui/RuleForm'
+import { ModalDialog } from '@/components/ui/ModalDialog'
+import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import type { Rule, CreateRulePayload, UpdateRulePayload } from '@/api/rules'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -24,7 +26,7 @@ const ACTION_LABELS: Record<string, string> = {
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export function Rules() {
-  const { data: rules, isLoading } = useRules()
+  const { data: rules, isLoading, isError, refetch } = useRules()
   const createMutation = useCreateRule()
   const updateMutation = useUpdateRule()
   const deleteMutation = useDeleteRule()
@@ -131,25 +133,24 @@ export function Rules() {
 
       {/* Modal create/edit */}
       {formMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={closeForm} />
-          <div className="relative bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
-            <h2 className="text-base font-semibold text-white mb-4">
-              {formMode === 'create' ? 'Nueva regla' : 'Editar regla'}
-            </h2>
-            <RuleForm
-              rule={editingRule ?? undefined}
-              onSubmit={handleFormSubmit}
-              onCancel={closeForm}
-              isLoading={isMutating}
-            />
-          </div>
-        </div>
+        <ModalDialog labelledBy="rule-form-title" onClose={closeForm} panelClassName="p-6 w-full max-w-md mx-4">
+          <h2 id="rule-form-title" className="text-base font-semibold text-white mb-4">
+            {formMode === 'create' ? 'Nueva regla' : 'Editar regla'}
+          </h2>
+          <RuleForm
+            rule={editingRule ?? undefined}
+            onSubmit={handleFormSubmit}
+            onCancel={closeForm}
+            isLoading={isMutating}
+          />
+        </ModalDialog>
       )}
 
       {/* Tabla */}
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Cargando reglas...</div>
+      ) : isError ? (
+        <QueryErrorState resource="las reglas" onRetry={() => refetch()} />
       ) : !rules || rules.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
           <p className="text-sm">No hay reglas configuradas.</p>

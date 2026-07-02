@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import axios from 'axios'
 import { useFailedAlerts, useRetryAlert, useDiscardAlert } from '@/hooks/useAlerts'
+import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import type { Alert } from '@/api/alerts'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ function formatDate(iso: string): string {
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export function FailedAlerts() {
-  const { data: alerts, isLoading } = useFailedAlerts()
+  const { data: alerts, isLoading, isError, refetch } = useFailedAlerts()
   const retryMutation = useRetryAlert()
   const discardMutation = useDiscardAlert()
 
@@ -153,6 +154,8 @@ export function FailedAlerts() {
       {/* Tabla */}
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Cargando alertas fallidas...</div>
+      ) : isError ? (
+        <QueryErrorState resource="las alertas fallidas" onRetry={() => refetch()} />
       ) : !alerts || alerts.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
           <p className="text-sm">No hay alertas fallidas.</p>

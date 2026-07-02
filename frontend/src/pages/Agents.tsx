@@ -4,9 +4,10 @@ import axios from 'axios'
 import { useAgents, useUpdateAgentConfig, useRescanAgent } from '@/hooks/useAgents'
 import { AgentCard } from '@/components/ui/AgentCard'
 import { RescanConfirmModal } from '@/components/ui/RescanConfirmModal'
+import { QueryErrorState } from '@/components/ui/QueryErrorState'
 
 export function Agents() {
-  const { data: agents, isLoading } = useAgents()
+  const { data: agents, isLoading, isError, refetch } = useAgents()
   const updateConfig = useUpdateAgentConfig()
   const rescan = useRescanAgent()
 
@@ -115,6 +116,8 @@ export function Agents() {
       {/* Lista de agentes */}
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Cargando agentes...</div>
+      ) : isError ? (
+        <QueryErrorState resource="los agentes" onRetry={() => refetch()} />
       ) : !agents || agents.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
           <p className="text-sm">No hay agentes registrados.</p>
