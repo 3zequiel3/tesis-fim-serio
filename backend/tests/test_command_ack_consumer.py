@@ -415,3 +415,199 @@ def test_sweep_does_not_touch_fresh_pending(mem_engine, agent_online):
     with Session(mem_engine) as s:
         cmd = s.exec(select(PublishedCommand).where(PublishedCommand.command_id == "cmd-fresh")).first()
         assert cmd.ack_status == "pending"
+
+
+# ── FIX 1: autorización cross-agent (confused deputy) ──────────────────────────
+
+
+def test_ack_cross_agent_forge_rejected(mem_engine, agent_online, approved_event, secret):
+    """
+    Confused deputy: el stream `commands` es broadcast. Un agente A con SU secret
+    válido NO debe poder confirmar el comando de la víctima V. El secret verificador
+    se resuelve desde cmd.target_agent_id (V), NUNCA desde payload.agent_id (A).
+    """
+    attacker_secret = os.urandom(32)
+    with Session(mem_engine) as s:
+        s.add(Agent(
+            agent_id="agent-attacker",
+            status=AgentStatus.online,
+            shared_secret_hex=attacker_secret.hex(),
+            ruleset_version_applied=0,
+        ))
+        s.commit()
+
+    cmd = _make_pending_command(
+        mem_engine,
+        command_id="cmd-victim-001",
+        command_type="baseline_update",
+        target_agent_id=agent_online.agent_id,  # dueño = víctima V
+        event_id=approved_event.id,
+        ruleset_version=9,
+    )
+    # El atacante firma un ack para el command_id de V con SU propio secret + agent_id.
+    forged = _make_ack_payload(
+        cmd.command_id, "baseline_update", approved_event.id,
+        "agent-attacker", attacker_secret,
+    )
+
+    _handle(mem_engine, forged)
+
+    with Session(mem_engine) as s:
+        row = s.exec(select(PublishedCommand).where(PublishedCommand.command_id == "cmd-victim-001")).first()
+        assert row.ack_status == "pending", "el ack forjado de otro agente NO debe tocar el comando de V"
+        assert row.acked_at is None
+        agent = s.get(Agent, agent_online.agent_id)
+        assert agent.ruleset_version_applied == 5, "ruleset_version_applied de V no debe avanzar"
+        entry = s.exec(select(BaselineEntry).where(BaselineEntry.path == approved_event.path)).first()
+        assert entry is None, "el baseline de V no debe reconciliarse por un ack forjado"
+
+
+def test_ack_spoofed_agent_id_wrong_secret_rejected(mem_engine, agent_online, approved_event, secret):
+    """
+    Variante: el atacante pone agent_id=V (spoof) pero firma con su propio secret.
+    El secret verificador es el de V (por target_agent_id) → la firma no verifica.
+    """
+    attacker_secret = os.urandom(32)
+    cmd = _make_pending_command(
+        mem_engine,
+        command_id="cmd-victim-002",
+        command_type="baseline_update",
+        target_agent_id=agent_online.agent_id,
+        event_id=approved_event.id,
+        ruleset_version=9,
+    )
+    forged = _make_ack_payload(
+        cmd.command_id, "baseline_update", approved_event.id,
+        agent_online.agent_id, attacker_secret,  # agent_id=V, pero secret del atacante
+    )
+
+    _handle(mem_engine, forged)
+
+    with Session(mem_engine) as s:
+        row = s.exec(select(PublishedCommand).where(PublishedCommand.command_id == "cmd-victim-002")).first()
+        assert row.ack_status == "pending", "firma con secret ajeno no verifica contra el secret de V"
+        agent = s.get(Agent, agent_online.agent_id)
+        assert agent.ruleset_version_applied == 5
+
+
+# ── FIX 2: baseline poisoning — command_type/event_id vienen de la fila ────────
+
+
+def test_ack_payload_command_type_ignored_uses_row(mem_engine, agent_online, approved_event, secret):
+    """
+    Baseline poisoning: un ack legítimo (firmado por el dueño) que MIENTE declarando
+    command_type=baseline_update+event_id sobre una fila restore_file NO debe tocar
+    baseline_entries ni avanzar la versión: se usa cmd.command_type (restore_file).
+    """
+    cmd = _make_pending_command(
+        mem_engine,
+        command_id="cmd-poison-001",
+        command_type="restore_file",  # la fila NO es baseline_update
+        target_agent_id=agent_online.agent_id,
+        event_id=None,
+        ruleset_version=9,
+    )
+    payload = _make_ack_payload(
+        cmd.command_id, "baseline_update", approved_event.id,  # payload miente
+        agent_online.agent_id, secret,
+    )
+
+    _handle(mem_engine, payload)
+
+    with Session(mem_engine) as s:
+        row = s.exec(select(PublishedCommand).where(PublishedCommand.command_id == "cmd-poison-001")).first()
+        assert row.ack_status == "acked", "el ack es válido → el comando restore_file se confirma"
+        entry = s.exec(select(BaselineEntry).where(BaselineEntry.path == approved_event.path)).first()
+        assert entry is None, "baseline NO debe reconciliarse: la fila es restore_file, no baseline_update"
+        agent = s.get(Agent, agent_online.agent_id)
+        assert agent.ruleset_version_applied == 5, "restore_file no avanza ruleset_version_applied"
+
+
+def test_ack_reconciles_row_event_id_not_payload(mem_engine, agent_online, approved_event, secret):
+    """El event_id para reconciliar es el de la fila (real), no el del payload (mentido)."""
+    cmd = _make_pending_command(
+        mem_engine,
+        command_id="cmd-eid-001",
+        command_type="baseline_update",
+        target_agent_id=agent_online.agent_id,
+        event_id=approved_event.id,  # event_id real de confianza
+        ruleset_version=7,
+    )
+    # payload miente event_id=999999 (inexistente); debe ignorarse y usar cmd.event_id.
+    payload = _make_ack_payload(cmd.command_id, "baseline_update", 999999, agent_online.agent_id, secret)
+
+    _handle(mem_engine, payload)
+
+    with Session(mem_engine) as s:
+        entry = s.exec(select(BaselineEntry).where(BaselineEntry.path == approved_event.path)).first()
+        assert entry is not None, "reconcilió usando cmd.event_id (real), ignorando el event_id del payload"
+        assert entry.hash == approved_event.hash_detected
+
+
+# ── FIX 3: error transitorio (no XACK) vs error de datos (XACK, sin poison-loop) ─
+
+
+class _FakeAckClient:
+    """Cliente Valkey mínimo para ejercitar _process_batch: entrega un batch y registra XACKs."""
+
+    def __init__(self, messages):
+        self._messages = messages
+        self.xack_calls: list[str] = []
+
+    async def xreadgroup(self, group, name, streams, count, block):
+        if self._messages is None:
+            return None
+        msgs, self._messages = self._messages, None
+        from app.core.streams import STREAM_EVENT_ACK
+
+        return [(STREAM_EVENT_ACK, msgs)]
+
+    async def xack(self, stream, group, msg_id):
+        self.xack_calls.append(msg_id)
+
+
+async def test_process_batch_transient_db_error_does_not_xack():
+    """DB caída (OperationalError) → NO XACK: el ack queda en el PEL para reintento."""
+    import app.modules.agents.command_ack_consumer as mod
+    from sqlalchemy.exc import OperationalError
+
+    client = _FakeAckClient([("1-0", {"data": "{}"})])
+
+    def _boom(_msg):
+        raise OperationalError("SELECT 1", {}, Exception("db down"))
+
+    with patch.object(mod, "_handle_command_ack", _boom):
+        await mod._process_batch(client, ">")
+
+    assert client.xack_calls == [], "error transitorio de DB no debe hacer XACK"
+
+
+async def test_process_batch_data_error_xacks_no_poison_loop():
+    """
+    Error de DATOS (IntegrityError) → SÍ XACK y descartar. Este es el fix crítico de
+    C35: tratar un error de datos como transitorio genera un poison-loop infinito.
+    """
+    import app.modules.agents.command_ack_consumer as mod
+    from sqlalchemy.exc import IntegrityError
+
+    client = _FakeAckClient([("2-0", {"data": "{}"})])
+
+    def _boom(_msg):
+        raise IntegrityError("INSERT", {}, Exception("dup key"))
+
+    with patch.object(mod, "_handle_command_ack", _boom):
+        await mod._process_batch(client, ">")
+
+    assert client.xack_calls == ["2-0"], "error de datos debe hacer XACK (sin poison-loop)"
+
+
+async def test_process_batch_success_xacks():
+    """Camino feliz: el handler no lanza → XACK normal."""
+    import app.modules.agents.command_ack_consumer as mod
+
+    client = _FakeAckClient([("3-0", {"data": "{}"})])
+
+    with patch.object(mod, "_handle_command_ack", lambda _msg: None):
+        await mod._process_batch(client, ">")
+
+    assert client.xack_calls == ["3-0"]

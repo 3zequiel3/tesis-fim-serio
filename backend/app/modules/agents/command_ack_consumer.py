@@ -18,10 +18,16 @@ en un reinicio del backend dejaría el comando en `pending` hasta un falso
 
 Por cada command_ack:
   1. Validación estructural: command_id presente, PublishedCommand conocido.
-  2. Verificación de firma HMAC-SHA256 (decisión del usuario, 2026-07-02) —
-     rechaza acks con firma inválida o sin shared_secret resoluble, igual
-     que events/consumer.py.
-  3. Actualiza ack_status/acked_at/error (idempotente si ya es terminal).
+  2. Autorización cross-agent + verificación de firma HMAC-SHA256 (decisión del
+     usuario, 2026-07-02). El secret verificador se resuelve desde
+     `cmd.target_agent_id` (autoridad en DB), NUNCA desde `payload.agent_id`
+     (controlado por el emisor): así un agente con su propio secret no puede
+     confirmar el comando de otro agente (fix confused deputy). Un `agent_id`
+     de payload distinto del dueño del comando se rechaza explícitamente.
+     Rechaza además acks con firma inválida o sin shared_secret resoluble.
+  3. Actualiza ack_status/acked_at/error (idempotente si ya es terminal). El
+     status/error se toman del payload; command_type/event_id se leen de la
+     fila (D-1bis), NUNCA del payload (evita baseline poisoning).
   4. Reconcilia baseline_entries (D1/RN-104) y ruleset_version_applied
      (D5/RN-106) en la MISMA transacción.
 
@@ -41,6 +47,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
+from sqlalchemy.exc import DisconnectionError, InterfaceError, OperationalError
 from sqlmodel import Session, select
 
 from app.core.config import settings
@@ -62,6 +69,12 @@ _SWEEP_INTERVAL_S = 10.0
 
 _TERMINAL_ACK_STATUSES = ("acked", "failed")
 _RECONCILE_ROOT_VERSION_TYPES = ("update_config", "baseline_update")
+
+# Errores de CONEXIÓN/disponibilidad de DB: transitorios → NO XACK (reintento en PEL).
+# Los errores de DATOS (IntegrityError, DataError, ProgrammingError, payload
+# malformado, etc.) NO están acá a propósito: se ackean y descartan, porque tratarlos
+# como transitorios reintroduciría el poison-loop infinito de C35.
+_TRANSIENT_DB_ERRORS = (OperationalError, DisconnectionError, InterfaceError)
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
@@ -133,9 +146,19 @@ async def _process_batch(client: Any, start_id: str) -> None:
         for msg_id, msg_data in messages:
             try:
                 await loop.run_in_executor(None, _handle_command_ack, msg_data)
+            except _TRANSIENT_DB_ERRORS as exc:
+                # Error transitorio de DB (conexión/disponibilidad): NO XACK → el
+                # mensaje queda en el PEL para reintento. Un ack legítimo no se pierde
+                # por un Postgres momentáneamente caído (evita timeout falso).
+                log.error("command_ack_consumer.transient_db_error", msg_id=msg_id, error=str(exc))
+                continue
             except Exception as exc:
+                # Error permanente (dato inválido, payload malformado, IntegrityError,
+                # etc.): se loguea y se hace XACK abajo — descartar. NUNCA dejar sin
+                # XACK un error de datos: eso fue el poison-loop infinito de C35. Ante
+                # la duda, fail-safe hacia descartar (XACK), no hacia reintentar.
                 log.error("command_ack_consumer.handle_error", msg_id=msg_id, error=str(exc))
-            # MUST XACK todo mensaje leído — procesado, descartado o rechazado (spec backend-command-ack).
+            # MUST XACK todo mensaje procesado, descartado o rechazado por dato (spec backend-command-ack).
             await client.xack(STREAM_EVENT_ACK, CONSUMER_GROUP_COMMAND_ACK, msg_id)
 
 
@@ -155,8 +178,11 @@ def _handle_command_ack(msg_data: dict[str, Any]) -> None:
         log.warning("command_ack_consumer.missing_command_id")
         return
 
-    command_type = payload.get("command_type", "")
-    event_id = payload.get("event_id")
+    # Del payload SOLO se toman status/error — lo que el agente legítimamente
+    # reporta. command_type y event_id se leen de la fila (cmd), NUNCA del payload:
+    # el payload lo controla el emisor y no es fuente de autoridad (evita baseline
+    # poisoning — un atacante no puede declarar command_type="baseline_update" +
+    # event_id arbitrario sobre un comando que no lo es).
     status_in = payload.get("status")  # "ok" | "error"
     error_msg = payload.get("error")
 
@@ -168,13 +194,40 @@ def _handle_command_ack(msg_data: dict[str, Any]) -> None:
             log.info("command_ack_consumer.unknown_command_id", command_id=command_id)
             return
 
-        agent_id = payload.get("agent_id") or cmd.target_agent_id
-        secret = _get_shared_secret(session, agent_id) if agent_id else None
+        # command_type/event_id de confianza: los de la fila persistida (D-1bis).
+        command_type = cmd.command_type
+        event_id = cmd.event_id
+
+        # ── Autorización cross-agent (fix confused deputy) ───────────────────────
+        # El stream `commands` es broadcast: un agente A con SU secret válido NO debe
+        # poder confirmar el comando de otro agente V. El secret verificador se
+        # resuelve desde cmd.target_agent_id (autoridad en DB), NUNCA desde
+        # payload.agent_id (controlado por el emisor). Además, si el payload declara
+        # un agent_id distinto del dueño del comando, se rechaza explícitamente.
+        payload_agent_id = payload.get("agent_id")
+        if payload_agent_id is not None and payload_agent_id != cmd.target_agent_id:
+            log.warning(
+                "command_ack_consumer.cross_agent_rejected",
+                command_id=command_id,
+                payload_agent_id=payload_agent_id,
+                target_agent_id=cmd.target_agent_id,
+            )
+            return
+
+        secret = _get_shared_secret(session, cmd.target_agent_id) if cmd.target_agent_id else None
         if secret is None:
-            log.warning("command_ack_consumer.no_shared_secret", command_id=command_id, agent_id=agent_id)
+            log.warning(
+                "command_ack_consumer.no_shared_secret",
+                command_id=command_id,
+                agent_id=cmd.target_agent_id,
+            )
             return
         if not verify_payload(secret, payload):
-            log.warning("command_ack_consumer.invalid_signature", command_id=command_id, agent_id=agent_id)
+            log.warning(
+                "command_ack_consumer.invalid_signature",
+                command_id=command_id,
+                agent_id=cmd.target_agent_id,
+            )
             return
 
         # Idempotencia: fila ya terminal no reaplica efectos secundarios.

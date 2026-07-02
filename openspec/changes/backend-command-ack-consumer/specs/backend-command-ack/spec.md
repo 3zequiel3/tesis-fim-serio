@@ -20,7 +20,7 @@ El backend MUST arrancar un consumer dedicado del stream Valkey `event_ack` como
 
 ### Requirement: Validación estructural y de firma del command_ack
 
-El payload de `command_ack` publicado por el agente (`agent/commands.py::_publish_ack`) contiene `command_id`, `command_type`, `event_id`, `agent_id`, `status` (`"ok" | "error"`), `error`, `timestamp` y **`signature`** (HMAC-SHA256, decisión del usuario 2026-07-02 — cierra la asimetría con `events`/`agent_heartbeat`, que ya viajan firmados por RN-79). El consumer MUST validar estructuralmente el payload: descartar con log WARNING cualquier mensaje sin `command_id`, y descartar sin efecto cualquier `command_id` que no corresponda a una fila `PublishedCommand` conocida. El consumer MUST además verificar la firma HMAC-SHA256 contra el `shared_secret` del agente indicado en `agent_id`, usando `verify_payload` (mismo helper que `events/consumer.py`), y MUST rechazar (descartar sin efecto) cualquier ack cuya firma sea inválida o cuyo secret no sea resoluble. El consumer MUST hacer `XACK` de todo mensaje leído (procesado, descartado o rechazado) para no reprocesarlo.
+El payload de `command_ack` publicado por el agente (`agent/commands.py::_publish_ack`) contiene `command_id`, `command_type`, `event_id`, `agent_id`, `status` (`"ok" | "error"`), `error`, `timestamp` y **`signature`** (HMAC-SHA256, decisión del usuario 2026-07-02 — cierra la asimetría con `events`/`agent_heartbeat`, que ya viajan firmados por RN-79). El consumer MUST validar estructuralmente el payload: descartar con log WARNING cualquier mensaje sin `command_id`, y descartar sin efecto cualquier `command_id` que no corresponda a una fila `PublishedCommand` conocida. El consumer MUST verificar la firma HMAC-SHA256 contra el `shared_secret` del agente **dueño del comando según la fila persistida (`cmd.target_agent_id`, autoridad en DB)** — NO contra el `agent_id` declarado en el payload (controlado por el emisor) — usando `verify_payload` (mismo helper que `events/consumer.py`), y MUST rechazar (descartar sin efecto) cualquier ack cuya firma sea inválida o cuyo secret no sea resoluble. Como el stream `commands` es broadcast, resolver el secret por `payload.agent_id` habilitaría un *confused deputy* (un agente con su propio secret confirmando el comando de otra víctima); resolverlo por `cmd.target_agent_id` garantiza que solo el dueño del comando puede producir un ack válido. El consumer MUST además rechazar (descartar sin efecto, log WARNING) todo ack cuyo `agent_id` de payload esté presente y difiera de `cmd.target_agent_id`. Para las decisiones de reconciliación el consumer MUST usar `command_type` y `event_id` **de la fila (`cmd.command_type`, `cmd.event_id`), NUNCA del payload** — del payload solo se toman `status` y `error`. El consumer MUST hacer `XACK` de todo mensaje leído (procesado, descartado o rechazado) para no reprocesarlo.
 
 #### Scenario: Ack sin command_id se descarta
 - **WHEN** llega un mensaje a `event_ack` cuyo payload no tiene `command_id`
@@ -31,8 +31,16 @@ El payload de `command_ack` publicado por el agente (`agent/commands.py::_publis
 - **THEN** el mensaje se descarta con log (nivel INFO/WARNING) y se hace `XACK` sin actualizar ninguna fila
 
 #### Scenario: Ack con firma HMAC inválida se rechaza
-- **WHEN** llega un `command_ack` cuyo `command_id` es conocido pero `signature` no verifica contra el `shared_secret` del `agent_id` declarado
+- **WHEN** llega un `command_ack` cuyo `command_id` es conocido pero `signature` no verifica contra el `shared_secret` de `cmd.target_agent_id`
 - **THEN** el mensaje se rechaza con log WARNING, la fila `PublishedCommand` no se actualiza, y se hace `XACK`
+
+#### Scenario: Ack forjado por otro agente (confused deputy) se rechaza
+- **WHEN** un agente A firma con SU shared_secret un `command_ack` para un `command_id` cuyo `cmd.target_agent_id` es la víctima V (stream `commands` broadcast)
+- **THEN** el consumer resuelve el secret por `cmd.target_agent_id` (V), la firma de A no verifica (o el `agent_id="A"` del payload difiere de V y se rechaza explícitamente), la fila de V no se actualiza y se hace `XACK`
+
+#### Scenario: command_type/event_id del payload no envenenan la reconciliación
+- **WHEN** llega un `command_ack` firmado válidamente por el dueño cuyo payload declara `command_type="baseline_update"` + `event_id` arbitrario sobre una fila cuyo `cmd.command_type` NO es `baseline_update`
+- **THEN** el consumer usa `cmd.command_type`/`cmd.event_id` (de la fila), no reconcilia `baseline_entries` ni avanza `ruleset_version_applied`, y confirma el comando según su tipo real
 
 #### Scenario: Ack de un command_id conocido con firma válida se procesa
 - **WHEN** llega un `command_ack` cuyo `command_id` existe en `published_commands` y la firma verifica
