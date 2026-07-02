@@ -133,17 +133,24 @@ async def _alert_sse_generator(
     session: Session,
 ) -> AsyncGenerator[dict[str, Any], None]:
     # 1. Replay via Last-Event-ID (D-SSE-3)
+    # FIX-01: la sesión se usa SÓLO para el replay y se cierra explícitamente
+    # antes de entrar al bucle SSE, para no retener una conexión del pool
+    # durante el lifetime de la conexión SSE (que puede ser horas).
     last_id_str = request.headers.get("last-event-id")
-    if last_id_str is not None:
-        try:
-            last_id = int(last_id_str)
-        except ValueError:
-            last_id = 0
+    try:
+        if last_id_str is not None:
+            try:
+                last_id = int(last_id_str)
+            except ValueError:
+                last_id = 0
 
-        missed_stmt = select(Alert).where(Alert.id > last_id).order_by(Alert.id.asc())  # type: ignore[arg-type]
-        missed = list(session.exec(missed_stmt).all())
-        for alert in missed:
-            yield {"id": str(alert.id), "data": json.dumps(_alert_to_dict(alert))}
+            missed_stmt = select(Alert).where(Alert.id > last_id).order_by(Alert.id.asc())  # type: ignore[arg-type]
+            missed = list(session.exec(missed_stmt).all())
+            for alert in missed:
+                yield {"id": str(alert.id), "data": json.dumps(_alert_to_dict(alert))}
+    finally:
+        # FIX-01: liberar sesión DB antes del bucle en tiempo real
+        session.close()
 
     # 2. Streaming en tiempo real desde el broadcaster (D-SSE-1)
     #
