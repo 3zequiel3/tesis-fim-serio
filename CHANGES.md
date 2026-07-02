@@ -56,6 +56,10 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 32 | [`backend-sse-security-fixes`](#change-32--backend-sse-security-fixes) | backend | — (auditoría 2026-06-26) | 31 |
 | 33 | [`backend-test-harness`](#change-33--backend-test-harness) | backend | — (remediación 2026-06-29) | 30 |
 | 34 | [`backend-residual-fixes`](#change-34--backend-residual-fixes) | backend | — (auditoría 2026-06-23, residual) | 32 |
+| 35 | [`e2e-contract-fixes`](#change-35--e2e-contract-fixes) | cross | — (auditoría dual-judge 2026-07-02) | 34 |
+| 36 | [`backend-command-ack-consumer`](#change-36--backend-command-ack-consumer) | backend + agente | — (auditoría dual-judge 2026-07-02) | 34, 35 |
+| 37 | [`agent-fanotify-scope-filter`](#change-37--agent-fanotify-scope-filter) | agente | — (auditoría dual-judge 2026-07-02) | 34, 35 |
+| 38 | [`frontend-contract-fixes`](#change-38--frontend-contract-fixes) | frontend + backend | — (auditoría dual-judge 2026-07-02) | 35 |
 
 ---
 
@@ -652,7 +656,7 @@ Fixes:
 - **H6 (ALTO)** — `rules/service.py`: `publish_rule_sync` commitea `Rule` + `RulesetVersion` a Postgres ANTES de publicar a Valkey. Si Valkey está caído, la versión avanza pero los agentes nunca reciben las reglas. Implementar outbox: persistir el mensaje pendiente en la misma transacción y publicar en un background task con retry.
 - **M1 (MEDIO)** — `core/rate_limit.py`: el `expire` solo se setea cuando `count == 1`; si `incr` tiene éxito pero `expire` falla, la key queda sin TTL → lockout permanente del `(user+IP)`. Setear el TTL de forma atómica/idempotente en cada incremento. Corregir el docstring que dice "sliding-window" siendo fixed-window. (C30 portó esto a async pero mantuvo el defecto.)
 - **M3 (MEDIO)** — `users/models.py` + `users/schemas.py` + `users/router.py`: agregar el campo `email` a `User` (**NOT NULL + UNIQUE**, validado con `EmailStr`). Hoy `UserItem` devuelve `username` en el campo `email` y `CreateUserRequest.email` acepta cualquier string. Script SQL idempotente `db/migrations/` para la columna (D3, sin Alembic). Seed admin con email vía env `ADMIN_EMAIL` (default `admin@fim.local`). **Decisión D29.**
-- **M4 (MEDIO)** — ⏸️ **DIFERIDO (pendiente D32/RN-126)** — `agents/heartbeat_consumer.py` `_sweep_offline`: `Agent.last_heartbeat < threshold` excluye filas `NULL` (en SQL `NULL < x` es NULL) → agentes que nunca latieron nunca pasan a `offline`/`dead`. Bloqueado en el apply de C34 (2026-07-02): el modelo `Agent` **no tiene `created_at` ni `registered_at`**, así que no hay referencia temporal para decidir cuándo un agente que nunca latió pasa a `dead`. Elegir el comportamiento (dead inmediato vs. agregar timestamp de registro + grace) es una decisión de producto → cerrar **D32/RN-126** en el appendix antes de implementar M4.
+- **M4 (MEDIO)** — ✅ **D32/RN-126 cerrada el 2026-07-02** — `agents/heartbeat_consumer.py` `_sweep_offline`: `Agent.last_heartbeat < threshold` excluye filas `NULL` (en SQL `NULL < x` es NULL) → agentes que nunca latieron nunca pasan a `offline`/`dead`. Estuvo bloqueado en el apply de C34 (2026-07-02) porque el modelo `Agent` no tenía `created_at` ni `registered_at`, sin referencia temporal para decidir cuándo un agente que nunca latió pasa a `dead`. **D32/RN-126** cierra el gap: se agrega `Agent.registered_at` (seteado en `register_agent`) y el barrido marca `dead` cuando `now - registered_at` supera el mismo umbral de `offline → dead` (300 s / 5 min). M4 queda desbloqueado.
 - **M5 (MEDIO)** — `agents/service.py` `update_agent_config`: el `detail` del audit log se arma con f-string sobre `str(list)` → JSON inválido (comillas simples) y rompe si un path contiene `"` o `\`. Usar `json.dumps(...)`.
 - **M6 (MEDIO)** — `rules/service.py` + `actions/service.py`: `RulesetVersion.increment` hace `SELECT` + `version += 1` + `flush` sin `SELECT FOR UPDATE` → race entre requests concurrentes. Dos implementaciones duplicadas. Unificar en un único `UPDATE ruleset_versions SET version = version + 1 RETURNING version` atómico.
 - **M8 (MEDIO)** — `actions/service.py` `_reject_single`: el no-op sobre baseline `absent` es **correcto** por RN-74 (no publica `restore_file` ni `quarantine_file`, "Excepciones: Ninguna"), pero el código no devuelve `baseline_absent: true` en la respuesta. Hacer cumplir RN-74: retornar el flag para que el frontend avise al admin. **No cambia el comportamiento de no-op.**
@@ -677,6 +681,61 @@ Fixes:
 - **FIX-04 (MEDIO)** — `backend/app/modules/actions/service.py:337,373`: `approve_bulk`/`reject_bulk` capturan `except Exception` por ítem reusando una única `Session` en loop **sin `session.rollback()`** → en Postgres un error en el ítem N deja la transacción abortada y todos los N+1 fallan en cascada como `internal_error` falsos. Hacer `session.rollback()` tras cada fallo de ítem (patrón ya usado en `users/router.py:130`) o aislar cada ítem en su propia transacción. Test de regresión con un ítem que falla en medio del batch.
 
 Reglas: RN-71 (léxico canónico), RN-17/D2 (hash del evento). Decisiones aplicadas: ninguna nueva.
+
+---
+
+### Change 36 — `backend-command-ack-consumer`
+
+**Capa**: backend + agente · **Depende de**: 34 (`backend-residual-fixes`), 35 (`e2e-contract-fixes`) · **Origen**: auditoría dual-judge 2026-07-02, hallazgo #3 · **Decisiones**: D30 (RN-124)
+
+> **Nota**: cierra el hallazgo #3 de la auditoría dual-judge 2026-07-02 (loop de confirmación de ejecución de comandos), diferido en C35 por requerir una decisión de diseño nueva. D30/RN-124 se cerró el 2026-07-02.
+
+Capacidades:
+- Consumer dedicado del stream `event_ack` para el concepto renombrado **`command_ack`** (confirmación de ejecución de comandos, distinto del ack de ingesta homónimo de RN-40/RN-54).
+- `PublishedCommand` gana tracking de estado de ejecución: `command_id` (persistido, ya se genera en `actions/streams.py` pero hoy se descarta), estado (`pending | acked | failed | timeout`), `acked_at`, `error`. Migración SQL idempotente (D3, sin Alembic).
+- Sweep periódico que marca `timeout` los comandos `pending` que superan el umbral configurado.
+- Badge/indicador secundario por evento en el frontend (no un nuevo `EventStatus`).
+- Corrige la violación viva de D5/RN-106 en `agents/service.py::update_agent_config` (`ruleset_version_applied` se actualizaba al publicar, no al confirmar) y cierra D1/RN-104 (`baseline_entries` no se actualizaba vía ack de `baseline_update`).
+
+Reglas: RN-104, RN-106, RN-124. Decisiones aplicadas: D30.
+
+**Done**: todo comando publicado queda rastreado en `PublishedCommand` con su `command_id`; un `command_ack` exitoso de `baseline_update` actualiza `baseline_entries`; `Agent.ruleset_version_applied` solo avanza al confirmarse el comando; comandos sin ack tras el umbral configurado quedan en `timeout`; UI muestra el badge de estado de ejecución por evento.
+
+---
+
+### Change 37 — `agent-fanotify-scope-filter`
+
+**Capa**: agente · **Depende de**: 34 (`backend-residual-fixes`), 35 (`e2e-contract-fixes`) · **Origen**: auditoría dual-judge 2026-07-02, hallazgo #6 · **Decisiones**: D31 (RN-125)
+
+> **Nota**: cierra el hallazgo #6 de la auditoría dual-judge 2026-07-02 (over-collection de `FAN_MARK_FILESYSTEM`), diferido en C35 por requerir una decisión de diseño nueva. D31/RN-125 se cerró el 2026-07-02.
+
+Capacidades:
+- Filtro de alcance por containment `realpath` en `agent/detector.py::_read_loop`, antes de encolar el evento en `_raw_queue`.
+- `watch_paths` canonicalizados una única vez, en `start()`, `reload_paths()` y `reload_watch_paths()`.
+- Fix de symlinks que escapan del scope en `agent/baseline.py::init_scan` (y rescan): se omiten con log warning en vez de cifrarse.
+- Reutiliza el patrón de containment de D18/RN-116 (`agent/commands.py`) para consistencia entre módulos.
+- Contador `out_of_scope_drops` surfaceado en el heartbeat, análogo a `event_drops` ya existente.
+
+Reglas: RN-04, RN-125. Decisiones aplicadas: D31.
+
+**Done**: un cambio fuera de `watch_paths` en un host de un solo mount ya no genera evento; un symlink dentro de `watch_paths` que apunta afuera se omite del baseline con warning (no se cifra); el heartbeat reporta `out_of_scope_drops` > 0 cuando `FAN_MARK_FILESYSTEM` descarta tráfico fuera de alcance.
+
+---
+
+### Change 38 — `frontend-contract-fixes`
+
+**Capa**: frontend + backend · **Depende de**: 35 (`e2e-contract-fixes`) · **Origen**: auditoría dual-judge 2026-07-02, hallazgos de comunicación (Juez A) · **Decisiones**: ninguna nueva
+
+> **Nota**: change de remediación de contrato frontend↔backend. Captura los 2 bugs de contrato que la auditoría dual-judge 2026-07-02 encontró pero que NO entraron en C35 (se eligieron 4 hallazgos de los detectados). Verificados STILL-PRESENT contra el código post-C35 el 2026-07-02. Sin decisión nueva — hacen cumplir contratos existentes.
+
+Fixes:
+- **FIX-01 (contrato)** — `backend/app/modules/auth/schemas.py`: `LoginResponse`/`RefreshResponse` no devuelven `user`, pero el front (`frontend/src/api/auth.ts:27,33`) lo tipa → `useAuthStore.user` siempre `null` → el Navbar nunca muestra el usuario logueado. Fix: el backend agrega el objeto `user` a la respuesta de login/refresh, **o** el front deriva el `username` del JWT que ya decodifica en `ProtectedRoute` (decidir dónde arreglar en el apply — es detalle de implementación, no cambia el contrato de producto).
+- **FIX-02 (contrato)** — `backend/app/modules/alerts/router.py`: `AlertResponse` no serializa `status` (solo `delivered_at`/`failed_at`/`retry_count`; el status se computa server-side solo para filtrar, `filter_status`). El front (`frontend/src/pages/Alerts.tsx`) renderiza `alert.status` → la columna "estado" queda siempre vacía. Fix: el backend deriva y serializa `status` (`pending | delivered | failed`) en `AlertResponse`.
+- **Menores (no bugs, evaluar en apply)** — `Dashboard` hace ~8 requests HTTP por refresco sin endpoint agregado (perf); `AlertsBanner` usa `useQuery` inline en vez de reusar `api/alerts.ts` (organización).
+
+> **Pendiente adicional (fuera de esta change)**: la auditoría del frontend fue **solo de comunicación/contratos**. La calidad del front (arquitectura de componentes, manejo de estado, UX, accesibilidad, diseño) nunca se auditó — pendiente si se quiere un panorama completo antes de dar el frontend por terminado.
+
+Reglas: — (contrato front↔backend, sin regla nueva). Decisiones aplicadas: ninguna nueva.
 
 ---
 

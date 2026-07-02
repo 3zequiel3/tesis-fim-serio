@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-122 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-126 |
 
 ---
 
@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1054,6 +1054,45 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 **Motivación:** El campo es requerido para enrutar notificaciones por email via n8n (M3 de la auditoría 2026-06-23). Sin email real, las notificaciones no se pueden entregar al usuario responsable del evento. El campo también es necesario para el reset de password y auditoría de identidad.
 
 **Excepciones:** En entornos donde no se configura n8n, el email puede ser un placeholder válido (ej. `admin@fim.local`) pero el formato debe ser válido según RFC 5321.
+
+#### D30 / RN-124: Confirmación de ejecución de comandos vía `command_ack` (stream `event_ack`)
+
+**Descripción:** Todo comando emitido por el backend hacia el agente (`baseline_update`, `restore_file`, `quarantine_file`, `update_config`, `rescan_baseline`) debe confirmarse mediante un **`command_ack`** — la confirmación de ejecución que el agente publica en el stream Valkey `event_ack`. El nombre del stream Valkey no cambia; lo que se renombra es el concepto, para desambiguarlo del ack de ingesta homónimo de RN-40/RN-54 (el `event_ack` que el backend publica en el stream `commands` para confirmar la persistencia de un evento). El backend agrega un consumer dedicado de `event_ack` que persiste el estado de ejecución de cada comando.
+
+**Condición:** Todo comando publicado en el stream `commands` y rastreado en `PublishedCommand`.
+
+**Resultado:**
+- `PublishedCommand` incorpora: `command_id` (identificador del comando, generado al publicarlo), estado de ejecución (`pending | acked | failed | timeout`), `acked_at` (datetime, nulo hasta la confirmación) y `error` (string, nulo salvo falla reportada por el agente).
+- Un comando queda en `pending` hasta que llega su `command_ack`, o hasta que un barrido periódico lo marca `timeout` al superar un umbral configurable (mismo patrón de barrido que RN-92).
+- El `command_ack` de un `baseline_update` exitoso hace cumplir RN-104 (actualización de `baseline_entries` en el backend).
+- `Agent.ruleset_version_applied` se actualiza únicamente al confirmarse el comando vía `command_ack` — nunca al publicarlo. Esto corrige la implementación vigente de `update_agent_config`, que hoy actualiza `ruleset_version_applied` al publicar el comando `update_config`, en violación de la semántica normativa de RN-106.
+- La UI expone el estado de ejecución como un indicador secundario por evento. Esto no crea un nuevo estado en la máquina de eventos: `approved`/`rejected` siguen siendo terminales (RN-72).
+
+**Excepciones:** Ninguna.
+
+#### D31 / RN-125: Cumplimiento de RN-04 mediante containment por `realpath` en el detector y el baseline scan
+
+**Descripción:** Esta decisión es una corrección de implementación de una política de negocio ya vigente (RN-04: "Solo los paths incluidos en la configuración generan eventos. Todo lo demás se ignora. Excepciones: Ninguna"), no una regla nueva. El agente marca el filesystem completo (`FAN_MARK_FILESYSTEM`, limitación del kernel ya documentada como tradeoff arquitectónico — no es objeto de esta decisión). Todo evento fanotify cuyo `os.path.realpath()` no esté contenido en ninguno de los `watch_paths` canonicalizados se descarta antes de encolarse. Todo symlink descubierto durante el escaneo de baseline cuyo `realpath` escape del `watch_path` se omite del baseline en vez de cifrarse.
+
+**Condición:** Todo evento capturado por el detector fanotify y todo symlink encontrado durante el escaneo inicial o el re-scan del baseline.
+
+**Resultado:**
+- El filtro de containment se aplica en el punto de lectura del evento, antes de construir el objeto de evento interno — no solo en la etapa de clasificación —, para que la cola acotada del agente no absorba ruido irrelevante generado por el mark a nivel filesystem.
+- Los `watch_paths` se resuelven a `realpath` una única vez (al iniciar el monitoreo y en cada recarga de configuración), no en cada evento.
+- Un symlink dentro de un `watch_path` cuyo destino resuelto escapa del `watch_path` canonicalizado se omite del baseline con log de advertencia, en vez de cifrarse como si fuera contenido en alcance.
+- Se agrega un contador de eventos descartados por estar fuera de alcance, expuesto en el heartbeat, análogo al contador de descarte de cola ya existente (RN-84).
+
+**Excepciones:** Ninguna. Un `watch_path` que sea a su vez un symlink se canonicaliza una sola vez y ese `realpath` define el límite de containment.
+
+#### D32 / RN-126: Transición a `dead` para agentes que nunca enviaron heartbeat
+
+**Descripción:** El modelo `Agent` incorpora el campo `registered_at` (datetime, seteado en el momento del registro del agente). Un agente cuyo `last_heartbeat` es `NULL` (nunca llegó a enviar un heartbeat) transiciona a `dead` cuando el tiempo transcurrido desde `registered_at` supera el mismo umbral usado para la transición `offline → dead`: **300 segundos (5 minutos)**.
+
+**Condición:** Barrido periódico de agentes (RN-92) sobre agentes con `last_heartbeat IS NULL`.
+
+**Resultado:** El barrido evalúa `now - registered_at > 300 s` para agentes sin heartbeat, en lugar de depender de la comparación `last_heartbeat < threshold` (que en SQL excluye filas `NULL` sin marcarlas, por lo que nunca las transicionaba). Se usa el mismo umbral que `offline → dead` (no el umbral más corto de `online → offline`, 30 segundos) para no marcar `dead` a un agente que está en pleno proceso de arranque/instalación.
+
+**Excepciones:** Ninguna. Los agentes existentes al momento de la migración reciben `registered_at` con el timestamp de ejecución de la migración como valor de backfill, dado que no hay dato histórico real de cuándo se registraron.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

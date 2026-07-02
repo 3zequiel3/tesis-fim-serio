@@ -1894,7 +1894,7 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26; D29 se agregó el 2026-07-01. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26; D29 se agregó el 2026-07-01; D30–D32 se agregaron el 2026-07-02. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
 
 ### Modelo de datos del backend
 
@@ -2275,6 +2275,59 @@ No se migra a `AsyncSession` de SQLAlchemy — el costo de refactor es despropor
 
 **Aplicación**: `backend/app/modules/users/models.py`, `backend/app/modules/users/schemas.py`, `backend/app/modules/users/router.py`, `backend/app/core/seed.py` (variable `ADMIN_EMAIL`), `backend/db/migrations/`. Regla normativa: RN-123.
 
+#### D30: Consumer dedicado de `command_ack` (stream `event_ack`) + tracking de ejecución en `PublishedCommand`
+
+**Decisión**: El backend agrega un consumer dedicado del stream `event_ack` que persiste el estado de ejecución de cada comando emitido al agente.
+
+**Problema base**: el agente publica confirmaciones de ejecución de comandos (`baseline_update`, `restore_file`, `quarantine_file`, `update_config`, `rescan_baseline`) en el stream Valkey `event_ack` (`agent/commands.py:48` — `STREAM_EVENT_ACK = "event_ack"`; `agent/commands.py:79` — `await valkey_client.xadd(STREAM_EVENT_ACK, ...)` dentro de `_publish_ack`), pero el backend (`backend/app/main.py`, arranque de tasks del lifespan) solo consume `events` (`events/consumer.py::run_consumer`) y `agent_heartbeat` (`agents/heartbeat_consumer.py::run_heartbeat_consumer`) — nadie lee `event_ack`. Consecuencia viva: `backend/app/modules/agents/service.py::update_agent_config` (líneas ~156-159) setea `agent.ruleset_version_applied = new_version` inmediatamente al publicar el comando `update_config`, sin esperar confirmación, violando la semántica normativa de D5/RN-106 (`ruleset_version_applied` = máximo `ruleset_version` **confirmado** vía ack). D1/RN-104 (cada ack exitoso de `baseline_update` actualiza `baseline_entries`) tampoco está implementado por esta vía.
+
+**Nomenclatura**: "event_ack" designaba hasta ahora dos conceptos distintos: (a) el ack de ingesta que el backend publica en el stream `commands` (RN-40/RN-54, confirma que el evento fue persistido) y (b) el ack de ejecución que el agente publica en el stream `event_ack` (confirma que un comando fue ejecutado). Esta decisión nombra (b) **`command_ack`** para desambiguar; el nombre del stream Valkey (`event_ack`) no cambia.
+
+**Resultado**:
+- Nuevo consumer en el backend (p. ej. `backend/app/modules/agents/command_ack_consumer.py`), siguiendo el mismo patrón que `events/consumer.py` (consumer group Valkey, verificación de payload, `run_in_executor` para el I/O de DB, per D21) y arrancado como task adicional en `backend/app/main.py`.
+- `PublishedCommand` (`backend/app/modules/rules/models.py`, líneas 40-63) agrega columnas: `command_id: str` (ya se genera vía `uuid.uuid4()` en `actions/streams.py` pero hoy se descarta; ahora se persiste), `acked_at: datetime | None`, `error: str | None`, y estado de ejecución (`pending | acked | failed | timeout`).
+
+  **Nota de implementación (discrepancia detectada en código)**: `PublishedCommand.status` ya existe hoy (`rules/models.py:62`) con semántica de **outbox** (`"pending" | "published"` — si el `XADD` a Valkey se ejecutó, H6/D9/D10). El nuevo estado de **ejecución** confirmado por el agente es un concepto distinto y no puede reusar la misma columna sin colisión de semántica. La resolución exacta (campo separado, p. ej. `ack_status`, o renombrar el existente a `delivery_status`) se define en tasks/apply de la change que implemente esta decisión — no es una decisión de negocio nueva, es un detalle de nomenclatura de columna.
+- Timeout: sweep periódico (análogo a `heartbeat_consumer._sweep_offline`) marca `timeout` los comandos `pending` que superan un umbral configurable.
+- Frontend: badge/indicador secundario por evento (no un nuevo `EventStatus` — RN-72 no cambia).
+- Los `command_ack` de `baseline_update` actualizan `baseline_entries` (cumple D1/RN-104) y `Agent.ruleset_version_applied` (corrige D5/RN-106 en `agents/service.py::update_agent_config`).
+- Migración SQL idempotente en `backend/db/migrations/` (convención D3, sin Alembic) para las columnas nuevas.
+
+**Excepciones**: Ninguna.
+
+**Aplicación**: `backend/app/modules/agents/service.py` (`update_agent_config`), `backend/app/modules/rules/models.py` (`PublishedCommand`), `backend/app/modules/actions/streams.py` (persistir `command_id`), `backend/app/main.py` (arranque del nuevo consumer task), `agent/commands.py` (ya publica correctamente, sin cambios). Regla normativa: RN-124.
+
+#### D31: Filtro de alcance por containment (`realpath`) en `detector.py` y `baseline.py`
+
+**Decisión**: `agent/detector.py::_read_loop` descarta (sin encolar en `_raw_queue`) todo evento cuyo `os.path.realpath()` no sea `is_relative_to()` de ningún `watch_path` canonicalizado, antes de construir el `FanotifyEvent`. El filtro se ubica en `_read_loop` (lectura desde fanotify), no solo en `_process_event` (clasificación), para que la cola acotada (`maxsize=1000`) no absorba ruido irrelevante generado por `FAN_MARK_FILESYSTEM`.
+
+**Problema base**: `agent/detector.py` usa `FAN_MARK_FILESYSTEM` (marca el filesystem entero — limitación del kernel, tradeoff arquitectónico intencional ya documentado en este stack, no es el bug), pero `_process_event` nunca filtraba por `watch_paths` → en un host de un solo mount, el agente hashea/diffea/publica TODOS los cambios del host, no solo los de `watch_paths`, violando RN-04 ("Solo los paths incluidos en la configuración generan eventos... Excepciones: Ninguna"). Riesgo adicional: symlinks dentro de `watch_paths` que apuntan afuera (p. ej. a `/root/.ssh`) se cifraban en el baseline como si fueran contenido en alcance.
+
+**Resultado**:
+- `watch_paths` se resuelven a `realpath` una única vez, en `start()`, `reload_paths()` y `reload_watch_paths()` — no se recalcula por evento.
+- `agent/baseline.py::init_scan` (y el rescan) aplica el mismo criterio de containment a los symlinks encontrados vía `rglob`: si el `realpath` del symlink escapa del `watch_path` canonicalizado, se omite con log warning, en vez de cifrar contenido externo bajo un path que aparenta estar en scope.
+- Reutiliza el patrón de containment ya validado en D18/RN-116 (`agent/commands.py`, `os.path.realpath` + check de containment para `quarantine_file`/`restore_file`) para consistencia entre módulos.
+- Nuevo contador `out_of_scope_drops`, surfaceado en el heartbeat (análogo a `event_drops` ya existente) — dado que `FAN_MARK_FILESYSTEM` genera tráfico proporcional a todo el host, este contador es la única visibilidad operativa de cuánto se está descartando.
+
+**Excepciones**: Ninguna. Un `watch_path` que sea él mismo un symlink se canonicaliza una vez y ese `realpath` define el límite de containment.
+
+**Aplicación**: `agent/detector.py` (`_read_loop`, `start`, `reload_paths`, `reload_watch_paths`), `agent/baseline.py` (`init_scan` y rescan), heartbeat del agente (contador `out_of_scope_drops`). Regla normativa: RN-125.
+
+#### D32: `Agent.registered_at` + grace period para agentes sin heartbeat inicial
+
+**Decisión**: Se agrega la columna `Agent.registered_at: datetime`, seteada en `register_agent` (`backend/app/modules/agents/service.py:33`) en el momento del registro. Migración SQL idempotente (`backend/db/migrations/`, convención D3, sin Alembic) con backfill: los agentes existentes reciben el timestamp de ejecución de la migración como valor de `registered_at`, dado que no hay dato histórico real de cuándo se registraron.
+
+**Problema base**: `agents/heartbeat_consumer.py::_sweep_offline` usa `Agent.last_heartbeat < threshold`; en SQL, `NULL < x` evalúa a `NULL` (no a `true`), por lo que un agente que nunca envió heartbeat nunca transicionaba a `offline`/`dead`. El modelo `Agent` no tenía ninguna referencia temporal alternativa (`created_at`/`registered_at`) para estos agentes. Este gap quedó explícitamente diferido en el fix M4 de Change 34 (`backend-residual-fixes`), a la espera de esta decisión.
+
+**Resultado**:
+- `_sweep_offline` (`backend/app/modules/agents/heartbeat_consumer.py`): un agente con `last_heartbeat IS NULL` pasa a `dead` cuando `now - registered_at` supera el grace period.
+- **Grace period = 300 s (5 minutos)** — el mismo valor que ya usa `_DEAD_THRESHOLD_S` (`heartbeat_consumer.py:34`) para la transición `offline → dead`. Se elige igual al umbral de `offline → dead` (no el umbral más corto de `online → offline`, `_OFFLINE_THRESHOLD_S = 30 s`, `heartbeat_consumer.py:33`) para no marcar `dead` a un agente en pleno proceso de arranque/instalación.
+- Cierra el gap que dejó diferido el fix M4 de Change 34.
+
+**Excepciones**: Ninguna.
+
+**Aplicación**: `backend/app/modules/agents/models.py` (`Agent.registered_at`), `backend/app/modules/agents/service.py` (`register_agent`), `backend/app/modules/agents/heartbeat_consumer.py` (`_sweep_offline`), `backend/db/migrations/` (script idempotente + backfill). Regla normativa: RN-126.
+
 ### Organización del código
 
 #### D7: Cross-cutting distribuido, no centralizado al final
@@ -2335,6 +2388,9 @@ Lo que SÍ queda en el change final (`backend-observability-hardening`):
 | D27 (shared_secret plaintext — limitación conocida) | — (sin código) | Cerrada |
 | D28 (heartbeat last_id — tradeoff aceptado) | — (sin código) | Cerrada |
 | D29 (`User.email` — campo obligatorio, único y validado) | Change 34 (C34) | Cerrada |
+| D30 (Consumer `command_ack` + tracking en `PublishedCommand`) | Change 36 (C36) | Cerrada |
+| D31 (Filtro de containment `realpath` en detector/baseline) | Change 37 (C37) | Cerrada |
+| D32 (`Agent.registered_at` + grace period sin heartbeat) | Change 34 (C34), M4 | Cerrada |
 
 #### D9: Fan-out para comandos broadcast — un mensaje firmado por agente
 **Decisión**: Cuando el backend publica un comando con semántica "broadcast" (e.g. `rule_sync` global), NO publica un único mensaje con `target_agent_id: null`. En cambio, publica N mensajes físicos en el stream `commands`, uno por cada agente registrado, cada uno con `target_agent_id = agent_id` y firmado con el `shared_secret` específico de ese agente.
