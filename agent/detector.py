@@ -64,8 +64,8 @@ class DetectedChange:
     path: str
     event_type: str          # "file_modified" | "file_absent" | "file_deleted" | "file_created"
     operation_type: str      # léxico canónico RN-71: mismos valores que event_type
-    previous_hash: str | None
-    current_hash: str | None
+    hash_expected: str | None
+    hash_detected: str | None
     diff_text: str | None
     process_pid: int
     process_uid: int
@@ -356,8 +356,8 @@ class FanotifyDetector:
                 path=path,
                 event_type="file_deleted",
                 operation_type="file_deleted",
-                previous_hash=previous_hash,
-                current_hash=None,
+                hash_expected=previous_hash,
+                hash_detected=None,
                 diff_text=None,
                 process_pid=fan_event.pid,
                 process_uid=fan_event.uid,
@@ -409,8 +409,8 @@ class FanotifyDetector:
                 path=path,
                 event_type="file_created",
                 operation_type="file_created",
-                previous_hash=None,
-                current_hash=current_hash,
+                hash_expected=None,
+                hash_detected=current_hash,
                 diff_text=None,
                 process_pid=fan_event.pid,
                 process_uid=fan_event.uid,
@@ -488,8 +488,8 @@ class FanotifyDetector:
             path=path,
             event_type=event_type,
             operation_type=operation_type,
-            previous_hash=previous_hash,
-            current_hash=current_hash,
+            hash_expected=previous_hash,
+            hash_detected=current_hash,
             diff_text=diff_text,
             process_pid=fan_event.pid,
             process_uid=fan_event.uid,

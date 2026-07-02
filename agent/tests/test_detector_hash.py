@@ -169,7 +169,7 @@ async def test_process_event_emits_file_modified_after_retry(tmp_path: Path) -> 
 
     published = publisher.publish.call_args[0][0]
     assert published["event_type"] == "file_modified"
-    assert published["current_hash"] == expected_hash
+    assert published["hash_detected"] == expected_hash
     baseline.mark_absent.assert_not_called()
 
 
@@ -205,5 +205,5 @@ async def test_process_event_emits_file_absent_when_persistently_missing(tmp_pat
 
     published = publisher.publish.call_args[0][0]
     assert published["event_type"] == "file_absent"
-    assert published["current_hash"] is None
+    assert published["hash_detected"] is None
     baseline.mark_absent.assert_called_once_with(str(tmp_path / "ghost.txt"))

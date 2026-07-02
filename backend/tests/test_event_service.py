@@ -152,6 +152,51 @@ def test_ingest_with_pending_creates_chain(mem_engine) -> None:
         assert old_refreshed.status == EventStatus.superseded
 
 
+def test_ingest_event_from_real_agent_payload_persists_hash_detected(mem_engine) -> None:
+    """
+    Cross-boundary regression (C35 / FIX-01): construye un `DetectedChange` REAL del
+    agente, serializa con el `to_event_data()` real (sin mocks de ningún lado), y lo
+    hace fluir por `ingest_event` (el mismo consumer que usa el stream de Valkey en
+    producción). Antes del fix, el dataclass emitía `current_hash`/`previous_hash` y
+    `ingest_event` leía `event_data.get("hash_detected", "")` → todo evento real
+    persistía con `hash_detected == ""`. Este test falla si el mismatch reaparece.
+    """
+    import sys
+    from pathlib import Path
+
+    # El agente vive en <repo_root>/agent, fuera del árbol de paquetes del backend.
+    repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(repo_root))
+    from agent.detector import DetectedChange
+
+    detected_hash = "d" * 64
+    change = DetectedChange(
+        event_id="agent-event-001",
+        path="/etc/nginx/nginx.conf",
+        event_type="file_modified",
+        operation_type="file_modified",
+        hash_expected="e" * 64,
+        hash_detected=detected_hash,
+        diff_text=None,
+        process_pid=42,
+        process_uid=0,
+        process_exe="/usr/bin/vim",
+        detected_at="2026-07-02T00:00:00+00:00",
+        parent_event_id=None,
+    )
+    payload = change.to_event_data()
+    payload["agent_id"] = "agent-test"
+
+    now = _now()
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.hash_detected == detected_hash
+    assert event.hash_detected != ""
+
+
 def test_ingest_race_condition_returns_none(mem_engine) -> None:
     """Simula carrera: mark_superseded retorna False → ingest retorna None."""
     now = _now()

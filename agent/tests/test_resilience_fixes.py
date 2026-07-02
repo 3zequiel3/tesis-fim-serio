@@ -229,8 +229,8 @@ async def test_xadd_failure_keeps_event_in_pending(tmp_path: Path) -> None:
     event_data: dict[str, Any] = {
         "path": "/etc/passwd",
         "event_type": "file_modified",
-        "previous_hash": None,
-        "current_hash": "abc",
+        "hash_expected": None,
+        "hash_detected": "abc",
         "diff_text": None,
         "process_pid": 1,
         "process_uid": 0,
@@ -260,8 +260,8 @@ async def test_xadd_success_also_sets_pending(tmp_path: Path) -> None:
     await publisher.publish({
         "path": "/etc/hosts",
         "event_type": "file_modified",
-        "previous_hash": None,
-        "current_hash": "def",
+        "hash_expected": None,
+        "hash_detected": "def",
         "diff_text": None,
         "process_pid": 1,
         "process_uid": 0,

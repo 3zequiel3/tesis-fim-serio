@@ -76,7 +76,7 @@ async def test_fanotify_delete_emits_file_deleted(tmp_path: Path) -> None:
     published = publisher.publish.call_args[0][0]
     assert published["operation_type"] == "file_deleted"
     assert published["event_type"] == "file_deleted"
-    assert published["current_hash"] is None
+    assert published["hash_detected"] is None
     baseline.mark_absent.assert_called_once_with(str(tmp_path / "deleted_file.txt"))
 
 
@@ -125,8 +125,8 @@ async def test_fanotify_create_emits_file_created(tmp_path: Path) -> None:
     published = publisher.publish.call_args[0][0]
     assert published["operation_type"] == "file_created"
     assert published["event_type"] == "file_created"
-    assert published["current_hash"] == expected_hash
-    assert published["previous_hash"] is None
+    assert published["hash_detected"] == expected_hash
+    assert published["hash_expected"] is None
     baseline.write_entry.assert_called_once_with(str(target))
 
 
@@ -259,8 +259,8 @@ def test_detected_change_to_event_data_includes_operation_type() -> None:
         path="/etc/test",
         event_type="file_modified",
         operation_type="file_modified",
-        previous_hash="abc",
-        current_hash="def",
+        hash_expected="abc",
+        hash_detected="def",
         diff_text=None,
         process_pid=1,
         process_uid=0,
