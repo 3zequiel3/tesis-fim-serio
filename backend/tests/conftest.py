@@ -27,7 +27,7 @@ from httpx import ASGITransport, AsyncClient
 # Settings() is instantiated at import time; these must be in the environment
 # before the first import of app.core.config (or any module that imports it).
 # Use direct assignment (not setdefault) so our values always win.
-os.environ["DATABASE_URL"] = "postgresql+psycopg://fim:test@localhost:5432/fim_test"
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
 os.environ["VALKEY_URL"] = "valkey://localhost:6379"
 os.environ["JWT_SECRET_CURRENT"] = "test-secret-current-32-chars-xxxxx"
 os.environ["JWT_SECRET_PREVIOUS"] = ""
