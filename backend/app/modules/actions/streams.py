@@ -8,6 +8,10 @@ publish_quarantine_file  — al rechazar con action=quarantine.
 Todos firman con el shared_secret del agente destino (mismo patrón que C12).
 El ruleset_version para baseline_update ya fue incrementado por el caller
 (service._approve_single llama a _increment_ruleset_version primero).
+
+FIX-03 (D10): Cada función inserta un registro PublishedCommand ANTES del XADD
+para garantizar trazabilidad de auditoría. Si el XADD falla, el INSERT se
+revierte junto con la transacción del caller.
 """
 
 from __future__ import annotations
@@ -23,8 +27,28 @@ from sqlmodel import Session
 from app.core.streams import SCHEMA_VERSION, STREAM_COMMANDS, sign_payload
 from app.modules.agents.models import Agent
 from app.modules.events.models import Event
+from app.modules.rules.models import PublishedCommand
 
 log = structlog.get_logger()
+
+
+def _record_published_command(
+    session: Session,
+    agent_id: str,
+    command_type: str,
+    ruleset_version: int = 0,
+) -> None:
+    """
+    Inserta un registro PublishedCommand en la sesión (sin commit).
+    FIX-03 / D10: garantiza trazabilidad de auditoría para todos los tipos de comando.
+    La inserción ocurre antes del XADD — si el XADD falla, el INSERT se revierte.
+    """
+    cmd = PublishedCommand(
+        command_type=command_type,
+        target_agent_id=agent_id,
+        ruleset_version=ruleset_version,
+    )
+    session.add(cmd)
 
 
 def _get_agent_secret(session: Session, agent_id: str) -> bytes:
@@ -83,6 +107,8 @@ def publish_baseline_update(
     payload["signature"] = sign_payload(secret, payload)
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    # FIX-03: registrar ANTES del XADD para atomicidad (D10)
+    _record_published_command(session, event.agent_id, "baseline_update", ruleset_version)
     valkey_client.xadd(STREAM_COMMANDS, {"data": data})
 
     log.info(
@@ -122,6 +148,8 @@ def publish_restore_file(
     payload["signature"] = sign_payload(secret, payload)
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    # FIX-03: registrar ANTES del XADD para atomicidad (D10)
+    _record_published_command(session, event.agent_id, "restore_file")
     valkey_client.xadd(STREAM_COMMANDS, {"data": data})
 
     log.info(
@@ -160,6 +188,8 @@ def publish_quarantine_file(
     payload["signature"] = sign_payload(secret, payload)
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    # FIX-03: registrar ANTES del XADD para atomicidad (D10)
+    _record_published_command(session, event.agent_id, "quarantine_file")
     valkey_client.xadd(STREAM_COMMANDS, {"data": data})
 
     log.info(
