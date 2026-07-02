@@ -7,4 +7,8 @@
   --color-danger-hover: #b91c1c;
   --color-warning: #d97706;
   --color-success: #16a34a;
+  /* Intermediate step between gray-700 and gray-800 for table row hover.
+     Tailwind v4 has no gray-750 by default; without this token the
+     hover:bg-gray-750 classes used across tables are inert. */
+  --color-gray-750: #2a3441;
 }

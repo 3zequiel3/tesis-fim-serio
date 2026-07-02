@@ -73,7 +73,7 @@ export function BulkActionBar({ selected, items, onClearSelection }: BulkActionB
           <button
             onClick={() => setModal('reject')}
             disabled={isPending}
-            className="px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white rounded text-xs font-medium disabled:opacity-50"
+            className="px-3 py-1.5 bg-danger hover:bg-danger-hover text-white rounded text-xs font-medium disabled:opacity-50"
           >
             Rechazar seleccionados
           </button>
@@ -178,7 +178,7 @@ export function BulkActionBar({ selected, items, onClearSelection }: BulkActionB
               <button
                 onClick={handleBulkReject}
                 disabled={isPending}
-                className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded text-sm font-medium disabled:opacity-50"
+                className="px-4 py-2 bg-danger hover:bg-danger-hover text-white rounded text-sm font-medium disabled:opacity-50"
               >
                 {isPending ? 'Procesando...' : 'Rechazar'}
               </button>

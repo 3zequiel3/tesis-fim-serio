@@ -90,7 +90,7 @@ export function Alerts() {
             onChange={(e) =>
               updateFilter({ status: (e.target.value as AlertStatus) || undefined })
             }
-            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
           >
             <option value="">Todos</option>
             {STATUS_OPTIONS.map((s) => (
@@ -108,7 +108,7 @@ export function Alerts() {
             onChange={(e) =>
               updateFilter({ severity: (e.target.value as AlertSeverity) || undefined })
             }
-            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
           >
             <option value="">Todas</option>
             {SEVERITY_OPTIONS.map((s) => (

@@ -145,7 +145,7 @@ export function AgentCard({
                 onChange={(e) => setNewPath(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddPath()}
                 placeholder="/ruta/nueva"
-                className="flex-1 px-2 py-1 text-xs bg-gray-900 border border-gray-600 rounded text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500"
+                className="flex-1 px-2 py-1 text-xs bg-gray-900 border border-gray-600 rounded text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"
               />
               <button
                 onClick={handleAddPath}
@@ -158,7 +158,7 @@ export function AgentCard({
               <button
                 onClick={handleSavePaths}
                 disabled={isSavingConfig}
-                className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-40"
+                className="px-3 py-1 text-xs bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-40"
               >
                 {isSavingConfig ? 'Guardando...' : 'Guardar paths'}
               </button>

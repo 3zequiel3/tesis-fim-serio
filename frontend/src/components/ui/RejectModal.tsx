@@ -72,7 +72,7 @@ export function RejectModal({ event, open, onClose, onConfirm, isPending = false
           <button
             onClick={() => onConfirm(isAbsent ? 'restore' : action)}
             disabled={isPending}
-            className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded text-sm font-medium disabled:opacity-50"
+            className="px-4 py-2 bg-danger hover:bg-danger-hover text-white rounded text-sm font-medium disabled:opacity-50"
           >
             {isPending ? 'Procesando...' : 'Confirmar rechazo'}
           </button>

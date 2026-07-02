@@ -137,7 +137,7 @@ export function EventDetail() {
               <button
                 onClick={() => setRejectModalOpen(true)}
                 disabled={isPending}
-                className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded text-sm font-medium disabled:opacity-50"
+                className="px-4 py-2 bg-danger hover:bg-danger-hover text-white rounded text-sm font-medium disabled:opacity-50"
               >
                 Rechazar
               </button>

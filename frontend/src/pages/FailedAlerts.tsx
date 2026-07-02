@@ -137,7 +137,7 @@ export function FailedAlerts() {
           <button
             onClick={handleBulkRetry}
             disabled={bulkRetrying}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded disabled:opacity-40"
+            className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-sm rounded disabled:opacity-40"
           >
             {bulkRetrying ? 'Reintentando...' : 'Reintentar seleccionadas'}
           </button>

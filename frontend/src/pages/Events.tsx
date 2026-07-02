@@ -113,7 +113,7 @@ export function Events() {
               value={pathInput}
               onChange={(e) => handlePathChange(e.target.value)}
               placeholder="/etc/..."
-              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"
             />
           </div>
 
@@ -124,7 +124,7 @@ export function Events() {
               type="datetime-local"
               value={filters.date_from ?? ''}
               onChange={(e) => updateFilter({ date_from: e.target.value || undefined })}
-              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
             />
           </div>
 
@@ -135,7 +135,7 @@ export function Events() {
               type="datetime-local"
               value={filters.date_to ?? ''}
               onChange={(e) => updateFilter({ date_to: e.target.value || undefined })}
-              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
             />
           </div>
         </div>

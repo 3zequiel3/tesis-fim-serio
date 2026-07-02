@@ -123,7 +123,7 @@ export function Rules() {
         <h1 className="text-xl font-semibold text-white">Reglas de monitoreo</h1>
         <button
           onClick={openCreate}
-          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded"
+          className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-sm rounded"
         >
           Nueva regla
         </button>
@@ -155,7 +155,7 @@ export function Rules() {
           <p className="text-sm">No hay reglas configuradas.</p>
           <button
             onClick={openCreate}
-            className="mt-3 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded"
+            className="mt-3 px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-sm rounded"
           >
             Crear la primera regla
           </button>

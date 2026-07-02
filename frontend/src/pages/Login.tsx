@@ -43,9 +43,9 @@ export function Login() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+    <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-8">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">FIM Platform</h1>
+        <h1 className="text-2xl font-bold text-white">FIM Platform</h1>
         <p className="mt-1 text-sm text-gray-500">Iniciá sesión para continuar</p>
       </div>
 
@@ -53,7 +53,7 @@ export function Login() {
         <div>
           <label
             htmlFor="username"
-            className="block text-sm font-medium text-gray-700 mb-1.5"
+            className="block text-sm font-medium text-gray-300 mb-1.5"
           >
             Usuario
           </label>
@@ -65,7 +65,7 @@ export function Login() {
             required
             autoComplete="username"
             autoFocus
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-50"
+            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60"
             disabled={isLoading}
           />
         </div>
@@ -73,7 +73,7 @@ export function Login() {
         <div>
           <label
             htmlFor="password"
-            className="block text-sm font-medium text-gray-700 mb-1.5"
+            className="block text-sm font-medium text-gray-300 mb-1.5"
           >
             Contraseña
           </label>
@@ -84,7 +84,7 @@ export function Login() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-50"
+            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60"
             disabled={isLoading}
           />
         </div>
@@ -92,7 +92,7 @@ export function Login() {
         {error && (
           <div
             role="alert"
-            className="text-sm text-danger bg-red-50 border border-red-200 rounded-md px-3 py-2"
+            className="text-sm text-red-300 bg-red-950 border border-red-800 rounded-md px-3 py-2"
           >
             {error}
           </div>

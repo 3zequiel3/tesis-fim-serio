@@ -53,9 +53,9 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
   }
 
   const inputCls =
-    'w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500'
+    'w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary'
   const selectCls =
-    'w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500'
+    'w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -120,7 +120,7 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
         <button
           type="submit"
           disabled={isLoading}
-          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded disabled:opacity-40"
+          className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-sm rounded disabled:opacity-40"
         >
           {isLoading ? 'Guardando...' : rule ? 'Guardar cambios' : 'Crear regla'}
         </button>
