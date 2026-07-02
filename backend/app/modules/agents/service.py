@@ -4,6 +4,7 @@ Lógica de negocio para registro, bootstrap y gestión de agentes FIM (Change 06
 
 from __future__ import annotations
 
+import json
 import os
 import secrets
 from pathlib import Path
@@ -159,12 +160,14 @@ def update_agent_config(
     db.add(agent)
     db.flush()
 
-    # Registrar audit_log
+    # Registrar audit_log — M5: JSON válido vía json.dumps (antes: f-string
+    # sobre str(list), que produce comillas simples inválidas en JSON y se
+    # rompe si un path contiene comillas dobles o barras invertidas).
     audit = AuditLog(
         user_id=user_id,
         action="agent_config",
         target_type="agent",
-        detail=f'{{"agent_id": "{agent_id}", "watch_paths": {watch_paths}}}',
+        detail=json.dumps({"agent_id": agent_id, "watch_paths": watch_paths}),
     )
     db.add(audit)
     db.commit()

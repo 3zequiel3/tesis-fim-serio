@@ -419,6 +419,40 @@ def test_audit_log_on_config(session, mock_valkey, admin_user, agent_with_secret
     assert logs[0].target_type == "agent"
 
 
+def test_audit_log_detail_is_valid_json_with_quotes_and_backslashes(
+    session, mock_valkey, admin_user, agent_with_secret
+):
+    """
+    M5: antes del fix, el detail del audit_log de update_agent_config se
+    armaba con un f-string sobre str(list) (comillas simples, JSON inválido)
+    y se rompía directamente si un path contenía comillas dobles o barras
+    invertidas. Ahora se serializa con json.dumps y siempre es JSON válido.
+    """
+    from app.modules.agents.service import update_agent_config
+
+    agent, _ = agent_with_secret
+    tricky_paths = ['/etc/"quoted"/dir', "C:\\Windows\\System32", "/var/log/back\\slash"]
+
+    update_agent_config(
+        db=session,
+        valkey_client=mock_valkey,
+        agent_id=agent.agent_id,
+        watch_paths=tricky_paths,
+        user_id=admin_user.id,
+    )
+
+    logs = session.exec(
+        select(AuditLog).where(AuditLog.action == "agent_config")
+    ).all()
+    assert len(logs) == 1
+    detail = logs[0].detail
+    assert detail is not None
+
+    parsed = json.loads(detail)  # no debe lanzar json.JSONDecodeError
+    assert parsed["agent_id"] == agent.agent_id
+    assert parsed["watch_paths"] == tricky_paths
+
+
 # ── 12.13 test_audit_log_on_rescan ───────────────────────────────────────────
 
 
