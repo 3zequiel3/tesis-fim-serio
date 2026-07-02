@@ -1,0 +1,9 @@
+# El código del agente se copia con COPY . /app/agent/ (contexto ./agent).
+# Excluir lo que no va en runtime:
+tests/
+__pycache__/
+**/__pycache__/
+*.pyc
+deploy/
+Dockerfile
+.dockerignore

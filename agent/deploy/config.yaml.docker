@@ -1,0 +1,28 @@
+# Config del agente para el contenedor Docker de test (servicio `agent`).
+# Se monta en /etc/fim-agent/config.yaml. Los nombres de host (backend, valkey)
+# resuelven dentro de la red fim_internal del compose.
+agent_id: docker-agent
+
+# Bootstrap mTLS va por HTTP al backend (pre-cert). El shared_secret y el cert
+# se obtienen en POST /agents/bootstrap.
+backend_url: http://backend:8000
+
+# Valkey del stack es plaintext (VALKEY_URL: valkey://valkey:6379). Los mensajes
+# igual van firmados con HMAC (shared_secret del bootstrap), así que el transporte
+# plaintext es aceptable para el test — se habilita explícitamente.
+valkey_url: valkey://valkey:6379
+allow_plaintext_valkey: true
+
+# CA del backend, montado read-only desde el volumen backend_certs.
+ca_cert_path: /certs/ca.pem
+
+# Directorio vigilado: bind mount ./fim-watch del host. Modificá archivos acá.
+watch_paths:
+  - /watch
+
+storage:
+  baseline_dir: /var/lib/fim-agent/baseline
+  queue_dir: /var/lib/fim-agent/queue
+  journal_dir: /var/lib/fim-agent/journal
+  secrets_dir: /var/lib/fim-agent/secrets
+  certs_dir: /var/lib/fim-agent/certs

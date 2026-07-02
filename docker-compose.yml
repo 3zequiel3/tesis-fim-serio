@@ -21,6 +21,7 @@ volumes:
   valkey_data:
   n8n_data:
   backend_certs:
+  agent_state:
 
 services:
 
@@ -128,7 +129,7 @@ services:
       CA_KEY_PATH: ${CA_KEY_PATH}
       BACKEND_CERT_PATH: ${BACKEND_CERT_PATH}
       BACKEND_KEY_PATH: ${BACKEND_KEY_PATH}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1}
     volumes:
       - backend_certs:/certs
     ports:
@@ -154,5 +155,41 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    networks:
+      - fim_internal
+
+  # ---------------------------------------------------------------------------
+  # agent — FIM Agent (detección fanotify, contenedor de test)
+  # profiles: ["app"]. Corre como root con cap_add para fanotify.
+  # Editá archivos en ./fim-watch (host) → /watch (agente) para disparar eventos.
+  # Requiere registro previo del agente: scripts/setup-agent.sh
+  # ---------------------------------------------------------------------------
+  agent:
+    build: ./agent
+    image: fim-agent:dev
+    profiles:
+      - app
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - valkey
+    # fanotify: CAP_SYS_ADMIN (init + marcar filesystem) +
+    # CAP_DAC_READ_SEARCH (open_by_handle_at en modo FID).
+    cap_add:
+      - SYS_ADMIN
+      - DAC_READ_SEARCH
+    environment:
+      # Secreto de un solo uso del bootstrap mTLS. Debe coincidir con el usado
+      # al registrar el agente (scripts/setup-agent.sh).
+      FIM_BOOTSTRAP_SECRET: ${FIM_BOOTSTRAP_SECRET:-docker-bootstrap-secret}
+    volumes:
+      # Directorio vigilado — editá archivos acá para disparar eventos.
+      - ./fim-watch:/watch
+      # CA del backend (solo lectura) para verificar el cert del bootstrap.
+      - backend_certs:/certs:ro
+      # Estado persistente (baseline cifrado, cola offline, journal, certs).
+      - agent_state:/var/lib/fim-agent
+      # Config del agente.
+      - ./agent/deploy/config.yaml.docker:/etc/fim-agent/config.yaml:ro
     networks:
       - fim_internal

@@ -34,3 +34,10 @@ frontend/.env.*.local
 
 skills-lock.json
 .atl/
+
+# Contenedor de test del agente: contenido de runtime del dir vigilado (se
+# mantiene el .gitkeep para que el bind mount exista) y artefactos de Playwright.
+/fim-watch/*
+!/fim-watch/.gitkeep
+/.playwright-mcp/
+/fim-0*.png
