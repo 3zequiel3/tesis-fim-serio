@@ -82,6 +82,17 @@ async def test_login_primer_admin_must_change_password_true(auth_client):
     assert resp.json()["must_change_password"] is True
 
 
+async def test_login_incluye_objeto_user(auth_client):
+    """C38 (FIX-01): LoginResponse embebe el usuario autenticado."""
+    resp = await _login(auth_client)
+    assert resp.status_code == 200
+    user = resp.json()["user"]
+    assert user["username"] == os.environ["ADMIN_USERNAME"]
+    assert user["role"] == "admin"
+    assert user["must_change_password"] is True
+    assert isinstance(user["id"], int)
+
+
 async def test_login_password_incorrecta_retorna_401(auth_client):
     resp = await _login(auth_client, password="wrongpassword123!")
     assert resp.status_code == 401
@@ -129,6 +140,19 @@ async def test_refresh_valido_rota_token(auth_client):
     body = resp.json()
     assert "access_token" in body
     assert body["access_token"] != login_resp.json()["access_token"]
+
+
+async def test_refresh_incluye_objeto_user(auth_client):
+    """C38 (FIX-01): RefreshResponse embebe el usuario autenticado."""
+    login_resp = await _login(auth_client)
+    assert login_resp.status_code == 200
+
+    resp = await auth_client.post("/auth/refresh", cookies=login_resp.cookies)
+    assert resp.status_code == 200
+    user = resp.json()["user"]
+    assert user["username"] == os.environ["ADMIN_USERNAME"]
+    assert user["role"] == "admin"
+    assert "must_change_password" in user
 
 
 async def test_refresh_con_token_revocado_retorna_401(mock_valkey, auth_client):

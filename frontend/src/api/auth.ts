@@ -15,22 +15,26 @@ export interface LoginCredentials {
   password: string
 }
 
+// Contrato C38 (FIX-01): el backend embebe el usuario autenticado en las
+// respuestas de login y refresh (AuthUserOut en auth/schemas.py).
 export interface AuthUser {
   id: number
   username: string
   role: string
+  must_change_password: boolean
 }
 
 export interface LoginResponse {
   access_token: string
   token_type: string
+  must_change_password: boolean
   user: AuthUser
 }
 
 export interface RefreshResponse {
   access_token: string
   token_type: string
-  user?: AuthUser
+  user: AuthUser
 }
 
 export async function loginApi(credentials: LoginCredentials): Promise<LoginResponse> {

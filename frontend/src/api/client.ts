@@ -73,7 +73,12 @@ apiClient.interceptors.response.use(
       try {
         const { data } = await axios.post<{
           access_token: string
-          user?: { id: number; username: string; role: string }
+          user?: {
+            id: number
+            username: string
+            role: string
+            must_change_password: boolean
+          }
         }>('/auth/refresh', {}, { baseURL: BASE_URL, withCredentials: true })
 
         const newToken = data.access_token

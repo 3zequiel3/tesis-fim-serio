@@ -48,7 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const data = await refreshApi()
       set({
         accessToken: data.access_token,
-        user: data.user ?? null,
+        user: data.user,
         isLoading: false,
       })
     } catch (err) {

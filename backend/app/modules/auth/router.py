@@ -27,7 +27,13 @@ from app.core.security import (
 )
 from app.core.valkey import get_valkey_client
 from app.modules.auth.models import User
-from app.modules.auth.schemas import LoginRequest, LoginResponse, LogoutResponse, RefreshResponse
+from app.modules.auth.schemas import (
+    AuthUserOut,
+    LoginRequest,
+    LoginResponse,
+    LogoutResponse,
+    RefreshResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -49,6 +55,16 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
 
 def _clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(key=_REFRESH_COOKIE, path="/auth/refresh")
+
+
+def _to_auth_user_out(user: User) -> AuthUserOut:
+    """Proyección del usuario autenticado para las respuestas de login/refresh (C38)."""
+    return AuthUserOut(
+        id=user.id,  # type: ignore[arg-type]
+        username=user.username,
+        role=user.role,
+        must_change_password=user.must_change_password,
+    )
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -87,6 +103,7 @@ async def login(
     return LoginResponse(
         access_token=access_token,
         must_change_password=user.must_change_password,
+        user=_to_auth_user_out(user),
     )
 
 
@@ -131,7 +148,7 @@ async def refresh(
     new_refresh = create_refresh_token(user_id=user.id, jti=jti_refresh)  # type: ignore[arg-type]
     _set_refresh_cookie(response, new_refresh)
 
-    return RefreshResponse(access_token=access_token)
+    return RefreshResponse(access_token=access_token, user=_to_auth_user_out(user))
 
 
 @router.post("/logout", response_model=LogoutResponse)
