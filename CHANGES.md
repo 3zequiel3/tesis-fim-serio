@@ -59,7 +59,7 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 35 | [`e2e-contract-fixes`](#change-35--e2e-contract-fixes) | cross | — (auditoría dual-judge 2026-07-02) | 34 |
 | 36 | [`backend-command-ack-consumer`](#change-36--backend-command-ack-consumer) | backend + agente | — (auditoría dual-judge 2026-07-02) | 34, 35 |
 | 37 | [`agent-fanotify-scope-filter`](#change-37--agent-fanotify-scope-filter) | agente | — (auditoría dual-judge 2026-07-02) | 34, 35 |
-| 38 | [`frontend-contract-fixes`](#change-38--frontend-contract-fixes) | frontend + backend | — (auditoría dual-judge 2026-07-02) | 35 |
+| 38 | [`frontend-contract-fixes`](#change-38--frontend-contract-fixes) | frontend + backend | — (auditorías 2026-07-02) ✓ | 35 |
 | 39 | [`agent-scope-filter-symlink-hardening`](#change-39--agent-scope-filter-symlink-hardening) | agente + backend + frontend | — (dual-review C37, 2026-07-02) | 37 |
 
 ---
@@ -725,18 +725,31 @@ Reglas: RN-04, RN-125. Decisiones aplicadas: D31.
 
 ### Change 38 — `frontend-contract-fixes`
 
-**Capa**: frontend + backend · **Depende de**: 35 (`e2e-contract-fixes`) · **Origen**: auditoría dual-judge 2026-07-02, hallazgos de comunicación (Juez A) · **Decisiones**: ninguna nueva
+**Capa**: frontend + backend · **Depende de**: 35 (`e2e-contract-fixes`) · **Origen**: auditoría dual-judge 2026-07-02 (Juez A) + auditoría de calidad del frontend 2026-07-02 · **Decisiones**: D34 (RN-128)
 
-> **Nota**: change de remediación de contrato frontend↔backend. Captura los 2 bugs de contrato que la auditoría dual-judge 2026-07-02 encontró pero que NO entraron en C35 (se eligieron 4 hallazgos de los detectados). Verificados STILL-PRESENT contra el código post-C35 el 2026-07-02. Sin decisión nueva — hacen cumplir contratos existentes.
+> **Nota**: change de remediación de contrato frontend↔backend, **ampliada** tras la auditoría de calidad del frontend del 2026-07-02 (la primera auditoría había sido solo de comunicación/contratos). El scope final cubre los 2 bugs de contrato originales, el bug del KPI de severidad (que requirió cerrar la decisión D34/RN-128), la capa visual rota y los gaps de UX/robustez/accesibilidad. Implementada el 2026-07-02.
 
-Fixes:
-- **FIX-01 (contrato)** — `backend/app/modules/auth/schemas.py`: `LoginResponse`/`RefreshResponse` no devuelven `user`, pero el front (`frontend/src/api/auth.ts:27,33`) lo tipa → `useAuthStore.user` siempre `null` → el Navbar nunca muestra el usuario logueado. Fix: el backend agrega el objeto `user` a la respuesta de login/refresh, **o** el front deriva el `username` del JWT que ya decodifica en `ProtectedRoute` (decidir dónde arreglar en el apply — es detalle de implementación, no cambia el contrato de producto).
-- **FIX-02 (contrato)** — `backend/app/modules/alerts/router.py`: `AlertResponse` no serializa `status` (solo `delivered_at`/`failed_at`/`retry_count`; el status se computa server-side solo para filtrar, `filter_status`). El front (`frontend/src/pages/Alerts.tsx`) renderiza `alert.status` → la columna "estado" queda siempre vacía. Fix: el backend deriva y serializa `status` (`pending | delivered | failed`) en `AlertResponse`.
-- **Menores (no bugs, evaluar en apply)** — `Dashboard` hace ~8 requests HTTP por refresco sin endpoint agregado (perf); `AlertsBanner` usa `useQuery` inline en vez de reusar `api/alerts.ts` (organización).
+Fixes de contrato (backend + frontend):
+- **FIX-01** — `LoginResponse`/`RefreshResponse` (`auth/schemas.py`) ganan el objeto `user` (`AuthUserOut`: id, username, role, must_change_password). Resuelto backend-side (de las dos opciones planteadas): el front lo tipaba pero el backend nunca lo enviaba → el Navbar no mostraba el usuario logueado.
+- **FIX-02** — `AlertResponse` (`alerts/router.py`) serializa `status` (`pending | delivered | failed`) derivado de `delivered_at`/`failed_at` (misma semántica que el filtro `filter_status`); el frame SSE y el replay también lo incluyen. La columna "Estado" de Alertas quedaba siempre vacía.
+- **D34/RN-128 (severidad)** — el KPI "pending critical + high" del dashboard enviaba `severity` a `GET /events`, que lo ignoraba → mostraba 2× el total de pendings. Se cerró D34: `Event.severity` (RuleSeverity) persistida al ingerir con la lógica compartida de D-C15-01 (helper único en `rules/service.py`, alerts delega); `/events` acepta `severity` como filtro repetible; `EventOut` la expone; migración idempotente `006_add_event_severity.sql` (backfill `low`). El KPI usa una única request con el filtro real.
+- **Limpieza** — se elimina la request `GET /events?page_size=100` del dashboard cuyo resultado se descartaba; `hash_detected` pasa a `string` no-nullable en el front (el backend nunca envía null) y se elimina la rama muerta "archivo ausente" del `RejectModal` (el flujo `confirm_absent`/`baseline_absent` no cambia: va por el 422 y el no-op server-side).
 
-> **Pendiente adicional (fuera de esta change)**: la auditoría del frontend fue **solo de comunicación/contratos**. La calidad del front (arquitectura de componentes, manejo de estado, UX, accesibilidad, diseño) nunca se auditó — pendiente si se quiere un panorama completo antes de dar el frontend por terminado.
+Visual (frontend):
+- Tema oscuro unificado: el shell (`MainLayout` bg-gray-50 claro + Navbar blanco) hacía ilegibles los `h1 text-white` de las 6 páginas; shell y vistas auth pasan al tema oscuro de las tarjetas (`bg-gray-950/900/800`).
+- Token `gray-750` definido en `globals.css` (`@theme`): los `hover:bg-gray-750` de las 4 tablas eran inertes en Tailwind v4.
+- Botones de acción unificados hacia los tokens `@theme` (`primary`/`danger`) en lugar de paleta cruda (`blue-600`/`red-700`).
 
-Reglas: — (contrato front↔backend, sin regla nueva). Decisiones aplicadas: ninguna nueva.
+UX/robustez (frontend):
+- `QueryErrorState` compartido: las 6 páginas de listado manejan `isError` con mensaje + retry (antes, pantalla muda ante una request fallida).
+- `useAlertsSSE`: además del toast, invalida las queries de `alerts`/`dashboard`/`alerts-failed-count`; ante cierre definitivo de la conexión (respuesta no-200, p. ej. 401 por token vencido en el query param) cierra limpio e intenta refresh — el token nuevo recrea la conexión, sin loop de 401.
+- `ModalDialog` compartido (`role="dialog"`, `aria-modal`, `aria-labelledby`, focus trap, Esc, restauración de foco) aplicado a `RejectModal`, `RescanConfirmModal`, el modal de Rules y los dos modales de `BulkActionBar`, sin cambiar su lógica.
+
+No incluido (consciente): endpoint agregado de dashboard (sigue haciendo 1 request por status — 9 por refresco, antes 11); refactor de `AlertsBanner` para reusar `api/alerts.ts`; tests de componentes/hooks del frontend (la cobertura sigue siendo solo de utils puros).
+
+Reglas: RN-128. Decisiones aplicadas: D34.
+
+**Done**: el Navbar muestra el usuario logueado tras login/refresh; la columna Estado de Alertas renderiza `pending|delivered|failed`; el KPI "pending critical + high" refleja el conteo real filtrado por severidad persistida; los encabezados de todas las páginas son legibles sobre el shell oscuro; el hover de las tablas funciona; las páginas de listado muestran error + retry ante fallas; una alerta SSE refresca las vistas y el feed sobrevive al vencimiento del access token; los modales son navegables por teclado y anunciables por lectores de pantalla; el flujo aprobar/rechazar (restore/cuarentena) queda intacto y verificado.
 
 ---
 
