@@ -104,7 +104,9 @@ class DecisionEngine:
                 "path": entry.path,
                 "event_type": "file_modified",
                 "hash_expected": None,
-                "hash_detected": None,
+                # D-C13-04: "" = hash ausente. hash_detected es str NOT NULL en el
+                # modelo Event del backend; nunca emitir None (evita IntegrityError + poison loop).
+                "hash_detected": "",
                 "diff_text": None,
                 "process_pid": 0,
                 "process_uid": 0,

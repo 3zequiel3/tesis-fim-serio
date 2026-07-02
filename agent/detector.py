@@ -74,7 +74,13 @@ class DetectedChange:
     parent_event_id: str | None
 
     def to_event_data(self) -> dict[str, Any]:
-        return dataclasses.asdict(self)
+        data = dataclasses.asdict(self)
+        # D-C13-04: "" (string vacío) = "hash ausente" (borrado/no hasheable).
+        # El contrato con el backend exige hash_detected str NOT NULL; nunca emitir None.
+        # (hash_expected puede seguir None: no se persiste en el modelo Event del backend.)
+        if data.get("hash_detected") is None:
+            data["hash_detected"] = ""
+        return data
 
 
 # ── Helpers de proceso ────────────────────────────────────────────────────────

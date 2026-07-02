@@ -205,5 +205,6 @@ async def test_process_event_emits_file_absent_when_persistently_missing(tmp_pat
 
     published = publisher.publish.call_args[0][0]
     assert published["event_type"] == "file_absent"
-    assert published["hash_detected"] is None
+    # D-C13-04: hash ausente = "" (str NOT NULL en el backend), nunca None.
+    assert published["hash_detected"] == ""
     baseline.mark_absent.assert_called_once_with(str(tmp_path / "ghost.txt"))

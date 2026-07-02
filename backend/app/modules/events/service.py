@@ -169,7 +169,7 @@ def ingest_event(
             event_id=event_data.get("event_id", ""),
             agent_id=event_data.get("agent_id", ""),
             path=path,
-            hash_detected=event_data.get("hash_detected", ""),
+            hash_detected=event_data.get("hash_detected") or "",
             status=status,
             parent_event_id=parent_event_id,
             process_pid=event_data.get("process_pid"),

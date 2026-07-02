@@ -197,6 +197,59 @@ def test_ingest_event_from_real_agent_payload_persists_hash_detected(mem_engine)
     assert event.hash_detected != ""
 
 
+def test_ingest_event_from_real_file_deleted_payload_persists_empty_hash(mem_engine) -> None:
+    """
+    Cross-boundary regression (C35 / FIX-01 → CRITICAL poison-loop): construye un
+    `DetectedChange` REAL de file_deleted (hash ausente) del agente, lo serializa con
+    el `to_event_data()` real y lo hace fluir por `ingest_event`.
+
+    Antes del fix, file_deleted emitía `hash_detected=None` como clave PRESENTE en el
+    payload. `event_data.get("hash_detected", "")` devolvía None (el default solo aplica
+    si la clave FALTA), y `Event.hash_detected` es str NOT NULL → IntegrityError. Como
+    IntegrityError es subclase de SQLAlchemyError, el consumer lo trataba como transitorio
+    (sin XACK) y el mensaje quedaba en el PEL reintentándose infinitamente (poison loop):
+    todo evento de borrado se perdía. Este test falla si el None reaparece por cualquier lado.
+    """
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(repo_root))
+    from agent.detector import DetectedChange
+
+    change = DetectedChange(
+        event_id="agent-delete-001",
+        path="/etc/shadow",
+        event_type="file_deleted",
+        operation_type="file_deleted",
+        hash_expected="f" * 64,   # había un hash conocido en baseline
+        hash_detected=None,       # archivo borrado: sin hash actual
+        diff_text=None,
+        process_pid=1,
+        process_uid=0,
+        process_exe="/usr/bin/rm",
+        detected_at="2026-07-02T00:00:00+00:00",
+        parent_event_id=None,
+    )
+    payload = change.to_event_data()
+    payload["agent_id"] = "agent-test"
+
+    now = _now()
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        # No debe lanzar IntegrityError.
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    # D-C13-04: "" (string vacío) = hash ausente. Persistido, NO None.
+    assert event.hash_detected == ""
+
+    with Session(mem_engine) as session:
+        persisted = session.exec(select(Event).where(Event.event_id == "agent-delete-001")).first()
+    assert persisted is not None
+    assert persisted.hash_detected == ""
+
+
 def test_ingest_race_condition_returns_none(mem_engine) -> None:
     """Simula carrera: mark_superseded retorna False → ingest retorna None."""
     now = _now()

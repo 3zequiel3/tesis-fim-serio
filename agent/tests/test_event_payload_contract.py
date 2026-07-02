@@ -53,8 +53,13 @@ def test_to_event_data_emits_canonical_hash_keys() -> None:
     assert "previous_hash" not in payload
 
 
-def test_to_event_data_file_absent_has_none_hash_detected() -> None:
-    """file_absent (archivo eliminado): hash_detected debe ser None, no string vacío ni current_hash."""
+def test_to_event_data_file_absent_normalizes_hash_detected_to_empty_string() -> None:
+    """file_absent/file_deleted (hash ausente): to_event_data() debe normalizar hash_detected a "".
+
+    D-C13-04: "" (string vacío) = "hash ausente". El contrato con el backend exige
+    hash_detected str NOT NULL; emitir None provocaba IntegrityError + poison loop en el
+    consumer (C35 CRITICAL). Este test antes asertaba `is None` — codificaba el bug.
+    """
     change = DetectedChange(
         event_id="test-contract-002",
         path="/etc/shadow",
@@ -72,5 +77,8 @@ def test_to_event_data_file_absent_has_none_hash_detected() -> None:
 
     payload = change.to_event_data()
 
-    assert payload["hash_detected"] is None
+    assert payload["hash_detected"] == ""
+    assert payload["hash_detected"] is not None
     assert "current_hash" not in payload
+    # hash_expected NO se normaliza: puede seguir siendo el hash conocido de baseline.
+    assert payload["hash_expected"] == "c" * 64
