@@ -44,6 +44,9 @@ class EventOut(BaseModel):
     # C36 (D30/RN-124): estado de ejecución del comando asociado, indicador
     # secundario — NO forma parte de la máquina de estados del evento (RN-72).
     ack_status: str | None = None
+    # D33/RN-127 (C39): metadato de symlink-as-object, columnas directas de Event.
+    is_symlink: bool = False
+    symlink_target: str | None = None
 
     model_config = {"from_attributes": True}
 

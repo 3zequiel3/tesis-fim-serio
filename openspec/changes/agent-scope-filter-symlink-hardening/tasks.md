@@ -35,21 +35,21 @@
 
 ## 6. Backend — modelo y migración (`backend/app/modules/events/models.py`, `backend/db/migrations/`)
 
-- [ ] 6.1 Agregar columnas `is_symlink: bool = False` y `symlink_target: str | None = None` a `Event`
-- [ ] 6.2 Crear migración SQL idempotente `005_*.sql` (próximo número tras `004_add_command_ack_tracking.sql`, convención D3) con `ADD COLUMN IF NOT EXISTS`
+- [x] 6.1 Agregar columnas `is_symlink: bool = False` y `symlink_target: str | None = None` a `Event`
+- [x] 6.2 Crear migración SQL idempotente `005_*.sql` (próximo número tras `004_add_command_ack_tracking.sql`, convención D3) con `ADD COLUMN IF NOT EXISTS`
 
 ## 7. Backend — ingesta y exposición (`service.py`, `EventOut`)
 
-- [ ] 7.1 `ingest_event` toma `is_symlink`/`symlink_target` del payload con `.get()` tolerante y los persiste en el `Event`
-- [ ] 7.2 `EventOut` expone `is_symlink`/`symlink_target` (mismo patrón que `ack_status` de D30/C36) en `GET /events` y `GET /events/{id}`
-- [ ] 7.3 Confirmar que la validación cheap-to-expensive y la lógica de supersede/optimistic-locking no cambian
+- [x] 7.1 `ingest_event` toma `is_symlink`/`symlink_target` del payload con `.get()` tolerante y los persiste en el `Event`
+- [x] 7.2 `EventOut` expone `is_symlink`/`symlink_target` (mismo patrón que `ack_status` de D30/C36) en `GET /events` y `GET /events/{id}`
+- [x] 7.3 Confirmar que la validación cheap-to-expensive y la lógica de supersede/optimistic-locking no cambian
 
 ## 8. Backend — tests (`backend/tests/`)
 
-- [ ] 8.1 Ingesta de un payload de symlink persiste `is_symlink`/`symlink_target` en el `Event`
-- [ ] 8.2 Payload de agente viejo (sin las keys) ingiere con defaults `false`/`null` sin error
-- [ ] 8.3 `EventOut` serializa el metadato para eventos de symlink y con defaults para archivos regulares
-- [ ] 8.4 La migración es idempotente (re-ejecutar no falla)
+- [x] 8.1 Ingesta de un payload de symlink persiste `is_symlink`/`symlink_target` en el `Event`
+- [x] 8.2 Payload de agente viejo (sin las keys) ingiere con defaults `false`/`null` sin error
+- [x] 8.3 `EventOut` serializa el metadato para eventos de symlink y con defaults para archivos regulares
+- [x] 8.4 La migración es idempotente (re-ejecutar no falla)
 
 ## 9. Frontend — badge de symlink (`frontend/src/api/events.ts`, tabla/detalle de eventos)
 

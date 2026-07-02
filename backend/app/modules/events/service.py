@@ -177,6 +177,10 @@ def ingest_event(
             process_exe=event_data.get("process_exe"),
             detected_at=detected_at,
             received_at=received_at,
+            # D33/RN-127 (C39): .get() tolerante — un agente viejo sin estas keys
+            # ingiere igual, con defaults false/None.
+            is_symlink=event_data.get("is_symlink", False),
+            symlink_target=event_data.get("symlink_target"),
         )
         session.add(event)
         session.flush()

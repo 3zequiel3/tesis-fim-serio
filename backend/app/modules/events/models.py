@@ -24,6 +24,11 @@ class Event(SQLModel, table=True):
     path: str = Field(index=True)
     hash_detected: str
     status: EventStatus = Field(index=True)
+    # D33/RN-127 (C39): symlink-as-object. is_symlink distingue un evento sobre
+    # un symlink (nunca se sigue el link) de uno sobre un archivo regular;
+    # symlink_target es el string crudo de os.readlink, sin normalizar.
+    is_symlink: bool = Field(default=False)
+    symlink_target: str | None = Field(default=None)
     parent_event_id: int | None = Field(
         default=None,
         sa_column=sa.Column(sa.Integer, sa.ForeignKey("events.id", ondelete="SET NULL"), nullable=True),
