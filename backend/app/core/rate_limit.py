@@ -10,11 +10,16 @@ constantes hardcodeadas anteriores (no breaking change).
 El incremento ocurre ANTES de la verificación para contar también los
 intentos rechazados y evitar timing oracle.
 
-M1: el TTL (EXPIRE) se fija en CADA incremento, no solo cuando count == 1.
-Es idempotente y auto-reparador: si un EXPIRE anterior falló (dejando la key
-sin TTL tras un INCR exitoso), el próximo incremento la repara sin
-intervención manual, evitando un lockout permanente del (user+IP). La
-ventana es fija (fixed-window) de N segundos — NO sliding-window.
+M1: el TTL se fija con EXPIRE ... NX (nx=True) en CADA incremento. `NX`
+aplica el TTL SOLO cuando la key todavía no tiene uno, con lo que:
+  - el primer incremento de la ventana fija el TTL una única vez, y
+  - los incrementos siguientes NO lo tocan.
+Esto preserva la semántica fixed-window de N segundos (NO sliding-window):
+un EXPIRE incondicional en cada incremento reescribiría el TTL y desplazaría
+la ventana, que nunca expiraría mientras siguieran llegando requests.
+Además es auto-reparador: si una key quedó sin TTL (p. ej. un INCR exitoso
+seguido de un EXPIRE fallido), como no tiene expiry, el próximo EXPIRE NX la
+repara sin intervención manual, evitando un lockout permanente del (user+IP).
 
 Las funciones usan el cliente Valkey async (get_async_valkey_client) para no
 bloquear el event loop. El parámetro valkey_client es opcional para permitir
@@ -37,8 +42,9 @@ async def check_login_rate_limit(username: str, ip: str, valkey_client=None) -> 
     window_seconds = settings.rate_limit_login_window_seconds
     key = f"{LOGIN_RL_PREFIX}{username}:{ip}"
     count = await valkey_client.incr(key)
-    # M1: TTL idempotente en cada incremento — nunca deja la key sin expirar.
-    await valkey_client.expire(key, window_seconds)
+    # M1: EXPIRE ... NX — fija el TTL solo si la key no lo tiene. Preserva la
+    # ventana fija (no la desliza) y auto-repara una key que quedó sin TTL.
+    await valkey_client.expire(key, window_seconds, nx=True)
     if count > max_attempts:
         raise HTTPException(
             status_code=429,
@@ -55,7 +61,8 @@ async def check_api_rate_limit(user_id: int, valkey_client=None) -> None:
     window_seconds = 60
     key = f"{API_RL_PREFIX}{user_id}"
     count = await valkey_client.incr(key)
-    # M1: TTL idempotente en cada incremento — nunca deja la key sin expirar.
-    await valkey_client.expire(key, window_seconds)
+    # M1: EXPIRE ... NX — fija el TTL solo si la key no lo tiene. Preserva la
+    # ventana fija (no la desliza) y auto-repara una key que quedó sin TTL.
+    await valkey_client.expire(key, window_seconds, nx=True)
     if count > max_requests:
         raise HTTPException(status_code=429, detail="API rate limit exceeded")

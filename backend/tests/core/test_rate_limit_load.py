@@ -4,10 +4,16 @@ Tests de carga del rate limiter (C20, M1).
 Verifica que el fixed-window implementado en core/rate_limit.py respeta los
 buckets configurados: N requests dentro del límite no son rechazados, N+1
 retorna 429, y la ventana se resetea tras expirar. También verifica (M1) que
-el TTL se fija de forma idempotente en cada incremento, no solo en el primero.
+el TTL se fija con `EXPIRE ... NX` (nx=True): el primer incremento fija la
+ventana y los siguientes NO la reescriben, preservando la semántica
+fixed-window (no sliding-window) y auto-reparando keys sin TTL.
 
 Usa mocks de Valkey (AsyncMock) — no requiere conexión real.
 Compatible con Windows (no depende de psycopg/libpq).
+
+NOTA: la semántica REAL (que un EXPIRE NX no desliza la ventana) se verifica
+contra un Valkey vivo en tests/core/test_rate_limit_semantics.py; los mocks
+de acá solo comprueban que el helper invoca `expire(..., nx=True)`.
 """
 
 from __future__ import annotations
@@ -74,13 +80,16 @@ async def test_api_ventana_se_resetea_en_primer_request() -> None:
     assert args[1] == 60
 
 
-async def test_api_ventana_reafirma_ttl_en_requests_subsiguientes() -> None:
-    """M1: requests >1 en la ventana también llaman expire() (TTL idempotente)."""
+async def test_api_expire_usa_nx_en_requests_subsiguientes() -> None:
+    """M1: requests >1 en la ventana también invocan expire(), pero con nx=True
+    para NO reescribir el TTL (fixed-window, no sliding-window)."""
     valkey = _make_valkey(incr_value=5)
     await check_api_rate_limit(user_id=42, valkey_client=valkey)
     valkey.expire.assert_called_once()
     args = valkey.expire.call_args[0]
+    kwargs = valkey.expire.call_args[1]
     assert args[1] == 60
+    assert kwargs.get("nx") is True
 
 
 # ── Tests: Login rate limit ───────────────────────────────────────────────────
@@ -140,6 +149,7 @@ async def test_login_ttl_siempre_presente_tras_incrementos_count_mayor_a_1() -> 
     assert key_arg == "fim:rl:login:user@fim.local:10.0.0.1"
     assert ttl_arg == window
     assert ttl_arg > 0  # nunca "-1" (sin expiración)
+    assert valkey.expire.call_args[1].get("nx") is True  # EXPIRE NX auto-repara sin deslizar
 
 
 async def test_api_ttl_siempre_presente_tras_incrementos_count_mayor_a_1() -> None:
@@ -152,3 +162,4 @@ async def test_api_ttl_siempre_presente_tras_incrementos_count_mayor_a_1() -> No
     assert key_arg == "fim:rl:api:7"
     assert ttl_arg == 60
     assert ttl_arg > 0
+    assert valkey.expire.call_args[1].get("nx") is True  # EXPIRE NX auto-repara sin deslizar
