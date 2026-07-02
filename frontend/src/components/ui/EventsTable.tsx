@@ -98,12 +98,27 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                   />
                 </td>
                 <td className="px-4 py-3">
-                  <Link
-                    to={`/events/${item.id}`}
-                    className="font-mono text-xs text-blue-400 hover:text-blue-300 break-all"
-                  >
-                    {item.path}
-                  </Link>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link
+                      to={`/events/${item.id}`}
+                      className="font-mono text-xs text-blue-400 hover:text-blue-300 break-all"
+                    >
+                      {item.path}
+                    </Link>
+                    {item.is_symlink && (
+                      <span
+                        title={`Symlink -> ${item.symlink_target ?? '?'}`}
+                        className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-900 text-cyan-300 shrink-0"
+                      >
+                        symlink
+                      </span>
+                    )}
+                  </div>
+                  {item.is_symlink && item.symlink_target && (
+                    <div className="text-[11px] text-gray-500 font-mono break-all mt-0.5">
+                      &rarr; {item.symlink_target}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span

@@ -53,12 +53,12 @@
 
 ## 9. Frontend — badge de symlink (`frontend/src/api/events.ts`, tabla/detalle de eventos)
 
-- [ ] 9.1 Agregar `is_symlink: boolean` y `symlink_target: string | null` al tipo del evento en `frontend/src/api/events.ts`
-- [ ] 9.2 Renderizar un badge/indicador de symlink con su `symlink_target` en la tabla de eventos, solo cuando `is_symlink` es true
-- [ ] 9.3 Mostrar el indicador y el `symlink_target` en el detalle de evento; los eventos de archivo regular renderizan sin cambios
+- [x] 9.1 Agregar `is_symlink: boolean` y `symlink_target: string | null` al tipo del evento en `frontend/src/api/events.ts`
+- [x] 9.2 Renderizar un badge/indicador de symlink con su `symlink_target` en la tabla de eventos, solo cuando `is_symlink` es true
+- [x] 9.3 Mostrar el indicador y el `symlink_target` en el detalle de evento; los eventos de archivo regular renderizan sin cambios
 
 ## 10. Cierre
 
-- [ ] 10.1 Correr la suite del agente, del backend y el build/lint del frontend; todo verde
-- [ ] 10.2 Verificar contra los delta specs (5 capabilities) que cada scenario tiene cobertura
-- [ ] 10.3 Actualizar el estado de C39 en CHANGES.md si corresponde al momento de archivar
+- [x] 10.1 Correr la suite del agente, del backend y el build/lint del frontend; todo verde
+- [x] 10.2 Verificar contra los delta specs (5 capabilities) que cada scenario tiene cobertura
+- [ ] 10.3 Actualizar el estado de C39 en CHANGES.md si corresponde al momento de archivar (fase de archive, no de apply)

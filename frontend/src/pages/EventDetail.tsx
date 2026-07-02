@@ -88,10 +88,20 @@ export function EventDetail() {
           </h1>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <SymlinkBadge isSymlink={event.is_symlink} />
           <StatusBadge status={event.status} />
           <AckStatusBadge ackStatus={event.ack_status} />
         </div>
       </div>
+
+      {/* Metadato de symlink (D33/RN-127): solo se muestra cuando is_symlink es true */}
+      {event.is_symlink && (
+        <FieldCard label="Destino del symlink">
+          <span className="font-mono text-xs break-all text-cyan-300">
+            {event.symlink_target ?? '(desconocido)'}
+          </span>
+        </FieldCard>
+      )}
 
       {/* Acciones (solo si está pendiente o alert_only) */}
       {canApprove && (
@@ -265,6 +275,17 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`shrink-0 px-2.5 py-1 rounded border text-sm font-mono ${cls}`}>
       {status}
+    </span>
+  )
+}
+
+// Indicador de symlink-as-object (D33/RN-127, C39). Se omite por completo
+// cuando el evento es sobre un archivo regular — no altera el render existente.
+function SymlinkBadge({ isSymlink }: { isSymlink: boolean }) {
+  if (!isSymlink) return null
+  return (
+    <span className="shrink-0 px-2.5 py-1 rounded border text-xs font-mono uppercase bg-cyan-900 text-cyan-300 border-cyan-800">
+      symlink
     </span>
   )
 }

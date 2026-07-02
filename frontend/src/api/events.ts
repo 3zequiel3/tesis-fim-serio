@@ -33,6 +33,11 @@ export interface EventListItem {
   resolved_at: string | null
   resolved_by: number | null
   ack_status?: CommandAckStatus | null
+  // D33/RN-127 (C39): symlink-as-object. is_symlink distingue un evento sobre
+  // un symlink (nunca se sigue el link) de uno sobre un archivo regular;
+  // symlink_target es el string crudo de os.readlink, sin normalizar.
+  is_symlink: boolean
+  symlink_target: string | null
 }
 
 // El detalle del evento tiene los mismos campos que el listado
