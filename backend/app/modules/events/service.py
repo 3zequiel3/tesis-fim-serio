@@ -8,7 +8,7 @@ Reutilizable por el consumer Valkey y el HTTP handler de approve/reject (C13).
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
@@ -97,7 +97,7 @@ def compact_chain(session: Session, path: str) -> None:
     superseded = session.exec(
         select(Event)
         .where(Event.path == path, Event.status == EventStatus.superseded)
-        .order_by(Event.created_at.desc())
+        .order_by(Event.created_at.asc())
     ).all()
 
     if len(superseded) <= _MAX_CHAIN:
@@ -152,8 +152,18 @@ def ingest_event(
             success = mark_superseded(session, pending.id, pending.version)
             if not success:
                 log.warning("service.superseded_race", path=path, pending_id=pending.id)
-                return None
-            parent_event_id = pending.id
+                # FIX-03 (D25, RN-121): re-consultar si el pending fue aprobado/rechazado
+                # concurrentemente (en ese caso no hay pending activo → insertar independiente)
+                still_pending = get_pending_event_for_path(session, path)
+                if still_pending is not None:
+                    # Todavía hay un pending activo → skip legítimo
+                    log.warning("service.superseded_race.still_pending", path=path)
+                    return None
+                # No hay pending → continuar inserción como evento independiente
+                log.info("service.superseded_race.insert_independent", path=path)
+                # parent_event_id ya es None; el flujo continúa normalmente
+            else:
+                parent_event_id = pending.id
 
         event = Event(
             event_id=event_data.get("event_id", ""),
@@ -186,7 +196,7 @@ async def retention_task() -> None:
     """
     while True:
         await asyncio.sleep(3600)
-        cutoff = datetime.utcnow() - timedelta(days=_RETENTION_DAYS)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=_RETENTION_DAYS)
         with Session(engine) as session:
             protected_ids: set[int] = {
                 r

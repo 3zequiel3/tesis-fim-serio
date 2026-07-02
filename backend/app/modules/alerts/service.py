@@ -184,9 +184,18 @@ async def notify_event(alert: Alert, event: Event) -> None:
 async def _try_cascade(payload: dict[str, Any]) -> tuple[bool, AlertChannel | None]:
     """
     Intenta los canales en orden: n8n → SMTP → webhook_fallback → log_only.
-    Retorna (True, canal) si alguno tiene éxito; (False, None) si todos fallan.
-    Nota: log_only siempre es exitoso (RN-54), así que nunca se retorna False.
+
+    Tres casos de retorno (D23, RN-120):
+    - Canal primario tiene éxito → (True, canal).
+    - Canales primarios configurados pero todos fallan → log_only como piso (RN-54)
+      → (False, None) para que el retry loop active la DLQ.
+    - Sin canales primarios configurados → log_only es el canal intencional
+      → (True, AlertChannel.log_only).
     """
+    any_primary_configured = bool(
+        settings.n8n_webhook_url or settings.smtp_host or settings.webhook_fallback_url
+    )
+
     # 1. n8n
     if settings.n8n_webhook_url:
         if await send_n8n(payload, settings.n8n_webhook_url):
@@ -202,8 +211,12 @@ async def _try_cascade(payload: dict[str, Any]) -> tuple[bool, AlertChannel | No
         if await send_webhook_fallback(payload, settings.webhook_fallback_url):
             return True, AlertChannel.webhook_fallback
 
-    # 4. log_only — siempre exitoso (RN-54)
+    # 4. log_only — siempre como piso (RN-54)
     await send_log_only(payload)
+    if any_primary_configured:
+        # Canales primarios configurados pero todos fallaron → activar DLQ
+        return False, None
+    # Sin canales primarios → log_only es el canal intencional
     return True, AlertChannel.log_only
 
 

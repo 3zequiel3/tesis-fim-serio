@@ -12,6 +12,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.core.database import get_session
@@ -79,11 +80,12 @@ async def list_events(
     if date_to:
         q = q.where(Event.created_at <= date_to)
 
-    all_events = session.exec(q).all()
-    total = len(all_events)
+    # FIX-04: paginación SQL real con COUNT subquery + LIMIT/OFFSET (sin full table scan)
+    count_q = select(func.count()).select_from(q.subquery())
+    total = session.exec(count_q).one()
 
-    offset = (page - 1) * page_size
-    items = all_events[offset : offset + page_size]
+    items_q = q.order_by(Event.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    items = list(session.exec(items_q).all())
 
     return PaginatedEventsOut(
         total=total,

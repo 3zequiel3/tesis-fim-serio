@@ -18,7 +18,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -76,7 +76,7 @@ def increment_ruleset_version(session: Session) -> int:
         session.add(rv)
         session.flush()
     rv.version += 1
-    rv.updated_at = datetime.utcnow()
+    rv.updated_at = datetime.now(timezone.utc)
     session.add(rv)
     session.flush()
     return rv.version
@@ -214,7 +214,7 @@ def update_rule(
     rule.pattern = pattern
     rule.severity = RuleSeverity(severity_val)
     rule.action = RuleAction(action_val)
-    rule.updated_at = datetime.utcnow()
+    rule.updated_at = datetime.now(timezone.utc)
     session.add(rule)
     session.flush()
 

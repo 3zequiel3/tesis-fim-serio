@@ -2,13 +2,14 @@
 Consumer del stream 'events' para el backend FIM Platform.
 
 Consumer group: fim-backend (RN-56).
-Validación en orden barato→caro:
-  1. schema_version   → invalid_schema  (RN-91)
-  2. agent_id existe  → unknown_agent
-  3. HMAC-SHA256      → invalid_signature (RN-79)
-  4. clock skew ≤5min → clock_skew      (RN-90)
-  5. rate limit       → rate_limited    (RN-88, D7)
-  6. dedup event_id   → XACK + event_ack sin re-insertar (RN-73)
+Validación en orden barato→caro (FIX-06, FIX-07, FIX-08):
+  1. schema_version     → invalid_schema   (RN-91)
+  2. agent_id existe    → unknown_agent
+  3. HMAC-SHA256        → invalid_signature (RN-79)
+  4. clock skew ≤5min   → clock_skew       (RN-90); distingue unparseable vs out_of_range
+  5. event_id non-empty → invalid_schema   (FIX-07)
+  6. dedup event_id     → XACK + event_ack sin re-insertar ni consumir rate (RN-73, FIX-06)
+  7. rate limit         → rate_limited     (RN-88, D7; solo eventos genuinamente nuevos)
 
 Camino feliz: ingest_event (service), XACK, publica event_ack firmado (RN-73, D5).
 Rechazos: inserta RejectedEventAudit, XACK, sin event_ack (D4, RN-105).
@@ -185,25 +186,47 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         return
 
     # ── 4. clock skew ─────────────────────────────────────────────────────────
+    # FIX-08: _parse_datetime siempre retorna UTC-aware o None; distinguir los dos sub-casos
     detected_at = _parse_datetime(payload.get("detected_at"))
-    if detected_at is None or abs((received_at - detected_at).total_seconds()) > _CLOCK_SKEW_S:
+    if detected_at is None:
+        log.warning(
+            "consumer.clock_skew.unparseable",
+            event_id=event_id,
+            agent_id=agent_id,
+            detected_at=payload.get("detected_at"),
+        )
+        await _reject(client, msg_id, event_id, agent_id, RejectionReason.clock_skew, received_at, payload, payload_dump)
+        return
+    if abs((received_at - detected_at).total_seconds()) > _CLOCK_SKEW_S:
+        log.warning(
+            "consumer.clock_skew.out_of_range",
+            event_id=event_id,
+            agent_id=agent_id,
+        )
         await _reject(client, msg_id, event_id, agent_id, RejectionReason.clock_skew, received_at, payload, payload_dump)
         return
 
-    # ── 5. rate limit ─────────────────────────────────────────────────────────
-    if not _rate_limiter.check(agent_id):
-        await _reject(client, msg_id, event_id, agent_id, RejectionReason.rate_limited, received_at, payload, payload_dump)
-        log.warning("consumer.rate_limited", agent_id=agent_id)
+    # ── 5. event_id non-empty ─────────────────────────────────────────────────
+    # FIX-07: validar explícitamente que event_id sea una cadena no-vacía
+    if not event_id:
+        await _reject(client, msg_id, event_id, agent_id, RejectionReason.invalid_schema, received_at, payload, payload_dump)
         return
 
     # ── 6. dedup ──────────────────────────────────────────────────────────────
-    event_exists = await loop.run_in_executor(None, _event_exists, event_id) if event_id else False
-    if event_id and event_exists:
-        # Re-entrega legítima: XACK + event_ack, no re-insertar, no auditar
+    # FIX-06: dedup ANTES del rate limit — re-entregas no consumen presupuesto
+    event_exists = await loop.run_in_executor(None, _event_exists, event_id)
+    if event_exists:
+        # Re-entrega legítima: XACK + event_ack, no re-insertar, no auditar, no consumir rate
         await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
-        if event_id:
-            await _publish_event_ack(client, event_id, agent_id, shared_secret)
+        await _publish_event_ack(client, event_id, agent_id, shared_secret)
         log.info("consumer.event_dedup", event_id=event_id)
+        return
+
+    # ── 7. rate limit ─────────────────────────────────────────────────────────
+    # FIX-06: rate limit DESPUÉS del dedup — solo para eventos genuinamente nuevos
+    if not _rate_limiter.check(agent_id):
+        await _reject(client, msg_id, event_id, agent_id, RejectionReason.rate_limited, received_at, payload, payload_dump)
+        log.warning("consumer.rate_limited", agent_id=agent_id)
         return
 
     # ── camino feliz ───────────────────────────────────────────────────────────
@@ -330,9 +353,19 @@ async def _publish_event_ack(client: Any, event_id: str, agent_id: str, shared_s
 
 
 def _parse_datetime(value: Any) -> datetime | None:
+    """
+    Parsea un valor como ISO-8601 y siempre retorna un datetime UTC-aware o None.
+
+    FIX-08: si el parsed datetime tiene tzinfo se convierte a UTC; si es naive se
+    asume UTC y se agrega tzinfo=timezone.utc. Esto evita TypeError al restar
+    datetimes con distintas awareness.
+    """
     if not value:
         return None
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=timezone.utc)
     except (ValueError, AttributeError):
         return None

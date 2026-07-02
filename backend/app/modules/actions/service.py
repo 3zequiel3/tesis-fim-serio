@@ -3,20 +3,25 @@ Lógica de negocio para aprobación y rechazo de eventos FIM (C13).
 
 Expone: _approve_single, _reject_single, approve_bulk, reject_bulk.
 
-Orden de operaciones en approve:
+Orden de operaciones en approve (FIX-02):
   1. Verificar confirm_absent si hash is None (antes del UPDATE).
   2. UPDATE optimista sobre events (status, version, resolved_at, resolved_by).
-  3. Upsert en baseline_entries.
+  3. flush + refresh.
   4. increment_ruleset_version.
-  5. Publicar baseline_update en Valkey (post-UPDATE, pre-commit aceptado).
+  5. Upsert en baseline_entries.
   6. Escribir audit_log.
   7. commit.
+  8. refresh.
+  9. Publicar baseline_update en Valkey (post-commit).
 
-Orden de operaciones en reject:
+Orden de operaciones en reject (FIX-02):
   1. UPDATE optimista sobre events.
-  2. Publicar restore_file o quarantine_file (no-op si baseline absent).
-  3. Escribir audit_log.
-  4. commit.
+  2. flush + refresh.
+  3. Consultar baseline_entry.
+  4. Escribir audit_log.
+  5. commit.
+  6. refresh.
+  7. Publicar restore_file o quarantine_file post-commit (no-op si baseline absent).
 """
 
 from __future__ import annotations
@@ -69,7 +74,7 @@ def _increment_ruleset_version(session: Session) -> int:
         session.add(rv)
         session.flush()
     rv.version += 1
-    rv.updated_at = datetime.utcnow()
+    rv.updated_at = datetime.now(timezone.utc)
     session.add(rv)
     session.flush()
     return rv.version
@@ -107,14 +112,14 @@ def _upsert_baseline_entry(
             agent_id=agent_id,
             hash=hash_value,
             status=baseline_status,
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.now(timezone.utc),
             ruleset_version=ruleset_version,
         )
         session.add(entry)
     else:
         entry.hash = hash_value
         entry.status = baseline_status
-        entry.last_updated = datetime.utcnow()
+        entry.last_updated = datetime.now(timezone.utc)
         entry.ruleset_version = ruleset_version
         session.add(entry)
 
@@ -189,26 +194,29 @@ def _approve_single(
     if result.rowcount == 0:
         raise ConflictError(event_id)
 
-    # Refrescar event para obtener datos actualizados
+    # 3. Refrescar event para obtener datos actualizados
     db.flush()
     db.refresh(event)
 
-    # 3. Incrementar ruleset_version
+    # 4. Incrementar ruleset_version
     new_version = _increment_ruleset_version(db)
 
-    # 4. Upsert baseline_entries
+    # 5. Upsert baseline_entries
     baseline_status = BaselineStatus.absent if hash_value is None else BaselineStatus.present
     _upsert_baseline_entry(db, event.path, event.agent_id, hash_value, baseline_status, new_version)
-
-    # 5. Publicar baseline_update (post-flush, pre-commit)
-    publish_baseline_update(db, valkey_client, event, new_version)
 
     # 6. Audit log
     _write_audit(db, user_id, "approve", event_id, {"version": version})
 
     # 7. Commit
     db.commit()
+
+    # 8. Refresh post-commit
     db.refresh(event)
+
+    # 9. Publicar baseline_update post-commit (FIX-02: el agente recibe el comando solo
+    #    cuando la transacción ya es durable en Postgres)
+    publish_baseline_update(db, valkey_client, event, new_version)
 
     log.info("service.actions.approve", event_id=event_id, user_id=user_id)
     return event
@@ -258,12 +266,26 @@ def _reject_single(
     if result.rowcount == 0:
         raise ConflictError(event_id)
 
+    # 2. flush + refresh
     db.flush()
     db.refresh(event)
 
-    # 2. Publicar comando (no-op si baseline absent para ese path)
+    # 3. Consultar baseline_entry (dentro de la transacción, antes del commit)
     baseline_entry = _get_baseline_entry(db, event.path, event.agent_id)
-    if baseline_entry is not None and baseline_entry.status == BaselineStatus.absent:
+    baseline_absent = baseline_entry is not None and baseline_entry.status == BaselineStatus.absent
+
+    # 4. Audit log
+    _write_audit(db, user_id, "reject", event_id, {"version": version, "action": action.value})
+
+    # 5. Commit
+    db.commit()
+
+    # 6. Refresh post-commit
+    db.refresh(event)
+
+    # 7. Publicar comando post-commit (FIX-02: el agente recibe el comando solo
+    #    cuando la transacción ya es durable en Postgres)
+    if baseline_absent:
         log.warning(
             "service.actions.reject.baseline_absent_noop",
             event_id=event_id,
@@ -274,13 +296,6 @@ def _reject_single(
             publish_restore_file(db, valkey_client, event)
         else:
             publish_quarantine_file(db, valkey_client, event)
-
-    # 3. Audit log
-    _write_audit(db, user_id, "reject", event_id, {"version": version, "action": action.value})
-
-    # 4. Commit
-    db.commit()
-    db.refresh(event)
 
     log.info("service.actions.reject", event_id=event_id, user_id=user_id, action=action.value)
     return event
