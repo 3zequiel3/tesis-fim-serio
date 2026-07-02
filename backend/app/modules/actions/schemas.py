@@ -36,6 +36,9 @@ class RejectRequest(BaseModel):
 class ActionResponse(BaseModel):
     event_id: int
     status: str  # "approved" | "rejected"
+    # M8: solo relevante en reject — true si hubo no-op por baseline "absent"
+    # (RN-74); no altera el comportamiento del no-op, solo lo hace observable.
+    baseline_absent: bool = False
 
 
 # ── Bulk operations ───────────────────────────────────────────────────────────
@@ -64,3 +67,6 @@ class BulkRejectRequest(BaseModel):
 class BulkResultResponse(BaseModel):
     succeeded: list[int]
     failed: list[dict]
+    # M8: solo poblado por reject_bulk — event_id -> baseline_absent.
+    # approve_bulk lo deja vacío (no aplica).
+    baseline_absent: dict[int, bool] = {}

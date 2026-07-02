@@ -220,9 +220,14 @@ def _reject_single(
     version: int,
     action: RejectAction,
     user_id: int,
-) -> Event:
+) -> tuple[Event, bool]:
     """
     Rechaza un evento pending con optimistic locking.
+
+    Returns:
+        tuple (Event, baseline_absent) — M8: baseline_absent es True cuando
+        el no-op de baseline "absent" ocurrió (RN-74). No altera el
+        comportamiento del no-op, solo lo hace observable para el caller.
 
     Raises:
         ConflictError: si el UPDATE no afecta ninguna fila.
@@ -286,7 +291,7 @@ def _reject_single(
             publish_quarantine_file(db, valkey_client, event)
 
     log.info("service.actions.reject", event_id=event_id, user_id=user_id, action=action.value)
-    return event
+    return event, baseline_absent
 
 
 # ── Bulk operations ───────────────────────────────────────────────────────────
@@ -338,16 +343,18 @@ def reject_bulk(
     """
     Rechaza múltiples eventos de forma independiente.
     Error en un ítem no aborta el resto.
-    Retorna {"succeeded": [...], "failed": [...]}.
+    Retorna {"succeeded": [...], "failed": [...], "baseline_absent": {event_id: bool}}.
+    M8: baseline_absent mapea cada evento exitoso a si hubo no-op por baseline absent.
     """
     succeeded: list[int] = []
     failed: list[dict[str, Any]] = []
+    baseline_absent_by_event: dict[int, bool] = {}
 
     for item in items:
         event_id = item["event_id"]
         try:
             action = RejectAction(item["action"])
-            _reject_single(
+            _, baseline_absent = _reject_single(
                 db,
                 valkey_client,
                 event_id=event_id,
@@ -356,10 +363,11 @@ def reject_bulk(
                 user_id=user_id,
             )
             succeeded.append(event_id)
+            baseline_absent_by_event[event_id] = baseline_absent
         except ConflictError:
             failed.append({"event_id": event_id, "reason": "conflict"})
         except Exception as exc:
             log.error("service.actions.reject_bulk.unexpected", event_id=event_id, error=str(exc))
             failed.append({"event_id": event_id, "reason": "internal_error"})
 
-    return {"succeeded": succeeded, "failed": failed}
+    return {"succeeded": succeeded, "failed": failed, "baseline_absent": baseline_absent_by_event}

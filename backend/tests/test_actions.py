@@ -265,7 +265,7 @@ def test_reject_restore(session, mock_valkey, admin_user, agent_with_secret):
     agent, secret = agent_with_secret
     event = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="aaa111")
 
-    result = _reject_single(
+    result, baseline_absent = _reject_single(
         db=session,
         valkey_client=mock_valkey,
         event_id=event.id,
@@ -275,6 +275,7 @@ def test_reject_restore(session, mock_valkey, admin_user, agent_with_secret):
     )
 
     assert result.status == EventStatus.rejected
+    assert baseline_absent is False
 
     # restore_file publicado
     mock_valkey.xadd.assert_called_once()
@@ -300,7 +301,7 @@ def test_reject_quarantine(session, mock_valkey, admin_user, agent_with_secret):
     agent, secret = agent_with_secret
     event = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="bbb222")
 
-    result = _reject_single(
+    result, baseline_absent = _reject_single(
         db=session,
         valkey_client=mock_valkey,
         event_id=event.id,
@@ -310,6 +311,7 @@ def test_reject_quarantine(session, mock_valkey, admin_user, agent_with_secret):
     )
 
     assert result.status == EventStatus.rejected
+    assert baseline_absent is False
 
     mock_valkey.xadd.assert_called_once()
     payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
@@ -320,7 +322,7 @@ def test_reject_quarantine(session, mock_valkey, admin_user, agent_with_secret):
 
 
 def test_reject_absent_baseline_noop(session, mock_valkey, admin_user, agent_with_secret):
-    """Baseline absent → reject OK, sin comando publicado."""
+    """Baseline absent → reject OK, sin comando publicado, baseline_absent=True (M8)."""
     agent, _ = agent_with_secret
     event = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="ccc333")
 
@@ -336,7 +338,7 @@ def test_reject_absent_baseline_noop(session, mock_valkey, admin_user, agent_wit
     session.add(entry)
     session.commit()
 
-    result = _reject_single(
+    result, baseline_absent = _reject_single(
         db=session,
         valkey_client=mock_valkey,
         event_id=event.id,
@@ -348,6 +350,8 @@ def test_reject_absent_baseline_noop(session, mock_valkey, admin_user, agent_wit
     assert result.status == EventStatus.rejected
     # Sin comando publicado (no-op)
     mock_valkey.xadd.assert_not_called()
+    # M8: el flag baseline_absent hace observable el no-op sin cambiar el comportamiento.
+    assert baseline_absent is True
 
 
 # ── 12.8 test_bulk_approve_partial ────────────────────────────────────────────
@@ -394,6 +398,8 @@ def test_bulk_reject_partial(session, mock_valkey, admin_user, agent_with_secret
     assert len(result["failed"]) == 1
     assert result["failed"][0]["event_id"] == e2.id
     assert result["failed"][0]["reason"] == "conflict"
+    # M8: baseline_absent mapea cada evento exitoso; e1 tiene baseline presente.
+    assert result["baseline_absent"] == {e1.id: False}
 
 
 # ── 12.10 test_baseline_update_hmac_valid ────────────────────────────────────

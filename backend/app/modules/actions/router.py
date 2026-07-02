@@ -78,7 +78,7 @@ async def reject_event(
 ) -> ActionResponse:
     """Rechaza un evento pending. Requiere JWT admin."""
     try:
-        event = _reject_single(
+        event, baseline_absent = _reject_single(
             db=session,
             valkey_client=valkey_client,
             event_id=body.event_id,
@@ -91,7 +91,7 @@ async def reject_event(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": "conflict", "detail": "event already modified or not pending"},
         )
-    return ActionResponse(event_id=event.id, status="rejected")  # type: ignore[arg-type]
+    return ActionResponse(event_id=event.id, status="rejected", baseline_absent=baseline_absent)  # type: ignore[arg-type]
 
 
 @router.post("/bulk-approve", response_model=BulkResultResponse)
