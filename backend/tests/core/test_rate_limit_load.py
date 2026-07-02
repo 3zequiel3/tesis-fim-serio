@@ -1,9 +1,10 @@
 """
-Tests de carga del rate limiter (C20).
+Tests de carga del rate limiter (C20, M1).
 
-Verifica que el sliding-window implementado en core/rate_limit.py respeta los
+Verifica que el fixed-window implementado en core/rate_limit.py respeta los
 buckets configurados: N requests dentro del límite no son rechazados, N+1
-retorna 429, y la ventana se resetea tras expirar.
+retorna 429, y la ventana se resetea tras expirar. También verifica (M1) que
+el TTL se fija de forma idempotente en cada incremento, no solo en el primero.
 
 Usa mocks de Valkey (AsyncMock) — no requiere conexión real.
 Compatible con Windows (no depende de psycopg/libpq).
@@ -73,11 +74,13 @@ async def test_api_ventana_se_resetea_en_primer_request() -> None:
     assert args[1] == 60
 
 
-async def test_api_ventana_no_resetea_en_requests_subsiguientes() -> None:
-    """Requests >1 en la ventana no llaman expire() nuevamente."""
+async def test_api_ventana_reafirma_ttl_en_requests_subsiguientes() -> None:
+    """M1: requests >1 en la ventana también llaman expire() (TTL idempotente)."""
     valkey = _make_valkey(incr_value=5)
     await check_api_rate_limit(user_id=42, valkey_client=valkey)
-    valkey.expire.assert_not_called()
+    valkey.expire.assert_called_once()
+    args = valkey.expire.call_args[0]
+    assert args[1] == 60
 
 
 # ── Tests: Login rate limit ───────────────────────────────────────────────────
@@ -113,3 +116,39 @@ async def test_login_ventana_se_resetea_en_primer_request() -> None:
     valkey.expire.assert_called_once()
     args = valkey.expire.call_args[0]
     assert args[1] == window
+
+
+# ── M1: TTL idempotente — no deja la key sin expiración (C34) ──────────────────
+
+async def test_login_ttl_siempre_presente_tras_incrementos_count_mayor_a_1() -> None:
+    """
+    M1: antes del fix, EXPIRE solo se llamaba cuando count == 1; si ese
+    primer EXPIRE fallaba (o la key sobrevivía de un bug previo), la key
+    quedaba sin TTL (-1) para siempre — lockout permanente del (user+IP).
+    El fix llama EXPIRE en TODO incremento, así que un intento con count > 1
+    siempre deja la key con un TTL acotado, auto-reparando cualquier estado
+    previo sin TTL.
+    """
+    from app.core.config import settings
+
+    window = settings.rate_limit_login_window_seconds
+    valkey = _make_valkey(incr_value=3)  # tercer intento — count > 1
+    await check_login_rate_limit(username="user@fim.local", ip="10.0.0.1", valkey_client=valkey)
+
+    valkey.expire.assert_called_once()
+    key_arg, ttl_arg = valkey.expire.call_args[0]
+    assert key_arg == "fim:rl:login:user@fim.local:10.0.0.1"
+    assert ttl_arg == window
+    assert ttl_arg > 0  # nunca "-1" (sin expiración)
+
+
+async def test_api_ttl_siempre_presente_tras_incrementos_count_mayor_a_1() -> None:
+    """M1: misma garantía de TTL idempotente para el rate limit de API."""
+    valkey = _make_valkey(incr_value=42)  # count > 1
+    await check_api_rate_limit(user_id=7, valkey_client=valkey)
+
+    valkey.expire.assert_called_once()
+    key_arg, ttl_arg = valkey.expire.call_args[0]
+    assert key_arg == "fim:rl:api:7"
+    assert ttl_arg == 60
+    assert ttl_arg > 0
