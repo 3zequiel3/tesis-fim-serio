@@ -1,15 +1,24 @@
 """
-Tests del filtro de scope por watch_paths (C37, RN-04/RN-125, D31).
+Tests del filtro de scope por watch_paths (C37, RN-04/RN-125, D31; refinado por
+C39/RN-127, D33).
 
 Cubre:
-- Helper puro `_realpath_in_scope` (containment por realpath, is_relative_to).
+- Helper puro `_target_in_scope` (ex `_realpath_in_scope`; containment por destino
+  resuelto, is_relative_to) — usado hoy solo para metadata / baseline de archivos
+  regulares, nunca en el punto de descarte de `_read_loop`.
 - Cache `_watch_paths_real` recomputado en start()/reload_paths()/reload_watch_paths().
-- Filtro de descarte en `_read_loop` (antes de encolar) + contador `out_of_scope_drops`.
+- Filtro de descarte en `_read_loop` (antes de encolar) por UBICACIÓN
+  (`_path_location_in_scope`) + contador `out_of_scope_drops`.
 - Exposición de `out_of_scope_drops` en el payload del heartbeat.
 
 pyfanotify no está disponible en este entorno (requiere kernel Linux + CAP_SYS_ADMIN),
 por lo que el filtro se ejercita con paths reales/temporales + os.path.realpath/
 is_relative_to, sin depender de fanotify real (ver `_HAS_FAN` en agent/detector.py).
+
+La matriz de edge cases de symlinks (D33/RN-127: create/delete/modify de symlink,
+dirs intermedios simbólicos, `hardlink_suspected`, degradación de auto_restore)
+vive en `test_symlink_hardening.py` — este archivo se mantiene enfocado en el
+containment "puro" heredado de C37.
 """
 from __future__ import annotations
 
@@ -23,22 +32,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agent.detector import FanotifyDetector, _realpath_in_scope
+from agent.detector import FanotifyDetector, _target_in_scope
 from agent.heartbeat import HeartbeatPublisher
 
 
-# ── 1.2 Helper _realpath_in_scope ─────────────────────────────────────────────
+# ── 1.2 Helper _target_in_scope (ex _realpath_in_scope) ──────────────────────
 
-def test_realpath_in_scope_path_inside_root(tmp_path: Path) -> None:
+def test_target_in_scope_path_inside_root(tmp_path: Path) -> None:
     root = tmp_path / "watched"
     root.mkdir()
     target = root / "file.txt"
     target.write_text("x")
 
-    assert _realpath_in_scope(str(target), [os.path.realpath(str(root))]) is True
+    assert _target_in_scope(str(target), [os.path.realpath(str(root))]) is True
 
 
-def test_realpath_in_scope_path_outside_root(tmp_path: Path) -> None:
+def test_target_in_scope_path_outside_root(tmp_path: Path) -> None:
     root = tmp_path / "watched"
     root.mkdir()
     outside = tmp_path / "other"
@@ -46,10 +55,10 @@ def test_realpath_in_scope_path_outside_root(tmp_path: Path) -> None:
     target = outside / "file.txt"
     target.write_text("x")
 
-    assert _realpath_in_scope(str(target), [os.path.realpath(str(root))]) is False
+    assert _target_in_scope(str(target), [os.path.realpath(str(root))]) is False
 
 
-def test_realpath_in_scope_rejects_false_prefix(tmp_path: Path) -> None:
+def test_target_in_scope_rejects_false_prefix(tmp_path: Path) -> None:
     """Root `.../app` NO debe matchear un sibling `.../apple` (D31: no startswith)."""
     root_app = tmp_path / "app"
     root_app.mkdir()
@@ -58,10 +67,10 @@ def test_realpath_in_scope_rejects_false_prefix(tmp_path: Path) -> None:
     target = sibling_apple / "file.txt"
     target.write_text("x")
 
-    assert _realpath_in_scope(str(target), [os.path.realpath(str(root_app))]) is False
+    assert _target_in_scope(str(target), [os.path.realpath(str(root_app))]) is False
 
 
-def test_realpath_in_scope_symlink_resolves_inside(tmp_path: Path) -> None:
+def test_target_in_scope_symlink_resolves_inside(tmp_path: Path) -> None:
     root = tmp_path / "watched"
     root.mkdir()
     real_target = root / "real.txt"
@@ -69,10 +78,16 @@ def test_realpath_in_scope_symlink_resolves_inside(tmp_path: Path) -> None:
     link = root / "link.txt"
     link.symlink_to(real_target)
 
-    assert _realpath_in_scope(str(link), [os.path.realpath(str(root))]) is True
+    assert _target_in_scope(str(link), [os.path.realpath(str(root))]) is True
 
 
-def test_realpath_in_scope_symlink_resolves_outside(tmp_path: Path) -> None:
+def test_target_in_scope_symlink_resolves_outside(tmp_path: Path) -> None:
+    """
+    `_target_in_scope` (destino resuelto) sigue reportando False para un symlink
+    de escape — ese es su propósito de metadata. Pero esta función YA NO decide
+    el descarte en `_read_loop` (ver test_symlink_event_escaping_scope_is_enqueued
+    en test_symlink_hardening.py: por UBICACIÓN, el link SÍ se procesa).
+    """
     root = tmp_path / "watched"
     root.mkdir()
     outside_dir = tmp_path / "secret"
@@ -82,14 +97,14 @@ def test_realpath_in_scope_symlink_resolves_outside(tmp_path: Path) -> None:
     link = root / "escape_link"
     link.symlink_to(outside_file)
 
-    assert _realpath_in_scope(str(link), [os.path.realpath(str(root))]) is False
+    assert _target_in_scope(str(link), [os.path.realpath(str(root))]) is False
 
 
-def test_realpath_in_scope_empty_roots_returns_false(tmp_path: Path) -> None:
+def test_target_in_scope_empty_roots_returns_false(tmp_path: Path) -> None:
     target = tmp_path / "file.txt"
     target.write_text("x")
 
-    assert _realpath_in_scope(str(target), []) is False
+    assert _target_in_scope(str(target), []) is False
 
 
 # ── 2.3 Cache de watch_paths canonicalizados ──────────────────────────────────
@@ -314,7 +329,14 @@ def test_false_prefix_event_is_dropped(tmp_path: Path) -> None:
     assert detector.out_of_scope_drops == 1
 
 
-def test_symlink_event_escaping_scope_is_dropped(tmp_path: Path) -> None:
+def test_symlink_event_escaping_scope_is_enqueued(tmp_path: Path) -> None:
+    """
+    D33/RN-127 (refina D31/RN-125, hallazgo MEDIUM-2 de la revisión de C37):
+    un symlink de escape creado DENTRO de un watch_path está en scope por
+    UBICACIÓN aunque su destino resuelto no lo esté. Ya NO se descarta en
+    `_read_loop` — se encola para que `_process_event` lo reporte como objeto
+    (symlink-as-object, ver test_symlink_hardening.py).
+    """
     watch_dir = tmp_path / "watched"
     watch_dir.mkdir()
     outside_dir = tmp_path / "secret"
@@ -327,8 +349,8 @@ def test_symlink_event_escaping_scope_is_dropped(tmp_path: Path) -> None:
 
     _run_read_loop_once(detector, [_make_raw_event(str(link))])
 
-    assert detector._raw_queue.qsize() == 0
-    assert detector.out_of_scope_drops == 1
+    assert detector._raw_queue.qsize() == 1
+    assert detector.out_of_scope_drops == 0
 
 
 # ── 4.2 out_of_scope_drops en el heartbeat ────────────────────────────────────
@@ -344,6 +366,7 @@ async def test_heartbeat_payload_includes_out_of_scope_drops() -> None:
     detector = MagicMock()
     detector.event_drops = 3
     detector.out_of_scope_drops = 7
+    detector.hardlink_suspected = 0
 
     queue = MagicMock()
     queue.queue_size = 0

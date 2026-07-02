@@ -369,14 +369,19 @@ def test_update_from_command_idempotent(
     assert final.content_b64 == original.content_b64
 
 
-# ── C37: skip de symlinks fuera de scope en el scan (RN-04/RN-125, D31) ──────
+# ── C37/C39: symlinks en el scan (RN-04/RN-125, D31; refinado por RN-127, D33) ──
 
-def test_init_scan_skips_symlink_escaping_watch_path(
+def test_init_scan_baselines_escape_symlink_as_object(
     engine: BaselineEngine, tmp_path: Path
 ) -> None:
-    """Un symlink dentro del watch_path que apunta afuera (p. ej. /root/.ssh) se
-    omite del baseline con warning en vez de cifrarse; el archivo regular
-    in-scope se baseline normalmente."""
+    """
+    D33/RN-127 (refina D31/RN-125, hallazgo MEDIUM-2 de la revisión de C37):
+    un symlink dentro del watch_path que apunta afuera (p. ej. /root/.ssh) ya NO
+    se omite del baseline — se registra como objeto propio (metadata del link,
+    is_symlink() ANTES de is_file()), sin leer/cifrar el contenido del destino.
+    El archivo regular in-scope se baseline normalmente. Matriz de edge cases
+    completa en test_symlink_hardening.py.
+    """
     watch = tmp_path / "watched_scope"
     watch.mkdir()
     outside_dir = tmp_path / "root_ssh"
@@ -390,13 +395,16 @@ def test_init_scan_skips_symlink_escaping_watch_path(
 
     report = engine.init_scan([str(watch)])
 
-    assert report.scanned == 1
-    assert report.skipped == 1
+    assert report.scanned == 2  # regular.txt + escape_link (symlink-as-object)
+    assert report.skipped == 0
     assert report.errors == 0
 
     from agent.baseline import _entry_path
     assert _entry_path(engine._baseline_dir, str(watch / "regular.txt")).exists()
-    assert not _entry_path(engine._baseline_dir, str(escape_link)).exists()
+    link_entry = engine.read_entry(str(escape_link))
+    assert link_entry is not None
+    assert link_entry.content_b64 is None
+    assert link_entry.symlink_target == str(secret_file)
 
 
 def test_init_scan_in_scope_file_baselined_normally(
@@ -416,10 +424,10 @@ def test_init_scan_in_scope_file_baselined_normally(
     assert entry.status == "present"
 
 
-def test_run_scan_skips_symlink_escaping_watch_path(
+def test_run_scan_baselines_escape_symlink_as_object(
     engine: BaselineEngine, tmp_path: Path
 ) -> None:
-    """run_scan aplica el mismo criterio de containment que init_scan."""
+    """run_scan aplica el mismo criterio de clasificación que init_scan (D33/RN-127)."""
     watch = tmp_path / "watched_scope_rescan"
     watch.mkdir()
     outside_dir = tmp_path / "root_ssh_rescan"
@@ -433,9 +441,12 @@ def test_run_scan_skips_symlink_escaping_watch_path(
 
     report = engine.run_scan([str(watch)])
 
-    assert report.scanned == 1
-    assert report.skipped == 1
+    assert report.scanned == 2
+    assert report.skipped == 0
 
     from agent.baseline import _entry_path
     assert _entry_path(engine._baseline_dir, str(watch / "regular.txt")).exists()
-    assert not _entry_path(engine._baseline_dir, str(escape_link)).exists()
+    link_entry = engine.read_entry(str(escape_link))
+    assert link_entry is not None
+    assert link_entry.content_b64 is None
+    assert link_entry.symlink_target == str(secret_file)

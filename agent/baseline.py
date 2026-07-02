@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from agent.detector import _realpath_in_scope
+from agent.detector import _target_in_scope
 
 if TYPE_CHECKING:
     from agent.config import AgentConfig
@@ -71,6 +71,10 @@ class BaselineEntry:
     snapshots: list[Snapshot]
     content_b64: str | None
     oversize: bool = False
+    # D33/RN-127: string crudo de os.readlink si el path es un symlink; None para
+    # archivos regulares. Default retrocompatible — entries viejas sin esta key
+    # parsean igual vía from_dict.
+    symlink_target: str | None = None
 
     def to_json_bytes(self) -> bytes:
         return json.dumps(dataclasses.asdict(self), ensure_ascii=False).encode()
@@ -299,6 +303,42 @@ class BaselineEngine:
         _atomic_write(_entry_path(self._baseline_dir, path), blob)
         return entry
 
+    def write_symlink_entry(self, path: str) -> BaselineEntry:
+        """
+        Escribe/actualiza la entry de un symlink usando SOLO `os.lstat`/`os.readlink`
+        (D33/RN-127) — NUNCA sigue el link ni lee/hashea/cifra el contenido del
+        destino, esté este dentro o fuera de scope (Philosophy B, symlink-as-object).
+
+        `content_b64` queda SIEMPRE en `None`; `hash` es `sha256(target)` (el string
+        de `readlink`, no el contenido apuntado); `symlink_target` guarda ese mismo
+        string. Preserva snapshots existentes, igual que `write_entry`.
+        """
+        target = os.readlink(path)
+        hash_hex = hashlib.sha256(target.encode()).hexdigest()
+
+        existing = self.read_entry(path)
+        existing_snapshots = existing.snapshots if existing else []
+
+        st = os.lstat(path)
+        entry = BaselineEntry(
+            path=path,
+            status="present",
+            hash=hash_hex,
+            size=st.st_size,
+            mode=oct(stat.S_IMODE(st.st_mode)),
+            uid=st.st_uid,
+            gid=st.st_gid,
+            mtime=datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat(),
+            captured_at=_now_iso(),
+            snapshots=existing_snapshots,
+            content_b64=None,
+            oversize=False,
+            symlink_target=target,
+        )
+        blob = self._encrypt_entry(entry)
+        _atomic_write(_entry_path(self._baseline_dir, path), blob)
+        return entry
+
     def read_entry(self, path: str) -> BaselineEntry | None:
         ep = _entry_path(self._baseline_dir, path)
         if not ep.exists():
@@ -397,10 +437,26 @@ class BaselineEngine:
             watch_path_real = os.path.realpath(watch_path)
             candidates = [p] if p.is_file() else list(p.rglob("*"))
             for file_path in candidates:
+                path_str = str(file_path)
+                # D33/RN-127: is_symlink() ANTES de is_file() — Path.is_file() sigue
+                # symlinks y clasificaría mal un symlink como archivo regular.
+                # Todo candidato de rglob ya vive dentro de watch_path (rglob no
+                # recursa dentro de dirs simbólicos), así que el symlink está en
+                # scope por ubicación sin chequeo adicional (Philosophy B).
+                if file_path.is_symlink():
+                    if _entry_path(self._baseline_dir, path_str).exists():
+                        skipped += 1
+                        continue
+                    try:
+                        self.write_symlink_entry(path_str)
+                        scanned += 1
+                    except OSError as exc:
+                        log.error("baseline.scan_error", path=path_str, error=str(exc))
+                        errors += 1
+                    continue
                 if not file_path.is_file():
                     continue
-                path_str = str(file_path)
-                if not _realpath_in_scope(path_str, [watch_path_real]):
+                if not _target_in_scope(path_str, [watch_path_real]):
                     log.warning("baseline.out_of_scope_skip", path=path_str)
                     skipped += 1
                     continue
@@ -441,10 +497,19 @@ class BaselineEngine:
             watch_path_real = os.path.realpath(watch_path)
             candidates = [p] if p.is_file() else list(p.rglob("*"))
             for file_path in candidates:
+                path_str = str(file_path)
+                # D33/RN-127: is_symlink() ANTES de is_file() (ver init_scan).
+                if file_path.is_symlink():
+                    try:
+                        self.write_symlink_entry(path_str)
+                        scanned += 1
+                    except OSError as exc:
+                        log.error("baseline.run_scan.error", path=path_str, error=str(exc))
+                        errors += 1
+                    continue
                 if not file_path.is_file():
                     continue
-                path_str = str(file_path)
-                if not _realpath_in_scope(path_str, [watch_path_real]):
+                if not _target_in_scope(path_str, [watch_path_real]):
                     log.warning("baseline.out_of_scope_skip", path=path_str)
                     skipped += 1
                     continue

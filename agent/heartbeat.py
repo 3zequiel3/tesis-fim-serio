@@ -81,6 +81,8 @@ class HeartbeatPublisher:
             "schema_version": SCHEMA_VERSION,
             "event_drops": self._detector.event_drops if self._detector is not None else 0,
             "out_of_scope_drops": self._detector.out_of_scope_drops if self._detector is not None else 0,
+            # D33/RN-127: contador detective opcional, sin cambio de comportamiento.
+            "hardlink_suspected": self._detector.hardlink_suspected if self._detector is not None else 0,
         }
         data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         try:

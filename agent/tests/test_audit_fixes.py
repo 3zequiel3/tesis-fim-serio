@@ -696,6 +696,7 @@ async def test_file_deleted_auto_restore_evaluates_before_mark_absent(tmp_path: 
     entry_mock.content_b64 = base64.b64encode(good_content).decode()
     entry_mock.hash = good_hash
     entry_mock.snapshots = []
+    entry_mock.symlink_target = None  # archivo regular, no symlink (D33/RN-127)
     # read_entry returns known-good BEFORE mark_absent, None AFTER
     call_count_ref = [0]
 

@@ -73,6 +73,8 @@ class DetectedChange:
     process_exe: str | None
     detected_at: str
     parent_event_id: str | None
+    is_symlink: bool = False        # D33/RN-127: symlink-as-object, nunca se sigue el link
+    symlink_target: str | None = None  # string crudo de os.readlink, sin normalizar
 
     def to_event_data(self) -> dict[str, Any]:
         data = dataclasses.asdict(self)
@@ -176,23 +178,59 @@ def _generate_diff(previous_content: str, current_path: str) -> str | None:
     return "".join(diff) if diff else None
 
 
-# ── Helpers de scope (RN-04, D31/RN-125) ──────────────────────────────────────
+# ── Helpers de scope (RN-04, D31/RN-125, refinado por D33/RN-127) ────────────
 
-def _realpath_in_scope(path: str, canonical_roots: list[str]) -> bool:
+def _target_in_scope(path: str, canonical_roots: list[str]) -> bool:
     """
-    True si el `realpath` de `path` está contenido (`is_relative_to`) en alguno
-    de los `canonical_roots` ya canonicalizados con `os.path.realpath`.
+    True si el `realpath` de `path` (destino resuelto, siguiendo symlinks) está
+    contenido (`is_relative_to`) en alguno de los `canonical_roots` ya
+    canonicalizados con `os.path.realpath`.
+
+    Ex `_realpath_in_scope` (D31/RN-125). Tras D33/RN-127 queda SOLO para checks
+    de metadata sobre el DESTINO resuelto de un path (p. ej. el containment de un
+    archivo regular alcanzado vía un directorio intermedio simbólico, usado por
+    `agent/baseline.py`) — NUNCA se usa en el punto de descarte de `_read_loop`,
+    porque dereferencia el componente final y por eso ocultaba un symlink de
+    escape (hallazgo MEDIUM-2 de la revisión dual-judge de C37). Para esa
+    decisión usar `_path_location_in_scope`.
 
     Se usa `is_relative_to` (no `startswith`) para evitar falsos positivos por
     prefijo (p. ej. `/etc/apple` vs root `/etc/app`).
 
     Lista de roots vacía → False: nada está en scope (RN-04, "excepciones: ninguna").
-    Reutilizado por `agent/baseline.py` para el mismo criterio de containment.
     """
     if not canonical_roots:
         return False
     real = Path(os.path.realpath(path))
     return any(real.is_relative_to(root) for root in canonical_roots)
+
+
+def _path_location_in_scope(path: str, canonical_roots: list[str]) -> bool:
+    """
+    True si la UBICACIÓN de `path` está en scope: canonicaliza SOLO el
+    directorio padre (`os.path.realpath(os.path.dirname(path))`) y compara el
+    `basename` literal contra los `canonical_roots`, SIN seguir (sin
+    dereferenciar) el componente final aunque sea un symlink.
+
+    El directorio padre siempre existe en el momento del evento — incluso en un
+    DELETE, donde el componente final ya no está — así que canonicalizarlo es
+    seguro y determinista (a diferencia de canonicalizar el path completo, que
+    o dereferencia el link final o falla si ya no existe).
+
+    Reemplaza a `_target_in_scope` en el punto de descarte de `_read_loop`
+    (D33/RN-127, refina D31/RN-125): un symlink de escape creado dentro de un
+    `watch_path` (p. ej. `/etc/evil -> /root/.ssh/authorized_keys`) está en
+    scope por UBICACIÓN aunque su destino resuelto no lo esté — el link en sí
+    es una entrada de directorio nueva y un vector de persistencia clásico que
+    el FIM debe reportar (ver la rama symlink-as-object en `_process_event`).
+
+    Lista de roots vacía → False: nada está en scope (RN-04, "excepciones: ninguna").
+    """
+    if not canonical_roots:
+        return False
+    parent_real = Path(os.path.realpath(os.path.dirname(path)))
+    candidate = parent_real / os.path.basename(path)
+    return any(candidate.is_relative_to(root) for root in canonical_roots)
 
 
 # ── Clase principal ───────────────────────────────────────────────────────────
@@ -227,6 +265,7 @@ class FanotifyDetector:
         self._raw_queue: asyncio.Queue[FanotifyEvent | None] = asyncio.Queue(maxsize=1000)
         self._event_drops: int = 0
         self._out_of_scope_drops: int = 0
+        self._hardlink_suspected: int = 0
         self._pending: dict[str, str] = {}          # path → event_id del último evento encolado
         self._event_to_path: dict[str, str] = {}    # event_id → path (índice inverso para ack O(1))
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -316,7 +355,7 @@ class FanotifyDetector:
                 if ev.path is None:
                     log.warning("detector.event_null_path", pid=ev.pid)
                     continue
-                if not _realpath_in_scope(ev.path, self._watch_paths_real):
+                if not _path_location_in_scope(ev.path, self._watch_paths_real):
                     self._out_of_scope_drops += 1
                     log.warning(
                         "detector.out_of_scope_drop",
@@ -356,6 +395,17 @@ class FanotifyDetector:
         """Contador acumulado de eventos descartados por caer fuera de watch_paths (RN-04)."""
         return self._out_of_scope_drops
 
+    @property
+    def hardlink_suspected(self) -> int:
+        """
+        Contador detective opcional (D33/RN-127): cuántas veces se creó un archivo
+        regular en scope con `st_nlink >= 2`. NO altera clasificación, hash, cifrado
+        ni publicación — es una señal barata para el operador, no una detección
+        (alto falso-positivo; los hardlinks quedan documentados como limitación
+        POSIX-inherente, ver design D-5).
+        """
+        return self._hardlink_suspected
+
     # ── Procesamiento async de eventos ─────────────────────────────────────────
 
     def _classify_event(self, mask: int) -> str | None:
@@ -382,6 +432,11 @@ class FanotifyDetector:
             return  # suppress agent-internal atomic write tmp files (D19)
         entry = self._baseline.read_entry(path)
         previous_hash = entry.hash if entry else None
+        # D33/RN-127: una entry con symlink_target indica que el path YA ERA un
+        # symlink en el baseline. Se usa en el borrado (donde el path ya no existe
+        # y no se puede volver a hacer lstat/readlink).
+        was_symlink = entry.symlink_target is not None if entry else False
+        previous_symlink_target = entry.symlink_target if entry else None
 
         event_class = self._classify_event(fan_event.mask)
 
@@ -407,6 +462,8 @@ class FanotifyDetector:
                 process_exe=fan_event.exe,
                 detected_at=fan_event.timestamp,
                 parent_event_id=parent_event_id,
+                is_symlink=was_symlink,
+                symlink_target=previous_symlink_target,
             )
             # BUG-01 (D14): evaluate FIRST so auto_restore can read baseline content;
             # only mutate baseline AFTER the decision is made.
@@ -420,8 +477,15 @@ class FanotifyDetector:
                 action = None
                 action_failed = False
             if action == "auto_restore" and not action_failed:
-                # File was restored — re-record as present/known-good
-                self._baseline.write_entry(path)
+                # File was restored — re-record as present/known-good.
+                # D33/RN-127: auto_restore nunca tiene éxito sobre un symlink
+                # (select_restorable_content retorna None sin contenido restaurable,
+                # ver agent/decision.py::_auto_restore), pero se deja la rama
+                # symlink-aware por defensividad/consistencia.
+                if was_symlink:
+                    self._baseline.write_symlink_entry(path)
+                else:
+                    self._baseline.write_entry(path)
             else:
                 self._baseline.mark_absent(path)
             try:
@@ -435,10 +499,31 @@ class FanotifyDetector:
 
         # ── Creación / moved-to: hashear, crear entry ──────────────────────
         if event_class == "file_created":
-            current_hash = await _hash_file_async(path)
-            if current_hash is None:
-                log.warning("detector.created_file_vanished", path=path)
-                return
+            # D33/RN-127 — symlink-as-object: si el componente final es un symlink,
+            # NUNCA seguirlo. os.lstat/os.readlink solamente; hash_detected es el
+            # hash del STRING del destino, no de su contenido (Philosophy B).
+            is_symlink = os.path.islink(path)
+            symlink_target: str | None = None
+            if is_symlink:
+                try:
+                    symlink_target = os.readlink(path)
+                except OSError:
+                    log.warning("detector.symlink_vanished", path=path)
+                    return
+                current_hash = hashlib.sha256(symlink_target.encode()).hexdigest()
+            else:
+                current_hash = await _hash_file_async(path)
+                if current_hash is None:
+                    log.warning("detector.created_file_vanished", path=path)
+                    return
+                # Contador detective opcional (D33/RN-127, D-5): st_nlink >= 2 en un
+                # archivo regular sugiere un hardlink. NO cambia clasificación, hash,
+                # cifrado ni publicación — solo incrementa un contador para el operador.
+                try:
+                    if os.stat(path).st_nlink >= 2:
+                        self._hardlink_suspected += 1
+                except OSError:
+                    pass
 
             event_id = str(uuid.uuid4())
             parent_event_id = self._pending.get(path)
@@ -460,6 +545,8 @@ class FanotifyDetector:
                 process_exe=fan_event.exe,
                 detected_at=fan_event.timestamp,
                 parent_event_id=parent_event_id,
+                is_symlink=is_symlink,
+                symlink_target=symlink_target,
             )
             # BUG-02 (D14): evaluate FIRST so quarantine can act on the file before
             # the baseline records it as present.
@@ -475,6 +562,8 @@ class FanotifyDetector:
             if action == "quarantine" and not action_failed:
                 # File was quarantined — record as absent (file was moved away)
                 self._baseline.mark_absent(path)
+            elif is_symlink:
+                self._baseline.write_symlink_entry(path)
             else:
                 self._baseline.write_entry(path)
             try:
@@ -487,7 +576,20 @@ class FanotifyDetector:
             return
 
         # ── FAN_CLOSE_WRITE o evento sin clasificar: lógica existente ──────
-        current_hash = await _hash_file_async(path)
+        # D33/RN-127 — symlink-as-object: si el componente final es (todavía) un
+        # symlink, hashear el STRING del destino (os.readlink), nunca su contenido.
+        # Un re-pointing cambia el string → cambia el hash → se detecta como
+        # file_modified con la misma lógica de comparación que un archivo regular.
+        is_symlink = os.path.islink(path)
+        symlink_target: str | None = None
+        if is_symlink:
+            try:
+                symlink_target = os.readlink(path)
+                current_hash = hashlib.sha256(symlink_target.encode()).hexdigest()
+            except OSError:
+                current_hash = None
+        else:
+            current_hash = await _hash_file_async(path)
 
         # Descartar si el contenido no cambió
         if current_hash is not None and current_hash == previous_hash:
@@ -500,7 +602,10 @@ class FanotifyDetector:
         else:
             event_type = "file_modified"
             operation_type = "file_modified"
-            # Diff usando contenido anterior (antes de actualizar baseline)
+            # Diff usando contenido anterior (antes de actualizar baseline).
+            # Un symlink nunca tiene content_b64 (write_symlink_entry lo deja en
+            # None), así que previous_content queda None y diff_text también —
+            # nunca se diffea el contenido de un symlink ni de su destino.
             previous_content: str | None = None
             if entry and entry.content_b64 and not entry.oversize:
                 try:
@@ -539,6 +644,8 @@ class FanotifyDetector:
             process_exe=fan_event.exe,
             detected_at=fan_event.timestamp,
             parent_event_id=parent_event_id,
+            is_symlink=is_symlink,
+            symlink_target=symlink_target,
         )
 
         # Motor de decisión evalúa y actúa ANTES de actualizar el baseline,
@@ -556,7 +663,14 @@ class FanotifyDetector:
         # Actualizar baseline según resultado de la acción
         if event_type == "file_absent":
             if action == "auto_restore" and not action_failed:
-                self._baseline.write_entry(path)  # archivo recreado por auto_restore
+                # archivo recreado por auto_restore. D33/RN-127: en la práctica
+                # auto_restore nunca tiene éxito para un symlink (sin contenido
+                # restaurable, ver agent/decision.py::_auto_restore), pero se deja
+                # la rama por defensividad/consistencia.
+                if is_symlink:
+                    self._baseline.write_symlink_entry(path)
+                else:
+                    self._baseline.write_entry(path)
             else:
                 self._baseline.mark_absent(path)
         else:  # file_modified
@@ -568,6 +682,8 @@ class FanotifyDetector:
                 # BUG-03 (D14): only snapshot for audit; do NOT write_entry with attacker
                 # content. Active content_b64/hash stay pinned to known-good so
                 # select_restorable_content always returns the last approved state.
+                # Para symlinks: add_snapshot opera igual (content_b64 siempre None,
+                # solo archiva hash/captured_at) — no requiere rama especial.
                 self._baseline.add_snapshot(path)
 
         try:
