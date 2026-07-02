@@ -147,7 +147,11 @@ async def _alert_sse_generator(
             missed_stmt = select(Alert).where(Alert.id > last_id).order_by(Alert.id.asc())  # type: ignore[arg-type]
             missed = list(session.exec(missed_stmt).all())
             for alert in missed:
-                yield {"id": str(alert.id), "data": json.dumps(_alert_to_dict(alert))}
+                yield {
+                    "event": "alert",
+                    "id": str(alert.id),
+                    "data": json.dumps(_alert_to_dict(alert)),
+                }
     finally:
         # FIX-01: liberar sesión DB antes del bucle en tiempo real
         session.close()
@@ -171,7 +175,11 @@ async def _alert_sse_generator(
                 yield {"comment": "keepalive"}
             else:
                 assert alert_dict is not None
-                yield {"id": str(alert_dict["id"]), "data": json.dumps(alert_dict)}
+                yield {
+                    "event": "alert",
+                    "id": str(alert_dict["id"]),
+                    "data": json.dumps(alert_dict),
+                }
     finally:
         alerts_broadcaster.unsubscribe(queue)
 

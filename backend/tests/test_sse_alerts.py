@@ -494,6 +494,92 @@ async def test_sse_no_last_event_id_no_replay(session):
     assert replay_events[0]["id"] == 99
 
 
+# ── C35 / FIX-02: contrato `event: alert` (frontend `addEventListener('alert', ...)`) ──
+
+
+@pytest.mark.asyncio
+async def test_sse_replay_frames_carry_event_alert(session):
+    """
+    Regresión C35/FIX-02: antes del fix, los yields de replay no llevaban la clave
+    `event`, por lo que el navegador asignaba el tipo default `message` y el listener
+    `es.addEventListener('alert', ...)` del frontend (useAlertsSSE.ts) nunca disparaba.
+    """
+    from app.modules.alerts.router import _alert_sse_generator
+
+    event = _make_event(session)
+    _make_alert(session, event.id)
+    first_id = _make_alert(session, event.id).id  # noqa: F841 — usado solo para setear last-event-id
+
+    mock_request = MagicMock()
+    mock_request.headers = {"last-event-id": "0"}
+    mock_request.is_disconnected = AsyncMock(return_value=False)
+
+    received = []
+    gen = _alert_sse_generator(mock_request, session)
+    async for ev in gen:
+        if "data" in ev:
+            received.append(ev)
+        if len(received) >= 2:
+            await gen.aclose()
+            break
+
+    assert len(received) == 2
+    for ev in received:
+        assert ev.get("event") == "alert"
+
+
+@pytest.mark.asyncio
+async def test_sse_realtime_frame_carries_event_alert(session):
+    """El yield en tiempo real (fuera del replay) también debe llevar `event: alert`."""
+    from app.modules.alerts.router import _alert_sse_generator
+    from app.modules.alerts.stream import alerts_broadcaster
+
+    mock_request = MagicMock()
+    mock_request.headers = {}  # sin Last-Event-ID → sin replay
+    mock_request.is_disconnected = AsyncMock(return_value=False)
+
+    gen = _alert_sse_generator(mock_request, session)
+    alert_dict = {"id": 101, "severity": "high", "event_id": 1, "channel": None,
+                  "delivered_at": None, "failed_at": None, "last_error": None,
+                  "retry_count": 0, "created_at": "2026-01-01T00:00:00"}
+
+    received = []
+
+    async def _push_and_collect():
+        await asyncio.sleep(0.05)
+        alerts_broadcaster.publish(alert_dict)
+
+    async def _read_gen():
+        async for ev in gen:
+            if "data" in ev:
+                received.append(ev)
+            await gen.aclose()
+            break
+
+    await asyncio.gather(_push_and_collect(), _read_gen())
+
+    assert len(received) == 1
+    assert received[0].get("event") == "alert"
+
+
+@pytest.mark.asyncio
+async def test_sse_keepalive_frame_has_no_event_type(session):
+    """El keepalive es un comentario SSE puro — NO debe llevar `event: alert` (dispararía el listener sin datos)."""
+    from app.modules.alerts import router as alerts_router
+
+    mock_request = MagicMock()
+    mock_request.headers = {}
+    mock_request.is_disconnected = AsyncMock(return_value=False)
+
+    with patch.object(alerts_router, "_KEEPALIVE_INTERVAL", 0.01):
+        gen = alerts_router._alert_sse_generator(mock_request, session)
+        first = await gen.__anext__()
+        await gen.aclose()
+
+    assert first == {"comment": "keepalive"}
+    assert "event" not in first
+
+
 @pytest.mark.asyncio
 async def test_sse_replay_last_event_id_current_no_extra(session):
     """Last-Event-ID apuntando a la última alerta → no se emite replay extra."""

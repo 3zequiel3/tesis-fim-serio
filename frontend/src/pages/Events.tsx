@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useEvents } from '@/hooks/useEvents'
-import { useAlertsSSE } from '@/hooks/useAlertsSSE'
 import { EventsTable } from '@/components/ui/EventsTable'
 import { BulkActionBar } from '@/components/ui/BulkActionBar'
 import { parseEventFilters, serializeEventFilters } from '@/utils/eventFilters'
@@ -27,9 +26,6 @@ export function Events() {
   }, [searchParams.toString()])
 
   const { data, isLoading, isFetching } = useEvents(filters)
-
-  // Montar el feed SSE de alertas
-  useAlertsSSE()
 
   // Debounce para path_prefix
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
