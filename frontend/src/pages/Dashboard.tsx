@@ -29,6 +29,7 @@ const AGENT_STATUS_LABELS: Record<AgentStatus, string> = {
   offline: 'Offline',
   draining: 'Draining',
   dead: 'Dead',
+  revoked: 'Revoked',
 }
 
 const AGENT_STATUS_COLORS: Record<AgentStatus, string> = {
@@ -36,6 +37,7 @@ const AGENT_STATUS_COLORS: Record<AgentStatus, string> = {
   offline: 'text-gray-500',
   draining: 'text-yellow-400',
   dead: 'text-red-400',
+  revoked: 'text-red-500',
 }
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
@@ -78,7 +80,7 @@ const EVENT_STATUSES: EventStatus[] = [
   'alert_only',
 ]
 
-const AGENT_STATUSES: AgentStatus[] = ['online', 'offline', 'draining', 'dead']
+const AGENT_STATUSES: AgentStatus[] = ['online', 'offline', 'draining', 'dead', 'revoked']
 
 export function Dashboard() {
   const { data, isLoading, dataUpdatedAt } = useDashboard()

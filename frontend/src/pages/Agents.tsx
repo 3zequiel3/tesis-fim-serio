@@ -123,12 +123,12 @@ export function Agents() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {agents.map((agent) => (
             <AgentCard
-              key={agent.id}
+              key={agent.agent_id}
               agent={agent}
               onConfigSave={handleConfigSave}
               onRescan={handleRescan}
-              isSavingConfig={savingConfigId === agent.id}
-              isRescanning={rescanningId === agent.id}
+              isSavingConfig={savingConfigId === agent.agent_id}
+              isRescanning={rescanningId === agent.agent_id}
             />
           ))}
         </div>

@@ -63,7 +63,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 
   // Contar agentes por status
   const agentItems = agentsRes.data.items
-  const agentStatuses: AgentStatus[] = ['online', 'offline', 'draining', 'dead']
+  const agentStatuses: AgentStatus[] = ['online', 'offline', 'draining', 'dead', 'revoked']
   const agentsByStatus = agentStatuses.reduce(
     (acc, s) => {
       acc[s] = agentItems.filter((a) => a.status === s).length

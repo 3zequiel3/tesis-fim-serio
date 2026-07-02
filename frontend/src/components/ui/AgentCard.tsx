@@ -14,9 +14,11 @@ const STATUS_STYLES: Record<Agent['status'], string> = {
   offline: 'bg-gray-600 text-gray-300',
   draining: 'bg-yellow-700 text-yellow-200',
   dead: 'bg-red-800 text-red-200',
+  revoked: 'bg-red-900 text-red-300',
 }
 
-function formatLastSeen(iso: string): string {
+function formatLastSeen(iso: string | null): string {
+  if (!iso) return 'nunca'
   const d = new Date(iso)
   const diff = Math.floor((Date.now() - d.getTime()) / 1000)
   if (diff < 60) return `hace ${diff}s`
@@ -52,7 +54,7 @@ export function AgentCard({
   }
 
   function handleSavePaths() {
-    onConfigSave(agent.id, paths)
+    onConfigSave(agent.agent_id, paths)
     setEditingPaths(false)
   }
 
@@ -67,8 +69,8 @@ export function AgentCard({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-white">{agent.hostname}</p>
-          <p className="text-xs text-gray-500 font-mono">{agent.id}</p>
+          {/* No hay `hostname` en el backend (RN-71 / C35 FIX-03) — agent_id es la identidad, como en core/health.py:97 */}
+          <p className="text-sm font-semibold text-white font-mono">{agent.agent_id}</p>
         </div>
         <span
           className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_STYLES[agent.status]}`}
@@ -99,7 +101,7 @@ export function AgentCard({
 
       {/* Last seen */}
       <p className="text-xs text-gray-500">
-        Visto {formatLastSeen(agent.last_seen)}
+        Visto {formatLastSeen(agent.last_heartbeat)}
         {agent.ruleset_version_applied != null && (
           <span className="ml-2">· ruleset v{agent.ruleset_version_applied}</span>
         )}
@@ -186,7 +188,7 @@ export function AgentCard({
       {/* Actions */}
       <div className="flex gap-2 pt-1">
         <button
-          onClick={() => onRescan(agent.id)}
+          onClick={() => onRescan(agent.agent_id)}
           disabled={isDraining || isRescanning}
           title={isDraining ? 'El agente está en modo draining' : undefined}
           className="flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"

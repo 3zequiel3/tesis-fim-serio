@@ -2,15 +2,14 @@ import { apiClient } from '@/api/client'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-export type AgentStatus = 'online' | 'offline' | 'draining' | 'dead'
+export type AgentStatus = 'online' | 'offline' | 'draining' | 'dead' | 'revoked'
 
 export interface Agent {
-  id: string
-  hostname: string
+  agent_id: string
   status: AgentStatus
   watch_paths: string[]
-  queue_pressure: number   // 0..1 float
-  last_seen: string        // ISO8601
+  queue_pressure: number | null   // 0..1 float
+  last_heartbeat: string | null   // ISO8601
   ruleset_version_applied: number | null
 }
 
@@ -47,7 +46,5 @@ export async function updateAgentConfig(id: string, config: AgentConfig): Promis
  * El caller debe manejar el AxiosError 409 y leer error.response.data.
  */
 export async function triggerRescan(id: string, force: boolean): Promise<void> {
-  await apiClient.post(`/agents/${id}/rescan`, null, {
-    params: { force },
-  })
+  await apiClient.post(`/agents/${id}/rescan`, { force })
 }
