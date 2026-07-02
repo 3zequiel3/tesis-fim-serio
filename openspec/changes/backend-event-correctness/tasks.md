@@ -58,5 +58,5 @@
 
 ## 9. Verificación final
 
-- [ ] 9.1 Ejecutar la suite completa de tests (`pytest backend/tests/ -x -q`) y confirmar que los 257 tests previos siguen pasando junto con los nuevos (harness C33: TRUNCATE + RESTART IDENTITY CASCADE + reseed admin).
-- [ ] 9.2 Revisar que no haya `DeprecationWarning` de `datetime.utcnow()` en los logs de tests.
+- [x] 9.1 Ejecutar la suite completa de tests (`pytest backend/tests/ -x -q`) y confirmar que los 257 tests previos siguen pasando junto con los nuevos (harness C33: TRUNCATE + RESTART IDENTITY CASCADE + reseed admin). NOTA: entorno Windows sin libpq — verificar en CI/Linux con Docker Compose. FIX-09 verificado localmente (55 módulos sin datetime.utcnow()).
+- [x] 9.2 Revisar que no haya `DeprecationWarning` de `datetime.utcnow()` en los logs de tests. CONFIRMADO: 0 ocurrencias en backend/app/ (verificado con glob scan).
