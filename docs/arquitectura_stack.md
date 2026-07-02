@@ -1894,7 +1894,7 @@ Durante el drenaje, el heartbeat incluye flag `shutdown: true`; el backend refle
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26; D29 se agregó el 2026-07-01; D30–D32 se agregaron el 2026-07-02; D33 se agregó el 2026-07-02. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 se agregaron el 2026-06-23; D14–D17 se agregaron el 2026-06-26; D18–D20 se agregaron el 2026-06-26; D21–D28 se agregaron el 2026-06-26; D29 se agregó el 2026-07-01; D30–D32 se agregaron el 2026-07-02; D33 se agregó el 2026-07-02; D34 se agregó el 2026-07-02. En caso de conflicto con secciones previas o con el appendix de auditoría, prevalece lo especificado aquí. Las contrapartes normativas (nuevas reglas RN-104 a RN-108 y reescrituras de RN-17, RN-86, RN-102, RN-75) viven en [reglas_de_negocio.md](reglas_de_negocio.md) bajo el mismo título.
 
 ### Modelo de datos del backend
 
@@ -2354,6 +2354,23 @@ No se migra a `AsyncSession` de SQLAlchemy — el costo de refactor es despropor
 
 **Aplicación**: `agent/detector.py` (`_path_location_in_scope` nuevo, `_target_in_scope` renombrado, `_read_loop`, `_process_event`, manejo de `lstat`/`readlink`), `agent/baseline.py` (`write_symlink_entry` nuevo, `BaselineEntry.symlink_target`, `init_scan`/`run_scan` chequeo `is_symlink()` antes de `is_file()`), `backend/app/modules/events/models.py` (columnas `is_symlink`/`symlink_target` en `Event`), `backend/db/migrations/` (migración idempotente), `backend/app/modules/events/router.py` (`EventOut` expone el metadato), frontend (badge de symlink en tabla/detalle de eventos). Regla normativa: RN-127.
 
+#### D34: Severidad persistida en `Event` (`severity`, calculada al ingerir) — backend + frontend
+
+**Decisión**: `Event` (`backend/app/modules/events/models.py`) agrega la columna `severity: RuleSeverity` (`critical | high | medium | low`), calculada en `ingest_event` (`backend/app/modules/events/service.py`) con la lógica ya existente de `_determine_severity` (D-C15-01, `backend/app/modules/alerts/service.py`). La función de cálculo se comparte entre el pipeline de alertas y la ingesta — no se duplica: el matching fnmatch de severidad máxima se extrae a un helper común y ambos consumidores delegan en él.
+
+**Problema base**: la auditoría de calidad del frontend (2026-07-02) encontró que el KPI "Pending critical + high" del dashboard enviaba `severity` como query param a `GET /events`, pero el router de eventos no acepta ese parámetro — FastAPI lo ignora silenciosamente y ambas requests (critical y high) devuelven el total de pendings, mostrando 2× el total de pendientes como si fueran críticos/altos. La causa raíz: el evento no tiene severidad persistida — `_determine_severity` existe desde C15 pero su resultado solo se usa para decidir si se crea una alerta (RN-52/RN-53) y se descarta.
+
+**Resultado**:
+- `Event.severity` con default `low` en el modelo; `ingest_event` la calcula con el helper compartido dentro de la misma transacción de ingesta.
+- `GET /events` acepta `severity` como filtro repetible (mismo patrón `Annotated[list[...], Query(alias=...)]` que el filtro `status`).
+- `EventOut` expone `severity` (mismo patrón que `ack_status` de D30/C36 e `is_symlink` de D33/C39).
+- Migración SQL idempotente `006_add_event_severity.sql` (convención D3, sin Alembic): `ADD COLUMN IF NOT EXISTS severity ruleseverity NOT NULL DEFAULT 'low'` + índice. Backfill de filas viejas a `low` (default de D-C15-01); no se recalcula contra el ruleset vigente.
+- Frontend: el KPI del dashboard pasa a una única request `GET /events?status=pending&severity=critical&severity=high&page_size=1` y usa el `total` real.
+
+**Excepciones**: Ninguna. La severidad es un snapshot al momento de la ingesta; mutaciones posteriores del ruleset no re-etiquetan eventos existentes.
+
+**Aplicación**: `backend/app/modules/events/models.py` (`Event.severity`), `backend/app/modules/events/service.py` (`ingest_event`), `backend/app/modules/events/router.py` (filtro + `EventOut`), `backend/app/modules/alerts/service.py` (delegación al helper compartido), `backend/app/modules/rules/service.py` (helper de severidad por path), `backend/db/migrations/006_add_event_severity.sql`, `frontend/src/api/dashboard.ts` (KPI real). Regla normativa: RN-128.
+
 ### Organización del código
 
 #### D7: Cross-cutting distribuido, no centralizado al final
@@ -2418,6 +2435,7 @@ Lo que SÍ queda en el change final (`backend-observability-hardening`):
 | D31 (Filtro de containment `realpath` en detector/baseline) | Change 37 (C37) | Cerrada |
 | D32 (`Agent.registered_at` + grace period sin heartbeat) | Change 34 (C34), M4 | Cerrada |
 | D33 (Symlink como objeto propio — containment por ubicación del link) | Change 39 (C39) | Cerrada |
+| D34 (Severidad persistida en `Event` + filtro `severity` en `/events`) | Change 38 (C38) | Cerrada |
 
 #### D9: Fan-out para comandos broadcast — un mensaje firmado por agente
 **Decisión**: Cuando el backend publica un comando con semántica "broadcast" (e.g. `rule_sync` global), NO publica un único mensaje con `target_agent_id: null`. En cambio, publica N mensajes físicos en el stream `commands`, uno por cada agente registrado, cada uno con `target_agent_id = agent_id` y firmado con el `shared_secret` específico de ese agente.

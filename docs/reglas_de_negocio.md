@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-127 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-128 |
 
 ---
 
@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1113,6 +1113,21 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 **Excepciones:**
 - **Hardlinks**: quedan documentados como limitación conocida, no resuelta por esta decisión. Un hardlink es, para el filesystem, un segundo nombre para el mismo inodo — `realpath`/`lstat` no lo distinguen de un archivo regular, y determinar si otro nombre del mismo inodo cae fuera de scope requeriría un escaneo completo del filesystem (incompatible con el diseño de cola acotada y reactivo del agente). Esta limitación es inherente a POSIX, no un defecto de implementación. Mitigación: el baseline permanece cifrado con AES-256-GCM y bajo permisos `0700`, limitando el impacto de un hardlink no detectado. Se admite, como contador detective opcional (sin cambio de comportamiento), `hardlink_suspected` en el heartbeat cuando se crea un archivo regular con `st_nlink >= 2`.
 - Un `watch_path` que sea él mismo un symlink conserva el tratamiento de D31: se canonicaliza una sola vez y ese `realpath` define el límite de containment (esta excepción no cambia).
+
+#### D34 / RN-128: Severidad persistida en el evento (`Event.severity`)
+
+**Descripción:** El modelo `Event` incorpora el campo `severity` (`RuleSeverity`: `critical | high | medium | low`), calculado en el momento de la ingesta con la lógica ya existente `_determine_severity` (D-C15-01): la severidad más alta entre todas las reglas cuyo patrón glob matchea el path del evento; si ninguna regla matchea, `low`. Hasta esta decisión la severidad se calculaba on-the-fly únicamente para decidir si un evento genera alerta (RN-52/RN-53) y no se persistía: el evento no tenía severidad consultable ni filtrable, y la UI (KPI "pending critical + high" del dashboard) no podía obtenerla del backend.
+
+**Condición:** Todo evento ingerido por el consumer del stream `events` (`ingest_event`).
+
+**Resultado:**
+- `Event.severity` se persiste al ingerir, calculado con la misma función que usa el pipeline de alertas (D-C15-01) — una única fuente de cálculo compartida, no duplicada.
+- `GET /events` acepta `severity` como filtro (parámetro repetible, mismo patrón que el filtro `status`).
+- `EventOut` expone `severity`.
+- Migración SQL idempotente en `backend/db/migrations/` (convención D3, sin Alembic). Las filas preexistentes reciben backfill `low` — el default de D-C15-01 para paths sin regla — porque recalcular contra el ruleset actual atribuiría severidades de reglas que podían no existir al momento del evento.
+- La severidad del evento es un snapshot al momento de la ingesta: cambios posteriores del ruleset no re-etiquetan eventos ya persistidos (consistente con la semántica de alertas, cuya severidad también se congela al crearse la fila `Alert`).
+
+**Excepciones:** Ninguna.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
