@@ -33,6 +33,7 @@ os.environ["JWT_SECRET_CURRENT"] = "test-secret-current-32-chars-xxxxx"
 os.environ["JWT_SECRET_PREVIOUS"] = ""
 os.environ["ADMIN_USERNAME"] = "admin"
 os.environ["ADMIN_PASSWORD"] = "AdminPassword123!"
+os.environ["ADMIN_EMAIL"] = os.environ.get("ADMIN_EMAIL", "admin@fim.local")
 os.environ["CORS_ALLOWED_ORIGINS"] = "http://localhost:5173"
 
 
@@ -68,6 +69,7 @@ def _seed_admin_impl() -> None:
     with Session(engine) as session:
         admin = User(
             username=settings.admin_username,
+            email=settings.admin_email,
             password_hash=hash_password(settings.admin_password.get_secret_value()),
             role="admin",
             is_active=True,

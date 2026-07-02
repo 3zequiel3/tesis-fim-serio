@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     jwt_secret_previous: str = ""
     admin_username: str = ""
     admin_password: SecretStr = SecretStr("")
+    admin_email: str = "admin@fim.local"
 
     # CORS — lista de origins permitidos, separada por comas.
     cors_allowed_origins: str = ""

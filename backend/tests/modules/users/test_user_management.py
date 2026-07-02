@@ -136,13 +136,13 @@ async def test_admin_crea_usuario_201_y_audit_log(admin_client: AsyncClient) -> 
 
     resp = await admin_client.post(
         "/users",
-        json={"email": "newadmin@fim.local", "password": "SecureNewPwd42!"},
+        json={"email": "newadmin@fim.example", "password": "SecureNewPwd42!"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 201
     body = resp.json()
     assert "id" in body
-    assert body["email"] == "newadmin@fim.local"
+    assert body["email"] == "newadmin@fim.example"
 
     # Verificar audit_log
     new_user_id = body["id"]
@@ -165,13 +165,13 @@ async def test_post_users_email_duplicado_retorna_409(admin_client: AsyncClient)
     # Primera creación
     await admin_client.post(
         "/users",
-        json={"email": "dup@fim.local", "password": "SecureNewPwd42!"},
+        json={"email": "dup@fim.example", "password": "SecureNewPwd42!"},
         headers={"Authorization": f"Bearer {token}"},
     )
     # Segunda con mismo email
     resp = await admin_client.post(
         "/users",
-        json={"email": "dup@fim.local", "password": "AnotherPassword99!"},
+        json={"email": "dup@fim.example", "password": "AnotherPassword99!"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 409
@@ -184,7 +184,91 @@ async def test_post_users_password_corto_retorna_422(admin_client: AsyncClient) 
 
     resp = await admin_client.post(
         "/users",
-        json={"email": "weakpwd@fim.local", "password": "short"},
+        json={"email": "weakpwd@fim.example", "password": "short"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 422
+
+
+async def test_post_users_email_invalido_retorna_422(admin_client: AsyncClient) -> None:
+    """M3: email sintácticamente inválido es rechazado por EmailStr con 422."""
+    token = await _login_admin(admin_client)
+    token = await _change_password(admin_client, token)
+
+    resp = await admin_client.post(
+        "/users",
+        json={"email": "noesunmail", "password": "SecureNewPwd42!"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+
+
+# ── Tests: seed_admin toma email de ADMIN_EMAIL (M3, D29) ──────────────────────
+
+def _clear_users_table() -> None:
+    import sqlalchemy
+    from app.core.database import engine
+
+    with engine.connect() as conn:
+        conn.execute(sqlalchemy.text("TRUNCATE users RESTART IDENTITY CASCADE"))
+        conn.commit()
+
+
+def test_seed_admin_usa_admin_email_configurado(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M3: seed_admin() asigna el email tomado de settings.admin_email (ADMIN_EMAIL)."""
+    from sqlmodel import Session, select
+
+    from app.core.config import settings
+    from app.core.database import engine
+    from app.modules.auth.models import User
+    from app.modules.auth.service import seed_admin
+
+    _clear_users_table()
+    monkeypatch.setattr(settings, "admin_email", "ops@fim.example")
+
+    seed_admin()
+
+    with Session(engine) as session:
+        admin = session.exec(select(User).where(User.username == settings.admin_username)).first()
+    assert admin is not None
+    assert admin.email == "ops@fim.example"
+
+
+def test_seed_admin_usa_default_cuando_no_hay_admin_email(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M3: sin ADMIN_EMAIL configurado, seed_admin() usa el default admin@fim.local."""
+    from sqlmodel import Session, select
+
+    from app.core.config import settings
+    from app.core.database import engine
+    from app.modules.auth.models import User
+    from app.modules.auth.service import seed_admin
+
+    _clear_users_table()
+    monkeypatch.setattr(settings, "admin_email", "admin@fim.local")
+
+    seed_admin()
+
+    with Session(engine) as session:
+        admin = session.exec(select(User).where(User.username == settings.admin_username)).first()
+    assert admin is not None
+    assert admin.email == "admin@fim.local"
+
+
+def test_seed_admin_idempotente_con_admin_existente(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M3: re-ejecutar seed_admin() con el admin ya existente no falla ni duplica."""
+    from sqlmodel import Session, func, select
+
+    from app.core.config import settings
+    from app.core.database import engine
+    from app.modules.auth.models import User
+    from app.modules.auth.service import seed_admin
+
+    # El admin ya existe por _db_isolation (autouse); re-ejecutar no debe romper.
+    seed_admin()
+    seed_admin()
+
+    with Session(engine) as session:
+        total = session.exec(
+            select(func.count()).select_from(User).where(User.username == settings.admin_username)
+        ).one()
+    assert total == 1

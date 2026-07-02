@@ -200,7 +200,7 @@ def test_compact_chain_at_limit_plus_one_deletes_oldest(mem_engine) -> None:
 def test_compact_chain_respects_audit_log_references(mem_engine) -> None:
     with Session(mem_engine) as session:
         # Crear usuario dummy para FK de audit_log
-        user = User(username="admin", password_hash="x", role="admin")
+        user = User(username="admin", email="admin@fim.local", password_hash="x", role="admin")
         session.add(user)
         session.commit()
         session.refresh(user)

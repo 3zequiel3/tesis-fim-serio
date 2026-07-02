@@ -94,6 +94,7 @@ def admin_user(session) -> User:
     user = User(
         id=1,
         username="admin",
+        email="admin@fim.local",
         password_hash="hashed",
         role="admin",
         is_active=True,

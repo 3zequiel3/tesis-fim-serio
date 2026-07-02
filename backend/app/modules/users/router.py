@@ -99,7 +99,7 @@ async def list_users(
     users = session.exec(select(User).offset(offset).limit(limit)).all()
     return UserListResponse(
         items=[
-            UserItem(id=u.id, email=u.username, created_at=u.created_at)  # type: ignore[arg-type]
+            UserItem(id=u.id, email=u.email, created_at=u.created_at)  # type: ignore[arg-type]
             for u in users
         ],
         total=total,
@@ -119,6 +119,7 @@ async def create_user(
 
     new_user = User(
         username=body.email,
+        email=body.email,
         password_hash=hash_password(body.password),
         role="admin",
         is_active=True,
@@ -145,4 +146,4 @@ async def create_user(
     session.add(audit)
     session.commit()
 
-    return CreateUserResponse(id=new_user.id, email=new_user.username)  # type: ignore[arg-type]
+    return CreateUserResponse(id=new_user.id, email=new_user.email)  # type: ignore[arg-type]

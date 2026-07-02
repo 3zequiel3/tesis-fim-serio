@@ -8,6 +8,7 @@ class User(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
+    email: str = Field(unique=True, index=True)
     password_hash: str
     role: str = Field(default="admin")
     is_active: bool = Field(default=True)

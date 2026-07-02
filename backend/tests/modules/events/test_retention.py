@@ -74,7 +74,7 @@ def _make_event(
 
 
 def _make_user(session: Session, username: str = "audit_user") -> User:
-    u = User(username=username, password_hash="x", role="admin")
+    u = User(username=username, email=f"{username}@fim.local", password_hash="x", role="admin")
     session.add(u)
     session.commit()
     session.refresh(u)

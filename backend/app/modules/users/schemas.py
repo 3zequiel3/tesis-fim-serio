@@ -28,7 +28,7 @@ class UserListResponse(BaseModel):
 
 
 class CreateUserRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
     @field_validator("password")

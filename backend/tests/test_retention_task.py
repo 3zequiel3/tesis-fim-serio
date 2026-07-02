@@ -84,7 +84,7 @@ def test_retention_deletes_old_terminal(mem_engine) -> None:
 
 def test_retention_preserves_referenced_in_audit_log(mem_engine) -> None:
     with Session(mem_engine) as session:
-        user = User(username="admin2", password_hash="x", role="admin")
+        user = User(username="admin2", email="admin2@fim.local", password_hash="x", role="admin")
         session.add(user)
         session.commit()
         session.refresh(user)
