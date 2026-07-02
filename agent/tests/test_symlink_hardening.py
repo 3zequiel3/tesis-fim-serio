@@ -28,6 +28,7 @@ mask=0) se ejercita sin parchear, ya que `_HAS_FAN=False` hace que
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import os
 from pathlib import Path
@@ -42,6 +43,7 @@ from agent.baseline import (
 )
 from agent.config import AgentConfig, StorageConfig
 from agent.decision import DecisionEngine
+from agent import detector as detector_module
 from agent.detector import FanotifyDetector, FanotifyEvent, _path_location_in_scope
 from agent.journal import JournalManager
 from agent.rules import RulesCache
@@ -672,3 +674,69 @@ async def test_heartbeat_payload_includes_hardlink_suspected() -> None:
 
     data = json.loads(client.xadd.call_args[0][1]["data"])
     assert data["hardlink_suspected"] == 5
+
+
+# ── MEDIUM-1 (dual-review C39) — diff jamás sigue un symlink ──────────────────
+
+@pytest.mark.asyncio
+async def test_file_modified_never_diffs_symlink_even_with_stale_regular_entry(
+    tmp_path: Path,
+) -> None:
+    """
+    MEDIUM-1 (defensa-en-profundidad, dual-review C39): la garantía "el contenido
+    del destino NUNCA se lee/hashea/cifra" debe estar FORZADA por código, no
+    delegada al invariante frágil "un symlink nunca tiene content_b64".
+
+    Escenario: una entry REGULAR obsoleta (content_b64 seteado, symlink_target
+    None) queda en baseline para un path `/scope/foo` que entretanto se volvió un
+    symlink `/scope/foo -> <secreto out-of-scope>`. Sin el guard `not is_symlink`
+    en la rama file_modified, `_generate_diff(previous_content, path)` abriría el
+    path, seguiría el link y publicaría hasta 1 MB del contenido del destino en
+    `diff_text`. El guard lo impide de raíz: diff_text es None y `_generate_diff`
+    ni siquiera se invoca sobre el path del symlink.
+    """
+    watch = tmp_path / "watched"
+    watch.mkdir()
+    secret_dir = tmp_path / "root_ssh"
+    secret_dir.mkdir()
+    secret_file = secret_dir / "id_rsa"
+    secret_marker = "TOP-SECRET-PRIVATE-KEY-MATERIAL"
+    secret_file.write_text(
+        f"-----BEGIN PRIVATE KEY-----\n{secret_marker}\n-----END PRIVATE KEY-----\n"
+    )
+
+    # El path era un archivo regular; ahora es un symlink al secreto out-of-scope.
+    link = watch / "foo"
+    link.symlink_to(secret_file)
+
+    # Entry REGULAR obsoleta: content_b64 seteado (contenido viejo del archivo),
+    # symlink_target None (nació como regular), hash viejo != sha256(readlink).
+    entry_mock = MagicMock()
+    entry_mock.hash = "stale-regular-hash-that-differs-from-readlink"
+    entry_mock.symlink_target = None
+    entry_mock.content_b64 = base64.b64encode(b"old regular content\n").decode()
+    entry_mock.oversize = False
+
+    detector, baseline, publisher = _make_detector(tmp_path)
+    baseline.read_entry.return_value = entry_mock
+
+    fan_event = FanotifyEvent(
+        path=str(link), pid=1, uid=0, exe=None, timestamp="2026-01-01T00:00:00+00:00",
+    )
+
+    # Spy que envuelve la implementación real: si el guard funciona, NUNCA se llama.
+    spy = MagicMock(wraps=detector_module._generate_diff)
+    with patch("agent.detector._generate_diff", new=spy):
+        # mask=0; _HAS_FAN=False -> _classify_event retorna "file_modified" (rama
+        # genérica, misma que ejercita test_symlink_repoint_reports_file_modified).
+        await detector._process_event(fan_event)
+
+    published = publisher.publish.call_args[0][0]
+    # El path se trata como symlink-as-object: hash = sha256(readlink), no del contenido.
+    assert published["event_type"] == "file_modified"
+    assert published["is_symlink"] is True
+    assert published["hash_detected"] == hashlib.sha256(str(secret_file).encode()).hexdigest()
+    # Garantía absoluta C39: sin diff y sin abrir el destino.
+    assert published["diff_text"] is None
+    spy.assert_not_called()
+    assert secret_marker not in (published.get("diff_text") or "")

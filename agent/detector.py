@@ -603,9 +603,14 @@ class FanotifyDetector:
             event_type = "file_modified"
             operation_type = "file_modified"
             # Diff usando contenido anterior (antes de actualizar baseline).
-            # Un symlink nunca tiene content_b64 (write_symlink_entry lo deja en
-            # None), así que previous_content queda None y diff_text también —
-            # nunca se diffea el contenido de un symlink ni de su destino.
+            # Garantía de seguridad C39 FORZADA por código: si el path es un
+            # symlink NUNCA se genera diff (`_generate_diff` abre el path y
+            # seguiría el link hasta el contenido del destino out-of-scope). No
+            # se delega esta garantía al invariante "un symlink nunca tiene
+            # content_b64": una entry regular obsoleta para un path que se volvió
+            # symlink tendría content_b64 seteado y filtraría hasta 1 MB del
+            # destino en diff_text. El guard `and not is_symlink` (la misma
+            # variable que ya protege current_hash arriba) lo impide de raíz.
             previous_content: str | None = None
             if entry and entry.content_b64 and not entry.oversize:
                 try:
@@ -615,7 +620,7 @@ class FanotifyDetector:
                     previous_content = None
             diff_text = (
                 _generate_diff(previous_content, path)
-                if previous_content is not None
+                if (previous_content is not None and not is_symlink)
                 else None
             )
 
