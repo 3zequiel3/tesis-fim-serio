@@ -81,6 +81,11 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
             log.warning("heartbeat_consumer.unknown_agent", agent_id=agent_id)
             return
 
+        # FIX-02 / RN-122: agente revocado — descartar heartbeat sin actualizar estado
+        if agent.status == AgentStatus.revoked:
+            log.info("heartbeat_consumer.agent_revoked.discard", agent_id=agent_id)
+            return
+
         # HMAC verification (D22 / RN-119)
         if not agent.shared_secret_hex:
             log.error("heartbeat_consumer.missing_secret", agent_id=agent_id)

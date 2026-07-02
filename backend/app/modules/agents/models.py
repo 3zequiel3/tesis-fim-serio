@@ -11,6 +11,7 @@ class AgentStatus(str, Enum):
     offline = "offline"
     draining = "draining"
     dead = "dead"
+    revoked = "revoked"
 
 
 class Agent(SQLModel, table=True):

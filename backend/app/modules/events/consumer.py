@@ -40,7 +40,7 @@ from app.core.streams import (
     sign_payload,
     verify_payload,
 )
-from app.modules.agents.models import Agent
+from app.modules.agents.models import Agent, AgentStatus
 from app.modules.alerts.service import notify_if_applicable
 from app.modules.events.models import Event, EventStatus, RejectedEventAudit, RejectionReason
 from app.modules.events.service import InvalidTransitionError, ingest_event
@@ -180,6 +180,13 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         await _reject(client, msg_id, event_id, agent_id, RejectionReason.unknown_agent, received_at, payload, payload_dump)
         return
 
+    # ── 2.5 revoked agent — FIX-02 / RN-122 ──────────────────────────────────
+    is_revoked = await loop.run_in_executor(None, _is_agent_revoked, agent_id)
+    if is_revoked:
+        log.info("consumer.agent_revoked.discard", agent_id=agent_id, event_id=event_id)
+        await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
+        return
+
     # ── 3. HMAC ───────────────────────────────────────────────────────────────
     if not verify_payload(shared_secret, payload):
         await _reject(client, msg_id, event_id, agent_id, RejectionReason.invalid_signature, received_at, payload, payload_dump)
@@ -296,6 +303,15 @@ def _get_shared_secret(agent_id: str) -> bytes | None:
         return bytes.fromhex(agent.shared_secret_hex)
     except ValueError:
         return None
+
+
+def _is_agent_revoked(agent_id: str) -> bool:
+    """Retorna True si el agente existe y su status es revoked. FIX-02 / RN-122."""
+    with Session(engine) as session:
+        agent = session.exec(select(Agent).where(Agent.agent_id == agent_id)).first()
+    if agent is None:
+        return False
+    return agent.status == AgentStatus.revoked
 
 
 def _event_exists(event_id: str) -> bool:
