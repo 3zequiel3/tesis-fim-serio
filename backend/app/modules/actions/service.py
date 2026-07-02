@@ -37,7 +37,7 @@ from sqlmodel import Session, select
 from app.modules.agents.models import Agent, BaselineEntry, BaselineStatus
 from app.modules.audit.models import AuditLog
 from app.modules.events.models import Event, EventStatus
-from app.modules.rules.models import RulesetVersion
+from app.modules.rules.service import increment_ruleset_version as _increment_ruleset_version
 from app.modules.actions.schemas import RejectAction
 
 log = structlog.get_logger()
@@ -61,23 +61,11 @@ class AbsentConfirmationRequired(Exception):
 
 
 # ── Helpers internos ──────────────────────────────────────────────────────────
-
-
-def _increment_ruleset_version(session: Session) -> int:
-    """
-    Incrementa el counter global RulesetVersion (mismo que usa C12).
-    Crea la fila si no existe.
-    """
-    rv = session.exec(select(RulesetVersion)).first()
-    if rv is None:
-        rv = RulesetVersion(version=0)
-        session.add(rv)
-        session.flush()
-    rv.version += 1
-    rv.updated_at = datetime.now(timezone.utc)
-    session.add(rv)
-    session.flush()
-    return rv.version
+#
+# El incremento de RulesetVersion (M6) está unificado en
+# `rules.service.increment_ruleset_version` (UPDATE ... RETURNING atómico) y
+# se reutiliza acá bajo el alias `_increment_ruleset_version` para no tocar
+# los call-sites de approve/reject. No debe reimplementarse localmente.
 
 
 def _get_event(session: Session, event_id: int) -> Event | None:

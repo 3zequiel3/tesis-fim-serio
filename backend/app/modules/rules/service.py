@@ -7,7 +7,7 @@ write_audit, create_rule, update_rule, delete_rule, list_rules, get_rule.
 Orden de operaciones por escritura (D-F):
   1. Validar input  → ValueError si inválido (mapeado a 422 en router)
   2. Persist Rule   → session.add / session.delete + flush
-  3. increment_ruleset_version → new_version
+  3. increment_ruleset_version → new_version (atómico, M6)
   4. write_audit   → inserta AuditLog
   5. session.commit() — Rule + RulesetVersion + AuditLog atómicos
   6. publish_rule_sync + PublishedCommand inserts — post-commit (D-F trade-off)
@@ -23,6 +23,7 @@ from typing import Any
 
 import structlog
 from fastapi import HTTPException, status
+from sqlalchemy import update as sa_update
 from sqlmodel import Session, select
 
 from app.core.streams import SCHEMA_VERSION, STREAM_COMMANDS, sign_payload
@@ -66,17 +67,25 @@ def validate_pattern(pattern: str) -> None:
 
 def increment_ruleset_version(session: Session) -> int:
     """
-    Lee la fila única de RulesetVersion (crea con version=0 si no existe),
-    incrementa version, actualiza updated_at, hace flush y retorna el nuevo valor.
-    Upsert de fila única — safe en single-instance (RN-75, D-C).
+    Incrementa atómicamente el counter global RulesetVersion (RN-75, D-C, M6)
+    mediante una única sentencia `UPDATE ... RETURNING`, evitando el race de
+    lee-modifica-escribe (`SELECT` + `version += 1` + `flush`) bajo requests
+    concurrentes. Única implementación compartida por `rules/service.py` y
+    `actions/service.py` — no debe duplicarse (ver design.md → M6).
+
+    Si la fila única todavía no existe (bootstrap), la crea con version=1.
     """
-    rv = session.exec(select(RulesetVersion)).first()
-    if rv is None:
-        rv = RulesetVersion(version=0)
-        session.add(rv)
-        session.flush()
-    rv.version += 1
-    rv.updated_at = datetime.now(timezone.utc)
+    stmt = (
+        sa_update(RulesetVersion)
+        .values(version=RulesetVersion.version + 1, updated_at=datetime.now(timezone.utc))
+        .returning(RulesetVersion.version)
+    )
+    result = session.execute(stmt).first()
+    if result is not None:
+        return result[0]
+
+    # Bootstrap: la fila única de RulesetVersion no existe todavía.
+    rv = RulesetVersion(version=1)
     session.add(rv)
     session.flush()
     return rv.version
