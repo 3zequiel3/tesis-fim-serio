@@ -2295,7 +2295,9 @@ No se migra a `AsyncSession` de SQLAlchemy — el costo de refactor es despropor
 
 **Excepciones**: Ninguna.
 
-**Aplicación**: `backend/app/modules/agents/service.py` (`update_agent_config`), `backend/app/modules/rules/models.py` (`PublishedCommand`), `backend/app/modules/actions/streams.py` (persistir `command_id`), `backend/app/main.py` (arranque del nuevo consumer task), `agent/commands.py` (ya publica correctamente, sin cambios). Regla normativa: RN-124.
+**Aplicación**: `backend/app/modules/agents/service.py` (`update_agent_config`), `backend/app/modules/rules/models.py` (`PublishedCommand`), `backend/app/modules/actions/streams.py` (persistir `command_id`), `backend/app/main.py` (arranque del nuevo consumer task), `agent/commands.py::_publish_ack` (firmar el `command_ack` con HMAC-SHA256 vía `sign_payload`, cerrando la asimetría con los events y haciendo cumplir RN-79; el nuevo consumer verifica la firma antes de aplicar el ack). Regla normativa: RN-124, RN-79.
+
+> **Nota (2026-07-02)**: la versión inicial de esta decisión asumía "agente sin cambios" y dejaba el `command_ack` sin firma como limitación aceptada. Se revisó: como todo mensaje agente→backend debe firmarse (RN-79) y los events ya lo hacen, se decidió firmar también el `command_ack` (cambio trivial en `_publish_ack`, que ya importa `sign_payload` de `agent/streams.py`). El consumer rechaza acks con firma inválida, igual que el consumer de events.
 
 #### D31: Filtro de alcance por containment (`realpath`) en `detector.py` y `baseline.py`
 
