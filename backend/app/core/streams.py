@@ -17,6 +17,7 @@ SCHEMA_VERSION: int = 1
 STREAM_EVENTS = "events"
 STREAM_HEARTBEAT = "agent_heartbeat"
 STREAM_COMMANDS = "commands"
+STREAM_EVENT_ACK = "event_ack"  # command_ack — confirmación de ejecución del agente (D30/RN-124, C36)
 CONSUMER_GROUP = "fim-backend"
 CONSUMER_NAME = "backend-01"
 

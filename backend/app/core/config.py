@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     rate_limit_login_window_seconds: int = 900  # ventana login en segundos
     rate_limit_api_per_minute: int = 100        # req/min por user_id autenticado
 
+    # command_ack (D30/RN-124, C36) — umbral del barrido de timeout de comandos sin confirmar.
+    # Default alineado con _DEAD_THRESHOLD_S del heartbeat_consumer (300s).
+    command_ack_timeout_seconds: int = 300
+
     # Notificaciones — todas opcionales; si faltan, el canal correspondiente se salta.
     n8n_webhook_url: str = ""
     smtp_host: str = ""

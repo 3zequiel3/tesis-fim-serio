@@ -27,6 +27,7 @@ from app.core.middleware.cors import CORSOriginMiddleware
 from app.core.middleware.trace_id import TraceIdMiddleware
 from app.core.pki import ensure_ca, start_mtls_server
 from app.core.valkey import close_async_valkey, close_valkey, get_valkey_client, init_async_valkey, init_valkey
+from app.modules.agents.command_ack_consumer import run_command_ack_consumer
 from app.modules.agents.heartbeat_consumer import run_heartbeat_consumer
 from app.modules.agents.router import router as agents_router
 from app.modules.auth.router import router as auth_router
@@ -69,6 +70,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     async_valkey = avalkey.Valkey.from_url(settings.valkey_url, decode_responses=True)
     consumer_task = asyncio.create_task(run_consumer(async_valkey, stop_event))
     heartbeat_task = asyncio.create_task(run_heartbeat_consumer(async_valkey, stop_event))
+    command_ack_task = asyncio.create_task(run_command_ack_consumer(async_valkey, stop_event))
     retention_task_handle = asyncio.create_task(retention_task())
     outbox_publisher_handle = asyncio.create_task(outbox_publisher_task())  # H6
     mtls_task = asyncio.create_task(mtls_server.serve()) if mtls_server is not None else None
@@ -79,9 +81,13 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     stop_event.set()
     consumer_task.cancel()
     heartbeat_task.cancel()
+    command_ack_task.cancel()
     retention_task_handle.cancel()
     outbox_publisher_handle.cancel()
-    tasks_to_gather = [consumer_task, heartbeat_task, retention_task_handle, outbox_publisher_handle]
+    tasks_to_gather = [
+        consumer_task, heartbeat_task, command_ack_task,
+        retention_task_handle, outbox_publisher_handle,
+    ]
     if mtls_task is not None:
         mtls_task.cancel()
         tasks_to_gather.append(mtls_task)

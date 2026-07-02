@@ -85,7 +85,7 @@ def _get_baseline_entry(session: Session, path: str, agent_id: str) -> BaselineE
     ).first()
 
 
-def _upsert_baseline_entry(
+def upsert_baseline_entry(
     session: Session,
     path: str,
     agent_id: str,
@@ -93,6 +93,11 @@ def _upsert_baseline_entry(
     baseline_status: BaselineStatus,
     ruleset_version: int,
 ) -> None:
+    """
+    Upsert de BaselineEntry por (path, agent_id). Pública (C36): reutilizada
+    por `command_ack_consumer.py` para cerrar D1/RN-104 (el ack exitoso de
+    un `baseline_update` refleja el hash aprobado en `baseline_entries`).
+    """
     entry = _get_baseline_entry(session, path, agent_id)
     if entry is None:
         entry = BaselineEntry(
@@ -191,7 +196,7 @@ def _approve_single(
 
     # 5. Upsert baseline_entries
     baseline_status = BaselineStatus.absent if hash_value is None else BaselineStatus.present
-    _upsert_baseline_entry(db, event.path, event.agent_id, hash_value, baseline_status, new_version)
+    upsert_baseline_entry(db, event.path, event.agent_id, hash_value, baseline_status, new_version)
 
     # 6. Audit log
     _write_audit(db, user_id, "approve", event_id, {"version": version})

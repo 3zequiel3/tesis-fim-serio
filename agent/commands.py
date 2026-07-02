@@ -17,6 +17,9 @@ Restricciones:
   - Verificación HMAC-SHA256 sobre JSON canónico (sin campo signature).
   - Filtro target_agent_id: None = broadcast; otro valor = solo ese agente.
   - event_ack publicado siempre (ok o error) tras ejecutar.
+  - event_ack (command_ack) firmado HMAC-SHA256 (D30/RN-79, C36, decisión del
+    usuario 2026-07-02) — cierra la asimetría con los comandos entrantes,
+    que ya se verifican por firma.
 """
 
 from __future__ import annotations
@@ -32,7 +35,7 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from agent.streams import canonical_json, verify_payload
+from agent.streams import canonical_json, sign_payload, verify_payload
 
 if TYPE_CHECKING:
     import valkey.asyncio as avalkey
@@ -60,20 +63,34 @@ async def _publish_ack(
     command_id: str,
     command_type: str,
     event_id: Any,
-    agent_id: str,
+    config: "AgentConfig",
     ok: bool,
     error: str | None = None,
 ) -> None:
-    """Publica confirmación event_ack al stream event_ack de Valkey."""
-    payload = {
+    """
+    Publica confirmación command_ack firmada HMAC-SHA256 al stream event_ack
+    de Valkey (D30/RN-79, C36, decisión del usuario 2026-07-02).
+
+    Si no se puede cargar el shared_secret local, se publica sin firma (fail
+    -open observable, mismo criterio que dispatch()) — el consumer del
+    backend rechazará el ack por firma inválida/faltante, quedando el
+    comando `pending` hasta que el barrido de timeout lo marque.
+    """
+    payload: dict[str, Any] = {
         "command_id": command_id,
         "command_type": command_type,
         "event_id": event_id,
-        "agent_id": agent_id,
+        "agent_id": config.agent_id,
         "status": "ok" if ok else "error",
         "error": error,
         "timestamp": _now_iso(),
     }
+    secret = _load_shared_secret(config)
+    if secret is None:
+        log.error("commands.ack_publish.no_shared_secret", command_id=command_id)
+    else:
+        payload["signature"] = sign_payload(secret, payload)
+
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     try:
         await valkey_client.xadd(STREAM_EVENT_ACK, {"data": data})
@@ -231,7 +248,7 @@ async def handle_baseline_update(
     except Exception as exc:
         log.error("commands.baseline_update.write_failed", path=path, error=str(exc))
         await _publish_ack(
-            valkey_client, command_id, "baseline_update", event_id, config.agent_id,
+            valkey_client, command_id, "baseline_update", event_id, config,
             ok=False, error=str(exc),
         )
         return
@@ -251,7 +268,7 @@ async def handle_baseline_update(
 
     # 4. Publicar event_ack
     await _publish_ack(
-        valkey_client, command_id, "baseline_update", event_id, config.agent_id, ok=True,
+        valkey_client, command_id, "baseline_update", event_id, config, ok=True,
     )
 
 
@@ -281,7 +298,7 @@ async def handle_restore_file(
     if not config.watch_paths:
         log.error("commands.path_outside_watch.no_watch_paths", path=path)
         await _publish_ack(
-            valkey_client, command_id, "restore_file", event_id, config.agent_id,
+            valkey_client, command_id, "restore_file", event_id, config,
             ok=False, error="no_watch_paths_configured",
         )
         return
@@ -289,7 +306,7 @@ async def handle_restore_file(
     if not any(real.startswith(str(w)) for w in config.watch_paths):
         log.warning("commands.path_outside_watch", path=path)
         await _publish_ack(
-            valkey_client, command_id, "restore_file", event_id, config.agent_id,
+            valkey_client, command_id, "restore_file", event_id, config,
             ok=False, error="path_outside_watch_paths",
         )
         return
@@ -340,7 +357,7 @@ async def handle_restore_file(
 
     # 4. Publicar event_ack
     await _publish_ack(
-        valkey_client, command_id, "restore_file", event_id, config.agent_id,
+        valkey_client, command_id, "restore_file", event_id, config,
         ok=error_reason is None, error=error_reason,
     )
 
@@ -371,7 +388,7 @@ async def handle_quarantine_file(
     if not config.watch_paths:
         log.error("commands.path_outside_watch.no_watch_paths", path=path)
         await _publish_ack(
-            valkey_client, command_id, "quarantine_file", event_id, config.agent_id,
+            valkey_client, command_id, "quarantine_file", event_id, config,
             ok=False, error="no_watch_paths_configured",
         )
         return
@@ -379,7 +396,7 @@ async def handle_quarantine_file(
     if not any(real.startswith(str(w)) for w in config.watch_paths):
         log.warning("commands.path_outside_watch", path=path)
         await _publish_ack(
-            valkey_client, command_id, "quarantine_file", event_id, config.agent_id,
+            valkey_client, command_id, "quarantine_file", event_id, config,
             ok=False, error="path_outside_watch_paths",
         )
         return
@@ -424,7 +441,7 @@ async def handle_quarantine_file(
 
     # 4. Publicar event_ack
     await _publish_ack(
-        valkey_client, command_id, "quarantine_file", event_id, config.agent_id,
+        valkey_client, command_id, "quarantine_file", event_id, config,
         ok=error_reason is None, error=error_reason,
     )
 
@@ -530,7 +547,7 @@ async def handle_update_config(
         log.error("commands.update_config.failed", error=error_reason)
 
     await _publish_ack(
-        valkey_client, command_id, "update_config", event_id, config.agent_id,
+        valkey_client, command_id, "update_config", event_id, config,
         ok=error_reason is None, error=error_reason,
     )
 
@@ -569,6 +586,6 @@ async def handle_rescan_baseline(
         log.error("commands.rescan_baseline.failed", error=error_reason)
 
     await _publish_ack(
-        valkey_client, command_id, "rescan_baseline", event_id, config.agent_id,
+        valkey_client, command_id, "rescan_baseline", event_id, config,
         ok=error_reason is None, error=error_reason,
     )

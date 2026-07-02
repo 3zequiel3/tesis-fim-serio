@@ -38,7 +38,7 @@ from agent.baseline import BaselineEngine, derive_baseline_key
 from agent.config import AgentConfig, StorageConfig
 from agent.journal import JournalManager
 from agent.state import AgentState
-from agent.streams import canonical_json, sign_payload
+from agent.streams import canonical_json, sign_payload, verify_payload
 
 _LINUX = platform.system() == "Linux"
 
@@ -654,3 +654,72 @@ async def test_journal_written_before_filesystem_op(
     else:
         # Si no llegó a escribir (fallo por otro motivo), igual verificar que journal existe
         assert journal_path.exists(), "Journal pre-acción debe existir"
+
+
+# ── C36 (D30/RN-79): _publish_ack firma el command_ack con HMAC ──────────────
+
+
+@pytest.mark.asyncio
+async def test_publish_ack_signs_command_ack_with_hmac(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, journal
+):
+    """
+    Decisión del usuario (2026-07-02, C36): el command_ack ahora viaja firmado
+    HMAC-SHA256, igual que los comandos entrantes. El consumer del backend
+    rechaza acks sin firma válida.
+    """
+    from agent import commands
+
+    await commands._publish_ack(
+        mock_valkey,
+        command_id="cmd-sign-test-001",
+        command_type="rescan_baseline",
+        event_id=None,
+        config=agent_config,
+        ok=True,
+    )
+
+    mock_valkey.xadd.assert_called_once()
+    ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+
+    assert "signature" in ack_payload
+    assert verify_payload(shared_secret, ack_payload), "la firma del command_ack debe ser verificable"
+
+
+@pytest.mark.asyncio
+async def test_publish_ack_logs_error_without_shared_secret(
+    baseline_engine, agent_state, mock_valkey, journal, tmp_path
+):
+    """Sin shared_secret local, se publica sin firma (fail-open observable) y se loguea ERROR."""
+    from agent import commands
+    from agent.config import AgentConfig, StorageConfig
+
+    empty_secrets_dir = tmp_path / "no-secrets"
+    empty_secrets_dir.mkdir(parents=True, exist_ok=True)
+    config_without_secret = AgentConfig(
+        agent_id="test-agent-nosecret",
+        backend_url="https://localhost:8443",
+        valkey_url="valkey://localhost:6379",
+        ca_cert_path="/tmp/ca.pem",
+        watch_paths=["/etc"],
+        storage=StorageConfig(
+            baseline_dir=str(tmp_path / "baseline"),
+            queue_dir=str(tmp_path / "queue"),
+            journal_dir=str(tmp_path / "journal"),
+            secrets_dir=str(empty_secrets_dir),
+        ),
+        allow_plaintext_valkey=True,
+    )
+
+    await commands._publish_ack(
+        mock_valkey,
+        command_id="cmd-sign-test-002",
+        command_type="rescan_baseline",
+        event_id=None,
+        config=config_without_secret,
+        ok=True,
+    )
+
+    mock_valkey.xadd.assert_called_once()
+    ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert "signature" not in ack_payload
