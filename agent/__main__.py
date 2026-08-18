@@ -15,11 +15,12 @@ import valkey.asyncio as avalkey
 
 import agent.bootstrap as bootstrap
 from agent.baseline import BaselineEngine, load_master_secret
-from agent.config import AgentConfig, load_config
+from agent.config import EX_CONFIG, AgentConfig, load_config
 from agent.decision import DecisionEngine
 from agent.heartbeat import HeartbeatPublisher
 from agent.journal import JournalManager
 from agent.logging import configure_logging
+from agent.preflight import PreflightRegistry, run_preflight
 from agent.publisher import Publisher
 from agent.queue import EventQueue
 from agent.rules import RulesCache
@@ -153,7 +154,7 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
         if not secret:
             log.error("agent.bootstrap.missing_secret")
             print("FIM_BOOTSTRAP_SECRET env var is required for initial bootstrap", file=sys.stderr)
-            sys.exit(1)
+            sys.exit(EX_CONFIG)
         bootstrap.run(cfg, secret)
 
     state_path = Path(cfg.storage.baseline_dir).parent / "state.json"
@@ -167,10 +168,32 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     except FileNotFoundError as exc:
         log.error("agent.startup.missing_shared_secret", error=str(exc))
         print(f"shared_secret not found — run bootstrap first: {exc}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(EX_CONFIG)
 
     master_secret = load_master_secret(cfg.storage.secrets_dir)
     engine = BaselineEngine(cfg, master_secret)
+
+    # D36/RN-130: preflight de escritura por watch_path, DESPUÉS de cargar la
+    # config y ANTES del scan inicial, para que el primer heartbeat ya lo
+    # lleve. Nunca sys.exit por su resultado, cualquiera sea la
+    # clasificación: la detección es la función primaria, la remediación es
+    # una capacidad adicional que puede faltar sin invalidar el servicio.
+    preflight_registry = PreflightRegistry()
+    preflight_status = run_preflight(cfg.watch_paths)
+    preflight_registry.update(preflight_status)
+    degraded = {p: s for p, s in preflight_status.items() if s != "writable"}
+    for degraded_path, classification in degraded.items():
+        log.warning(
+            "agent.preflight.degraded",
+            path=degraded_path,
+            classification=classification,
+        )
+    log.info(
+        "agent.preflight.summary",
+        total=len(preflight_status),
+        degraded=len(degraded),
+    )
+
     report = engine.init_scan(cfg.watch_paths)
     log.info(
         "baseline.init_scan.complete",
@@ -248,13 +271,14 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
             journal=journal,
             quarantine_dir=str(quarantine_dir),
             detector=detector,
+            preflight_registry=preflight_registry,
         )
     else:
         log.warning("agent.detector.skipped", reason="fanotify only available on Linux")
 
     heartbeat = HeartbeatPublisher(
         cfg, queue, state, valkey_client, publisher=publisher, detector=detector,
-        shared_secret=shared_secret,
+        shared_secret=shared_secret, preflight_registry=preflight_registry,
     )
 
     coroutines = [

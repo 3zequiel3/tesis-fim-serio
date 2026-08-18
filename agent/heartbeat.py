@@ -2,11 +2,17 @@
 Heartbeat periódico del agente FIM al stream Valkey 'agent_heartbeat' (RN-92, RN-93).
 
 Publica cada 10 s: {agent_id, timestamp, queue_size, ruleset_version,
-                    queue_pressure, shutdown, schema_version}.
+                    queue_pressure, shutdown, schema_version, watch_path_status}.
 
 Durante el drenaje graceful (SIGTERM) publica shutdown=true (RN-93).
 ruleset_version se lee desde state.json (via AgentState).
 La señal de shutdown se lee desde publisher.shutdown (fuente de verdad, D-C26-4).
+
+D36/RN-130 (D-5): `watch_path_status` es el mapa COMPLETO path -> clasificación
+del preflight (agent/preflight.py), no solo los degradados — omitir los
+escribibles haría ambiguo un path ausente (¿escribible, o agente viejo que no
+reporta?). Agregar la clave es seguro para la firma: canonical_json firma el
+dict completo ordenado, sin allowlist por clave.
 """
 
 from __future__ import annotations
@@ -25,6 +31,7 @@ if TYPE_CHECKING:
 
     from agent.config import AgentConfig
     from agent.detector import FanotifyDetector
+    from agent.preflight import PreflightRegistry
     from agent.publisher import Publisher
     from agent.queue import EventQueue
     from agent.state import AgentState
@@ -47,6 +54,7 @@ class HeartbeatPublisher:
         publisher: "Publisher | None" = None,
         detector: "FanotifyDetector | None" = None,
         shared_secret: bytes | None = None,
+        preflight_registry: "PreflightRegistry | None" = None,
     ) -> None:
         self._config = config
         self._queue = queue
@@ -58,6 +66,9 @@ class HeartbeatPublisher:
         # con HMAC o el heartbeat_consumer del backend lo descarta (invalid_signature).
         # En producción lo inyecta __main__; se pasa por parámetro (no I/O en __init__).
         self._shared_secret = shared_secret
+        # D36/RN-130: registry compartido con __main__/handle_update_config.
+        # None si el agente arranca sin preflight wireado (tests legacy).
+        self._preflight_registry = preflight_registry
 
     async def run(self, stop_event: asyncio.Event, shutdown_flag: "asyncio.Event | None" = None) -> None:
         """Loop de heartbeat. Lee publisher.shutdown como fuente de verdad (D-C26-4)."""
@@ -89,6 +100,11 @@ class HeartbeatPublisher:
             # D33/RN-127: contador detective opcional, sin cambio de comportamiento.
             "hardlink_suspected": self._detector.hardlink_suspected if self._detector is not None else 0,
         }
+        if self._preflight_registry is not None:
+            payload["watch_path_status"] = self._preflight_registry.snapshot()
+            config_persisted = self._preflight_registry.config_persisted
+            if config_persisted is not None:
+                payload["config_persisted"] = config_persisted
         if self._shared_secret is not None:
             payload["signature"] = sign_payload(self._shared_secret, payload)
         data = json.dumps(payload, sort_keys=True, separators=(",", ":"))

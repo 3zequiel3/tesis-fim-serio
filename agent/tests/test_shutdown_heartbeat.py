@@ -148,3 +148,171 @@ async def test_shutdown_flag_set_on_sigterm(tmp_path: Path) -> None:
             shutdown_payloads.append(data)
 
     assert len(shutdown_payloads) > 0, "Expected at least one heartbeat with shutdown=true"
+
+
+# ── watch_path_status en el heartbeat (D36/RN-130 D-5) ───────────────────────
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_carries_full_watch_path_status_map(tmp_path: Path) -> None:
+    """El mapa completo viaja, no solo los degradados (D-5): omitir los
+    escribibles haría ambiguo un path ausente (¿escribible, o agente viejo
+    que no reporta?)."""
+    from agent.preflight import PreflightRegistry
+
+    registry = PreflightRegistry()
+    registry.update({
+        "/etc": "writable",
+        "/usr/bin": "read_only_mount",
+        "/srv/ghost": "missing",
+    })
+
+    state = MagicMock()
+    state.ruleset_version = 1
+    queue_mock = MagicMock()
+    queue_mock.queue_size = 0
+    queue_mock.queue_pressure = 0.0
+    client_mock = MagicMock()
+    client_mock.xadd = AsyncMock(return_value="1-0")
+
+    hb = HeartbeatPublisher(
+        config=_make_config(tmp_path),
+        queue=queue_mock,
+        state=state,
+        client=client_mock,
+        preflight_registry=registry,
+    )
+
+    await hb._publish(shutdown=False)
+
+    data = json.loads(client_mock.xadd.call_args[0][1]["data"])
+    assert data["watch_path_status"] == {
+        "/etc": "writable",
+        "/usr/bin": "read_only_mount",
+        "/srv/ghost": "missing",
+    }
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_reports_config_persisted_state() -> None:
+    """El agente también reporta si el último intento de persistir
+    config.yaml tuvo éxito (D-5)."""
+    from agent.preflight import PreflightRegistry
+
+    registry = PreflightRegistry()
+    registry.update({"/etc": "writable"})
+    registry.set_config_persisted(False)
+
+    state = MagicMock()
+    state.ruleset_version = 1
+    queue_mock = MagicMock()
+    queue_mock.queue_size = 0
+    queue_mock.queue_pressure = 0.0
+    client_mock = MagicMock()
+    client_mock.xadd = AsyncMock(return_value="1-0")
+
+    hb = HeartbeatPublisher(
+        config=MagicMock(agent_id="agent-cfg-persist"),
+        queue=queue_mock,
+        state=state,
+        client=client_mock,
+        preflight_registry=registry,
+    )
+
+    await hb._publish(shutdown=False)
+
+    data = json.loads(client_mock.xadd.call_args[0][1]["data"])
+    assert data["config_persisted"] is False
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_omits_watch_path_status_without_registry() -> None:
+    """Sin PreflightRegistry inyectado (tests legacy / wiring viejo), el
+    heartbeat no emite la clave — no defaultea a un mapa vacío engañoso."""
+    state = MagicMock()
+    state.ruleset_version = 1
+    queue_mock = MagicMock()
+    queue_mock.queue_size = 0
+    queue_mock.queue_pressure = 0.0
+    client_mock = MagicMock()
+    client_mock.xadd = AsyncMock(return_value="1-0")
+
+    hb = HeartbeatPublisher(
+        config=MagicMock(agent_id="agent-no-preflight"),
+        queue=queue_mock,
+        state=state,
+        client=client_mock,
+    )
+
+    await hb._publish(shutdown=False)
+
+    data = json.loads(client_mock.xadd.call_args[0][1]["data"])
+    assert "watch_path_status" not in data
+    assert "config_persisted" not in data
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_omits_config_persisted_before_first_update_config() -> None:
+    """config_persisted es None hasta que handle_update_config corre al
+    menos una vez — no se emite un valor inventado."""
+    from agent.preflight import PreflightRegistry
+
+    registry = PreflightRegistry()
+    registry.update({"/etc": "writable"})  # nunca se llamó set_config_persisted
+
+    state = MagicMock()
+    state.ruleset_version = 1
+    queue_mock = MagicMock()
+    queue_mock.queue_size = 0
+    queue_mock.queue_pressure = 0.0
+    client_mock = MagicMock()
+    client_mock.xadd = AsyncMock(return_value="1-0")
+
+    hb = HeartbeatPublisher(
+        config=MagicMock(agent_id="agent-fresh-registry"),
+        queue=queue_mock,
+        state=state,
+        client=client_mock,
+        preflight_registry=registry,
+    )
+
+    await hb._publish(shutdown=False)
+
+    data = json.loads(client_mock.xadd.call_args[0][1]["data"])
+    assert data["watch_path_status"] == {"/etc": "writable"}
+    assert "config_persisted" not in data
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_adding_watch_path_status_keeps_signature_valid() -> None:
+    """Agregar la clave es seguro para la firma: canonical_json firma el dict
+    completo ordenado, sin allowlist por clave (D-5)."""
+    from agent.preflight import PreflightRegistry
+    from agent.streams import verify_payload
+
+    shared_secret = b"x" * 32
+    registry = PreflightRegistry()
+    registry.update({"/etc": "writable", "/usr/bin": "permission_denied"})
+
+    state = MagicMock()
+    state.ruleset_version = 1
+    queue_mock = MagicMock()
+    queue_mock.queue_size = 0
+    queue_mock.queue_pressure = 0.0
+    client_mock = MagicMock()
+    client_mock.xadd = AsyncMock(return_value="1-0")
+
+    hb = HeartbeatPublisher(
+        config=MagicMock(agent_id="agent-sig-test"),
+        queue=queue_mock,
+        state=state,
+        client=client_mock,
+        preflight_registry=registry,
+        shared_secret=shared_secret,
+    )
+
+    await hb._publish(shutdown=False)
+
+    data = json.loads(client_mock.xadd.call_args[0][1]["data"])
+    assert "watch_path_status" in data
+    assert verify_payload(shared_secret, data)

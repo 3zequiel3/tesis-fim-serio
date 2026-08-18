@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from agent.config import AgentConfig
     from agent.detector import FanotifyDetector
     from agent.journal import JournalManager
+    from agent.preflight import PreflightRegistry
     from agent.state import AgentState
 
 log = structlog.get_logger()
@@ -69,6 +70,7 @@ class Publisher:
         self._journal: "JournalManager | None" = None
         self._quarantine_dir: str | None = None
         self._detector: "FanotifyDetector | None" = None
+        self._preflight_registry: "PreflightRegistry | None" = None
 
     # ── public ───────────────────────────────────────────────────────────────
 
@@ -114,6 +116,7 @@ class Publisher:
         journal: "JournalManager",
         quarantine_dir: str | None = None,
         detector: "FanotifyDetector | None" = None,
+        preflight_registry: "PreflightRegistry | None" = None,
     ) -> None:
         """
         Registra las instancias necesarias para despachar comandos C13/C14
@@ -125,6 +128,7 @@ class Publisher:
         self._journal = journal
         self._quarantine_dir = quarantine_dir
         self._detector = detector
+        self._preflight_registry = preflight_registry
 
     def set_shutdown(self, value: bool) -> None:
         """Marca el estado de drenaje graceful para que el heartbeat lo vea."""
@@ -349,6 +353,7 @@ class Publisher:
                     journal=self._journal,
                     quarantine_dir=self._quarantine_dir,
                     detector=self._detector,
+                    preflight_registry=self._preflight_registry,
                 )
             else:
                 log.warning(
