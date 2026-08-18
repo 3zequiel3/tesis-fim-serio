@@ -68,6 +68,15 @@ storage:
   # cert.pem: 0600, key.pem: 0600, owner fim-agent.
   certs_dir: /var/lib/fim-agent/certs
 
+  # Local discard directory (Change 42, D37/RN-131). Terminal destination for
+  # an event that either exhausted publisher.max_publish_attempts without
+  # any response, or received a terminal event_nack (invalid_schema,
+  # clock_skew). A sibling of queue_dir — does NOT count toward the queue's
+  # 100 MB budget or queue_pressure, bounded instead by
+  # publisher.max_discard_files with its own drop-oldest. Content here is
+  # evidence of a lost detection, not disposable data.
+  discard_dir: /var/lib/fim-agent/discarded
+
 # Publisher settings — controls the reconnect behavior when the agent restarts.
 publisher:
   # Maximum time (in seconds) to spend flushing pending commands from the
@@ -76,6 +85,27 @@ publisher:
   # ruleset is up-to-date before events are published (Change 25, RN-109).
   # Increase if the backend emits large bursts of commands and latency allows.
   command_flush_timeout_s: 2.0
+
+  # Durability parameters of the transport contract (Change 42, D37/RN-131).
+  # Values below are the appendix defaults; all three are configurable.
+
+  # Per-event attempt ceiling. An event with no response of any kind (ack or
+  # nack) after this many publish attempts is moved to discard_dir with
+  # reason "max_attempts_exceeded" and stops being retried. At one retry
+  # every 60 s, the default covers roughly 20 hours of an unreachable
+  # backend before discarding — comfortably above a maintenance window.
+  max_publish_attempts: 20
+
+  # Ceiling the agent accepts for a retainable event_nack's retry_after
+  # (reasons rate_limited and schema_version_unsupported). A signed message
+  # proves origin, not sanity: this caps how long a buggy or compromised
+  # backend can silence the agent with one oversized value.
+  max_retry_after_s: 60.0
+
+  # File-count bound of discard_dir, with its own drop-oldest policy — same
+  # criterion as the 100 MB queue budget, applied independently so a host
+  # with a persistent problem cannot fill its disk.
+  max_discard_files: 1000
 
 # Set to true ONLY in local development or CI environments where Valkey runs
 # without TLS (D20 / RN-118). When false (default) and the valkey_url scheme

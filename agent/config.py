@@ -20,8 +20,12 @@ class StorageConfig(BaseModel):
     journal_dir: str
     secrets_dir: str = "/var/lib/fim-agent/secrets"
     certs_dir: str = "/var/lib/fim-agent/certs"
+    # D37/RN-131 (D-8 del design): directorio local de descarte, hermano de la
+    # cola. Destino terminal de un evento que agota el techo de reintentos o
+    # recibe un event_nack terminal (invalid_schema, clock_skew).
+    discard_dir: str = "/var/lib/fim-agent/discarded"
 
-    @field_validator("baseline_dir", "queue_dir", "journal_dir", mode="before")
+    @field_validator("baseline_dir", "queue_dir", "journal_dir", "discard_dir", mode="before")
     @classmethod
     def _not_empty(cls, v: object) -> object:
         if not str(v).strip():
@@ -31,6 +35,36 @@ class StorageConfig(BaseModel):
 
 class PublisherConfig(BaseModel):
     command_flush_timeout_s: float = 2.0
+    # D37/RN-131: parámetros operativos del contrato de durabilidad del
+    # transporte (design D-4/D-6/D-7/D-8, valores por defecto del appendix).
+    # Techo de reintentos por evento sin respuesta de ningún tipo (~20 h de
+    # backend inalcanzable a 60 s por intento antes de descartar).
+    max_publish_attempts: int = 20
+    # Techo del retry_after que el agente acepta de un event_nack retenible:
+    # un backend con un bug o comprometido no puede silenciar al agente por
+    # más de este valor con un retry_after enorme (D-5, D-6).
+    max_retry_after_s: float = 60.0
+    # Cota por cantidad de archivos del directorio de descarte, con
+    # drop-oldest propio (D-8), mismo criterio que la cola de RN-40.
+    max_discard_files: int = 1000
+
+    @field_validator("max_publish_attempts", "max_discard_files", mode="before")
+    @classmethod
+    def _positive_int(cls, v: object) -> object:
+        if not isinstance(v, int) or isinstance(v, bool) or v <= 0:
+            raise ValueError("must be a positive integer")
+        return v
+
+    @field_validator("max_retry_after_s", mode="before")
+    @classmethod
+    def _positive_float(cls, v: object) -> object:
+        try:
+            numeric = float(v)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            raise ValueError("must be a positive number") from None
+        if numeric <= 0:
+            raise ValueError("must be a positive number")
+        return v
 
 
 class AgentConfig(BaseModel):

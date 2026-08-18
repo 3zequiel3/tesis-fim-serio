@@ -50,7 +50,11 @@ def test_enqueue_content_roundtrip(queue: EventQueue) -> None:
     evt = _make_event("e3")
     path = queue.enqueue(evt)
     loaded = json.loads(path.read_bytes())
-    assert loaded["event_id"] == "e3"
+    # D-7: el archivo guarda un sobre {payload, attempts, first_attempt_at},
+    # no el payload desnudo.
+    assert loaded["payload"]["event_id"] == "e3"
+    assert loaded["attempts"] == 0
+    assert loaded["first_attempt_at"] is None
 
 
 # ── FIFO ─────────────────────────────────────────────────────────────────────
