@@ -51,7 +51,13 @@ def agent(mem_engine, shared_secret) -> Agent:
     return a
 
 
-def _make_hb(agent_id: str, secret: bytes, shutdown: bool = False, queue_pressure: float = 0.1) -> dict:
+def _make_hb(
+    agent_id: str,
+    secret: bytes,
+    shutdown: bool = False,
+    queue_pressure: float = 0.1,
+    discarded_events: object = None,
+) -> dict:
     from app.core.streams import sign_payload
     payload = {
         "agent_id": agent_id,
@@ -62,6 +68,8 @@ def _make_hb(agent_id: str, secret: bytes, shutdown: bool = False, queue_pressur
         "shutdown": shutdown,
         "schema_version": 1,
     }
+    if discarded_events is not None:
+        payload["discarded_events"] = discarded_events
     payload["signature"] = sign_payload(secret, payload)
     return {"data": json.dumps(payload)}
 
@@ -127,3 +135,53 @@ def test_sweep_does_not_mark_offline_if_recent(mem_engine, agent) -> None:
     with Session(mem_engine) as session:
         a = session.get(Agent, "hb-agent")
     assert a.status == AgentStatus.online
+
+
+# ── 14.13 discarded_events (D37/RN-131) ───────────────────────────────────────
+
+
+def test_discarded_events_persisted(mem_engine, agent, shared_secret) -> None:
+    """Heartbeat con discarded_events=3 → se persiste en Agent.discarded_events."""
+    import app.modules.agents.heartbeat_consumer as hc
+    with patch.object(hc, "engine", mem_engine):
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, discarded_events=3))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.discarded_events == 3
+
+
+def test_discarded_events_absent_does_not_reset(mem_engine, agent, shared_secret) -> None:
+    """Un heartbeat sin la clave NO pisa el valor guardado (tolerancia hacia adelante)."""
+    import app.modules.agents.heartbeat_consumer as hc
+
+    with patch.object(hc, "engine", mem_engine):
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, discarded_events=3))
+        # Segundo heartbeat, agente sin actualizar a D37: sin la clave.
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.discarded_events == 3
+
+
+def test_discarded_events_non_numeric_ignored(mem_engine, agent, shared_secret) -> None:
+    """Un valor no numérico se ignora sin romper el resto del heartbeat."""
+    import app.modules.agents.heartbeat_consumer as hc
+
+    with patch.object(hc, "engine", mem_engine):
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, discarded_events="not-a-number"))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    # El heartbeat se procesó igual (status/last_heartbeat avanzaron) pese al valor inválido.
+    assert a.status == AgentStatus.online
+    assert a.last_heartbeat is not None
+    assert a.discarded_events is None
+
+
+def test_discarded_events_never_reported_reads_as_null(mem_engine, agent) -> None:
+    """Un agente que nunca envió discarded_events expone None, no 0."""
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.discarded_events is None

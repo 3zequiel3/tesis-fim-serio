@@ -17,6 +17,11 @@ export interface Agent {
   // reportó (agente viejo, o sin heartbeat aún) — distinto de {} (que se
   // leería como "todos los paths escribibles").
   watch_path_status?: Record<string, string> | null
+  // D37/RN-131 (C42): contador acumulativo de eventos que el agente
+  // descartó localmente desde su arranque (techo de reintentos agotado o
+  // event_nack terminal). null/undefined cuando el agente nunca reportó
+  // heartbeat con esta clave — distinto de 0 (ver frontend/src/utils/discardedEvents.ts).
+  discarded_events?: number | null
 }
 
 export interface AgentConfig {

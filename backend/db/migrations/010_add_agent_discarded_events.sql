@@ -1,0 +1,26 @@
+-- Migration 010: discarded_events persistido en agents (D37/RN-131).
+--
+-- Agrega la columna discarded_events a agents: contador ACUMULATIVO desde el
+-- arranque del proceso del agente, de eventos que el publicador descartó
+-- localmente (techo de reintentos agotado, o nack terminal con
+-- invalid_schema/clock_skew) sin que el backend jamás llegue a verlos.
+--
+-- Un evento de integridad descartado es un hecho grave, y sin esta columna
+-- sería invisible: el agente lo borraría en silencio y nadie del lado del
+-- operador se enteraría. Se reporta en el heartbeat (clave discarded_events)
+-- y se persiste acá, mismo precedente que queue_pressure y watch_path_status
+-- en la misma tabla.
+--
+-- Nullable, SIN default: un agente que nunca reportó discarded_events
+-- (agente sin actualizar a D37/RN-131, o que nunca tuvo un heartbeat) queda
+-- en NULL — deliberadamente distinto de 0, que significaría "reportó y no
+-- descartó nada". El heartbeat_consumer trata la clave con tolerancia hacia
+-- adelante: ausente no pisa el valor guardado, no numérico se ignora.
+--
+-- Idempotente: ADD COLUMN IF NOT EXISTS. Ejecutar el script dos veces no
+-- produce error.
+--
+-- Aplicar manualmente contra la base de datos de producción o test (D3, sin Alembic):
+--   psql $DATABASE_URL -f 010_add_agent_discarded_events.sql
+
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS discarded_events INTEGER;

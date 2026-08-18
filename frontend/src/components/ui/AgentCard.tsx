@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Agent } from '@/api/agents'
 import { getWatchPathStatusMeta } from '@/utils/watchPathStatus'
+import { getDiscardedEventsMeta } from '@/utils/discardedEvents'
 
 interface AgentCardProps {
   agent: Agent
@@ -33,6 +34,24 @@ function WatchPathStatusIndicator({ status }: { status: string | undefined }) {
       className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${meta.className}`}
     >
       {meta.label}
+    </span>
+  )
+}
+
+// D37/RN-131 (C42): contador de eventos descartados localmente por el
+// transporte del agente, mostrado junto a la presión de cola que ya expone
+// esta tarjeta. Un conteo positivo es una detección perdida — se resalta
+// como anomalía. "Nunca reportó" se distingue explícitamente de "cero" (ver
+// getDiscardedEventsMeta): mostrar "0" cuando en realidad no sabemos sería
+// exactamente la confusión que este indicador existe para prevenir.
+function DiscardedEventsIndicator({ count }: { count: number | null | undefined }) {
+  const meta = getDiscardedEventsMeta(count)
+  return (
+    <span
+      title={meta.title}
+      className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap ${meta.className}`}
+    >
+      Descartes: {meta.label}
     </span>
   )
 }
@@ -103,7 +122,10 @@ export function AgentCard({
       <div>
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs text-gray-400">Queue pressure</span>
-          <span className="text-xs text-gray-300 tabular-nums">{pressurePct}%</span>
+          <span className="flex items-center gap-2 text-xs">
+            <span className="text-gray-300 tabular-nums">{pressurePct}%</span>
+            <DiscardedEventsIndicator count={agent.discarded_events} />
+          </span>
         </div>
         <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
           <div

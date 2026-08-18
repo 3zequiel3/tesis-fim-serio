@@ -32,6 +32,13 @@ class Agent(SQLModel, table=True):
     # (viejo, o sin heartbeat aún) queda en None, no en {} — {} se leería
     # como "todos los paths escribibles".
     watch_path_status: dict[str, str] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # D37/RN-131: contador acumulativo (desde el arranque del proceso del
+    # agente) de eventos descartados localmente por el publicador — techo de
+    # reintentos agotado, o nack terminal (invalid_schema/clock_skew).
+    # Nullable sin default: None = "el agente nunca reportó" (agente sin
+    # actualizar a D37, o sin heartbeat todavía), deliberadamente distinto
+    # de 0 = "reportó y no descartó nada". Migración 010.
+    discarded_events: int | None = Field(default=None)
 
 
 class RevokedCertificate(SQLModel, table=True):
@@ -81,6 +88,10 @@ class AgentResponse(BaseModel):
     # D36/RN-130 (C41): mapa por-path de clasificación de escritura, tal como
     # lo persistió el consumer de heartbeat. None si el agente nunca reportó.
     watch_path_status: dict[str, str] | None = None
+    # D37/RN-131: contador acumulativo de eventos descartados localmente por
+    # el agente, tal como lo persistió el consumer de heartbeat. None si el
+    # agente nunca reportó — distinto de 0.
+    discarded_events: int | None = None
 
 
 class AgentListResponse(BaseModel):

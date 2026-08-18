@@ -5,6 +5,8 @@ Por heartbeat recibido:
   - Verifica HMAC-SHA256 del payload (D22 / RN-119).
   - Actualiza Agent.last_heartbeat, Agent.queue_pressure, status = online.
   - Si shutdown=true → status = draining (RN-93).
+  - Persiste Agent.discarded_events si la clave viene y es numérica (D37/RN-131,
+    tolerancia hacia adelante: ausente no pisa, no numérico se ignora con log).
 
 Barrido periódico (~10 s): marca offline a agentes con last_heartbeat > 30 s (RN-92).
 
@@ -78,6 +80,9 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
     # consumer (ver docstring del módulo) — leer una clave más no toca la
     # verificación de firma, que firma el dict completo (streams.py).
     watch_path_status = payload.get("watch_path_status")
+    # D37/RN-131: clave nueva, opcional, mismo criterio tolerante que
+    # queue_pressure y watch_path_status.
+    discarded_events = payload.get("discarded_events")
 
     with Session(engine) as session:
         agent = session.exec(select(Agent).where(Agent.agent_id == agent_id)).first()
@@ -123,6 +128,17 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
                     "heartbeat_consumer.invalid_watch_path_status",
                     agent_id=agent_id,
                 )
+
+        # D37/RN-131: mismo criterio tolerante que watch_path_status/queue_pressure.
+        # Clave ausente (agente sin actualizar a D37) → no tocar el valor guardado.
+        # Valor no numérico → ignorar con log, procesar el resto del heartbeat igual.
+        if discarded_events is not None:
+            if isinstance(discarded_events, bool):
+                log.warning("heartbeat_consumer.invalid_discarded_events", agent_id=agent_id)
+            elif isinstance(discarded_events, (int, float)):
+                agent.discarded_events = int(discarded_events)
+            else:
+                log.warning("heartbeat_consumer.invalid_discarded_events", agent_id=agent_id)
 
         session.add(agent)
         session.commit()
