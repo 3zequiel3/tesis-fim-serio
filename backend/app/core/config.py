@@ -52,6 +52,17 @@ class Settings(BaseSettings):
     rate_limit_login_window_seconds: int = 900  # ventana login en segundos
     rate_limit_api_per_minute: int = 100        # req/min por user_id autenticado
 
+    # Rate limiting de ingesta de eventos (RN-88, D7) — ventana deslizante por
+    # agent_id del consumer del stream `events`. Parametrizado para las corridas
+    # de laboratorio del Cap. 5 (P1 del plan de medición): con el límite fijo en
+    # 100/60s la batería de concurrencia se estrangula a sí misma. Los defaults
+    # reproducen exactamente el comportamiento hardcodeado previo.
+    # La ventana es float (no int como la de login) porque además de acotar el
+    # presupuesto deriva el `retry_after` del `event_nack` de rate_limited
+    # (D37/RN-131), que se expresa en segundos fraccionarios.
+    rate_limit_ingest_events: int = 100             # eventos máximos por ventana y agent_id
+    rate_limit_ingest_window_seconds: float = 60.0  # ventana de ingesta en segundos
+
     # command_ack (D30/RN-124, C36) — umbral del barrido de timeout de comandos sin confirmar.
     # Default alineado con _DEAD_THRESHOLD_S del heartbeat_consumer (300s).
     command_ack_timeout_seconds: int = 300

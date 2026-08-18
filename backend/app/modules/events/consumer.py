@@ -45,6 +45,7 @@ import structlog
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
+from app.core.config import settings
 from app.core.database import engine
 from app.core.streams import (
     CONSUMER_GROUP,
@@ -99,16 +100,28 @@ _BATCH_SIZE = 50
 # ── Rate limiter ──────────────────────────────────────────────────────────────
 
 class _RateLimiter:
-    """Ventana deslizante 60s por agent_id (RN-88). Single-threaded asyncio."""
+    """
+    Ventana deslizante por agent_id (RN-88). Single-threaded asyncio.
+
+    Límite y ventana salen de `Settings` (`rate_limit_ingest_events` /
+    `rate_limit_ingest_window_seconds`, defaults 100 / 60.0 = comportamiento
+    histórico). Los argumentos explícitos siguen existiendo para los tests que
+    necesitan una ventana chica; `_RateLimiter()` sin argumentos lee la config.
+    El algoritmo no cambia: `seconds_until_available()` deriva el `retry_after`
+    del nack de rate_limited (D37/RN-131) del MISMO `self._window_s`, así que
+    reconfigurar la ventana mantiene coherente el remanente informado al agente.
+    """
 
     # D37/RN-131: piso positivo pequeño para el retry_after derivado — un
     # remanente <=0 por una carrera entre check() y seconds_until_available()
     # nunca se expone tal cual, para no inducir un busy-loop en el agente.
     _MIN_RETRY_AFTER_S = 0.5
 
-    def __init__(self, limit: int = 100, window_s: float = 60.0) -> None:
-        self._limit = limit
-        self._window_s = window_s
+    def __init__(self, limit: int | None = None, window_s: float | None = None) -> None:
+        self._limit = limit if limit is not None else settings.rate_limit_ingest_events
+        self._window_s = (
+            window_s if window_s is not None else settings.rate_limit_ingest_window_seconds
+        )
         self._buckets: dict[str, deque[float]] = {}
 
     def check(self, key: str) -> bool:

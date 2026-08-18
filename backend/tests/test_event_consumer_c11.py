@@ -114,6 +114,44 @@ def test_rate_limiter_sliding_window_expires() -> None:
     assert rl.check("a1") is True  # ventana expiró
 
 
+def test_rate_limiter_defaults_preserve_legacy_behaviour() -> None:
+    """P1: parametrizar no cambia producción — los defaults son los históricos 100/60s."""
+    from app.core.config import Settings
+
+    assert Settings.model_fields["rate_limit_ingest_events"].default == 100
+    assert Settings.model_fields["rate_limit_ingest_window_seconds"].default == 60.0
+
+
+def test_rate_limiter_honours_configured_limit(monkeypatch) -> None:
+    """P1: `_RateLimiter()` sin argumentos toma el límite de Settings, no el 100 hardcodeado."""
+    import app.modules.events.consumer as consumer_mod
+
+    monkeypatch.setattr(consumer_mod.settings, "rate_limit_ingest_events", 3)
+    monkeypatch.setattr(consumer_mod.settings, "rate_limit_ingest_window_seconds", 60.0)
+
+    rl = consumer_mod._RateLimiter()
+    assert [rl.check("a1") for _ in range(4)] == [True, True, True, False]
+
+
+def test_rate_limiter_honours_configured_window_in_retry_after(monkeypatch) -> None:
+    """
+    P1 + D37/RN-131: al reconfigurar la ventana, el `retry_after` derivado sigue
+    saliendo de la MISMA ventana (no de un 60.0 hardcodeado).
+    """
+    import app.modules.events.consumer as consumer_mod
+
+    monkeypatch.setattr(consumer_mod.settings, "rate_limit_ingest_events", 2)
+    monkeypatch.setattr(consumer_mod.settings, "rate_limit_ingest_window_seconds", 10.0)
+
+    rl = consumer_mod._RateLimiter()
+    rl.check("a1")
+    rl.check("a1")
+    assert rl.check("a1") is False
+
+    retry = rl.seconds_until_available("a1")
+    assert 9.0 < retry <= 10.0, f"retry_after debe derivar de la ventana de 10s, dio {retry}"
+
+
 def test_reset_rate_limiter_clears_state() -> None:
     from app.modules.events.consumer import reset_rate_limiter, _rate_limiter
     for _ in range(100):

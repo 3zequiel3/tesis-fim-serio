@@ -136,6 +136,12 @@ services:
       # La integración funcional (webhook del workflow n8n) es el Change 13
       # (integration-n8n-notifications); reemplazar esta URL por ese webhook.
       N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://n8n:5678/healthz}
+      # P1 del plan de medición (Cap. 5): rate limit de ingesta parametrizado
+      # (RN-88). Los defaults reproducen el comportamiento histórico —
+      # 100 eventos por ventana de 60 s y por agent_id. Subirlos SOLO para las
+      # baterías de carga; también fija el retry_after del event_nack (D37/RN-131).
+      RATE_LIMIT_INGEST_EVENTS: ${RATE_LIMIT_INGEST_EVENTS:-100}
+      RATE_LIMIT_INGEST_WINDOW_SECONDS: ${RATE_LIMIT_INGEST_WINDOW_SECONDS:-60}
     volumes:
       - backend_certs:/certs
     ports:

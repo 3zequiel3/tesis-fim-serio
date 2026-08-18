@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-131 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-132 |
 
 ---
 
@@ -776,7 +776,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1225,6 +1225,22 @@ Esta decisión cierra el contrato: el estado **se deriva en el backend** a parti
 **Excepciones:**
 - La ventana de skew sobre `sent_at` no protege contra un agente comprometido que sella `sent_at` con la hora actual: ese atacante controla el proceso y puede publicar lo que quiera. RN-90 nunca protegió contra eso; su alcance real es el mensaje capturado y reproducido por un tercero, y ese caso sigue cubierto.
 - El backpressure no acota el crecimiento de la cola por sí solo: lo acota el drop-oldest de RN-40. Una tormenta sostenida más allá de los 100 MB pierde los eventos más antiguos, que es el comportamiento ya especificado y no se modifica acá.
+
+#### D38 / RN-132: Rate limit de ingesta configurable y definición del tiempo de recuperación
+
+**Descripción:** El límite de ingesta de eventos por agente (RN-88: 100 eventos/min) estaba fijado en el código. Eso vuelve **infalsable** el indicador "tiempo de recuperación tras reconexión < 30 s" del protocolo de evaluación: con 3.000 eventos encolados durante un corte y el límite vigente, el drenaje tarda unos 30 minutos, de modo que el umbral no se puede cumplir **ni refutar**. Un criterio que ningún resultado posible puede contradecir no es un criterio.
+
+**Condición:** Configuración del backend y ejecución de las baterías de medición del capítulo de resultados.
+
+**Resultado:**
+
+- El límite y la ventana del rate limiter de ingesta se exponen como configuración (`Settings`), con **valores por defecto idénticos a los actuales** (100 eventos, ventana de 60 s). Esta decisión no cambia el comportamiento de producción: sólo lo hace observable y ajustable.
+- **El "tiempo de recuperación" se define como el intervalo entre la reconexión del agente y el momento en que su cola local queda vacía con todos los eventos persistidos en el backend** — es decir, drenaje completo, no reconexión.
+- Una corrida de medición **puede** elevar el límite para que el drenaje no quede dominado por el estrangulamiento artificial, y en ese caso **debe declarar el valor efectivo usado** junto al resultado. Un número de recuperación sin el límite con el que se obtuvo no es interpretable.
+- El valor por defecto de producción no se modifica en función de las mediciones. Si una corrida sugiere que 100/min es inadecuado para una carga real, eso abre una decisión propia y no se resuelve subiendo el default de forma tácita.
+
+**Excepciones:**
+- El límite configurado no relaja ninguna otra garantía: los eventos que exceden el presupuesto siguen tratándose según D37/RN-131 —nack retenible con `retry_after` y backpressure, sin destruir el evento—, con lo cual un límite bajo alarga el drenaje pero **no pierde** eventos. Esa es justamente la propiedad que vuelve medible al indicador.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
