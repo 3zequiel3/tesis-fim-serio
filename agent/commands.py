@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from agent.config import AgentConfig
     from agent.detector import FanotifyDetector
     from agent.journal import JournalManager
+    from agent.preflight import PreflightRegistry
     from agent.state import AgentState
 
 log = structlog.get_logger()
@@ -112,6 +113,7 @@ async def dispatch(
     journal: "JournalManager | None" = None,
     quarantine_dir: str | None = None,
     detector: "FanotifyDetector | None" = None,
+    preflight_registry: "PreflightRegistry | None" = None,
 ) -> None:
     """
     Enruta un comando entrante del stream `commands`.
@@ -182,6 +184,7 @@ async def dispatch(
             state=state,
             valkey_client=valkey_client,
             config=config,
+            preflight_registry=preflight_registry,
         )
     elif cmd_type == "rescan_baseline":
         await handle_rescan_baseline(
@@ -317,10 +320,14 @@ async def handle_restore_file(
     # 1. Journal pre-acción
     journal.write_pending(journal_key, path, "restore")
 
-    # 2. Restaurar
+    # 2. Restaurar (D36/RN-130: mismo camino de escritura que
+    # DecisionEngine._auto_restore en agent/decision.py, duplicado porque la
+    # razón ya llegaba al backend por otro canal — el ack — y ahora habla el
+    # mismo vocabulario cerrado)
     error_reason: str | None = None
     try:
         from agent.baseline import select_restorable_content
+        from agent.decision import action_error_from_oserror, parse_baseline_mode
 
         entry = baseline_engine.read_entry(path)
         if entry is None:
@@ -331,17 +338,46 @@ async def handle_restore_file(
             raise ValueError("no_restorable_content")
 
         content, expected_hash = result
+
+        # D-6: metadata ausente => la restauración falla, nunca a medias.
+        mode = parse_baseline_mode(entry.mode)
+        uid = entry.uid
+        gid = entry.gid
+        if mode is None or uid is None or gid is None:
+            raise ValueError("no_baseline_metadata")
+
         tmp_path = path + ".fim_restore_tmp"
+
+        # O_EXCL: un tmp huérfano hace fallar el intento en vez de reusarlo.
         try:
-            with open(tmp_path, "wb") as f:
-                f.write(content)
+            fd = os.open(tmp_path, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
+        except OSError as exc:
+            raise ValueError(action_error_from_oserror(exc, fallback="write_failed")) from exc
+
+        try:
+            os.write(fd, content)
+            os.fsync(fd)
+            # D-6: fchown ANTES que fchmod — chown(2) limpia setuid/setgid.
+            os.fchown(fd, uid, gid)
+            os.fchmod(fd, mode)
+        except OSError as exc:
+            os.close(fd)
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise ValueError(action_error_from_oserror(exc, fallback="write_failed")) from exc
+        else:
+            os.close(fd)
+
+        try:
             os.replace(tmp_path, path)
         except OSError as exc:
             try:
                 os.unlink(tmp_path)
             except OSError:
                 pass
-            raise ValueError(f"write_failed: {exc}") from exc
+            raise ValueError(action_error_from_oserror(exc, fallback="write_failed")) from exc
 
         restored_hash = hashlib.sha256(content).hexdigest()
         if expected_hash and restored_hash != expected_hash:
@@ -434,6 +470,12 @@ async def handle_quarantine_file(
         error_reason = "file_not_found"
         log.error("commands.quarantine_file.not_found", path=path)
         journal.mark_failed(journal_key, error_reason)
+    except OSError as exc:
+        from agent.decision import action_error_from_oserror
+
+        error_reason = action_error_from_oserror(exc, fallback="move_failed")
+        log.error("commands.quarantine_file.failed", path=path, error=error_reason)
+        journal.mark_failed(journal_key, error_reason)
     except Exception as exc:
         error_reason = str(exc)
         log.error("commands.quarantine_file.failed", path=path, error=error_reason)
@@ -456,6 +498,7 @@ async def handle_update_config(
     state: "AgentState",
     valkey_client: "avalkey.Valkey",
     config: "AgentConfig",
+    preflight_registry: "PreflightRegistry | None" = None,
 ) -> None:
     """
     Actualiza la configuración de watch_paths del agente (C14, D-C14-06/07).
@@ -463,9 +506,16 @@ async def handle_update_config(
     1. Calcula paths añadidos/eliminados respecto a la config actual.
     2. Llama detector.reload_watch_paths(new_paths) para actualizar fanotify.
     3. Llama baseline_engine.run_scan(added_paths) solo para paths nuevos.
-    4. Actualiza config.yaml local con los nuevos watch_paths.
+    3.5. Reejecuta el preflight sobre el conjunto nuevo (D36/RN-130): hace
+         visible la limitación conocida de D36 — un path agregado en caliente
+         queda monitoreado pero no remediable hasta regenerar el drop-in.
+    4. Actualiza config.yaml local con los nuevos watch_paths. El fallo de
+       persistencia deja de tragarse en silencio: se loguea a error y se
+       refleja en el registry para que el heartbeat lo reporte (D36/RN-130).
     5. Actualiza state.ruleset_version y persiste en state.json.
-    6. Publica event_ack.
+    6. Publica event_ack — el `ok` no cambia por un fallo de persistencia:
+       la recarga en caliente sí ocurrió (D-9 del design). El canal para
+       "corriendo pero degradado" es el heartbeat, no el ack.
     """
     import yaml
 
@@ -510,8 +560,16 @@ async def handle_update_config(
         if added_paths:
             baseline_engine.run_scan(added_paths)
 
+        # D36/RN-130: reejecutar el preflight sobre el conjunto nuevo. No
+        # bloquea el reload — es la vista de reporte, no un gate (D-7/D-9).
+        if preflight_registry is not None:
+            from agent.preflight import run_preflight
+
+            preflight_registry.update(run_preflight(new_paths))
+
         # Actualizar config.yaml local
         config_path = config._config_path or Path("/etc/fim-agent/config.yaml")
+        config_persisted = False
         try:
             import os as _os
             if _os.path.exists(str(config_path)):
@@ -522,9 +580,20 @@ async def handle_update_config(
                 with open(tmp_path, "w") as f:
                     yaml.dump(raw_config, f, default_flow_style=False)
                 _os.replace(tmp_path, str(config_path))
+                config_persisted = True
                 log.info("commands.update_config.config_yaml_updated", path=str(config_path))
+            else:
+                # Antes era un no-op sin ni siquiera un warning (:517).
+                log.error("commands.update_config.config_yaml_missing", path=str(config_path))
         except Exception as exc:
-            log.warning("commands.update_config.config_yaml_write_failed", error=str(exc))
+            # Antes era log.warning y el ack seguía reportando ok=true
+            # mientras la config persistida divergía del runtime en
+            # silencio (:526-527). El `ok` del ack sigue sin cambiar
+            # (D-9) — el canal correcto es el heartbeat.
+            log.error("commands.update_config.config_yaml_write_failed", error=str(exc))
+
+        if preflight_registry is not None:
+            preflight_registry.set_config_persisted(config_persisted)
 
         # Actualizar watch_paths en el objeto config en memoria
         config.watch_paths = new_paths  # type: ignore[assignment]
@@ -546,6 +615,12 @@ async def handle_update_config(
         error_reason = str(exc)
         log.error("commands.update_config.failed", error=error_reason)
 
+    # D36/RN-130 (D-9): `ok` NO se condiciona a config_persisted. Un fallo al
+    # persistir config.yaml no entra en error_reason — la recarga en caliente
+    # sí ocurrió (detector recargado, paths escaneados, config en memoria
+    # actualizada) y el contrato de event_ack ya está asentado (C36). El
+    # canal para "corriendo pero degradado" es el heartbeat (config_persisted
+    # en el registry), no el ack. NO "arreglar" esto acoplando persist a ok.
     await _publish_ack(
         valkey_client, command_id, "update_config", event_id, config,
         ok=error_reason is None, error=error_reason,

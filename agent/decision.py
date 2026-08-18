@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import errno
 import hashlib
 import os
 import shutil
@@ -30,6 +31,40 @@ class _ActionFailed(Exception):
 
 def _hash_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def parse_baseline_mode(value: str | None) -> int | None:
+    """Parsea el `mode` guardado en la entry del baseline (D36/RN-130, D-6).
+
+    Acepta la forma con prefijo que produce `oct(stat.S_IMODE(...))`
+    (`'0o644'`, `agent/baseline.py:293`) y el octal desnudo (`'644'`).
+    Devuelve None ante cualquier otra cosa — ausencia o basura enrutan al
+    mismo fallo (`no_baseline_metadata`) en vez de a un default silencioso.
+    Preserva los bits setuid/setgid/sticky: `S_IMODE` ya cubre 0o7777.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = int(value, 8)
+    except ValueError:
+        return None
+    if not (0 <= parsed <= 0o7777):
+        return None
+    return parsed
+
+
+def action_error_from_oserror(exc: OSError, *, fallback: str) -> str:
+    """Mapea un OSError real al vocabulario cerrado de `_ActionFailed` (D36/RN-130, D-7).
+
+    `errno.EROFS` -> `read_only_mount` (barrera de mount, D36).
+    `errno.EACCES` / `errno.EPERM` -> `permission_denied` (barrera DAC, D36).
+    Cualquier otro -> el `fallback` del sitio de la llamada.
+    """
+    if exc.errno == errno.EROFS:
+        return "read_only_mount"
+    if exc.errno in (errno.EACCES, errno.EPERM):
+        return "permission_denied"
+    return fallback
 
 
 class DecisionEngine:
@@ -78,6 +113,10 @@ class DecisionEngine:
 
         except _ActionFailed as exc:
             payload["action_failed"] = True
+            # D36/RN-130 (D-7): la causa viaja al lado del booleano. No se
+            # escribe en la ruta de éxito, mismo criterio que action_failed,
+            # para que todo consumidor la lea con .get(...).
+            payload["action_error"] = exc.error
             _error = exc.error
 
             def commit_fn() -> None:  # type: ignore[no-redef]
@@ -126,6 +165,7 @@ class DecisionEngine:
                 except _ActionFailed as exc:
                     self._journal.mark_failed(entry.event_id, exc.error)
                     payload["action_failed"] = True
+                    payload["action_error"] = exc.error
                 except Exception as exc:
                     log.warning(
                         "decision.rehydrate.unexpected",
@@ -156,7 +196,12 @@ class DecisionEngine:
     # ── acciones privadas ─────────────────────────────────────────────────────
 
     def _auto_restore(self, event_id: str, path: str, payload: dict[str, Any]) -> None:
-        """Restaura archivo desde baseline o snapshot. Verifica SHA-256 (RN-30–33)."""
+        """Restaura archivo desde baseline o snapshot, incluida su metadata (RN-30–33, D36/RN-130 D-6).
+
+        Verifica SHA-256 igual que antes. Además restaura mode/uid/gid desde la
+        entry del baseline: sin esto, habilitar las capabilities de escritura
+        convierte un feature roto en una vulnerabilidad (D-6 del design).
+        """
         from agent.baseline import select_restorable_content
 
         entry = self._baseline.read_entry(path)
@@ -169,23 +214,59 @@ class DecisionEngine:
 
         content, expected_hash = result
 
+        # D36/RN-130 (D-6): metadata ausente => la restauración FALLA, nunca
+        # se completa a medias. mark_absent produce entries con las tres en
+        # None (agent/baseline.py:351-360); publicar un archivo del sistema
+        # con dueño fim-agent y modo por umask es peor que no restaurarlo.
+        mode = parse_baseline_mode(entry.mode)
+        uid = entry.uid
+        gid = entry.gid
+        if mode is None or uid is None or gid is None:
+            raise _ActionFailed("no_baseline_metadata")
+
         tmp_path = path + ".fim_restore_tmp"
+
+        # O_EXCL: un .fim_restore_tmp huérfano de un intento previo hace
+        # fallar el intento en vez de truncarlo y reusarlo. No se toca el
+        # huérfano — no es nuestro para borrar si no lo abrimos nosotros.
         try:
-            with open(tmp_path, "wb") as f:
-                f.write(content)
+            fd = os.open(tmp_path, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
+        except OSError as exc:
+            raise _ActionFailed(action_error_from_oserror(exc, fallback="write_failed")) from exc
+
+        try:
+            os.write(fd, content)
+            os.fsync(fd)
+            # D36/RN-130 (D-6): fchown ANTES que fchmod, en ese orden, sobre
+            # el descriptor (no por path — elimina el TOCTOU sobre el tmp).
+            # chown(2) LIMPIA los bits setuid/setgid de un archivo. Invertir
+            # este orden produce una restauración que reporta éxito y deja
+            # un binario privilegiado (p.ej. /usr/bin/sudo) sin su bit
+            # setuid. No reordenar esto "por prolijidad".
+            os.fchown(fd, uid, gid)
+            os.fchmod(fd, mode)
+        except OSError as exc:
+            os.close(fd)
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise _ActionFailed(action_error_from_oserror(exc, fallback="write_failed")) from exc
+        else:
+            os.close(fd)
+
+        try:
             os.replace(tmp_path, path)
         except OSError as exc:
             try:
                 os.unlink(tmp_path)
             except OSError:
                 pass
-            raise _ActionFailed(f"write_failed: {exc}") from exc
+            raise _ActionFailed(action_error_from_oserror(exc, fallback="write_failed")) from exc
 
         restored_hash = _hash_bytes(content)
         if expected_hash and restored_hash != expected_hash:
             raise _ActionFailed("hash_mismatch_after_restore")
-
-        payload["event_type"] = "auto_restored"
 
     def _quarantine(self, event_id: str, path: str, payload: dict[str, Any]) -> None:
         """Mueve archivo a directorio de cuarentena (RN-34–37)."""
@@ -197,5 +278,5 @@ class DecisionEngine:
         except FileNotFoundError:
             raise _ActionFailed("file_not_found")
         except OSError as exc:
-            raise _ActionFailed(f"move_failed: {exc}") from exc
+            raise _ActionFailed(action_error_from_oserror(exc, fallback="move_failed")) from exc
         payload["quarantine_path"] = quarantine_path

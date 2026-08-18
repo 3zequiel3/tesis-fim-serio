@@ -697,6 +697,11 @@ async def test_file_deleted_auto_restore_evaluates_before_mark_absent(tmp_path: 
     entry_mock.hash = good_hash
     entry_mock.snapshots = []
     entry_mock.symlink_target = None  # archivo regular, no symlink (D33/RN-127)
+    # D36/RN-130 (D-6): metadata requerida o la restauración aborta con
+    # no_baseline_metadata. Misma uid/gid del proceso => fchown es un no-op.
+    entry_mock.mode = "0o644"
+    entry_mock.uid = os.getuid()
+    entry_mock.gid = os.getgid()
     # read_entry returns known-good BEFORE mark_absent, None AFTER
     call_count_ref = [0]
 
@@ -771,7 +776,10 @@ async def test_file_deleted_auto_restore_evaluates_before_mark_absent(tmp_path: 
     assert payload.get("action_failed") is not True, (
         "auto_restore must succeed — baseline was available at evaluate time"
     )
-    assert payload.get("event_type") == "auto_restored"
+    # D35/RN-129 (C40): event_type conserva el tipo de operación de filesystem,
+    # el resultado de la acción viaja en action/action_failed.
+    assert payload.get("event_type") == "file_deleted"
+    assert payload.get("action") == "auto_restore"
 
     # After successful restore: write_entry called (not mark_absent)
     baseline.write_entry.assert_called_once_with(str(target_path))

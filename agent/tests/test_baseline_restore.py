@@ -15,6 +15,14 @@ import pytest
 from agent.baseline import BaselineEntry, Snapshot, select_restorable_content
 
 
+def _metadata(entry_mock: MagicMock, *, mode: str = "0o644") -> None:
+    """D36/RN-130 (D-6): fchown a la propia uid/gid es un no-op permitido sin
+    CAP_CHOWN, así que estos tests restauran metadata sin privilegios."""
+    entry_mock.mode = mode
+    entry_mock.uid = os.getuid()
+    entry_mock.gid = os.getgid()
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _make_entry(
@@ -176,6 +184,7 @@ def test_auto_restore_absent_file_uses_snapshot(tmp_path: Path) -> None:
     entry_mock.content_b64 = None
     entry_mock.hash = None
     entry_mock.snapshots = [snap]
+    _metadata(entry_mock)
     baseline.read_entry.return_value = entry_mock
 
     engine = DecisionEngine(
@@ -206,7 +215,9 @@ def test_auto_restore_absent_file_uses_snapshot(tmp_path: Path) -> None:
     payload, commit_fn = engine.evaluate_and_act(change)
 
     assert payload.get("action_failed") is not True
-    assert payload["event_type"] == "auto_restored"
+    # D35/RN-129 (C40): event_type conserva el tipo de operación de filesystem.
+    assert payload["event_type"] == "file_absent"
+    assert payload["action"] == "auto_restore"
     assert target.read_bytes() == snap_content
 
 
@@ -287,6 +298,7 @@ async def test_handle_restore_file_from_snapshot(tmp_path: Path) -> None:
     entry_mock.content_b64 = None
     entry_mock.hash = None
     entry_mock.snapshots = [snap]
+    _metadata(entry_mock)
 
     baseline = MagicMock()
     baseline.read_entry.return_value = entry_mock

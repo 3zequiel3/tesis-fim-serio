@@ -2,16 +2,32 @@
 from __future__ import annotations
 
 import base64
+import errno
 import hashlib
 import json
+import os
+import stat
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agent.decision import DecisionEngine
+from agent.decision import (
+    DecisionEngine,
+    action_error_from_oserror,
+    parse_baseline_mode,
+)
 from agent.journal import JournalManager
 from agent.rules import RulesCache
+
+
+def _metadata(entry_mock: MagicMock, *, mode: str = "0o644") -> None:
+    """Setea mode/uid/gid del entry_mock al proceso actual (D36/RN-130 D-6):
+    restaura sin privilegios porque fchown a la misma uid/gid ya dueña del
+    tmp es un no-op permitido sin CAP_CHOWN."""
+    entry_mock.mode = mode
+    entry_mock.uid = os.getuid()
+    entry_mock.gid = os.getgid()
 
 
 def _make_engine(
@@ -76,14 +92,21 @@ def test_decision_auto_restore_success(tmp_path: Path) -> None:
     entry_mock = MagicMock()
     entry_mock.content_b64 = content_b64
     entry_mock.hash = content_hash
+    _metadata(entry_mock, mode="0o640")
     baseline.read_entry.return_value = entry_mock
 
     change = _make_change(tmp_path, path=str(target))
     payload, commit_fn = engine.evaluate_and_act(change)
 
-    assert payload["event_type"] == "auto_restored"
+    # D35/RN-129 (C40): event_type conserva el tipo de operación de filesystem,
+    # el resultado de la acción viaja en action/action_failed.
+    assert payload["event_type"] == "file_modified"
+    assert payload["action"] == "auto_restore"
     assert payload.get("action_failed") is not True
+    assert "action_error" not in payload
     assert target.read_bytes() == content  # archivo restaurado
+    # D36/RN-130 (D-6): la restauración también aplica mode desde el baseline.
+    assert stat.S_IMODE(target.stat().st_mode) == 0o640
 
     # Estado pending hasta que commit_fn sea invocado
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
@@ -122,15 +145,153 @@ def test_decision_auto_restore_hash_mismatch(tmp_path: Path) -> None:
     entry_mock = MagicMock()
     entry_mock.content_b64 = base64.b64encode(content).decode()
     entry_mock.hash = "000000deadbeef"  # hash incorrecto
+    _metadata(entry_mock)
     baseline.read_entry.return_value = entry_mock
 
     change = _make_change(tmp_path, path=str(target))
     payload, commit_fn = engine.evaluate_and_act(change)
 
     assert payload["action_failed"] is True
+    assert payload["action_error"] == "hash_mismatch_after_restore"
     commit_fn()
     data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
     assert data["error"] == "hash_mismatch_after_restore"
+
+
+# ── metadata ausente (D36/RN-130 D-6): la restauración falla, no a medias ────
+
+
+def test_decision_auto_restore_missing_uid_fails(tmp_path: Path) -> None:
+    """mark_absent produce entries con uid/gid/mode en None (baseline.py:351-360)."""
+    content = b"good content"
+    target = tmp_path / "target.txt"
+    original = b"unrelated content on disk"
+    target.write_bytes(original)
+
+    engine, journal, baseline = _make_engine(tmp_path, action="auto_restore")
+    entry_mock = MagicMock()
+    entry_mock.content_b64 = base64.b64encode(content).decode()
+    entry_mock.hash = hashlib.sha256(content).hexdigest()
+    entry_mock.mode = "0o644"
+    entry_mock.uid = None
+    entry_mock.gid = os.getgid()
+    baseline.read_entry.return_value = entry_mock
+
+    change = _make_change(tmp_path, path=str(target))
+    payload, commit_fn = engine.evaluate_and_act(change)
+
+    assert payload["action_failed"] is True
+    assert payload["action_error"] == "no_baseline_metadata"
+    # El archivo original queda intacto — no hay restauración parcial.
+    assert target.read_bytes() == original
+    assert not (tmp_path / "target.txt.fim_restore_tmp").exists()
+    commit_fn()
+    data = json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
+    assert data["error"] == "no_baseline_metadata"
+
+
+def test_decision_auto_restore_unparseable_mode_fails(tmp_path: Path) -> None:
+    content = b"good content"
+    target = tmp_path / "target.txt"
+    original = b"unrelated content on disk"
+    target.write_bytes(original)
+
+    engine, journal, baseline = _make_engine(tmp_path, action="auto_restore")
+    entry_mock = MagicMock()
+    entry_mock.content_b64 = base64.b64encode(content).decode()
+    entry_mock.hash = hashlib.sha256(content).hexdigest()
+    entry_mock.mode = "not-an-octal-mode"
+    entry_mock.uid = os.getuid()
+    entry_mock.gid = os.getgid()
+    baseline.read_entry.return_value = entry_mock
+
+    change = _make_change(tmp_path, path=str(target))
+    payload, commit_fn = engine.evaluate_and_act(change)
+
+    assert payload["action_failed"] is True
+    assert payload["action_error"] == "no_baseline_metadata"
+    assert target.read_bytes() == original
+
+
+# ── rehidratación: action_error también viaja en el payload reidratado ───────
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_action_error_propagates(tmp_path: Path) -> None:
+    engine, journal, baseline = _make_engine(tmp_path, action="auto_restore")
+    entry_mock = MagicMock()
+    entry_mock.content_b64 = None
+    entry_mock.snapshots = []
+    baseline.read_entry.return_value = entry_mock
+
+    journal.write_pending("evt-rehy-003", str(tmp_path / "target.txt"), "auto_restore")
+
+    publisher = MagicMock()
+    publisher.publish = AsyncMock()
+
+    await engine.rehydrate(publisher)
+
+    payload = publisher.publish.call_args[0][0]
+    assert payload["action_failed"] is True
+    assert payload["action_error"] == "no_restorable_content"
+
+
+# ── funciones puras: parse_baseline_mode (D36/RN-130 D-6) ────────────────────
+
+
+def test_parse_baseline_mode_prefixed_octal() -> None:
+    assert parse_baseline_mode("0o644") == 0o644
+
+
+def test_parse_baseline_mode_bare_octal() -> None:
+    assert parse_baseline_mode("644") == 0o644
+
+
+def test_parse_baseline_mode_none() -> None:
+    assert parse_baseline_mode(None) is None
+
+
+def test_parse_baseline_mode_garbage() -> None:
+    assert parse_baseline_mode("not-a-mode") is None
+    assert parse_baseline_mode("") is None
+
+
+def test_parse_baseline_mode_preserves_setuid_setgid_sticky() -> None:
+    """S_IMODE cubre 0o7777 — setuid, setgid y sticky viajan en el baseline."""
+    assert parse_baseline_mode("0o4755") == 0o4755
+    assert parse_baseline_mode("0o2755") == 0o2755
+    assert parse_baseline_mode("0o1755") == 0o1755
+
+
+# ── funciones puras: action_error_from_oserror (D36/RN-130 D-7) ──────────────
+
+
+def test_action_error_from_oserror_erofs_maps_to_read_only_mount() -> None:
+    exc = OSError(errno.EROFS, "Read-only file system")
+    assert action_error_from_oserror(exc, fallback="write_failed") == "read_only_mount"
+
+
+def test_action_error_from_oserror_eacces_maps_to_permission_denied() -> None:
+    exc = OSError(errno.EACCES, "Permission denied")
+    assert action_error_from_oserror(exc, fallback="write_failed") == "permission_denied"
+
+
+def test_action_error_from_oserror_eperm_maps_to_permission_denied() -> None:
+    exc = OSError(errno.EPERM, "Operation not permitted")
+    assert action_error_from_oserror(exc, fallback="write_failed") == "permission_denied"
+
+
+def test_action_error_from_oserror_other_uses_fallback() -> None:
+    exc = OSError(errno.ENOSPC, "No space left on device")
+    assert action_error_from_oserror(exc, fallback="write_failed") == "write_failed"
+    assert action_error_from_oserror(exc, fallback="move_failed") == "move_failed"
+
+
+def test_action_error_from_oserror_does_not_leak_message() -> None:
+    exc = OSError(errno.EROFS, "Read-only file system: /etc/shadow")
+    result = action_error_from_oserror(exc, fallback="write_failed")
+    assert result == "read_only_mount"
+    assert "/etc/shadow" not in result
 
 
 # ── quarantine ────────────────────────────────────────────────────────────────
@@ -212,6 +373,7 @@ async def test_rehydrate_auto_restore_pending(tmp_path: Path) -> None:
     entry_mock = MagicMock()
     entry_mock.content_b64 = content_b64
     entry_mock.hash = content_hash
+    _metadata(entry_mock)
     baseline.read_entry.return_value = entry_mock
 
     # Simular entrada pending del arranque anterior
@@ -225,7 +387,11 @@ async def test_rehydrate_auto_restore_pending(tmp_path: Path) -> None:
     assert target.read_bytes() == content
     publisher.publish.assert_called_once()
     payload = publisher.publish.call_args[0][0]
-    assert payload["event_type"] == "auto_restored"
+    # D35/RN-129 (C40): event_type conserva el valor del journal, no se
+    # sobrescribe con el resultado de la acción.
+    assert payload["event_type"] == "file_modified"
+    assert payload["action"] == "auto_restore"
+    assert payload.get("action_failed") is not True
     assert not (tmp_path / "journal" / "evt-rehy-001.json").exists()  # eliminado
 
 

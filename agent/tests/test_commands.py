@@ -626,20 +626,22 @@ async def test_journal_written_before_filesystem_op(
     journal_key = "cmd-journal-test-001"
     journal_path = journal_dir / f"{journal_key}.json"
 
-    # Interceptar la escritura al filesystem para verificar que el journal ya existe
+    # Interceptar la escritura al filesystem para verificar que el journal ya existe.
+    # D36/RN-130: el tmp de restauración se abre con os.open (O_EXCL), no con
+    # el builtin open(), así que se intercepta os.open.
     filesystem_write_happened = []
     journal_existed_at_write = []
 
-    original_open = open
+    original_os_open = os.open
 
-    def patched_open(path, mode="r", **kwargs):
+    def patched_os_open(path, flags, mode=0o777, *args, **kwargs):
         path_str = str(path)
-        if ".fim_restore_tmp" in path_str and "wb" in mode:
+        if ".fim_restore_tmp" in path_str:
             filesystem_write_happened.append(True)
             journal_existed_at_write.append(journal_path.exists())
-        return original_open(path, mode, **kwargs)
+        return original_os_open(path, flags, mode, *args, **kwargs)
 
-    with patch("builtins.open", side_effect=patched_open):
+    with patch("os.open", side_effect=patched_os_open):
         await commands.handle_restore_file(
             command=cmd,
             baseline_engine=baseline_engine,
@@ -723,3 +725,224 @@ async def test_publish_ack_logs_error_without_shared_secret(
     mock_valkey.xadd.assert_called_once()
     ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
     assert "signature" not in ack_payload
+
+
+# ── D36/RN-130 (D-9): handle_update_config reejecuta el preflight ────────────
+#
+# Cobertura ya existente en test_audit_fixes.py:250 (stale version) y
+# test_stability_fixes.py:197,249 (persistencia por path cargado / default) —
+# estos tests cubren SOLO el wiring nuevo con PreflightRegistry, sin duplicar
+# esa cobertura.
+
+
+@pytest.mark.asyncio
+async def test_update_config_reruns_preflight_and_updates_registry(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, tmp_path
+):
+    """El registry termina reflejando el conjunto NUEVO de watch_paths, no el viejo."""
+    from agent import commands
+    from agent.preflight import PreflightRegistry
+
+    registry = PreflightRegistry()
+    registry.update({"/etc": "writable"})  # estado del arranque, con paths viejos
+
+    new_watch_dir = tmp_path / "new_watch_target"
+    new_watch_dir.mkdir()
+
+    cmd = _make_command(agent_config, shared_secret, "update_config", {
+        "watch_paths": [str(new_watch_dir)],
+        "ruleset_version": 1,
+    })
+
+    await commands.handle_update_config(
+        command=cmd,
+        detector=None,
+        baseline_engine=baseline_engine,
+        state=agent_state,
+        valkey_client=mock_valkey,
+        config=agent_config,
+        preflight_registry=registry,
+    )
+
+    snapshot = registry.snapshot()
+    assert str(new_watch_dir) in snapshot
+    assert snapshot[str(new_watch_dir)] == "writable"
+    # El path viejo ya no forma parte del snapshot — el mapa se reemplaza,
+    # no se acumula (RN: "un path removido desaparece del reporte").
+    assert "/etc" not in snapshot
+
+
+@pytest.mark.asyncio
+async def test_update_config_preflight_rerun_does_not_block_reload(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey
+):
+    """Aunque TODO el conjunto nuevo clasifique como no escribible, el reload
+    del detector y el ack siguen completándose (el preflight es reporte, no gate)."""
+    from agent import commands
+    from agent.preflight import PreflightRegistry
+
+    registry = PreflightRegistry()
+    mock_detector = MagicMock()
+
+    cmd = _make_command(agent_config, shared_secret, "update_config", {
+        "watch_paths": ["/this/path/does/not/exist/anywhere"],
+        "ruleset_version": 1,
+    })
+
+    await commands.handle_update_config(
+        command=cmd,
+        detector=mock_detector,
+        baseline_engine=baseline_engine,
+        state=agent_state,
+        valkey_client=mock_valkey,
+        config=agent_config,
+        preflight_registry=registry,
+    )
+
+    mock_detector.reload_watch_paths.assert_called_once()
+    assert registry.snapshot()["/this/path/does/not/exist/anywhere"] == "missing"
+    mock_valkey.xadd.assert_called_once()
+    ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert ack_payload["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_update_config_write_failure_marks_registry_and_logs_error(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, tmp_path
+):
+    """Antes era un log.warning mudo con el ack igual reportando ok=true — el
+    registry ahora hace visible la divergencia entre runtime y disco (D-9)."""
+    from agent import commands
+    from agent.preflight import PreflightRegistry
+
+    config_dir = tmp_path / "etc_fim_agent"
+    config_dir.mkdir()
+    config_path = config_dir / "config.yaml"
+    config_path.write_text("watch_paths: ['/etc']\n")
+    agent_config._config_path = config_path
+
+    registry = PreflightRegistry()
+
+    cmd = _make_command(agent_config, shared_secret, "update_config", {
+        "watch_paths": ["/etc"],
+        "ruleset_version": 1,
+    })
+
+    os.chmod(str(config_dir), 0o500)  # el .tmp de escritura no puede crearse
+    try:
+        with patch("agent.commands.log") as mock_log:
+            await commands.handle_update_config(
+                command=cmd,
+                detector=None,
+                baseline_engine=baseline_engine,
+                state=agent_state,
+                valkey_client=mock_valkey,
+                config=agent_config,
+                preflight_registry=registry,
+            )
+    finally:
+        os.chmod(str(config_dir), 0o700)
+
+    assert registry.config_persisted is False
+    error_calls = [
+        c for c in mock_log.error.call_args_list
+        if c.args and c.args[0] == "commands.update_config.config_yaml_write_failed"
+    ]
+    assert len(error_calls) == 1
+    assert error_calls[0].kwargs.get("error")  # detalle no vacío
+    # El ack sigue ok=true: la recarga en caliente sí ocurrió (D-9).
+    ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert ack_payload["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_update_config_missing_file_is_logged_and_marks_registry_false(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, tmp_path
+):
+    """Antes: un no-op sin ni siquiera un warning (:517). Ahora se loguea y el
+    registry refleja que la config no está persistida en disco."""
+    from agent import commands
+    from agent.preflight import PreflightRegistry
+
+    agent_config._config_path = tmp_path / "does_not_exist" / "config.yaml"
+    registry = PreflightRegistry()
+
+    cmd = _make_command(agent_config, shared_secret, "update_config", {
+        "watch_paths": ["/etc"],
+        "ruleset_version": 1,
+    })
+
+    with patch("agent.commands.log") as mock_log:
+        await commands.handle_update_config(
+            command=cmd,
+            detector=None,
+            baseline_engine=baseline_engine,
+            state=agent_state,
+            valkey_client=mock_valkey,
+            config=agent_config,
+            preflight_registry=registry,
+        )
+
+    assert registry.config_persisted is False
+    mock_log.error.assert_any_call(
+        "commands.update_config.config_yaml_missing",
+        path=str(agent_config._config_path),
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_config_successful_write_clears_degraded_persistence_state(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, tmp_path
+):
+    """Un update_config posterior que sí persiste limpia el estado degradado."""
+    from agent import commands
+    from agent.preflight import PreflightRegistry
+
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text("watch_paths: ['/etc']\n")
+    agent_config._config_path = config_path
+
+    registry = PreflightRegistry()
+    registry.set_config_persisted(False)  # estado degradado de un intento previo
+
+    cmd = _make_command(agent_config, shared_secret, "update_config", {
+        "watch_paths": ["/etc"],
+        "ruleset_version": 2,
+    })
+
+    await commands.handle_update_config(
+        command=cmd,
+        detector=None,
+        baseline_engine=baseline_engine,
+        state=agent_state,
+        valkey_client=mock_valkey,
+        config=agent_config,
+        preflight_registry=registry,
+    )
+
+    assert registry.config_persisted is True
+
+
+@pytest.mark.asyncio
+async def test_update_config_without_registry_still_works(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey
+):
+    """preflight_registry=None (agente sin wiring, o tests legacy) no rompe el handler."""
+    from agent import commands
+
+    cmd = _make_command(agent_config, shared_secret, "update_config", {
+        "watch_paths": ["/etc"],
+        "ruleset_version": 1,
+    })
+
+    await commands.handle_update_config(
+        command=cmd,
+        detector=None,
+        baseline_engine=baseline_engine,
+        state=agent_state,
+        valkey_client=mock_valkey,
+        config=agent_config,
+    )
+
+    ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert ack_payload["status"] == "ok"
