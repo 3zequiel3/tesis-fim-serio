@@ -233,12 +233,24 @@ async def test_fix01_no_primaries_log_only_delivers(session):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FIX-02 — Valkey publish post-commit
+#
+# D37/RN-131 invierte la NORMA de FIX-02 ("publicar solo post-commit"): el
+# comando ahora se ENCOLA (enqueue_baseline_update/enqueue_restore_file)
+# DENTRO de la misma transacción que la mutación del evento, antes del
+# commit — la garantía de durabilidad la da la atomicidad de esa fila
+# `PublishedCommand pending`, no el orden del XADD. Estos dos tests siguen
+# vivos porque el intento inmediato best-effort de `publish_pending_commands`
+# sigue corriendo DESPUÉS de `db.commit()` (para no agregar la latencia del
+# poller al camino feliz) — así que el XADD observado acá sigue ocurriendo
+# después del commit, mismo efecto observable, mecanismo distinto: si el
+# XADD fallara, el evento seguiría approved/rejected igual (ver
+# test_stream_ack_durability_outbox.py, que sí ejercita esa rama).
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 def test_fix02_approve_publish_is_post_commit(mem_engine, admin_user, agent_with_secret):
-    """8.3 — _approve_single: publish_baseline_update ocurre DESPUÉS de db.commit().
-    Cuando xadd es llamado, el evento ya tiene status=approved en la DB."""
+    """8.3 — _approve_single: el XADD del outbox (best-effort, `publish_pending_commands`)
+    ocurre DESPUÉS de db.commit(). Cuando xadd es llamado, el evento ya tiene status=approved en la DB."""
     agent, _ = agent_with_secret
     with Session(mem_engine) as s:
         event = _make_pending_event(s, agent_id=agent.agent_id)
@@ -274,8 +286,8 @@ def test_fix02_approve_publish_is_post_commit(mem_engine, admin_user, agent_with
 
 
 def test_fix02_reject_publish_is_post_commit(mem_engine, admin_user, agent_with_secret):
-    """8.4 — _reject_single: publish_restore_file ocurre DESPUÉS de db.commit().
-    Cuando xadd es llamado, el evento ya tiene status=rejected en la DB."""
+    """8.4 — _reject_single: el XADD del outbox (best-effort, `publish_pending_commands`)
+    ocurre DESPUÉS de db.commit(). Cuando xadd es llamado, el evento ya tiene status=rejected en la DB."""
     agent, _ = agent_with_secret
     with Session(mem_engine) as s:
         event = _make_pending_event(s, agent_id=agent.agent_id)

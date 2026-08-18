@@ -66,6 +66,11 @@ class RejectionReason(str, Enum):
     unknown_agent = "unknown_agent"
     duplicate_event = "duplicate_event"
     rate_limited = "rate_limited"
+    # D37/RN-131: enmienda de invalid_schema. schema_version PARSEABLE pero
+    # mayor al soportado — el agente va adelantado, el payload es válido y
+    # el backend todavía no sabe leerlo. Nack RETENIBLE (con retry_after),
+    # a diferencia de invalid_schema que sigue siendo terminal.
+    schema_version_unsupported = "schema_version_unsupported"
 
 
 class RejectedEventAudit(SQLModel, table=True):

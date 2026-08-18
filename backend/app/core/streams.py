@@ -41,10 +41,25 @@ def verify_payload(secret: bytes, payload: dict[str, Any]) -> bool:
     return hmac.compare_digest(expected, sig)
 
 
-def check_schema_version(payload: dict[str, Any]) -> bool:
-    """True si schema_version es parseable y <= SCHEMA_VERSION soportado (RN-91)."""
+def check_schema_version(payload: dict[str, Any]) -> str:
+    """
+    Clasifica `schema_version` del payload en tres resultados (D37/RN-131,
+    enmienda de RN-91 — antes devolvía un booleano):
+
+      "ok"          — parseable y <= SCHEMA_VERSION soportado.
+      "unsupported" — parseable pero MAYOR al soportado: el agente va
+                       adelantado respecto del backend. El payload es válido,
+                       el receptor todavía no sabe leerlo — condición
+                       transitoria, nack RETENIBLE (el evento se conserva).
+      "invalid"     — no parseable (clave ausente, tipo inválido, valor no
+                       entero) — payload ilegible, defecto PERMANENTE, nack
+                       terminal.
+
+    Se distinguen porque tienen desenlaces opuestos para el agente: uno
+    reintenta con backpressure, el otro descarta y deja de reintentar.
+    """
     try:
         v = int(payload["schema_version"])
     except (KeyError, ValueError, TypeError):
-        return False
-    return v <= SCHEMA_VERSION
+        return "invalid"
+    return "ok" if v <= SCHEMA_VERSION else "unsupported"

@@ -124,7 +124,13 @@ def test_reset_rate_limiter_clears_state() -> None:
 
 
 def test_consumer_rate_limited_event_audited(mem_engine, agent, shared_secret) -> None:
-    """El evento 101 de un agente genera RejectedEventAudit(rate_limited) y hace XACK."""
+    """
+    El evento 101 de un agente genera RejectedEventAudit(rate_limited) y hace XACK.
+
+    D37/RN-131: rate_limited ahora publica un event_nack con retry_after
+    numérico (derivado del rate limiter) — el evento se conserva del lado
+    del agente, ya no es mudo.
+    """
     import app.modules.events.consumer as consumer_mod
     import app.modules.events.service as svc_mod
 
@@ -142,7 +148,12 @@ def test_consumer_rate_limited_event_audited(mem_engine, agent, shared_secret) -
         rejections = session.exec(select(RejectedEventAudit)).all()
     assert any(r.reason == RejectionReason.rate_limited for r in rejections)
     mock_client.xack.assert_called_once()
-    mock_client.xadd.assert_not_called()  # sin event_ack
+    mock_client.xadd.assert_called_once()  # D37/RN-131: event_nack con retry_after
+    nack = json.loads(mock_client.xadd.call_args[0][1]["data"])
+    assert nack["type"] == "event_nack"
+    assert nack["reason"] == "rate_limited"
+    assert isinstance(nack["retry_after"], (int, float))
+    assert nack["retry_after"] > 0
 
     consumer_mod.reset_rate_limiter()
 
@@ -150,7 +161,10 @@ def test_consumer_rate_limited_event_audited(mem_engine, agent, shared_secret) -
 # ── InvalidTransitionError en consumer ────────────────────────────────────────
 
 def test_consumer_invalid_transition_xacks_and_does_not_persist(mem_engine, agent, shared_secret) -> None:
-    """Si ingest_event lanza InvalidTransitionError el consumer hace XACK y no persiste."""
+    """
+    Si ingest_event lanza InvalidTransitionError el consumer hace XACK, no
+    persiste, y (D37/RN-131) publica un event_nack terminal reason=invalid_schema.
+    """
     import app.modules.events.consumer as consumer_mod
     import app.modules.events.service as svc_mod
     from app.modules.events.service import InvalidTransitionError, EventStatus
@@ -172,4 +186,8 @@ def test_consumer_invalid_transition_xacks_and_does_not_persist(mem_engine, agen
         events = session.exec(select(Event)).all()
     assert len(events) == 0
     mock_client.xack.assert_called_once()
-    mock_client.xadd.assert_not_called()
+    mock_client.xadd.assert_called_once()
+    nack = json.loads(mock_client.xadd.call_args[0][1]["data"])
+    assert nack["type"] == "event_nack"
+    assert nack["reason"] == "invalid_schema"
+    assert "retry_after" not in nack

@@ -108,16 +108,20 @@ def _run_handle(mem_engine, payload: dict, mock_client=None) -> None:
 # ── Rechazos ───────────────────────────────────────────────────────────────────
 
 def test_reject_invalid_schema(mem_engine, agent) -> None:
-    from app.core.streams import SCHEMA_VERSION, sign_payload
+    """
+    D37/RN-131: invalid_schema queda reservado al payload ILEGIBLE (aquí,
+    schema_version no parseable) — permanece terminal. Un schema_version
+    demasiado alto pero parseable es un motivo distinto, ver
+    test_reject_schema_version_unsupported (D37/RN-131 enmienda RN-91).
+    """
     payload = {
         "event_id": str(uuid.uuid4()),
         "agent_id": "agent-test",
         "detected_at": datetime.now(timezone.utc).isoformat(),
-        "schema_version": SCHEMA_VERSION + 99,  # demasiado alto
+        "schema_version": "not-a-number",  # no parseable
         "path": "/etc/passwd",
         "hash_detected": "h",
     }
-    payload["signature"] = sign_payload(os.urandom(32), payload)
     mock_client = _run_handle(mem_engine, payload)
 
     with Session(mem_engine) as session:
@@ -125,7 +129,14 @@ def test_reject_invalid_schema(mem_engine, agent) -> None:
     assert len(rejections) == 1
     assert rejections[0].reason == RejectionReason.invalid_schema
     mock_client.xack.assert_called_once()
-    mock_client.xadd.assert_not_called()
+    # D37/RN-131: invalid_schema es terminal, pero terminal ya no es mudo —
+    # emite un event_nack sin retry_after, firmado con el secreto del agente
+    # (que existe: la fixture `agent` lo registra).
+    mock_client.xadd.assert_called_once()
+    nack = json.loads(mock_client.xadd.call_args[0][1]["data"])
+    assert nack["type"] == "event_nack"
+    assert nack["reason"] == "invalid_schema"
+    assert "retry_after" not in nack
 
 
 def test_reject_unknown_agent(mem_engine) -> None:

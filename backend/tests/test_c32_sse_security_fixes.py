@@ -399,14 +399,20 @@ def test_heartbeat_consumer_does_not_change_revoked_status(mem_engine, agent_rev
 
 
 # ── FIX-03: PublishedCommand para todos los tipos de comando ──────────────────
+#
+# D37/RN-131 renombró publish_restore_file/publish_quarantine_file/
+# publish_baseline_update a enqueue_* e invirtió su contrato: ya NO hacen
+# `XADD` ni `session.commit()` propio (antes, C36/FIX-03, sí) — insertan la
+# fila `PublishedCommand` `pending` en la sesión y el caller decide cuándo
+# comitea (misma transacción que su mutación); el `XADD` lo hace el
+# despachador genérico `publish_pending_commands` después.
 
 
-def test_published_command_inserted_for_restore_file(session, event, agent_online):
-    """FIX-03 / D10: publish_restore_file inserta un PublishedCommand."""
-    from app.modules.actions.streams import publish_restore_file
+def test_enqueue_restore_file_inserts_published_command(session, event, agent_online):
+    """FIX-03 / D10, actualizado por D37/RN-131: enqueue_restore_file inserta un PublishedCommand pending."""
+    from app.modules.actions.streams import enqueue_restore_file
 
-    mock_valkey = MagicMock()
-    publish_restore_file(session, mock_valkey, event)
+    enqueue_restore_file(session, event)
     session.commit()
 
     cmds = session.exec(select(PublishedCommand).where(
@@ -414,15 +420,14 @@ def test_published_command_inserted_for_restore_file(session, event, agent_onlin
     )).all()
     assert len(cmds) == 1
     assert cmds[0].target_agent_id == "agent-online"
-    mock_valkey.xadd.assert_called_once()
+    assert cmds[0].status == "pending"  # D37/RN-131: nace pending, sin XADD propio
 
 
-def test_published_command_inserted_for_quarantine_file(session, event, agent_online):
-    """FIX-03 / D10: publish_quarantine_file inserta un PublishedCommand."""
-    from app.modules.actions.streams import publish_quarantine_file
+def test_enqueue_quarantine_file_inserts_published_command(session, event, agent_online):
+    """FIX-03 / D10, actualizado por D37/RN-131: enqueue_quarantine_file inserta un PublishedCommand pending."""
+    from app.modules.actions.streams import enqueue_quarantine_file
 
-    mock_valkey = MagicMock()
-    publish_quarantine_file(session, mock_valkey, event)
+    enqueue_quarantine_file(session, event)
     session.commit()
 
     cmds = session.exec(select(PublishedCommand).where(
@@ -430,20 +435,19 @@ def test_published_command_inserted_for_quarantine_file(session, event, agent_on
     )).all()
     assert len(cmds) == 1
     assert cmds[0].target_agent_id == "agent-online"
-    mock_valkey.xadd.assert_called_once()
+    assert cmds[0].status == "pending"
 
 
-def test_published_command_inserted_for_baseline_update(session, event, agent_online):
-    """FIX-03 / D10: publish_baseline_update inserta un PublishedCommand con ruleset_version."""
-    from app.modules.actions.streams import publish_baseline_update
+def test_enqueue_baseline_update_inserts_published_command_with_ruleset_version(session, event, agent_online):
+    """FIX-03 / D10, actualizado por D37/RN-131: enqueue_baseline_update inserta un PublishedCommand con ruleset_version."""
+    from app.modules.actions.streams import enqueue_baseline_update
 
     # Asegurar que existe una fila de RulesetVersion (requerida por el caller en producción)
     rv = RulesetVersion(version=7)
     session.add(rv)
     session.flush()
 
-    mock_valkey = MagicMock()
-    publish_baseline_update(session, mock_valkey, event, ruleset_version=7)
+    enqueue_baseline_update(session, event, ruleset_version=7)
     session.commit()
 
     cmds = session.exec(select(PublishedCommand).where(
@@ -452,7 +456,7 @@ def test_published_command_inserted_for_baseline_update(session, event, agent_on
     assert len(cmds) == 1
     assert cmds[0].target_agent_id == "agent-online"
     assert cmds[0].ruleset_version == 7
-    mock_valkey.xadd.assert_called_once()
+    assert cmds[0].status == "pending"
 
 
 def test_published_command_inserted_for_rule_sync(mem_engine, agent_online, secret):
@@ -481,21 +485,30 @@ def test_published_command_inserted_for_rule_sync(mem_engine, agent_online, secr
     mock_valkey.xadd.assert_called_once()
 
 
-def test_published_command_inserted_before_xadd_atomicity(session, event, agent_online):
+def test_enqueue_restore_file_survives_xadd_failure(session, event, agent_online):
     """
-    FIX-03: si el XADD a Valkey falla, la transacción se revierte y
-    PublishedCommand NO debe quedar en DB.
+    D37/RN-131 invierte FIX-03/C36: antes, si el XADD fallaba, la fila
+    PublishedCommand debía revertirse junto con la transacción (no había
+    outbox — la única garantía era "todo o nada" contra Valkey). Ahora
+    `enqueue_restore_file` NO hace XADD — solo inserta la fila `pending` en
+    la sesión — así que un XADD que falle después (en
+    `publish_pending_commands`, corrido por el despachador) NO puede
+    arrastrarla: la fila sigue viva y `pending`, lista para que el
+    despachador reintente. Esta es la garantía que reemplaza a la anterior.
     """
-    from app.modules.actions.streams import publish_restore_file
+    from app.modules.actions.streams import enqueue_restore_file
+    from app.modules.rules.service import publish_pending_commands
+    from valkey.exceptions import ValkeyError
+
+    enqueue_restore_file(session, event)
+    session.commit()
 
     mock_valkey = MagicMock()
-    mock_valkey.xadd.side_effect = RuntimeError("Valkey unavailable")
+    mock_valkey.xadd.side_effect = ValkeyError("Valkey unavailable")
 
-    with pytest.raises(RuntimeError):
-        publish_restore_file(session, mock_valkey, event)
-        # No hacer commit — el error se propaga
+    published = publish_pending_commands(session, mock_valkey)
+    assert published == 0
 
-    # Como no se hizo commit, el PublishedCommand no debe persistir
-    session.rollback()
     cmds = session.exec(select(PublishedCommand)).all()
-    assert len(cmds) == 0, "PublishedCommand NO debe quedar si el XADD falla y se hace rollback"
+    assert len(cmds) == 1, "la fila NO se pierde cuando el XADD falla — queda pending para el próximo intento"
+    assert cmds[0].status == "pending"

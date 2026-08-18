@@ -3,9 +3,11 @@ Regression tests C22/C8 — Result taxonomy in the event consumer.
 
 Verifica:
 - Éxito → XACK + event_ack publicado.
-- Dedup/supersede-race → XACK sin re-insert (event_ack para dedup).
-- InvalidTransitionError → XACK + audit en rejected_events_audit, sin event_ack.
-- SQLAlchemyError → NO XACK, mensaje queda en PEL.
+- Dedup/supersede-race → XACK sin re-insert (event_ack para ambos — D37/RN-131
+  agregó event_ack al skip de supersede-race, que antes era mudo).
+- InvalidTransitionError → XACK + audit en rejected_events_audit + event_nack
+  terminal reason=invalid_schema (D37/RN-131 — antes era mudo).
+- SQLAlchemyError → NO XACK, mensaje queda en PEL, sin respuesta.
 """
 
 from __future__ import annotations
@@ -156,11 +158,20 @@ def test_dedup_path_xack_without_reinsert(mem_engine, agent, shared_secret) -> N
     mock2.xadd.assert_called_once()  # event_ack re-publicado (dedup legítimo)
 
 
-# ── Supersede race → XACK sin event_ack ─────────────────────────────────────
+# ── Supersede race → XACK + event_ack (D37/RN-131) ───────────────────────────
 
 
-def test_supersede_race_xack_no_event_ack(mem_engine, agent, shared_secret) -> None:
-    """mark_superseded retorna False (carrera) → _ingest retorna None → solo XACK."""
+def test_supersede_race_xack_and_event_ack(mem_engine, agent, shared_secret) -> None:
+    """
+    mark_superseded retorna False (carrera) → _ingest retorna None → XACK.
+
+    D37/RN-131 (D-3 del design): este skip ahora TAMBIÉN publica event_ack —
+    antes era mudo, y sin respuesta el agente reintentaba para siempre un
+    evento que, del lado del backend, ya está representado por el pending
+    activo. Ver Requirement "Protocolo ACK end-to-end..." del delta spec
+    backend-event-consumer, escenario "Skip por carrera en superseded también
+    responde ack".
+    """
     payload = _make_valid_payload("agent-test", shared_secret)
     import app.modules.events.consumer as consumer_mod
     import app.modules.events.service as service_mod
@@ -189,13 +200,22 @@ def test_supersede_race_xack_no_event_ack(mem_engine, agent, shared_secret) -> N
         asyncio.run(consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload)))
 
     mock_client.xack.assert_called_once()
-    mock_client.xadd.assert_not_called()  # sin event_ack en race
+    mock_client.xadd.assert_called_once()  # D37/RN-131: event_ack, ya no mudo
+    ack = json.loads(mock_client.xadd.call_args[0][1]["data"])
+    assert ack["type"] == "event_ack"
+    assert ack["event_id"] == payload["event_id"]
 
 
-# ── InvalidTransitionError → XACK + audit ────────────────────────────────────
+# ── InvalidTransitionError → XACK + audit + nack terminal (D37/RN-131) ───────
 
 
-def test_invalid_transition_xack_and_audits(mem_engine, agent, shared_secret) -> None:
+def test_invalid_transition_xack_audits_and_terminal_nack(mem_engine, agent, shared_secret) -> None:
+    """
+    D37/RN-131 (D-3 del design): este desenlace ahora TAMBIÉN publica un
+    event_nack terminal (reason=invalid_schema, sin retry_after) — antes era
+    mudo, y sin respuesta el agente republicaba para siempre un evento que
+    nunca iba a entrar.
+    """
     payload = _make_valid_payload("agent-test", shared_secret)
     import app.modules.events.consumer as consumer_mod
 
@@ -212,7 +232,11 @@ def test_invalid_transition_xack_and_audits(mem_engine, agent, shared_secret) ->
             asyncio.run(consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload)))
 
     mock_client.xack.assert_called_once()
-    mock_client.xadd.assert_not_called()  # sin event_ack
+    mock_client.xadd.assert_called_once()
+    nack = json.loads(mock_client.xadd.call_args[0][1]["data"])
+    assert nack["type"] == "event_nack"
+    assert nack["reason"] == "invalid_schema"
+    assert "retry_after" not in nack
 
     with Session(mem_engine) as session:
         audits = session.exec(select(RejectedEventAudit)).all()
