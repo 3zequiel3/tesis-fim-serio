@@ -229,7 +229,11 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
 
     valkey_client: avalkey.Valkey = create_valkey_client(cfg)
 
-    queue = EventQueue(cfg.storage.queue_dir)
+    queue = EventQueue(
+        cfg.storage.queue_dir,
+        discard_dir=cfg.storage.discard_dir,
+        max_discard_files=cfg.publisher.max_discard_files,
+    )
     publisher = Publisher(cfg, queue, valkey_client)
 
     loop.add_signal_handler(signal.SIGTERM, lambda: _shutdown("SIGTERM"))

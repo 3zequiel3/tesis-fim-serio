@@ -2,7 +2,13 @@
 Heartbeat periódico del agente FIM al stream Valkey 'agent_heartbeat' (RN-92, RN-93).
 
 Publica cada 10 s: {agent_id, timestamp, queue_size, ruleset_version,
-                    queue_pressure, shutdown, schema_version, watch_path_status}.
+                    queue_pressure, shutdown, schema_version, watch_path_status,
+                    discarded_events}.
+
+D37/RN-131: `discarded_events` es el contador acumulativo de eventos que el
+publisher descartó localmente desde el arranque del proceso (techo de
+reintentos o nack terminal), mismo patrón que el contador de drops del
+detector (event_drops).
 
 Durante el drenaje graceful (SIGTERM) publica shutdown=true (RN-93).
 ruleset_version se lee desde state.json (via AgentState).
@@ -99,6 +105,8 @@ class HeartbeatPublisher:
             "out_of_scope_drops": self._detector.out_of_scope_drops if self._detector is not None else 0,
             # D33/RN-127: contador detective opcional, sin cambio de comportamiento.
             "hardlink_suspected": self._detector.hardlink_suspected if self._detector is not None else 0,
+            # D37/RN-131: contador acumulativo de eventos descartados localmente.
+            "discarded_events": self._publisher.discarded_events if self._publisher is not None else 0,
         }
         if self._preflight_registry is not None:
             payload["watch_path_status"] = self._preflight_registry.snapshot()

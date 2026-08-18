@@ -1,14 +1,30 @@
 """
 Publisher de eventos FIM al stream Valkey 'events' con cola offline durable.
 
-Flujo por evento:
-  1. Encolar (queue.enqueue) — siempre primero (D-2).
-  2. XADD al stream 'events'.
-  3. Esperar event_ack en 'commands'; si no llega en 60 s, reintentar.
-  4. Al recibir event_ack, borrar archivo de cola (queue.remove).
+Flujo por evento (D37/RN-131 — cuatro desenlaces, no "esperar ack o
+reintentar para siempre"):
+  1. Encolar (queue.enqueue) — siempre primero, incluso si el publisher está
+     en backpressure (D-6). El payload en cola NO lleva 'signature' ni
+     'sent_at': ambos se calculan en _stamp_and_sign, justo antes de cada
+     XADD — primer envío, reintento y drenaje (D-1).
+  2. XADD al stream 'events', salvo que el publisher esté pausado.
+  3. Esperar respuesta tipada en 'commands' (event_ack / event_nack):
+     - event_ack: borrar de la cola (queue.remove) — desenlace feliz.
+     - event_nack CON retry_after (retenible: rate_limited,
+       schema_version_unsupported): conservar el evento, NO contar el
+       intento, aplicar backpressure agente-wide (D-6).
+     - event_nack SIN retry_after (terminal: invalid_schema, clock_skew):
+       borrar de la cola y archivar en el directorio de descarte con el
+       motivo (queue.discard).
+     - sin respuesta en 60 s: reintentar (_retry_loop), acotado por
+       max_publish_attempts. Al agotarse, descartar con
+       'max_attempts_exceeded' (D-7).
+  Toda respuesta (ack o nack) para un event_id que no está en la cola local
+  se ignora — D-4: contención ante un nack inducido por un tercero antes de
+  la verificación HMAC en el backend.
 
 Drenaje al arrancar: re-publica toda la cola local en orden FIFO antes de
-procesar eventos nuevos (RN-39).
+procesar eventos nuevos (RN-39), respetando backpressure.
 
 Listener de commands: filtra target_agent_id == agent_id | null (D5, RN-106).
 """
@@ -43,6 +59,10 @@ log = structlog.get_logger()
 STREAM_EVENTS = "events"
 STREAM_COMMANDS = "commands"
 _ACK_TIMEOUT_S = 60.0
+# D37/RN-131 (D-6 del design): piso de retry_after — un valor ausente, no
+# numérico o negativo en un event_nack retenible se trata como este mínimo,
+# nunca como cero (busy-loop) ni como el techo (castigo de más).
+_MIN_RETRY_AFTER_S = 1.0
 
 
 class Publisher:
@@ -61,6 +81,12 @@ class Publisher:
         # event_id → (loop_time_published, payload)
         self._pending: dict[str, tuple[float, dict[str, Any]]] = {}
         self._shutdown = False
+        # D37/RN-131 (D-6): reloj monotónico hasta el cual está suspendida la
+        # transmisión (backpressure agente-wide). 0.0 == sin pausa.
+        self._paused_until: float = 0.0
+        # D37/RN-131 (D-8): contador acumulativo de eventos descartados desde
+        # el arranque del proceso, expuesto en el heartbeat.
+        self._discarded_events: int = 0
         self._on_ack_cb: Callable[[str], None] | None = None
         self._on_update_config_cb: Callable[[list[str]], None] | None = None
         self._on_rule_sync_cb: Callable[[list, int], None] | None = None
@@ -84,7 +110,11 @@ class Publisher:
         )
 
     async def publish(self, event_data: dict[str, Any]) -> None:
-        """Encola y publica un evento. event_data son los campos del cambio detectado."""
+        """Encola y publica un evento. event_data son los campos del cambio detectado.
+
+        Encolar SIEMPRE ocurre, incluso si el publisher está en backpressure
+        (D-6 del design): la detección no se suspende, solo la transmisión.
+        """
         payload = self._build_payload(event_data)
         self._queue.enqueue(payload)
         # Register in _pending BEFORE xadd so _retry_loop can pick it up if xadd fails.
@@ -92,10 +122,14 @@ class Publisher:
             asyncio.get_running_loop().time(),
             payload,
         )
-        try:
-            await self._xadd(payload)
-        except Exception:
-            pass  # event stays in _pending; _retry_loop will retry
+        if self._is_paused():
+            log.debug("publisher.publish_paused", event_id=payload["event_id"])
+        else:
+            try:
+                await self._xadd(payload)
+                self._queue.bump_attempts(payload["event_id"])
+            except Exception:
+                pass  # event stays in _pending; _retry_loop will retry
         log.info("publisher.event_published", event_id=payload["event_id"])
 
     def register_callbacks(
@@ -138,38 +172,99 @@ class Publisher:
     def shutdown(self) -> bool:
         return self._shutdown
 
+    @property
+    def discarded_events(self) -> int:
+        """Contador acumulativo de eventos descartados desde el arranque (D-8)."""
+        return self._discarded_events
+
+    def _is_paused(self) -> bool:
+        """True si el publisher está en backpressure (D-6). Nunca lanza fuera
+        de un loop corriendo: si no hay loop, se asume sin pausa."""
+        if self._paused_until <= 0:
+            return False
+        try:
+            now = asyncio.get_running_loop().time()
+        except RuntimeError:
+            return False
+        return now < self._paused_until
+
+    def _apply_backpressure(self, retry_after: Any) -> float:
+        """Fija _paused_until a partir de un retry_after no confiable (D-5, D-6).
+
+        Acota por abajo (_MIN_RETRY_AFTER_S, nunca cero ni negativo) y por
+        arriba (config.publisher.max_retry_after_s — un valor firmado prueba
+        origen, no sensatez). Retorna el valor efectivo aplicado.
+        """
+        try:
+            value = float(retry_after)
+        except (TypeError, ValueError):
+            value = _MIN_RETRY_AFTER_S
+        if value <= 0:
+            value = _MIN_RETRY_AFTER_S
+        ceiling = self._config.publisher.max_retry_after_s
+        effective = min(value, ceiling)
+        loop = asyncio.get_running_loop()
+        self._paused_until = loop.time() + effective
+        return effective
+
     # ── helpers de construcción ───────────────────────────────────────────────
 
     def _build_payload(self, event_data: dict[str, Any]) -> dict[str, Any]:
-        payload: dict[str, Any] = {
+        """Payload ESTABLE del evento — sin 'signature' ni 'sent_at' (D-1).
+
+        Este es exactamente el payload que se persiste en la cola. `sent_at`
+        y `signature` se producen por transmisión en _stamp_and_sign, no acá.
+        """
+        return {
             "event_id": str(uuid.uuid4()),
             "agent_id": self._config.agent_id,
             "detected_at": datetime.now(timezone.utc).isoformat(),
             "schema_version": SCHEMA_VERSION,
             **event_data,
         }
-        payload["signature"] = sign_payload(self._shared_secret, payload)
-        return payload
+
+    def _stamp_and_sign(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Único punto de firma de eventos del agente (D-1 del design).
+
+        Sella sent_at con la hora UTC actual y firma sobre el canonical JSON
+        que incluye ese sent_at, para que quede cubierto por el HMAC. Se
+        invoca en cada transmisión: primer envío, reintento y drenaje.
+        """
+        stamped = {**payload, "sent_at": datetime.now(timezone.utc).isoformat()}
+        stamped["signature"] = sign_payload(self._shared_secret, stamped)
+        return stamped
 
     async def _xadd(self, payload: dict[str, Any]) -> None:
-        data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        """Sella y firma el payload estable, y lo publica al stream events."""
+        stamped = self._stamp_and_sign(payload)
+        data = json.dumps(stamped, sort_keys=True, separators=(",", ":"))
         await self._client.xadd(STREAM_EVENTS, {"data": data})
 
     # ── drenaje de cola ───────────────────────────────────────────────────────
 
     async def _drain_queue(self) -> None:
-        """Publica en FIFO todos los eventos pendientes en cola (RN-39)."""
-        for event in self._queue.iter_fifo():
-            event_id = event.get("event_id")
-            if not event_id:
+        """Publica en FIFO todos los eventos pendientes en cola (RN-39).
+
+        Consume iter_entries() (no iter_fifo()) para sembrar _pending con el
+        payload estable del sobre y respeta backpressure (D-6): si el
+        publisher está pausado, el evento se registra en _pending pero no se
+        transmite hasta que la pausa termine.
+        """
+        for entry in self._queue.iter_entries():
+            payload = entry.get("payload") or {}
+            event_id = payload.get("event_id")
+            if not event_id or event_id in self._pending:
                 continue
-            if event_id not in self._pending:
-                try:
-                    await self._xadd(event)
-                    self._pending[event_id] = (asyncio.get_running_loop().time(), event)
-                    log.info("publisher.queue_drained", event_id=event_id)
-                except Exception as exc:
-                    log.warning("publisher.drain_error", event_id=event_id, error=str(exc))
+            self._pending[event_id] = (asyncio.get_running_loop().time(), payload)
+            if self._is_paused():
+                log.debug("publisher.drain_paused", event_id=event_id)
+                continue
+            try:
+                await self._xadd(payload)
+                self._queue.bump_attempts(event_id)
+                log.info("publisher.queue_drained", event_id=event_id)
+            except Exception as exc:
+                log.warning("publisher.drain_error", event_id=event_id, error=str(exc))
 
     # ── flush de comandos pendientes al arrancar ──────────────────────────────
 
@@ -318,12 +413,50 @@ class Publisher:
         cmd_type = payload.get("type") or payload.get("command_type") or ""
         if cmd_type == "event_ack":
             event_id = payload.get("event_id")
-            if event_id:
-                self._queue.remove(event_id)
+            if not event_id:
+                return
+            # D-4: ignorar respuestas para event_id que no están en la cola
+            # local — contención ante un nack/ack inducido por un tercero.
+            if not self._queue.contains(event_id):
+                log.info("publisher.ack_unknown_event_id", event_id=event_id)
+                return
+            self._queue.remove(event_id)
+            self._pending.pop(event_id, None)
+            if self._on_ack_cb is not None:
+                self._on_ack_cb(event_id)
+            log.info("publisher.event_acked", event_id=event_id)
+        elif cmd_type == "event_nack":
+            event_id = payload.get("event_id")
+            if not event_id:
+                return
+            reason = payload.get("reason", "")
+            retry_after = payload.get("retry_after")
+            # D-4: misma contención que event_ack.
+            if not self._queue.contains(event_id):
+                log.info(
+                    "publisher.nack_unknown_event_id", event_id=event_id, reason=reason
+                )
+                return
+            if retry_after is not None:
+                # Retenible (D37 amendment: rate_limited y
+                # schema_version_unsupported comparten este tratamiento —
+                # la presencia de retry_after es lo que decide, no el motivo
+                # literal). NO cuenta el intento, NO se borra de la cola.
+                effective = self._apply_backpressure(retry_after)
+                log.info(
+                    "publisher.event_nack_retainable",
+                    event_id=event_id,
+                    reason=reason,
+                    retry_after=effective,
+                )
+            else:
+                # Terminal (invalid_schema de payload ilegible, clock_skew).
+                self._queue.discard(event_id, reason)
                 self._pending.pop(event_id, None)
-                if self._on_ack_cb is not None:
-                    self._on_ack_cb(event_id)
-                log.info("publisher.event_acked", event_id=event_id)
+                self._discarded_events += 1
+                log.warning(
+                    "publisher.event_nack_terminal", event_id=event_id, reason=reason
+                )
         elif cmd_type == "rule_sync":
             rules_payload = payload.get("rules")
             ruleset_version = payload.get("ruleset_version")
@@ -364,15 +497,37 @@ class Publisher:
     # ── retry loop ─────────────────────────────────────────────────────────────
 
     async def _retry_loop(self, stop_event: asyncio.Event) -> None:
-        """Re-publica eventos sin ack tras 60 s (RN-40, RN-73)."""
+        """Re-publica eventos sin ack tras 60 s (RN-40, RN-73).
+
+        Acotado por el techo de intentos por evento (D-7): al alcanzarlo, el
+        evento se descarta con 'max_attempts_exceeded' y deja de publicarse.
+        Respeta backpressure (D-6): mientras el publisher está pausado, no
+        emite ningún XADD.
+        """
         while not stop_event.is_set():
             await asyncio.sleep(5)
+            if self._is_paused():
+                continue
             now = asyncio.get_running_loop().time()
             for event_id, (published_at, payload) in list(self._pending.items()):
-                if now - published_at >= _ACK_TIMEOUT_S:
-                    try:
-                        await self._xadd(payload)
-                        self._pending[event_id] = (now, payload)
-                        log.info("publisher.event_retried", event_id=event_id)
-                    except Exception as exc:
-                        log.warning("publisher.retry_error", event_id=event_id, error=str(exc))
+                if now - published_at < _ACK_TIMEOUT_S:
+                    continue
+                attempts = self._queue.get_attempts(event_id)
+                if attempts >= self._config.publisher.max_publish_attempts:
+                    self._queue.discard(event_id, "max_attempts_exceeded")
+                    self._pending.pop(event_id, None)
+                    self._discarded_events += 1
+                    log.warning(
+                        "publisher.event_discarded",
+                        event_id=event_id,
+                        reason="max_attempts_exceeded",
+                        attempts=attempts,
+                    )
+                    continue
+                try:
+                    await self._xadd(payload)
+                    self._queue.bump_attempts(event_id)
+                    self._pending[event_id] = (now, payload)
+                    log.info("publisher.event_retried", event_id=event_id)
+                except Exception as exc:
+                    log.warning("publisher.retry_error", event_id=event_id, error=str(exc))

@@ -87,23 +87,29 @@ def test_canonical_json_identical_in_both_impls() -> None:
     assert canonical_json(p) == backend_canonical_json(p)
 
 
-# ── schema_version mayor rechazado ────────────────────────────────────────────
+# ── schema_version: tres resultados (D37/RN-131, enmienda de RN-91) ───────────
+#
+# check_schema_version dejó de devolver un booleano: distingue un payload
+# ilegible (schema_version ausente o no parseable, "invalid" — terminal) de
+# un agente adelantado respecto del backend ("unsupported" — retenible, el
+# evento sobrevive con backpressure). Ver D37 amendment y
+# backend/app/core/streams.py.
 
 def test_check_schema_version_supported() -> None:
-    assert check_schema_version({"schema_version": SCHEMA_VERSION}) is True
+    assert check_schema_version({"schema_version": SCHEMA_VERSION}) == "ok"
 
 
 def test_check_schema_version_older_accepted() -> None:
-    assert check_schema_version({"schema_version": 0}) is True
+    assert check_schema_version({"schema_version": 0}) == "ok"
 
 
-def test_check_schema_version_future_rejected() -> None:
-    assert check_schema_version({"schema_version": SCHEMA_VERSION + 1}) is False
+def test_check_schema_version_future_unsupported_retainable() -> None:
+    assert check_schema_version({"schema_version": SCHEMA_VERSION + 1}) == "unsupported"
 
 
-def test_check_schema_version_missing_rejected() -> None:
-    assert check_schema_version({}) is False
+def test_check_schema_version_missing_invalid_terminal() -> None:
+    assert check_schema_version({}) == "invalid"
 
 
-def test_check_schema_version_invalid_type_rejected() -> None:
-    assert check_schema_version({"schema_version": "not-a-number"}) is False
+def test_check_schema_version_invalid_type_terminal() -> None:
+    assert check_schema_version({"schema_version": "not-a-number"}) == "invalid"

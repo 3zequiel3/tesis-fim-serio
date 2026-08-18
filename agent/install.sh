@@ -28,7 +28,9 @@ else
 fi
 
 # --- 8.2: Create /var/lib/fim-agent/ directory tree ---
-for dir in baseline quarantine queue journal secrets certs; do
+# 'discarded' (Change 42, D37/RN-131): terminal local destination for events
+# that exhausted the retry ceiling or received a terminal event_nack.
+for dir in baseline quarantine queue journal secrets certs discarded; do
     mkdir -p "/var/lib/fim-agent/${dir}"
     chmod 0700 "/var/lib/fim-agent/${dir}"
 done
