@@ -11,14 +11,34 @@ WorkingDirectory=/opt/fim-agent
 
 ExecStart=/opt/fim-agent/venv/bin/python -m agent --config /etc/fim-agent/config.yaml
 
-# Capabilities:
+# D36/RN-130: secreto de bootstrap de un solo uso. Guion => opcional, no
+# bloquea el arranque una vez que el agente ya bootstrappeó y el archivo fue
+# borrado. install.sh instala una plantilla en /etc/fim-agent/env solo si no
+# existe (0600 root:root — systemd lo lee como root antes de bajar privilegios).
+EnvironmentFile=-/etc/fim-agent/env
+
+# Capabilities (D36/RN-130 — cada una mapea a un syscall concreto del camino
+# de remediación de auto_restore/quarantine, RN-30-37):
 #  - CAP_SYS_ADMIN: fanotify_init + marcar filesystems completos.
 #  - CAP_DAC_READ_SEARCH: open_by_handle_at(2), usado para resolver el path de los
 #    eventos en modo FID (creación/borrado/renombrado y objetos ya inexistentes).
-AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH
-CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH
+#  - CAP_DAC_OVERRIDE: crear el tmp en un directorio root-owned, el rename de
+#    os.replace, y el unlink del origen en shutil.move (agent/decision.py).
+#  - CAP_FOWNER: fchmod sobre un archivo cuyo dueño no es el euid del proceso
+#    (restauración de mode desde el baseline).
+#  - CAP_CHOWN: fchown a un uid/gid arbitrario (restauración de uid/gid).
+# Ambas directivas deben listar las cinco: una ambient capability ausente del
+# bounding set se descarta en silencio (el bounding set acota el permitted set).
+AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN
 
 # Hardening — restrict what the process can access
+# ProtectSystem=strict se conserva (D36 descartó bajar a =full: dejaría
+# /usr/bin sin remediación posible, justo el escenario que motiva la
+# herramienta). ReadWritePaths ya NO es una lista fija: install.sh la deriva
+# de los watch_paths configurados y la emite como drop-in aditivo en
+# /etc/systemd/system/fim-agent.service.d/10-watchpaths.conf (agent/deployment.py).
+# Este unit base declara solo los directorios propios del agente.
 ProtectSystem=strict
 NoNewPrivileges=true
 PrivateTmp=true
@@ -27,6 +47,13 @@ ReadWritePaths=/var/lib/fim-agent /var/log/fim-agent
 # Restart policy
 Restart=on-failure
 RestartSec=5s
+# D36/RN-130 (D-10): 78 = EX_CONFIG (sysexits.h). Los fallos de CONFIGURACIÓN
+# del arranque (secreto de bootstrap ausente, shared_secret ausente, config.yaml
+# ausente o inválido) salen con este código para que el unit quede en `failed`
+# con un mensaje legible una sola vez, en vez de repetir el mismo error cada
+# RestartSec en un loop indefinido. Los fallos transitorios (Valkey caído, red)
+# siguen usando otros códigos y se reintentan normalmente.
+RestartPreventExitStatus=78
 
 # Logging
 StandardOutput=journal
