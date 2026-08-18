@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-130 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-131 |
 
 ---
 
@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1183,6 +1183,41 @@ Esta decisión cierra el contrato: el estado **se deriva en el backend** a parti
 **Excepciones:**
 - **Limitación conocida — `watch_paths` agregados en runtime.** `ReadWritePaths` se materializa en el momento de la instalación; `update_config` cambia los `watch_paths` en caliente. Un path incorporado desde la interfaz queda **monitoreado pero no remediable** hasta que se re-ejecute la configuración privilegiada en el anfitrión (regeneración del drop-in y `systemctl daemon-reload`). Esta limitación es inherente a que el aislamiento de systemd se resuelve en el espacio de nombres de montaje al arrancar el servicio, no un defecto de implementación. El preflight la hace visible en lugar de silenciosa: el operador ve en la interfaz que ese path es solo-detección.
 - La remediación automática sobre paths fuera de todo `watch_path` sigue prohibida por D18/RN-116; esta decisión no amplía el alcance de containment.
+
+#### D37 / RN-131: Durabilidad del transporte — ack tipado, ventana de skew sobre `sent_at` y outbox de comandos
+
+**Descripción:** La cola offline del agente (RN-38 a RN-41) no puede drenar nunca, y los comandos de aprobación y rechazo pueden perderse sin que nadie se entere. Son tres defectos con una raíz común: el transporte agente↔backend no tiene un contrato de durabilidad, sólo un camino feliz.
+
+1. **Conflicto de especificación entre RN-90 y RN-38/RN-41.** RN-90 rechaza todo evento con `abs(received_at - detected_at) > 5 min`. RN-38 a RN-41 definen una cola en disco de 100 MB cuyo propósito explícito es sobrevivir una caída del backend. Las dos reglas se anulan: cualquier corte mayor a cinco minutos convierte el contenido íntegro de la cola en eventos irrecibibles. La cola de resiliencia sólo funciona mientras no haga falta.
+2. **El rechazo no se comunica.** `_reject` inserta la auditoría y hace `XACK`, pero no publica `event_ack`. El agente sólo borra un evento de la cola cuando recibe ack, y republica todo lo no ackeado cada 60 segundos indefinidamente. Un evento rechazado queda en un ciclo permanente: se republica, se vuelve a rechazar, y cada vuelta agrega una fila a `rejected_events_audit`, tabla que ninguna política de retención toca.
+3. **Los comandos de decisión no tienen outbox.** Sólo `rule_sync` es durable. `baseline_update`, `restore_file` y `quarantine_file` se publican de forma síncrona después del `commit`, con dos modos de pérdida: si falla la obtención del secreto compartido el publicador registra y retorna, y el endpoint responde `200` con el evento ya terminal y ningún comando emitido; si falla el `XADD` la excepción se propaga como `500` con el evento igualmente terminal. En ambos casos el operador cree haber restaurado un archivo que nadie tocó.
+
+**Condición:** Todo evento publicado por un agente y todo comando emitido por el backend hacia un agente.
+
+**Resultado:**
+
+- **`sent_at` como base de la ventana de skew (enmienda RN-90).** El payload incorpora `sent_at`, sellado en el momento de publicar o republicar. La ventana de cinco minutos pasa a evaluarse sobre `sent_at`; `detected_at` permanece como verdad forense y **deja de tener ventana**. El propósito original de RN-90 —detectar un reloj adulterado o un replay— se conserva y hasta se afila, porque `sent_at` es el timestamp que un atacante tendría que falsificar para que un mensaje viejo parezca actual. Un evento legítimamente encolado durante un corte de horas llega con `detected_at` antiguo y `sent_at` reciente, y se acepta. **Esta cláusula prevalece sobre RN-90.**
+- **Respuesta tipada a todo evento, con tres comportamientos según el motivo:**
+
+  | Motivo | Respuesta | Efecto en el agente |
+  |---|---|---|
+  | ingesta exitosa · `duplicate_event` | `event_ack` | borra el evento de la cola |
+  | `invalid_schema` (payload ilegible) · `clock_skew` | `event_nack` terminal | borra el evento de la cola y lo registra localmente |
+  | `schema_version` mayor que el soportado | `event_nack` retenible con `retry_after` | **conserva** el evento y espera al backend |
+  | `rate_limited` | `event_nack` con `retry_after` | **conserva** el evento y aplica backpressure |
+  | `invalid_signature` · `unknown_agent` | sin respuesta | el evento caduca por el límite de reintentos |
+
+- **Un evento excedido por rate limit nunca se destruye.** Un evento de integridad descartado es una detección perdida, y una tormenta de cambios es precisamente el momento en que un atacante se mueve. Ante `rate_limited` el agente deja de reintentar cada 60 segundos y frena la publicación hasta que haya presupuesto, conservando el evento en cola. El límite real de recursos sigue siendo el drop-oldest de los 100 MB de RN-40, que ya es una decisión tomada y acotada. **Esta cláusula prevalece sobre la frase "se descartan con alerta" de RN-88**, que además nunca se implementó: hoy no se emite ninguna alerta.
+- **Sin respuesta para fallos de autenticación.** Un `invalid_signature` o un `unknown_agent` no permiten firmar una respuesta verificable ni identificar al destinatario, y responder convertiría al backend en un oráculo que confirma qué `agent_id` existen. El emisor caduca por su propio límite de reintentos.
+- **Límite de reintentos por evento y cola de descarte local.** Un evento sin respuesta de ningún tipo no puede reintentarse para siempre. Superado el límite se mueve a un directorio local de descarte con su motivo, se contabiliza en el heartbeat y se deja de publicar.
+- **Outbox para los comandos de decisión.** `baseline_update`, `restore_file` y `quarantine_file` pasan por el mismo outbox transaccional que ya usa `rule_sync`: la fila del comando se escribe en la misma transacción que la mutación del evento, y un despachador la publica después. Deja de existir el estado en que un evento es terminal y su comando no se emitió. Un fallo de publicación se vuelve un reintento del despachador, no una pérdida silenciosa ni un `500`.
+
+- **`invalid_schema` distingue dos causas, y sólo una es terminal.** Un payload ilegible —claves faltantes, tipos inválidos, `schema_version` no parseable— es un defecto permanente: reintentar no lo arregla y el evento se descarta. En cambio un `schema_version` **mayor que el soportado** significa que el agente va adelantado respecto del backend: el evento es válido y el receptor todavía no sabe leerlo. Descartarlo destruiría eventos legítimos y convertiría todo bump futuro de esquema en un despliegue obligatoriamente backend-primero, bajo pena de pérdida de datos. Se responde con un nack retenible y el agente espera. `check_schema_version` deja de devolver un booleano y pasa a distinguir los dos casos.
+- **Parámetros operativos.** Techo de reintentos por evento: **20** (con el reintento cada 60 s, cubre unas 20 horas de backend inalcanzable antes de descartar, holgadamente por encima de una ventana de mantenimiento). Techo del `retry_after` que el agente acepta del backend: **60 s** (impide que un backend comprometido o con un bug silencie a un agente indefinidamente mandándole un valor enorme). Cota del directorio local de descarte: **1000 archivos** con drop-oldest, mismo criterio que la cola de RN-40. Los tres son configurables; estos son los valores por defecto.
+
+**Excepciones:**
+- La ventana de skew sobre `sent_at` no protege contra un agente comprometido que sella `sent_at` con la hora actual: ese atacante controla el proceso y puede publicar lo que quiera. RN-90 nunca protegió contra eso; su alcance real es el mensaje capturado y reproducido por un tercero, y ese caso sigue cubierto.
+- El backpressure no acota el crecimiento de la cola por sí solo: lo acota el drop-oldest de RN-40. Una tormenta sostenida más allá de los 100 MB pierde los eventos más antiguos, que es el comportamiento ya especificado y no se modifica acá.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
