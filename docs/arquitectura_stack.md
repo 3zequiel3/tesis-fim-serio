@@ -1510,7 +1510,7 @@ Alineadas con la sección 6.6 de la tesis v6. Cada limitación motivó una decis
 # docker-compose.yml (estructura)
 services:
   db:
-    image: postgres:18
+    image: postgres:18.3
     environment:
       POSTGRES_DB: fim
       POSTGRES_USER: fim
@@ -1533,7 +1533,7 @@ services:
     # Init-container: corre una vez, crea schema + seed admin (W20), sale
 
   valkey:
-    image: valkey/valkey:9.0
+    image: valkey/valkey:9.0.3
     # Sin puerto expuesto al host en producción
 
   backend:

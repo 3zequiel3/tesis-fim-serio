@@ -213,7 +213,7 @@ Filas cualitativas de la misma tabla, ya cerradas: baseline separada y cifrada (
 | Valkey | 9.0.3 — `docs/arquitectura_stack.md:43,1689` | `valkey/valkey:9.0.3` — `docker-compose.yml:65` | ✅ |
 | n8n | 2.16.1 — `docs/arquitectura_stack.md:44,1690` | `n8nio/n8n:2.16.1` — `docker-compose.yml:85` | ✅ |
 
-*Inconsistencia menor a limpiar*: `docs/arquitectura_stack.md:1513,1536` muestra un compose de ejemplo con `postgres:18` / `valkey:9.0` sin patch version.
+*Inconsistencia menor — ya corregida*: `docs/arquitectura_stack.md:1513,1536` mostraba un compose de ejemplo con `postgres:18` / `valkey:9.0` sin patch version; hoy dice `postgres:18.3` / `valkey/valkey:9.0.3`.
 
 **Ítem 54** — los archivos `fim-watch/c_51..c_100`, `m_16..m_35`, `off_01..off_30` son residuo de una generación **manual/ad-hoc**, y `fim-watch/*` está gitignoreado (`.gitignore:44-45`). Sin generador versionado con seed, este ítem es **irreproducible por definición**.
 

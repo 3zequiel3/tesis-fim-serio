@@ -41,3 +41,6 @@ skills-lock.json
 !/fim-watch/.gitkeep
 /.playwright-mcp/
 /fim-0*.png
+# Artefactos de corridas de medicion (Cap. 5). Los de la corrida oficial
+# se archivan deliberadamente junto a las planillas (Anexo F), no por git add.
+resultados/

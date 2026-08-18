@@ -17,16 +17,37 @@ Ninguna batería debe ejecutarse hasta cerrar estos siete puntos.
 
 | # | Precondición | Por qué bloquea | Dónde |
 |---|---|---|---|
-| P1 | **Parametrizar el rate limit de ingesta vía `Settings`** | Hardcodeado en `_RateLimiter()` con `limit=100, window_s=60.0`. Estrangula la Batería 4 y hace infalsable el ítem 43 | `backend/app/modules/events/consumer.py:69,90` · `backend/app/core/config.py:50-53` |
-| P2 | **Escribir el generador de carga con `--seed` y `--rate`** | Sin él el ítem 54 es irreproducible y ninguna batería es repetible | *(no existe — crear)* |
-| P3 | **Escribir el script del grupo de control (cron 15 min)** | Ítems 45, 47, 49, 50 no tienen fuente empírica | *(no existe — crear)* |
+| P1 | ~~**Parametrizar el rate limit de ingesta vía `Settings`**~~ — **hecha** | Estaba hardcodeado en `_RateLimiter()` con `limit=100, window_s=60.0`; estrangulaba la Batería 4 y hacía infalsable el ítem 43. Ahora sale de `RATE_LIMIT_INGEST_EVENTS` / `RATE_LIMIT_INGEST_WINDOW_SECONDS` (defaults 100 / 60.0 = comportamiento previo) | `backend/app/core/config.py` · `backend/app/modules/events/consumer.py` · `docker-compose.yml` · `.env.example` |
+| P2 | ~~**Escribir el generador de carga con `--seed` y `--rate`**~~ — **hecha** | Sin él el ítem 54 era irreproducible y ninguna batería repetible. `--seed`, `--rate`, `--count`, `--mix` y `--dir` son obligatorios; loguea su configuración completa al arrancar y emite el manifiesto con el timestamp real de cada cambio. Incluye a propósito los tres patrones ciegos para el escáner periódico (revertido, colapsado, efímero) que el ítem 49 necesita para medir algo real | `scripts/generador_carga.py` · `scripts/README.md` |
+| P3 | ~~**Escribir el script del grupo de control (cron 15 min)**~~ — **hecha** | Ítems 45, 47, 49, 50 ya tienen fuente empírica: escáner por hashing SHA-256 cada 900 s, corrible por cron (`--print-cron`), por `--loop` o bajo demanda. El cruce contra el manifiesto lo hace `analisis_control.py` y produce 45, 47, 49 y 50 | `scripts/control_hashing.py` · `scripts/analisis_control.py` |
 | P4 | **Cerrar `stream-ack-durability` (0/109 tasks)** | Es el ACK del stream: si cambia después de medir, invalida 9, 38, 39, 40, 41 | `openspec/changes/stream-ack-durability/` |
-| P5 | **Arreglar los 6 tests de backend en rojo** | La Tabla 16-bis no puede afirmar 31/31 con la suite en rojo; uno de los rojos es `test_notifications.py`, dominio de la Batería 4 | `backend/.pytest_cache/v/cache/lastfailed` |
-| P6 | **Configurar reglas de severidad `high`/`critical`** | Solo esos niveles generan `Alert` (RN-52). Sin ellas la Batería 4 mide **cero** | `backend/app/modules/alerts/service.py:96` |
+| P5 | ~~**Arreglar los tests de backend en rojo**~~ — **hecha** | Contra base de datos limpia eran **5** (no 6: `lastfailed` arrastraba uno viejo). Ninguno era un defecto de producción: 4 tests con expectativas obsoletas y 1 test con FK faltante. Ver "Nota P5" abajo — el rojo de `test_notifications.py` NO era la fachada de n8n, pero la fachada sigue en pie | `backend/tests/{test_auth,test_c31_backend_event_correctness,test_notifications}.py` |
+| P6 | ~~**Configurar reglas de severidad `high`/`critical`**~~ — **hecha** | Solo esos niveles generan `Alert` (RN-52). El sembrado es reproducible e idempotente vía la API REST (mismo camino que la UI, dispara `rule_sync`): `/watch/*` → `high` y `/watch/critico/*` → `critical`, ambas con acción `alert_only` para no inyectar cambios ajenos al manifiesto | `scripts/seed-reglas-lab.sh` · `backend/app/modules/alerts/service.py:96` |
 | P7 | **Definir formalmente "tiempo de recuperación" (ítem 43)** | Con 3.000 eventos y rate limit vigente el drenaje tarda ~30 min. El umbral < 30 s no se puede cumplir ni refutar tal como está redactado | appendix de decisiones |
 
 **Además, antes de arrancar:** commitear los archivos untracked y crear el tag de la corrida
 (ítem 51 exige un árbol limpio y un identificador estable).
+
+### Nota P5 — qué eran los 5 rojos
+
+Medido siempre contra **base de datos nueva** (la suite no es hermética: `create_all` deja columnas
+de una versión de modelos y la corrida siguiente las hereda, produciendo rojos fantasma).
+
+| Test | Diagnóstico | Corrección |
+|---|---|---|
+| `test_auth.py::test_refresh_con_token_revocado_retorna_401` | Test previo a la ventana de gracia del refresh. El `MagicMock` de Valkey nunca configuraba `.get()`, así que devolvía un mock *truthy* y la gracia parecía siempre activa → 200 | El fixture ahora devuelve `None` en `.get()` (comportamiento real de Valkey ante clave ausente). Se agregó el test del camino de gracia, que no existía |
+| `test_c31...::test_fix04_pagination_sql` | El test inserta eventos directo en Postgres sin crear el agente; `events.agent_id` tiene FK a `agents.agent_id` | El test crea el `Agent` antes de insertar |
+| `test_c31...::test_fix05_compact_chain_retains_newest` | SQL crudo contra la tabla `event`; la tabla es `events` (`Event.__tablename__`) | Nombre de tabla corregido |
+| `test_notifications.py::test_notify_event_retry_3x_then_log_only` | Expectativa **anterior a D23/RN-120**: asumía "log_only siempre entrega". D23 hizo que, con un primario configurado que falla, la cascada devuelva `(False, None)` y la alerta caiga en la DLQ | Reescritos para afirmar la semántica vigente (DLQ, `retry_count == 3`, `log_only` como piso de logueo en los 4 intentos). C31 había agregado los tests nuevos (`test_fix01_*`) sin actualizar estos |
+| `test_notifications.py::test_log_only_always_delivers` | Ídem | Ídem |
+
+**No** estaban relacionados con la fachada de notificaciones — pero la fachada **sigue vigente y es
+un hallazgo aparte**: `N8N_WEBHOOK_URL` apunta a `http://n8n:5678/healthz` (`docker-compose.yml`),
+que responde 200, así que `send_n8n()` retorna `True` y **toda** alerta queda `delivered` con
+`channel=n8n` sin que se entregue nada. Consecuencia para el Cap. 5: los ítems 11-22 de la
+Batería 4 medirían el tiempo hasta un `GET /healthz`, no hasta una notificación; y la DLQ nunca se
+ejerce porque el primer canal "tiene éxito" siempre. Cerrar el Change 13
+(`integration-n8n-notifications`) o apuntar la variable a un webhook real antes de medir.
 
 ## 0.1 Definición de la topología oficial
 
@@ -137,6 +158,7 @@ WHERE reason = 'clock_skew'
 **Solo camino feliz / primer intento** — los reintentos (5/30/120 s) harían infalsable el umbral de 5 s.
 
 **Precondición dura (P6)**: sin reglas `high`/`critical` configuradas, esta batería mide cero.
+Sembrarlas con `scripts/seed-reglas-lab.sh <password_admin>` (idempotente, vía la API REST).
 
 ### Procedimiento
 
@@ -308,19 +330,28 @@ Cualquiera es defendible. **Lo indefendible es dejar el criterio como está y re
 
 ## Batería 7 — Grupo de control → ítems 45, 47, 49, 50
 
-**Requiere P3: el script de control no existe.** Hoy los valores de esta columna son la esperanza
-matemática de un script que nunca se escribió (`E[Uniform(0, 900 s)] = 450 s`), y el Cap. 5 la
-presenta como comparación **experimental**.
+**P3 cerrada: el script de control existe** (`scripts/control_hashing.py`). Hasta ahora los valores
+de esta columna eran la esperanza matemática de un script que nunca se escribió
+(`E[Uniform(0, 900 s)] = 450 s`) y el Cap. 5 la presentaba como comparación **experimental**.
+Ahora sale de una medición.
 
-### El script de control debe
+### El script de control
 
-- Correr por cron cada **15 min** (900 s).
-- Hashear el mismo directorio vigilado (`fim-watch/`) y comparar contra el hash de la corrida previa.
-- Registrar, por cada cambio detectado, el timestamp de detección.
-- Ejecutarse **contra la misma carga generada**, en la misma ventana temporal, para que la comparación sea pareja.
+- Corre por cron cada **15 min** (900 s) — `--print-cron` emite la entrada lista para `crontab -e`;
+  también admite `--loop --interval 900` y corridas bajo demanda para probarlo.
+- Hashea (SHA-256) el mismo directorio vigilado (`fim-watch/`) y compara contra el snapshot de la
+  corrida previa, guardado en `--state` (el equivalente a la base de datos de AIDE).
+- Registra, por cada cambio detectado, `scan_id` y el timestamp de detección, en
+  `resultados/bateria7_control.csv`.
+- El **primer scan es la línea de base** y no emite filas: hay que correrlo **antes** del generador.
+- Se ejecuta **contra la misma carga generada**, en la misma ventana temporal, para que la
+  comparación sea pareja.
 
 **Latencia del control** = `timestamp_deteccion_cron − timestamp_modificacion_real`.
-El timestamp real sale del manifiesto del generador (P2).
+El timestamp real sale del manifiesto del generador (P2); el join por `ruta_agente` y el cálculo de
+los ítems 45, 47, 49 y 50 los hace `scripts/analisis_control.py`. Ver `scripts/README.md` para el
+criterio de atribución (`--criterio primer_cambio` / `ultimo_cambio`) y para la decisión de comparar
+solo hash o también metadatos — **ambas hay que declararlas en el capítulo**.
 
 ### Ítems
 
@@ -334,14 +365,17 @@ El timestamp real sale del manifiesto del generador (P2).
 | 49 | Eventos perdidos — **Script cron** | manifiesto − detectados por el cron |
 | 50 | **Factor de mejora** (calculado) | ítem 45 ÷ ítem 44. Declarar en el Cap. 5 qué métrica usa el cociente |
 
-> **Los ítems 49 y 50 son el argumento más fuerte de la tesis, y hoy están vacíos.** El cron pierde
-> eventos por dos mecanismos estructurales: los cambios revertidos dentro de la ventana de 15 min
-> son **invisibles**, y N cambios sucesivos al mismo archivo **colapsan en 1**. El generador debe
-> incluir deliberadamente ambos patrones para que el ítem 49 mida algo real y no dé un empate
-> artificial.
+> **Los ítems 49 y 50 son el argumento más fuerte de la tesis.** El cron pierde eventos por
+> mecanismos estructurales: los cambios revertidos dentro de la ventana de 15 min son
+> **invisibles**, y N cambios sucesivos al mismo archivo **colapsan en 1**. El generador incluye
+> deliberadamente ambos patrones (`--revert-frac`, `--burst-frac`) más los archivos efímeros
+> (`--ephemeral-frac`), para que el ítem 49 mida algo real y no dé un empate artificial.
+> `analisis_control.py` reporta la pérdida desglosada por causa (`colapsado`, `no_detectado`,
+> `fuera_de_ventana`) y por patrón del generador.
 
-**Si no se escribe el script**: renombrar la columna a *cota analítica* y declarar explícitamente
-en el Cap. 5 que no es una medición. Es la única alternativa honesta.
+Ya no hace falta la salida de emergencia de renombrar la columna a *cota analítica*: la columna
+sale de una corrida real. Lo que sí hay que declarar en el Cap. 5 es el criterio de atribución y el
+criterio de comparación del control (solo hash vs. hash + metadatos).
 
 ---
 
@@ -366,8 +400,9 @@ docker compose exec n8n     n8n --version
 Contrastar con lo declarado en `docs/arquitectura_stack.md:41,43,44` y `:1688-1690`
 (PostgreSQL 18.3 · Valkey 9.0.3 · n8n 2.16.1) y con `docker-compose.yml:35,65,85`.
 
-*Limpieza pendiente*: `docs/arquitectura_stack.md:1513,1536` muestra un compose de ejemplo con
-`postgres:18` / `valkey:9.0` sin patch version. Corregir para que el Anexo D sea consistente.
+*Limpieza — hecha*: el compose de ejemplo de `docs/arquitectura_stack.md:1513,1536` mostraba
+`postgres:18` / `valkey:9.0` sin patch version; ahora dice `postgres:18.3` / `valkey/valkey:9.0.3`,
+consistente con lo declarado y con `docker-compose.yml`.
 
 ### Ítem 55 — el `.pcap` requiere una decisión previa
 
@@ -418,12 +453,16 @@ resultados/
 ├── bateria2_agente.xml          # ítems 24-27
 ├── bateria2_backend.xml         # ítems 28-31
 ├── bateria3_latencias.csv       # ítems 1-8, 44, 46
-├── bateria3_manifiesto.json     # ítems 9, 48, 54
+├── bateria3_manifiesto.json     # ítems 9, 48, 54 — generador_carga.py
+├── bateria3_manifiesto.jsonl    # respaldo incremental del manifiesto
+├── bateria3_generador.log       # ítem 54 — configuración completa del generador
 ├── bateria4_secuencial.csv      # ítems 11, 14, 17, 20
 ├── bateria4_50c.csv             # ítems 12, 15, 18, 21
 ├── bateria4_100c.csv            # ítems 13, 16, 19, 22
 ├── bateria5_cola.txt            # ítems 36-43
-├── bateria7_control.csv         # ítems 45, 47, 49
+├── bateria7_control.csv         # ítems 45, 47, 49 — control_hashing.py
+├── bateria7_latencias.csv       # ítems 45, 47, 50 — analisis_control.py
+├── control_estado.json          # snapshot del último scan del control
 ├── bateria<N>.pcap              # ítem 55
 ├── bateria<N>.strace            # ítem 55
 ├── entorno.txt                  # ítems 51, 53
