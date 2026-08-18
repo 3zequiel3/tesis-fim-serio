@@ -6,6 +6,8 @@ import { EventTimeline } from '@/components/ui/EventTimeline'
 import { RejectModal } from '@/components/ui/RejectModal'
 import type { RejectAction } from '@/api/actions'
 import { getAckStatusMeta } from '@/utils/ackStatus'
+import { getActionFailedMeta } from '@/utils/actionFailed'
+import { getActionErrorMeta } from '@/utils/actionError'
 import type { CommandAckStatus } from '@/api/events'
 
 export function EventDetail() {
@@ -89,6 +91,7 @@ export function EventDetail() {
         <div className="flex items-center gap-2 shrink-0">
           <SymlinkBadge isSymlink={event.is_symlink} />
           <StatusBadge status={event.status} />
+          <ActionFailedBadge actionFailed={event.action_failed} />
           <AckStatusBadge ackStatus={event.ack_status} />
         </div>
       </div>
@@ -101,6 +104,13 @@ export function EventDetail() {
           </span>
         </FieldCard>
       )}
+
+      {/* Causa del fallo de remediación (D36/RN-130, C41): califica al
+          indicador de action_failed que introdujo C40. Permite distinguir un
+          problema de despliegue (path no escribible) de un problema de datos
+          (baseline ausente/incompleto). No se muestra en la tabla — es
+          información de segundo nivel del detalle. */}
+      <ActionErrorNote cause={event.action_error} />
 
       {/* Acciones (solo si está pendiente o alert_only) */}
       {canApprove && (
@@ -273,6 +283,20 @@ function SymlinkBadge({ isSymlink }: { isSymlink: boolean }) {
   )
 }
 
+// Indicador de remediación fallida (D35/RN-129, C40). Califica al status:
+// un pending con action_failed=true significa que el archivo sigue
+// adulterado Y la remediación automática ya falló. Se omite por completo
+// cuando action_failed es false.
+function ActionFailedBadge({ actionFailed }: { actionFailed: boolean }) {
+  const meta = getActionFailedMeta(actionFailed)
+  if (!meta) return null
+  return (
+    <span className={`shrink-0 px-2.5 py-1 rounded border text-xs font-mono ${meta.className}`}>
+      {meta.label}
+    </span>
+  )
+}
+
 // Indicador secundario de estado de EJECUCIÓN del comando asociado
 // (D30/RN-124, C36). Visualmente distinto de StatusBadge; se omite si no
 // hay comando confirmable asociado al evento (RN-72 intacto).
@@ -283,6 +307,19 @@ function AckStatusBadge({ ackStatus }: { ackStatus?: CommandAckStatus | null }) 
     <span className={`shrink-0 px-2.5 py-1 rounded border text-xs font-mono ${meta.className}`}>
       {meta.label}
     </span>
+  )
+}
+
+// Causa del fallo de remediación (D36/RN-130, C41). Prosa, no el literal
+// crudo salvo que el valor sea desconocido (getActionErrorMeta hace el
+// fallback). Se omite por completo cuando no hay causa.
+function ActionErrorNote({ cause }: { cause?: string | null }) {
+  const meta = getActionErrorMeta(cause)
+  if (!meta) return null
+  return (
+    <div className={`px-3 py-2 rounded border text-sm ${meta.className}`}>
+      {meta.label}
+    </div>
   )
 }
 

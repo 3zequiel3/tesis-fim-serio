@@ -48,6 +48,15 @@ export interface EventListItem {
   // symlink_target es el string crudo de os.readlink, sin normalizar.
   is_symlink: boolean
   symlink_target: string | null
+  // D35/RN-129 (C40): true cuando la acción automática (auto_restore/quarantine)
+  // falló en el agente. Ortogonal al status — un pending con action_failed=true
+  // significa que el archivo sigue adulterado y la remediación ya falló.
+  action_failed: boolean
+  // D36/RN-130 (C41): causa del fallo de la acción automática — distingue
+  // barrera de despliegue (read_only_mount, permission_denied) de problema
+  // de datos (no_baseline_content, no_baseline_metadata, ...). Ausente
+  // cuando action_failed es false.
+  action_error?: string | null
 }
 
 // El detalle del evento tiene los mismos campos que el listado

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { EventListItem } from '@/api/events'
 import { getAckStatusMeta } from '@/utils/ackStatus'
+import { getActionFailedMeta } from '@/utils/actionFailed'
 
 interface EventsTableProps {
   items: EventListItem[]
@@ -121,13 +122,24 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded text-xs font-mono ${
-                      STATUS_CLASSES[item.status] ?? 'bg-gray-700 text-gray-300'
-                    }`}
-                  >
-                    {item.status}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-mono ${
+                        STATUS_CLASSES[item.status] ?? 'bg-gray-700 text-gray-300'
+                      }`}
+                    >
+                      {item.status}
+                    </span>
+                    {(() => {
+                      const actionFailedMeta = getActionFailedMeta(item.action_failed)
+                      if (!actionFailedMeta) return null
+                      return (
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-mono ${actionFailedMeta.className}`}>
+                          {actionFailedMeta.label}
+                        </span>
+                      )
+                    })()}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   {(() => {

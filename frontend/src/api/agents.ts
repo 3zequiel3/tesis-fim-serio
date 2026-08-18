@@ -11,6 +11,12 @@ export interface Agent {
   queue_pressure: number | null   // 0..1 float
   last_heartbeat: string | null   // ISO8601
   ruleset_version_applied: number | null
+  // D36/RN-130 (C41): mapa {watch_path: clasificación} del preflight de
+  // escritura del agente (writable | read_only_mount | permission_denied |
+  // missing), reportado en cada heartbeat. null cuando el agente nunca
+  // reportó (agente viejo, o sin heartbeat aún) — distinto de {} (que se
+  // leería como "todos los paths escribibles").
+  watch_path_status?: Record<string, string> | null
 }
 
 export interface AgentConfig {

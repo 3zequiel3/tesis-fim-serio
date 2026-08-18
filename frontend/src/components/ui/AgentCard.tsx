@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Agent } from '@/api/agents'
+import { getWatchPathStatusMeta } from '@/utils/watchPathStatus'
 
 interface AgentCardProps {
   agent: Agent
@@ -15,6 +16,25 @@ const STATUS_STYLES: Record<Agent['status'], string> = {
   draining: 'bg-yellow-700 text-yellow-200',
   dead: 'bg-red-800 text-red-200',
   revoked: 'bg-red-900 text-red-300',
+}
+
+// D36/RN-130 (C41): indicador por path de que la remediación automática no
+// puede correr ahí (path monitoreado, no remediable) o de que el path no
+// existe. Se omite por completo cuando el agente no reportó mapa (agente
+// viejo, o sin heartbeat aún) o cuando el path es escribible — ver
+// getWatchPathStatusMeta. Visualmente distinto del badge de status del
+// agente (STATUS_STYLES): esto es una degradación parcial, no una falla.
+function WatchPathStatusIndicator({ status }: { status: string | undefined }) {
+  const meta = getWatchPathStatusMeta(status)
+  if (!meta) return null
+  return (
+    <span
+      title={meta.title}
+      className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${meta.className}`}
+    >
+      {meta.label}
+    </span>
+  )
 }
 
 function formatLastSeen(iso: string | null): string {
@@ -176,8 +196,11 @@ export function AgentCard({
               <li className="text-xs text-gray-600 italic">Sin paths configurados</li>
             ) : (
               agent.watch_paths.map((p) => (
-                <li key={p} className="text-xs font-mono text-gray-400 truncate">
-                  {p}
+                <li key={p} className="flex items-center gap-2 min-w-0">
+                  <span className="flex-1 text-xs font-mono text-gray-400 truncate">{p}</span>
+                  <WatchPathStatusIndicator
+                    status={agent.watch_path_status?.[p]}
+                  />
                 </li>
               ))
             )}
