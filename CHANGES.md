@@ -61,6 +61,8 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 37 | [`agent-fanotify-scope-filter`](#change-37--agent-fanotify-scope-filter) | agente | — (auditoría dual-judge 2026-07-02) | 34, 35 |
 | 38 | [`frontend-contract-fixes`](#change-38--frontend-contract-fixes) | frontend + backend | — (auditorías 2026-07-02) ✓ | 35 |
 | 39 | [`agent-scope-filter-symlink-hardening`](#change-39--agent-scope-filter-symlink-hardening) | agente + backend + frontend | — (dual-review C37, 2026-07-02) | 37 |
+| 40 | [`event-status-contract`](#change-40--event-status-contract) | backend + agente + frontend | — (auditoría 2026-08-13) | 38, 39 |
+| 41 | [`agent-deployment-caps`](#change-41--agent-deployment-caps) | agente + backend + frontend | — (auditoría 2026-08-14) | 40 |
 
 ---
 
@@ -771,6 +773,53 @@ Capacidades:
 Reglas: RN-04, RN-125, RN-127. Decisiones aplicadas: D33.
 
 **Done**: la creación de un symlink de escape dentro de un `watch_path` ya no es invisible — se reporta como `file_created` con hash de la cadena del destino; el contenido del destino out-of-scope nunca se lee ni se cifra; el re-pointing de un symlink existente se detecta como `file_modified`; la UI muestra que el evento corresponde a un symlink y su `symlink_target`; el hardlink queda documentado como limitación conocida en los appendices canónicos.
+
+---
+
+### Change 40 — `event-status-contract`
+
+**Capa**: backend + agente + frontend · **Depende de**: 38 (`frontend-contract-fixes`), 39 (`agent-scope-filter-symlink-hardening`) · **Origen**: auditoría 2026-08-13 (RN-13 inoperante en producción) · **Decisiones**: D35 (RN-129)
+
+> **Nota**: RN-13 —el evento sobre el que el agente ya actuó nace terminal y no pasa por `pending`— nunca funcionó. El agente no emite `status` y `ingest_event` defaultea a `pending`, así que `auto_restored`, `quarantined` y `alert_only` son miembros inalcanzables del enum `EventStatus` y todo el relato del decision engine es indemostrable. El agente ya publica `action` y `action_failed`, firmados y sin allowlist en el camino; el backend simplemente los descarta. D35/RN-129 se cerró el 2026-08-13 y define la derivación en el backend. Scope acotado al contrato de estado: persistir `diff_text`/`operation_type`/`hash_expected` y arreglar las capabilities de la unit systemd son changes separadas.
+
+Capacidades:
+- Derivación del estado en la ingesta: nueva función pura `derive_event_status(action, action_failed)` en `backend/app/modules/events/service.py` implementando la tabla de D35/RN-129; se elimina la lectura de `event_data["status"]` — el backend es la única autoridad sobre `EventStatus`, para que un agente comprometido no pueda inyectar eventos ya `approved`/`rejected`.
+- Acción fallida ⇒ `pending`, nunca terminal: el archivo sigue adulterado y el incidente vuelve a la cola del operador con aprobar/rechazar disponibles (los estados terminales no tienen out-edges en `VALID_TRANSITIONS`).
+- Nueva columna `Event.action_failed: bool` (default `false`) + migración SQL idempotente `007_add_event_action_failed.sql` (convención D3, sin Alembic), backfill por `DEFAULT FALSE`; `EventOut` la expone.
+- `resolved_at = received_at` y `resolved_by = NULL` para los terminales de origen agente: la combinación identifica una resolución automática sin operador humano.
+- Limpieza del léxico RN-71: se elimina la sobrescritura `payload["event_type"] = "auto_restored"` de `_auto_restore` (`agent/decision.py`), que contaminaba un campo de vocabulario cerrado y que `_quarantine` nunca hizo de forma simétrica — esa asimetría es justamente por qué el estado se deriva de `action`, no de `event_type`.
+- Frontend: indicador que distingue un `pending` con `action_failed = true` (fallo de remediación, prioridad operativa) de un `pending` normal, vía un mapper puro compartido según el patrón de `utils/ackStatus.ts`.
+- Tests que cruzan el límite real agente→backend: la suite existente no detectó el bug porque construye payloads a mano con las claves correctas. El test central alimenta `ingest_event` con un payload producido por `DetectedChange.to_event_data()` + `DecisionEngine.evaluate_and_act` reales, para cada fila de la tabla de derivación.
+
+Reglas: RN-06, RN-13, RN-71, RN-72, RN-77, RN-129. Decisiones aplicadas: D35 (D3 para la migración, D33 como precedente de tolerancia hacia adelante).
+
+**Done**: los tres estados terminales de origen agente son alcanzables y verificables en la base; un `auto_restore` exitoso nace `auto_restored` con `resolved_at` seteado y `resolved_by` nulo, y ya no se le pide al operador que decida sobre un archivo ya resuelto; un `auto_restore` fallido nace `pending` con `action_failed = true` y la UI lo distingue de un pendiente ordinario; `event_type` conserva su vocabulario declarado; un payload con `status` explícito lo tiene ignorado y no puede inducir `approved` ni `rejected`; un agente de versión anterior sigue ingiriendo sin error como `pending`.
+
+> **Contexto de riesgo**: por el `ProtectSystem=strict` de la unit systemd (fuera de scope, change separada), `action_failed = true` es hoy la ruta común en un host real, no un caso de borde. La rama `pending + action_failed` es la que se va a ejercitar en la demo hasta que esa change aterrice; la demostración end-to-end de `auto_restored` queda bloqueada hasta entonces. Esa change es la 41.
+
+---
+
+### Change 41 — `agent-deployment-caps`
+
+**Capa**: agente + backend + frontend · **Depende de**: 40 (`event-status-contract`) · **Origen**: auditoría 2026-08-14 (remediación automática inejecutable en el despliegue entregado) · **Decisiones**: D36 (RN-130)
+
+> **Nota**: las acciones automáticas `auto_restore` y `quarantine` (RN-30 a RN-37) son **físicamente inejecutables** en el despliegue que el repo entrega, el 100% de las veces sobre los `watch_paths` por defecto. Dos barreras independientes: `ProtectSystem=strict` con `ReadWritePaths` limitado a los directorios propios del agente remonta la jerarquía del sistema en solo-lectura — y **ninguna capability atraviesa un mount de solo-lectura**, la escritura falla con `EROFS` con independencia del privilegio —; y `CAP_SYS_ADMIN` **no exime de los chequeos DAC**, así que reemplazar un archivo de `root` requiere `CAP_DAC_OVERRIDE` y restaurar su propiedad requiere `CAP_FOWNER` + `CAP_CHOWN`. El unit entregado tampoco puede arrancar en una instalación limpia: exige `FIM_BOOTSTRAP_SECRET` y no declara `EnvironmentFile`, así que gira en el loop de `Restart=on-failure`. D36/RN-130 se cerró el 2026-08-14 y fija el contrato, incluido el rechazo explícito de `ProtectSystem=full`. Esta change desbloquea la demostración end-to-end de `auto_restored` que la 40 dejó declarada como bloqueada.
+
+Capacidades:
+- Capabilities: `AmbientCapabilities` y `CapabilityBoundingSet` incorporan `CAP_DAC_OVERRIDE`, `CAP_FOWNER` y `CAP_CHOWN` — en ambas directivas, porque una ambient capability ausente del bounding set se descarta en silencio.
+- `ProtectSystem=strict` se conserva con `ReadWritePaths` **derivado**: `install.sh` lo emite como drop-in (`/etc/systemd/system/fim-agent.service.d/10-watchpaths.conf`) a partir de los `watch_paths` del `config.yaml`, dejando el unit base sin editar. El drop-in es aditivo (no repite los directorios del agente ni resetea la lista) e incluye siempre `/etc/fim-agent`, porque `update_config` persiste ahí. El generador es un módulo Python testeable que **rechaza** paths no absolutos, con `..` o con caracteres que romperían la sintaxis de systemd: `config.yaml` lo reescribe `update_config` con paths que vienen del backend.
+- Preflight de escritura por `watch_path` al arrancar y en cada `update_config`, con vocabulario cerrado (`writable`, `read_only_mount`, `permission_denied`, `missing`). No invasivo — `statvfs` para la barrera de mount, `access` para la DAC — porque una sonda de escritura real generaría eventos fanotify del propio agente dentro de un path monitoreado. Un path no escribible **no detiene al agente ni interrumpe el monitoreo**: se marca solo-detección, se loguea y viaja en el heartbeat hasta la tarjeta del agente. La detección es la función primaria; la remediación es una capacidad adicional que puede faltar.
+- La restauración preserva modo, uid y gid del baseline — que ya se guardan y que **nadie leía jamás**. Sin esto, habilitar las capabilities convertiría un feature roto en una vulnerabilidad: un `auto_restore` "exitoso" dejaría un binario del sistema con dueño `fim-agent`. `fchown` **antes** de `fchmod` (invertirlo limpia los bits setuid/setgid) y ambos sobre el descriptor antes del `os.replace`, así el archivo nunca existe en su path final con propiedad equivocada. Metadata incompleta ⇒ la restauración falla (`no_baseline_metadata`) y el archivo original queda intacto.
+- Causa de fallo distinguible: vocabulario cerrado de razones que separa barrera de despliegue (`read_only_mount`, `permission_denied`) de problema de datos (`no_baseline_content`, `no_restorable_content`), publicada en el evento, persistida en `Event.action_error` y explicada en prosa en la UI. Compone con `Event.action_failed` (D35/RN-129) sin alterarlo.
+- `install.sh` deja de darle al usuario del servicio la propiedad de su propio código: `/opt/fim-agent` y `/etc/fim-agent` pasan a `root`. Hoy el `chown -R fim-agent` sobre ambos permite que quien obtenga ese uid reescriba el agente y reciba `CAP_SYS_ADMIN` en el siguiente reinicio — las capabilities viven en el proceso, no en el uid.
+- `EnvironmentFile=-/etc/fim-agent/env` (opcional, el secreto de bootstrap es de un solo uso) y código de salida `78` (`EX_CONFIG`) con `RestartPreventExitStatus=78`: una instalación mal configurada falla una vez con un mensaje legible en vez de repetirlo cada 5 s.
+- Corrección de la documentación canónica: RN-51, el unit de ejemplo de `arquitectura_stack.md`, las limitaciones técnicas de `flujo_de_usuario.md` y la sección de despliegue de `operations.md`, que además está desfasada por documentar `pyfanotify`, `User=root`, `ProtectSystem=full` y un entrypoint inexistente.
+
+Reglas: RN-30 a RN-37, RN-51, RN-71, RN-92, RN-93, RN-108, RN-116, RN-130. Decisiones aplicadas: D36 (D3 para las migraciones, D35 como base sobre la que compone, D18 como límite de containment que no se amplía).
+
+**Done**: un `auto_restore` sobre un `watch_path` cubierto por el drop-in completa en un host real y devuelve el archivo a su contenido, modo, dueño y grupo originales, con el bit setuid intacto si lo tenía; un `watch_path` no remediable aparece como solo-detección en la tarjeta del agente en lugar de fallar en silencio, y el agente sigue detectando; un fallo de remediación por permisos se distingue en la UI de uno por baseline ausente; el usuario del servicio ya no es dueño del código que systemd ejecuta con `CAP_SYS_ADMIN`; y una instalación limpia arranca, o falla una sola vez con un exit code que dice que el problema es de configuración.
+
+> **Limitación conocida (D36)**: `ReadWritePaths` se materializa en la instalación, mientras que `update_config` cambia los `watch_paths` en caliente. Un path agregado desde la interfaz queda **monitoreado pero no remediable** hasta regenerar el drop-in y hacer `daemon-reload` en el anfitrión. Es inherente a que el aislamiento de systemd se resuelve en el namespace de montaje al arrancar el servicio. El preflight la hace visible en vez de silenciosa.
 
 ---
 
