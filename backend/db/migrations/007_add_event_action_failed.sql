@@ -1,0 +1,22 @@
+-- Migration 007: action_failed persistido en events (D35/RN-129, C40).
+--
+-- Agrega la columna action_failed a events: true cuando la acción automática
+-- (auto_restore/quarantine) fue intentada por el agente y falló. Es ortogonal
+-- al status del evento — un evento que falla vuelve a ingerir como 'pending'
+-- (nunca terminal), y esta columna es la única forma de distinguir ese
+-- 'pending' de uno producido por 'manual_review'.
+--
+-- Backfill de filas preexistentes a false, cubierto por el propio
+-- NOT NULL DEFAULT FALSE — sin UPDATE separado. Ninguna fila existente pudo
+-- haber sido producida por una acción fallida, porque hasta esta change el
+-- backend jamás leyó action_failed del payload.
+--
+-- Sin índice: no hay endpoint ni filtro por action_failed en scope.
+--
+-- Idempotente: ADD COLUMN IF NOT EXISTS. Ejecutar el script dos veces no
+-- produce error.
+--
+-- Aplicar manualmente contra la base de datos de producción o test (D3, sin Alembic):
+--   psql $DATABASE_URL -f 007_add_event_action_failed.sql
+
+ALTER TABLE events ADD COLUMN IF NOT EXISTS action_failed BOOLEAN NOT NULL DEFAULT FALSE;

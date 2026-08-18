@@ -160,6 +160,10 @@ def test_ingest_event_from_real_agent_payload_persists_hash_detected(mem_engine)
     producción). Antes del fix, el dataclass emitía `current_hash`/`previous_hash` y
     `ingest_event` leía `event_data.get("hash_detected", "")` → todo evento real
     persistía con `hash_detected == ""`. Este test falla si el mismatch reaparece.
+
+    D35/RN-129 (C40): el payload lleva `action = "quarantine"`, como lo emitiría
+    `DecisionEngine.evaluate_and_act` real — el evento ahora deriva un estado
+    terminal, no `pending`. Se afirma el estado derivado explícitamente.
     """
     import sys
     from pathlib import Path
@@ -186,6 +190,9 @@ def test_ingest_event_from_real_agent_payload_persists_hash_detected(mem_engine)
     )
     payload = change.to_event_data()
     payload["agent_id"] = "agent-test"
+    # D35/RN-129 (C40): action real, emitido por el decision engine antes de
+    # cruzar el stream (agent/decision.py:65).
+    payload["action"] = "quarantine"
 
     now = _now()
     import app.modules.events.service as svc
@@ -195,6 +202,11 @@ def test_ingest_event_from_real_agent_payload_persists_hash_detected(mem_engine)
     assert event is not None
     assert event.hash_detected == detected_hash
     assert event.hash_detected != ""
+    # action=quarantine sin fallo deriva un estado terminal (D35/RN-129), NO pending.
+    assert event.status == EventStatus.quarantined
+    assert event.action_failed is False
+    assert event.resolved_at is not None
+    assert event.resolved_by is None
 
 
 def test_ingest_event_from_real_file_deleted_payload_persists_empty_hash(mem_engine) -> None:
@@ -209,6 +221,10 @@ def test_ingest_event_from_real_file_deleted_payload_persists_empty_hash(mem_eng
     IntegrityError es subclase de SQLAlchemyError, el consumer lo trataba como transitorio
     (sin XACK) y el mensaje quedaba en el PEL reintentándose infinitamente (poison loop):
     todo evento de borrado se perdía. Este test falla si el None reaparece por cualquier lado.
+
+    D35/RN-129 (C40): el payload lleva `action = "auto_restore"`, como lo emitiría
+    `DecisionEngine.evaluate_and_act` real — el evento ahora deriva `auto_restored`,
+    no `pending`. Se afirma el estado derivado explícitamente.
     """
     import sys
     from pathlib import Path
@@ -233,6 +249,9 @@ def test_ingest_event_from_real_file_deleted_payload_persists_empty_hash(mem_eng
     )
     payload = change.to_event_data()
     payload["agent_id"] = "agent-test"
+    # D35/RN-129 (C40): action real, emitido por el decision engine antes de
+    # cruzar el stream (agent/decision.py:65).
+    payload["action"] = "auto_restore"
 
     now = _now()
     import app.modules.events.service as svc
@@ -243,11 +262,17 @@ def test_ingest_event_from_real_file_deleted_payload_persists_empty_hash(mem_eng
     assert event is not None
     # D-C13-04: "" (string vacío) = hash ausente. Persistido, NO None.
     assert event.hash_detected == ""
+    # action=auto_restore sin fallo deriva un estado terminal (D35/RN-129), NO pending.
+    assert event.status == EventStatus.auto_restored
+    assert event.action_failed is False
+    assert event.resolved_at is not None
+    assert event.resolved_by is None
 
     with Session(mem_engine) as session:
         persisted = session.exec(select(Event).where(Event.event_id == "agent-delete-001")).first()
     assert persisted is not None
     assert persisted.hash_detected == ""
+    assert persisted.status == EventStatus.auto_restored
 
 
 def test_ingest_race_condition_returns_none(mem_engine) -> None:

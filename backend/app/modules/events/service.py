@@ -61,6 +61,30 @@ def validate_transition(from_status: EventStatus, to_status: EventStatus) -> Non
         raise InvalidTransitionError(from_status, to_status)
 
 
+# D35/RN-129 (C40): tabla de derivación del status terminal a partir de lo que
+# el agente ya publica. El backend es la única autoridad sobre EventStatus —
+# no se acepta un `status` de escritura libre del payload (ver ingest_event).
+def derive_event_status(action: str | None, action_failed: bool) -> EventStatus:
+    """
+    Deriva el EventStatus de un evento entrante desde `action` + `action_failed`.
+
+    - auto_restore sin fallo → auto_restored
+    - quarantine sin fallo → quarantined
+    - alert_only → alert_only (siempre; no ejecuta acción física, nada que fallar)
+    - manual_review → pending
+    - auto_restore/quarantine con fallo → pending (el archivo sigue adulterado,
+      el incidente vuelve a la cola del operador con approve/reject disponibles)
+    - action ausente o desconocida → pending (tolerancia hacia adelante, D33)
+    """
+    if action == "alert_only":
+        return EventStatus.alert_only
+    if action == "auto_restore":
+        return EventStatus.pending if action_failed else EventStatus.auto_restored
+    if action == "quarantine":
+        return EventStatus.pending if action_failed else EventStatus.quarantined
+    return EventStatus.pending
+
+
 def get_pending_event_for_path(session: Session, path: str) -> Event | None:
     """Retorna el evento pending más reciente para un path, o None."""
     return session.exec(
@@ -138,11 +162,24 @@ def ingest_event(
     4. Llama compact_chain en la misma transacción.
     """
     path = event_data.get("path", "")
-    status_str = event_data.get("status", "pending")
-    try:
-        status = EventStatus(status_str)
-    except ValueError:
-        status = EventStatus.pending
+    # D35/RN-129 (C40): el status NO se lee del payload — el backend es la
+    # única autoridad sobre EventStatus. Se deriva de action/action_failed,
+    # que son un vocabulario cerrado producido por el motor de reglas del
+    # agente; aceptar un `status` de escritura libre permitiría a un agente
+    # comprometido inyectar eventos ya `approved`/`rejected`.
+    action = event_data.get("action")
+    action_failed = bool(event_data.get("action_failed", False))
+    status = derive_event_status(action, action_failed)
+    # D36/RN-130 (C41): causa del fallo, puramente explicativa — no influye en
+    # la derivación de status ni en la supersesión. Sin validación contra
+    # enum (tolerancia hacia adelante, D-8 del design): un valor desconocido
+    # se persiste tal cual, truncado a la longitud de la columna; ausente ->
+    # None. En la ruta de éxito el agente no escribe la clave.
+    action_error = event_data.get("action_error")
+    if isinstance(action_error, str):
+        action_error = action_error[:64]
+    else:
+        action_error = None
 
     with Session(engine) as session:
         pending = get_pending_event_for_path(session, path)
@@ -166,6 +203,16 @@ def ingest_event(
             else:
                 parent_event_id = pending.id
 
+        # D35/RN-129 (C40): terminales de origen agente se persisten con
+        # resolved_at = received_at y resolved_by = NULL — identifica una
+        # resolución automática sin operador humano. pending (incluido el
+        # pending por acción fallida) queda abierto: ambos campos en None.
+        is_terminal = status in (
+            EventStatus.auto_restored,
+            EventStatus.quarantined,
+            EventStatus.alert_only,
+        )
+
         event = Event(
             event_id=event_data.get("event_id", ""),
             agent_id=event_data.get("agent_id", ""),
@@ -175,12 +222,16 @@ def ingest_event(
             # D34/RN-128 (C38): severidad persistida, calculada con la misma
             # lógica que el pipeline de alertas (D-C15-01).
             severity=determine_severity_for_path(path, session),
+            action_failed=action_failed,
+            action_error=action_error,
             parent_event_id=parent_event_id,
             process_pid=event_data.get("process_pid"),
             process_uid=event_data.get("process_uid"),
             process_exe=event_data.get("process_exe"),
             detected_at=detected_at,
             received_at=received_at,
+            resolved_at=received_at if is_terminal else None,
+            resolved_by=None,
             # D33/RN-127 (C39): .get() tolerante — un agente viejo sin estas keys
             # ingiere igual, con defaults false/None.
             is_symlink=event_data.get("is_symlink", False),

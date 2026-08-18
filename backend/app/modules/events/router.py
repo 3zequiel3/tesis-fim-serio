@@ -49,6 +49,12 @@ class EventOut(BaseModel):
     # D33/RN-127 (C39): metadato de symlink-as-object, columnas directas de Event.
     is_symlink: bool = False
     symlink_target: str | None = None
+    # D35/RN-129 (C40): true cuando la acción automática (auto_restore/quarantine)
+    # falló en el agente. Ortogonal al status — ver Event.action_failed.
+    action_failed: bool = False
+    # D36/RN-130 (C41): causa del fallo de la acción automática, puramente
+    # explicativa — ver Event.action_error. Aditivo, sin filtro nuevo.
+    action_error: str | None = None
 
     model_config = {"from_attributes": True}
 

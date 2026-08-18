@@ -1,0 +1,28 @@
+-- Migration 008: action_error persistido en events (D36/RN-130, C41).
+--
+-- Agrega la columna action_error a events: la causa del fallo de una acción
+-- automática (auto_restore/quarantine), vocabulario cerrado producido por el
+-- agente (read_only_mount, permission_denied, no_baseline_content,
+-- no_restorable_content, no_baseline_metadata, file_not_found,
+-- hash_mismatch_after_restore, write_failed, move_failed). Compone con
+-- action_failed (migración 007, D35/RN-129) sin alterarlo: action_failed dice
+-- QUE la acción falló, action_error dice POR QUÉ.
+--
+-- Nullable, sin default, sin backfill: ninguna fila existente pudo traer esta
+-- causa porque hasta esta change el backend jamás la leyó del payload.
+--
+-- Sin índice: no hay endpoint ni filtro por action_error en scope (design
+-- D-8) — indexar una columna de baja cardinalidad sin consulta que lo
+-- justifique no aporta nada.
+--
+-- Sin validación de enum a nivel de base: el vocabulario evoluciona del lado
+-- del agente; una restricción convertiría un agente más nuevo que el backend
+-- en pérdida de eventos de integridad.
+--
+-- Idempotente: ADD COLUMN IF NOT EXISTS. Ejecutar el script dos veces no
+-- produce error.
+--
+-- Aplicar manualmente contra la base de datos de producción o test (D3, sin Alembic):
+--   psql $DATABASE_URL -f 008_add_event_action_error.sql
+
+ALTER TABLE events ADD COLUMN IF NOT EXISTS action_error VARCHAR(64);

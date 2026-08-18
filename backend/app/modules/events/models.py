@@ -35,6 +35,15 @@ class Event(SQLModel, table=True):
     # symlink_target es el string crudo de os.readlink, sin normalizar.
     is_symlink: bool = Field(default=False)
     symlink_target: str | None = Field(default=None)
+    # D35/RN-129 (C40): true cuando la acción automática (auto_restore/quarantine)
+    # falló en el agente. Ortogonal al status — un pending con action_failed=true
+    # significa que el archivo sigue adulterado Y la remediación ya falló.
+    action_failed: bool = Field(default=False)
+    # D36/RN-130 (C41): causa del fallo de acción, vocabulario cerrado del lado
+    # del agente (read_only_mount, permission_denied, no_baseline_content, ...).
+    # Sin validación contra enum en el backend (tolerancia hacia adelante, mismo
+    # criterio que action/is_symlink): un valor desconocido se persiste tal cual.
+    action_error: str | None = Field(default=None, max_length=64)
     parent_event_id: int | None = Field(
         default=None,
         sa_column=sa.Column(sa.Integer, sa.ForeignKey("events.id", ondelete="SET NULL"), nullable=True),
