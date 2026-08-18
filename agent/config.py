@@ -6,6 +6,13 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, PrivateAttr, field_validator
 
+# D36/RN-130 (D-10): código de salida único para todo fallo de CONFIGURACIÓN
+# del arranque (EX_CONFIG, sysexits.h). fim-agent.service declara
+# `RestartPreventExitStatus=78` para que un despliegue mal configurado quede
+# en `failed` con un mensaje legible una sola vez, en vez de repetir el mismo
+# error cada RestartSec en un loop de Restart=on-failure indefinido.
+EX_CONFIG = 78
+
 
 class StorageConfig(BaseModel):
     baseline_dir: str
@@ -58,7 +65,7 @@ def load_config(path: str | Path = "/etc/fim-agent/config.yaml") -> AgentConfig:
     path = Path(path)
     if not path.exists():
         print(f"Config file not found: {path}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(EX_CONFIG)
     try:
         with open(path) as f:
             data = yaml.safe_load(f) or {}
@@ -69,4 +76,4 @@ def load_config(path: str | Path = "/etc/fim-agent/config.yaml") -> AgentConfig:
         raise
     except Exception as exc:
         print(f"Config validation error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(EX_CONFIG)
