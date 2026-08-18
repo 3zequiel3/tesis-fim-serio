@@ -25,6 +25,13 @@ class Agent(SQLModel, table=True):
     bootstrap_secret_hash: str | None = Field(default=None)
     shared_secret_hex: str | None = Field(default=None)  # persiste tras bootstrap para HMAC
     watch_paths: list[str] = Field(default=[], sa_column=Column(JSON))
+    # D36/RN-130 (C41): mapa {watch_path: clasificación} reportado por el
+    # preflight de escritura del agente en cada heartbeat (writable |
+    # read_only_mount | permission_denied | missing). Mismo precedente de
+    # columna JSON que watch_paths. Nullable: un agente que nunca reportó
+    # (viejo, o sin heartbeat aún) queda en None, no en {} — {} se leería
+    # como "todos los paths escribibles".
+    watch_path_status: dict[str, str] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
 
 
 class RevokedCertificate(SQLModel, table=True):
@@ -71,6 +78,9 @@ class AgentResponse(BaseModel):
     queue_pressure: float | None
     ruleset_version_applied: int
     watch_paths: list[str]
+    # D36/RN-130 (C41): mapa por-path de clasificación de escritura, tal como
+    # lo persistió el consumer de heartbeat. None si el agente nunca reportó.
+    watch_path_status: dict[str, str] | None = None
 
 
 class AgentListResponse(BaseModel):

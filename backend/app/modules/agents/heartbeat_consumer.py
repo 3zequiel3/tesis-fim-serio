@@ -74,6 +74,10 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
         return
     queue_pressure = payload.get("queue_pressure")
     shutdown = bool(payload.get("shutdown", False))
+    # D36/RN-130 (C41): clave nueva, opcional. Sin schema ni allowlist en este
+    # consumer (ver docstring del módulo) — leer una clave más no toca la
+    # verificación de firma, que firma el dict completo (streams.py).
+    watch_path_status = payload.get("watch_path_status")
 
     with Session(engine) as session:
         agent = session.exec(select(Agent).where(Agent.agent_id == agent_id)).first()
@@ -104,6 +108,22 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
             agent.queue_pressure = float(queue_pressure)
         # dead → online cuando llega un heartbeat (D-C14-04: el agente puede volver a la vida)
         agent.status = AgentStatus.draining if shutdown else AgentStatus.online
+
+        # D36/RN-130 (C41): tolerancia hacia adelante en las dos direcciones.
+        # Clave ausente (agente viejo) → no tocar la columna, no borrar el
+        # último estado conocido. Valor que no es un mapa de strings → ignorar
+        # con warning y procesar el heartbeat igual (nunca offline por esto).
+        if watch_path_status is not None:
+            if isinstance(watch_path_status, dict) and all(
+                isinstance(k, str) and isinstance(v, str) for k, v in watch_path_status.items()
+            ):
+                agent.watch_path_status = watch_path_status
+            else:
+                log.warning(
+                    "heartbeat_consumer.invalid_watch_path_status",
+                    agent_id=agent_id,
+                )
+
         session.add(agent)
         session.commit()
     log.debug("heartbeat_consumer.updated", agent_id=agent_id, shutdown=shutdown)

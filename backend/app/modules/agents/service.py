@@ -108,6 +108,8 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
         queue_pressure=agent.queue_pressure,
         ruleset_version_applied=agent.ruleset_version_applied,
         watch_paths=agent.watch_paths or [],
+        # D36/RN-130 (C41): None si el agente nunca reportó (no default a {}).
+        watch_path_status=agent.watch_path_status,
     )
 
 

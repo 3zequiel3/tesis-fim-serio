@@ -1,0 +1,24 @@
+-- Migration 009: watch_path_status persistido en agents (D36/RN-130, C41).
+--
+-- Agrega la columna watch_path_status a agents: mapa {watch_path:
+-- clasificación} reportado por el preflight de escritura del agente en cada
+-- heartbeat (writable | read_only_mount | permission_denied | missing).
+-- Sigue el mismo precedente que watch_paths (columna JSON en la misma
+-- tabla) en vez de introducir un patrón de persistencia nuevo.
+--
+-- Nullable, sin default, sin backfill: ningún agente registrado antes de
+-- esta change pudo haber reportado este mapa. NULL se interpreta como "el
+-- agente nunca reportó" — deliberadamente distinto de {} (que se leería
+-- como "todos los paths son escribibles").
+--
+-- JSONB (no JSON) porque Postgres lo recomienda para todo uso nuevo salvo
+-- que se necesite preservar el texto tal cual fue enviado, que no es el
+-- caso acá.
+--
+-- Idempotente: ADD COLUMN IF NOT EXISTS. Ejecutar el script dos veces no
+-- produce error.
+--
+-- Aplicar manualmente contra la base de datos de producción o test (D3, sin Alembic):
+--   psql $DATABASE_URL -f 009_add_agent_watch_path_status.sql
+
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS watch_path_status JSONB;
