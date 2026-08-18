@@ -7,7 +7,8 @@ Cubre:
        - notify_if_applicable skip (low/medium/superseded)
        - retry loop 3x
        - cascada de canales
-       - log_only siempre exitoso
+       - semántica de log_only (D23/RN-120): piso de logueo siempre exitoso,
+         pero canal de ENTREGA solo cuando no hay ningún primario configurado
 
   7.2  Tests de endpoints DLQ:
        - GET /alerts/failed
@@ -343,8 +344,12 @@ async def test_notify_event_delivers_on_first_attempt(session, agent):
 
 
 @pytest.mark.asyncio
-async def test_notify_event_retry_3x_then_log_only(session, agent):
-    """n8n falla, smtp no config, webhook_fallback no config → log_only en primer intento."""
+async def test_notify_event_retry_3x_then_dlq(session, agent):
+    """
+    n8n configurado y fallando, sin otros primarios → D23/RN-120: log_only es el
+    piso de logueo, NO un canal de entrega. Se agotan los 4 intentos y la alerta
+    cae en la DLQ con retry_count == len(RETRY_DELAYS).
+    """
     event = _make_event(session)
     alert = _make_alert(session, event.id)
 
@@ -352,7 +357,7 @@ async def test_notify_event_retry_3x_then_log_only(session, agent):
          patch("app.modules.alerts.service.send_n8n", new_callable=AsyncMock, return_value=False), \
          patch("app.modules.alerts.service.send_log_only", new_callable=AsyncMock, return_value=True), \
          patch("app.modules.alerts.service.settings") as mock_settings, \
-         patch("asyncio.sleep", new_callable=AsyncMock):  # no esperar en tests
+         patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:  # no esperar en tests
 
         mock_settings.n8n_webhook_url = "http://n8n.local/webhook"
         mock_settings.smtp_host = ""
@@ -364,22 +369,33 @@ async def test_notify_event_retry_3x_then_log_only(session, agent):
         await notify_event(alert, event)
 
     session.refresh(alert)
-    # log_only es siempre exitoso → debe tener delivered_at
-    assert alert.delivered_at is not None
-    assert alert.channel == AlertChannel.log_only
+    assert alert.delivered_at is None, "un primario configurado que falla NO se marca entregado"
+    assert alert.failed_at is not None
+    assert alert.retry_count == len(RETRY_DELAYS)
+    assert alert.last_error is not None
+    # Los 3 reintentos esperaron los delays de RETRY_DELAYS, en orden.
+    assert [c.args[0] for c in mock_sleep.await_args_list] == RETRY_DELAYS
 
 
 @pytest.mark.asyncio
-async def test_log_only_always_delivers(session, agent):
-    """Canal log_only siempre marca como entregado."""
+async def test_log_only_no_entrega_si_hay_primarios_configurados(session, agent):
+    """
+    D23/RN-120: con los tres canales primarios configurados y fallando, log_only
+    se ejecuta como piso (RN-54) pero la alerta va a la DLQ — no queda entregada.
+    (El caso "sin primarios configurados → log_only entrega" lo cubre
+    test_fix01_no_primaries_log_only_delivers en test_c31_backend_event_correctness.)
+    """
     event = _make_event(session)
     alert = _make_alert(session, event.id)
+
+    log_only_calls: list[dict] = []
 
     with patch("app.modules.alerts.service.Session") as mock_session_class, \
          patch("app.modules.alerts.service.send_n8n", new_callable=AsyncMock, return_value=False), \
          patch("app.modules.alerts.service.send_smtp", new_callable=AsyncMock, return_value=False), \
          patch("app.modules.alerts.service.send_webhook_fallback", new_callable=AsyncMock, return_value=False), \
-         patch("app.modules.alerts.service.send_log_only", new_callable=AsyncMock, return_value=True), \
+         patch("app.modules.alerts.service.send_log_only", new_callable=AsyncMock,
+               side_effect=lambda p: log_only_calls.append(p) or True), \
          patch("app.modules.alerts.service.settings") as mock_settings, \
          patch("asyncio.sleep", new_callable=AsyncMock):
 
@@ -393,8 +409,11 @@ async def test_log_only_always_delivers(session, agent):
         await notify_event(alert, event)
 
     session.refresh(alert)
-    assert alert.delivered_at is not None
-    assert alert.channel == AlertChannel.log_only
+    assert alert.delivered_at is None
+    assert alert.channel != AlertChannel.log_only
+    assert alert.failed_at is not None
+    # El piso de logueo igual corrió en cada uno de los 4 intentos (RN-54).
+    assert len(log_only_calls) == len(RETRY_DELAYS) + 1
 
 
 # ── 7.2 Tests de endpoints ────────────────────────────────────────────────────

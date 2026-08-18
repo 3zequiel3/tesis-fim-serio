@@ -14,13 +14,17 @@ from httpx import ASGITransport, AsyncClient
 
 @pytest.fixture
 def mock_valkey():
-    """Valkey mock con comportamiento default: sin rate limit, sin blacklist."""
+    """Valkey mock con comportamiento default: sin rate limit, sin blacklist, sin gracia."""
     m = MagicMock()
     m.incr.return_value = 1
     m.expire.return_value = True
     m.exists.return_value = 0
     m.setex.return_value = True
     m.close.return_value = None
+    # GET sobre una clave inexistente devuelve None en Valkey. Sin este default el
+    # MagicMock devuelve otro MagicMock (truthy) y la ventana de gracia del refresh
+    # (fim:refresh_grace:<jti>) parece SIEMPRE activa.
+    m.get.return_value = None
     return m
 
 
@@ -156,16 +160,43 @@ async def test_refresh_incluye_objeto_user(auth_client):
 
 
 async def test_refresh_con_token_revocado_retorna_401(mock_valkey, auth_client):
-    """Simula que el jti del refresh está en la blacklist."""
+    """Reuso real: el jti está blacklisteado y la ventana de gracia ya venció."""
     login_resp = await _login(auth_client)
     assert login_resp.status_code == 200
 
-    # Simular que el jti está en la blacklist
+    # Simular que el jti está en la blacklist y que la gracia ya expiró
+    # (fim:refresh_grace:<jti> ausente → GET devuelve None).
     mock_valkey.exists.return_value = 1
+    mock_valkey.get.return_value = None
 
     cookies = login_resp.cookies
     resp = await auth_client.post("/auth/refresh", cookies=cookies)
     assert resp.status_code == 401
+
+
+async def test_refresh_concurrente_dentro_de_gracia_reusa_la_sesion_rotada(
+    mock_valkey, auth_client
+):
+    """
+    Refresh concurrente: el jti viejo está blacklisteado pero la ventana de gracia
+    (10 s) sigue viva → el perdedor recibe la sesión que rotó el ganador, no 401.
+    """
+    login_resp = await _login(auth_client)
+    assert login_resp.status_code == 200
+
+    # Primer refresh: gana y rota. Guardamos el refresh emitido.
+    winner = await auth_client.post("/auth/refresh", cookies=login_resp.cookies)
+    assert winner.status_code == 200
+    winning_refresh = winner.cookies["refresh_token"]
+
+    # Segundo refresh con el token VIEJO, dentro de la ventana de gracia.
+    mock_valkey.exists.return_value = 1
+    mock_valkey.get.return_value = winning_refresh.encode()
+
+    loser = await auth_client.post("/auth/refresh", cookies=login_resp.cookies)
+    assert loser.status_code == 200
+    assert loser.cookies["refresh_token"] == winning_refresh
+    assert "access_token" in loser.json()
 
 
 async def test_refresh_sin_cookie_retorna_401(auth_client):

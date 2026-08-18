@@ -414,8 +414,16 @@ async def test_fix04_pagination_sql(authenticated_client):
 
     ac, token = authenticated_client
 
-    # Insertar 120 eventos pendientes directamente en Postgres
+    # Insertar 120 eventos pendientes directamente en Postgres.
+    # `events.agent_id` tiene FK a `agents.agent_id`: el agente debe existir antes.
     with Session(real_engine) as s:
+        if s.get(Agent, "agent-fix04") is None:
+            s.add(Agent(
+                agent_id="agent-fix04",
+                status=AgentStatus.online,
+                shared_secret_hex=os.urandom(32).hex(),
+            ))
+            s.commit()
         for i in range(120):
             ev = Event(
                 event_id=f"fix04-evt-{i:04d}",
@@ -477,8 +485,11 @@ def test_fix05_compact_chain_retains_newest(mem_engine):
             # Usamos detected_at como proxy (created_at tiene default NOW en Postgres)
             # En SQLite podemos sobreescribir vía SQL
             from sqlalchemy import text
+            # La tabla es `events` (Event.__tablename__), no el `event` que
+            # SQLModel derivaría por default. El nombre viejo hacía que este
+            # UPDATE fallara con "no such table".
             session.execute(
-                text("UPDATE event SET created_at = :ts WHERE id = :id"),
+                text("UPDATE events SET created_at = :ts WHERE id = :id"),
                 {"ts": (base_time + timedelta(minutes=idx)).isoformat(), "id": ev.id},
             )
         session.commit()
