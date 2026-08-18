@@ -175,38 +175,69 @@ El agente prioriza la calidad forense del evento (qué proceso tocó qué archiv
 
 ### Despliegue del agente (nativo, no Docker)
 
-El agente se instala como servicio de `systemd`:
+El agente se instala como servicio de `systemd` (`agent/deploy/fim-agent.service`, instalado y ajustado por `agent/install.sh`). D36/RN-130 (2026-08-14) cerró el modelo real de capabilities, `ReadWritePaths` y arranque — el ejemplo que sigue **es** el unit real, no una versión simplificada:
 
 ```ini
-# /etc/systemd/system/fim-agent.service
+# /etc/systemd/system/fim-agent.service (unit base, sin editar por install.sh)
 [Unit]
-Description=FIM Agent — detección reactiva fanotify
-After=network-online.target
-Wants=network-online.target
+Description=FIM Agent — File Integrity Monitor
+Documentation=https://github.com/mncrmn2009/tesis-fim-serio
+After=network.target
 
 [Service]
 Type=simple
 User=fim-agent
 Group=fim-agent
-AmbientCapabilities=CAP_SYS_ADMIN
-CapabilityBoundingSet=CAP_SYS_ADMIN
-NoNewPrivileges=true
+WorkingDirectory=/opt/fim-agent
+
+ExecStart=/opt/fim-agent/venv/bin/python -m agent --config /etc/fim-agent/config.yaml
+
+EnvironmentFile=-/etc/fim-agent/env
+
+AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN
+
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/lib/fim-agent /var/log/fim-agent
+NoNewPrivileges=true
 PrivateTmp=true
-ExecStart=/opt/fim-agent/bin/fim-agent --config /etc/fim-agent/config.yaml
+ReadWritePaths=/var/lib/fim-agent /var/log/fim-agent
+
 Restart=on-failure
 RestartSec=5s
+RestartPreventExitStatus=78
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fim-agent
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-* `AmbientCapabilities=CAP_SYS_ADMIN`: requerido por `fanotify` para marcar FS completo y leer metadata de proceso causante.
-* `ProtectSystem=strict` + `ReadWritePaths`: el agente solo puede escribir en sus propios directorios (baseline cifrada, cola, journal, certs, logs).
-* `NoNewPrivileges`: impide escalación posterior.
+Más un drop-in generado por `install.sh` (`agent/deployment.py`) en `/etc/systemd/system/fim-agent.service.d/10-watchpaths.conf`, derivado de los `watch_paths` de `config.yaml`:
+
+```ini
+[Service]
+ReadWritePaths="/etc/fim-agent"
+ReadWritePaths="/etc"
+ReadWritePaths="/bin"
+ReadWritePaths="/usr/bin"
+```
+
+* **Capabilities (D36/RN-130)** — cada una mapea a un syscall concreto del camino de remediación de `auto_restore`/`quarantine` (RN-30 a RN-37), no a una concesión genérica:
+  * `CAP_SYS_ADMIN`: `fanotify_init` + marcar filesystems completos.
+  * `CAP_DAC_READ_SEARCH`: `open_by_handle_at(2)`, resolución de path en modo FID.
+  * `CAP_DAC_OVERRIDE`: crear el archivo temporal en un directorio `root`-owned, el `rename` de `os.replace`, el `unlink` del origen en `shutil.move`.
+  * `CAP_FOWNER`: `fchmod` sobre un archivo cuyo dueño no es el euid del proceso (restauración de `mode`).
+  * `CAP_CHOWN`: `fchown` a un uid/gid arbitrario (restauración de `uid`/`gid`).
+  * Deben listarse en **ambas** directivas — una ambient capability ausente del `CapabilityBoundingSet` se descarta en silencio.
+* **`ProtectSystem=strict` + `ReadWritePaths` derivado (D36/RN-130)**: el unit base solo declara los directorios propios del agente. `ReadWritePaths` para los `watch_paths` del operador se materializa como drop-in **aditivo** generado en tiempo de instalación — nunca como edición del unit base — porque `ReadWritePaths=` acumula entre asignaciones sucesivas y solo una asignación vacía resetea la lista. Se descartó bajar a `ProtectSystem=full`: dejaría `/usr/bin` sin remediación posible, exactamente el escenario que motiva la herramienta.
+* **`EnvironmentFile=-/etc/fim-agent/env`** (D36/RN-130): guion = opcional. Provee `FIM_BOOTSTRAP_SECRET` para el primer arranque; el secreto es de un solo uso y se espera que se borre después.
+* **`RestartPreventExitStatus=78`** (D36/RN-130): `78` = `EX_CONFIG` (`sysexits.h`). Los fallos de *configuración* del arranque (secreto de bootstrap ausente, `shared_secret` ausente, `config.yaml` ausente o inválido) salen con este código para que el unit quede en `failed` con un mensaje legible una sola vez, en vez de repetir el mismo error cada `RestartSec` en loop. Los fallos transitorios (Valkey caído, red) siguen usando `Restart=on-failure` normalmente.
+* `NoNewPrivileges`: impide escalación posterior vía `execve` de binarios setuid/con file capabilities; no interfiere con las capabilities que systemd fija al arrancar el proceso.
 * `PrivateTmp`: aísla `/tmp`.
+* **Preflight de escritura (D36/RN-130)**: al arrancar y en cada `update_config`, el agente clasifica cada `watch_path` (`writable | read_only_mount | permission_denied | missing`) sin escribir ningún archivo sonda, y reporta el resultado en el heartbeat. Un path no escribible **no detiene al agente**: se marca solo-detección — la detección es la función primaria, la remediación es una capacidad adicional que puede faltar.
+* **Propiedad (D36/RN-130)**: `install.sh` ya NO hace `chown -R fim-agent` sobre `/opt/fim-agent` ni `/etc/fim-agent` — quedan `root`, legibles por el grupo `fim-agent`. Solo `/var/lib/fim-agent` y `/var/log/fim-agent` son del usuario del servicio. Las capabilities viven en el proceso que systemd arranca, no en el uid; un `chown -R` al usuario del servicio convertiría un uid comprometido en una escalada a root de un solo paso en el siguiente reinicio.
 
 > El contenedor del agente fue descartado: otorgar `CAP_SYS_ADMIN` a un contenedor rompe el aislamiento estándar y `fanotify` sobre un mount bind no ve operaciones del anfitrión, solo las del namespace del contenedor.
 

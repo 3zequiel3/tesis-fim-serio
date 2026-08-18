@@ -152,84 +152,114 @@ y reiniciar el backend.
 
 ## Instalación del agente FIM como systemd unit
 
+> Esta sección se corrigió el 2026-08-14 (D36/RN-130) porque estaba desfasada
+> en cuatro puntos independientes respecto del código real: dependía de
+> `pyfanotify` (el agente usa un backend propio sobre syscalls crudas, ver
+> abajo), corría como `User=root` (corre como `fim-agent`), declaraba
+> `ProtectSystem=full` (es `strict`, con `ReadWritePaths` derivado por
+> drop-in) y documentaba un entrypoint `-m agent.bootstrap.main` que no
+> existe (el real es `-m agent`, leyendo `/etc/fim-agent/config.yaml`). La
+> corrección va del unit real (`agent/deploy/fim-agent.service`) hacia este
+> documento, nunca al revés.
+
 ### Requisitos previos
 
-- Linux con systemd (kernel ≥ 5.1 para fanotify con `FAN_OPEN_EXEC_PERM`).
-- Python 3.13 y `pyfanotify` 0.3.0 instalados en el host.
-- Certificado mTLS firmado por la CA del backend (ver sección PKI).
-- Permiso `CAP_SYS_ADMIN` — requerido por fanotify para monitoreo de filesystem (RN-108).
+- Linux con systemd (kernel ≥ 5.1 para fanotify en modo FID).
+- Python 3.13 instalado en el host. El detector **no** depende de `pyfanotify`:
+  usa un backend propio sobre syscalls crudas vía `ctypes` (`agent/_fanotify.py`),
+  en modo `FAN_REPORT_DFID_NAME` — la API pública de `pyfanotify` es incompatible
+  con el hilo lector bloqueante del detector y no entrega eventos de
+  creación/borrado/renombrado en modo fd (ver el comentario de cabecera de
+  `agent/requirements.txt`).
+- CA cert pre-provisionado (`ca_cert_path` en `config.yaml`) — el bootstrap
+  del agente lo requiere para verificar la respuesta del backend.
+- El host debe poder otorgar `CAP_SYS_ADMIN` + `CAP_DAC_READ_SEARCH` +
+  `CAP_DAC_OVERRIDE` + `CAP_FOWNER` + `CAP_CHOWN` al proceso del servicio
+  (RN-108, D36/RN-130) — ninguna es opcional: sin las tres últimas,
+  `auto_restore`/`quarantine` (RN-30 a RN-37) fallan en el 100% de los casos.
 
-### Unit file de ejemplo
+### Instalación recomendada: `agent/install.sh`
 
-Guardar en `/etc/systemd/system/fim-agent.service`:
+El script es la fuente de verdad operativa — instala el unit, el usuario de
+servicio, el árbol de `/var/lib/fim-agent`, copia `config.yaml.example` si no
+hay config, genera el drop-in de `ReadWritePaths` a partir de los
+`watch_paths` configurados, y aplica la propiedad correcta (D36/RN-130 D-11):
+
+```bash
+sudo bash agent/install.sh
+# Editar /etc/fim-agent/config.yaml (agent_id, watch_paths) antes de arrancar
+sudo systemctl start fim-agent
+sudo systemctl status fim-agent
+```
+
+Es idempotente: correrlo de nuevo no pisa un `config.yaml` ya editado, y
+regenera el drop-in desde el `config.yaml` vigente — por eso también es el
+procedimiento para aplicar un cambio de `watch_paths` hecho en caliente
+(ver "Regenerar el drop-in tras cambiar watch_paths" más abajo).
+
+### Unit file real (`agent/deploy/fim-agent.service`)
 
 ```ini
 [Unit]
-Description=FIM Platform Agent
+Description=FIM Agent — File Integrity Monitor
 Documentation=https://github.com/mncrmn2009/tesis-fim-serio
 After=network.target
-Wants=network-online.target
 
 [Service]
 Type=simple
-User=root
-Group=root
-
-# Ruta al directorio del agente
+User=fim-agent
+Group=fim-agent
 WorkingDirectory=/opt/fim-agent
 
-# Comando de arranque
-ExecStart=/opt/fim-agent/venv/bin/python -m agent.bootstrap.main
+ExecStart=/opt/fim-agent/venv/bin/python -m agent --config /etc/fim-agent/config.yaml
 
-# Permisos requeridos
-AmbientCapabilities=CAP_SYS_ADMIN
-CapabilityBoundingSet=CAP_SYS_ADMIN
-NoNewPrivileges=false
+EnvironmentFile=-/etc/fim-agent/env
 
-# Variables de entorno
-EnvironmentFile=/etc/fim-agent/env
+AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN
 
-# Restart automático
-Restart=on-failure
-RestartSec=10s
-TimeoutStopSec=30s
-
-# Seguridad adicional
-ProtectSystem=full
+ProtectSystem=strict
+NoNewPrivileges=true
 PrivateTmp=true
+ReadWritePaths=/var/lib/fim-agent /var/log/fim-agent
+
+Restart=on-failure
+RestartSec=5s
+RestartPreventExitStatus=78
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fim-agent
 
 [Install]
 WantedBy=multi-user.target
 ```
 
+`install.sh` además genera `/etc/systemd/system/fim-agent.service.d/10-watchpaths.conf`
+(drop-in aditivo, unit base sin editar) con una línea `ReadWritePaths=` por
+`watch_path` configurado, más `/etc/fim-agent` siempre incluido — ver
+"Arquitectura → Despliegue del agente" en `arquitectura_stack.md` para el
+detalle de por qué cada capability está y cómo se deriva el drop-in.
+
 ### Archivo de entorno del agente
 
-Crear `/etc/fim-agent/env` con permisos `600` (solo root):
+`/etc/fim-agent/env`, permisos `0600` propiedad `root:root` (systemd lo lee
+como root antes de bajar privilegios; el usuario del servicio no necesita
+acceso). `install.sh` instala una plantilla desde `agent/deploy/env.example`
+**solo si el archivo no existe**. La única variable que va acá es el secreto
+de bootstrap — todo lo demás (`agent_id`, `watch_paths`, `valkey_url`, rutas
+de certificados) vive en `/etc/fim-agent/config.yaml`, no en el environment:
 
 ```bash
-# Valkey — conexión al stream de backend
-VALKEY_URL=valkey://backend-host:6379
-
-# Identificador único del agente
-AGENT_ID=agent-prod-01
-
-# mTLS — certificados firmados por el backend CA
-AGENT_CERT_PATH=/etc/fim-agent/certs/agent.crt
-AGENT_KEY_PATH=/etc/fim-agent/certs/agent.key
-CA_CERT_PATH=/etc/fim-agent/certs/ca.crt
-
-# Paths a monitorear (separados por coma)
-WATCH_PATHS=/etc,/usr/bin,/usr/sbin,/lib,/lib64
-
-# Baseline cifrado AES-GCM
-BASELINE_PATH=/var/lib/fim-agent/baseline.enc
-BASELINE_KEY_PATH=/etc/fim-agent/baseline.key
+# /etc/fim-agent/env — de un solo uso, se recomienda borrar tras el primer
+# arranque exitoso (EnvironmentFile=- en el unit tolera su ausencia).
+FIM_BOOTSTRAP_SECRET=<secreto entregado por el operador del backend>
 ```
 
 ### Comandos de gestión
 
 ```bash
-# Recargar systemd tras instalar o modificar el unit file
+# Recargar systemd tras instalar o modificar el unit file o el drop-in
 sudo systemctl daemon-reload
 
 # Habilitar arranque automático al boot
@@ -251,14 +281,58 @@ sudo systemctl stop fim-agent.service
 sudo systemctl restart fim-agent.service
 ```
 
-### Verificar permisos CAP_SYS_ADMIN
+### Regenerar el drop-in tras cambiar `watch_paths` (D36/RN-130)
+
+`ReadWritePaths` se materializa en el momento de la instalación; un comando
+`update_config` emitido desde la interfaz cambia los `watch_paths` **en
+caliente**, pero un path agregado así queda **monitoreado y no remediable**
+hasta que el operador re-ejecute la configuración privilegiada en el
+anfitrión — esto es inherente a que systemd resuelve `ReadWritePaths` en el
+namespace de montaje al arrancar el servicio, no un defecto de
+implementación. El agente lo hace visible: el preflight de escritura
+clasifica ese path como `read_only_mount` y la tarjeta del agente en el
+frontend lo muestra como solo-detección dentro de un heartbeat (≤10 s).
+
+Para habilitar remediación sobre el path nuevo:
 
 ```bash
-# El proceso debe mostrar cap_sys_admin en el conjunto de capacidades efectivas
+# config.yaml ya refleja los watch_paths nuevos (el agente los persiste solo
+# tras un update_config exitoso) — install.sh regenera el drop-in desde ahí.
+sudo bash agent/install.sh
+sudo systemctl daemon-reload
+sudo systemctl restart fim-agent
+```
+
+### Verificar permisos (capabilities)
+
+```bash
+# El proceso debe mostrar las cinco capabilities en el conjunto efectivo/ambient
 cat /proc/$(systemctl show --property=MainPID fim-agent.service | cut -d= -f2)/status | grep ^Cap
 # Decodificar: capsh --decode=<CapEff value>
 ```
 
-Si `cap_sys_admin` no aparece, fanotify fallará con `EPERM` al intentar registrar el watcher.
-Verificar que el unit file tiene `AmbientCapabilities=CAP_SYS_ADMIN` y que el binario de Python
-no tiene la capability dropped en su propia imagen.
+Si falta alguna de `cap_sys_admin`, `cap_dac_read_search`, `cap_dac_override`,
+`cap_fowner` o `cap_chown`:
+
+- `cap_sys_admin` ausente → fanotify fallará con `EPERM` al registrar el watcher.
+- `cap_dac_override` / `cap_fowner` / `cap_chown` ausentes → `auto_restore` y
+  `quarantine` fallarán con `permission_denied` sobre paths que el preflight
+  reporta como `writable` (mount correcto, capability faltante) — comparar
+  contra `AmbientCapabilities` **y** `CapabilityBoundingSet` en el unit: una
+  capability ausente del bounding set se descarta en silencio aunque figure
+  en `AmbientCapabilities` (D36/RN-130).
+
+### Diagnosticar un path no remediable
+
+Si la tarjeta del agente muestra un `watch_path` como solo-detección
+(`read_only_mount` o `permission_denied`):
+
+1. `read_only_mount` → falta el drop-in para ese path. Confirmar con
+   `systemctl cat fim-agent.service` que `10-watchpaths.conf` lo incluye; si
+   no, regenerar (sección anterior).
+2. `permission_denied` con el path ya en el drop-in → revisar las
+   capabilities (sección anterior) antes que los permisos del filesystem:
+   `CAP_DAC_OVERRIDE` cubre la mayoría de los casos DAC, así que su ausencia
+   es la causa más común.
+3. `missing` → el path configurado no existe en el host. Antes de D36/RN-130
+   este caso se aceptaba sin ningún reporte.

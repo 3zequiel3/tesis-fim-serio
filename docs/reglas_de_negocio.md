@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-128 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-130 |
 
 ---
 
@@ -378,8 +378,8 @@
 ### RN-51: Permisos restringidos en almacenamiento
 **Descripción:** Los directorios de baseline, snapshots, cola, journal y secretos del agente tienen permisos restringidos.
 **Condición:** Siempre.
-**Resultado:** `/var/lib/fim-agent/{baseline,quarantine,queue,journal}/` con permisos `0700`, owner `fim-agent`. `/var/lib/fim-agent/secrets/{master_secret,shared_secret}` con permisos `0400`. `/var/lib/fim-agent/certs/` con permisos `0600`. Ningún otro usuario del sistema tiene acceso. Adicionalmente, el servicio `systemd` aplica `ProtectSystem=strict`, `NoNewPrivileges`, `PrivateTmp`.
-**Excepciones:** Ninguna.
+**Resultado:** `/var/lib/fim-agent/{baseline,quarantine,queue,journal}/` con permisos `0700`, owner `fim-agent`. `/var/lib/fim-agent/secrets/{master_secret,shared_secret}` con permisos `0400`. `/var/lib/fim-agent/certs/` con permisos `0600`. Ningún otro usuario del sistema tiene acceso. Adicionalmente, el servicio `systemd` aplica `ProtectSystem=strict`, `NoNewPrivileges`, `PrivateTmp`, y `ReadWritePaths` **derivado** de los `watch_paths` configurados vía un drop-in generado por `install.sh` (`D36/RN-130`) — no una lista fija en el unit base. El proceso del servicio corre con `AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN` (D36/RN-130), necesarias para que `auto_restore`/`quarantine` (RN-30 a RN-37) puedan escribir sobre los `watch_paths` remediables. `/opt/fim-agent` y `/etc/fim-agent` son propiedad de `root` (legibles por el grupo `fim-agent`); solo `/var/lib/fim-agent` y `/var/log/fim-agent` pertenecen al usuario del servicio — el proceso, no el uid, sostiene las capabilities.
+**Excepciones:** Ninguna. Ver D36/RN-130 en el appendix "Decisiones de implementación — Abril 2026" para el detalle completo del modelo de capabilities, el preflight de escritura y la limitación conocida de los `watch_paths` agregados en runtime.
 
 ---
 
@@ -772,7 +772,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1128,6 +1128,61 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 - La severidad del evento es un snapshot al momento de la ingesta: cambios posteriores del ruleset no re-etiquetan eventos ya persistidos (consistente con la semántica de alertas, cuya severidad también se congela al crearse la fila `Alert`).
 
 **Excepciones:** Ninguna.
+
+#### D35 / RN-129: Derivación del estado terminal del evento en la ingesta (`action` → `status`)
+
+**Descripción:** RN-13 establece que un evento sobre el que el agente ya ejecutó una acción se crea con estado `auto_restored`, `quarantined` o `alert_only` y **no pasa por `pending`**. Esa regla era inoperante: el agente nunca emitió un campo `status` en el payload del evento, y la ingesta del backend defaultea a `pending` (`ingest_event`), por lo que los tres estados terminales de origen agente eran inalcanzables en la base de datos. Un archivo ya restaurado automáticamente se presentaba al operador como pendiente de decisión, y aprobarlo emitía un segundo comando redundante sobre un archivo ya resuelto.
+
+Esta decisión cierra el contrato: el estado **se deriva en el backend** a partir de los campos `action` y `action_failed` que el agente ya publica, en lugar de aceptar un `status` enviado por el agente. La derivación en el backend es deliberada y tiene fundamento de seguridad: `action` es un vocabulario cerrado de cuatro valores producidos por el motor de reglas del agente, mientras que un campo `status` de escritura libre permitiría a un agente comprometido inyectar eventos ya marcados como `approved` o `rejected`, saltándose el ciclo de decisión humano y la auditoría asociada. El backend es la única autoridad sobre `EventStatus`.
+
+**Condición:** Todo evento ingerido por el consumer del stream `events` (`ingest_event`).
+
+**Resultado:**
+
+- Tabla de derivación, evaluada sobre `action` (`auto_restore | quarantine | manual_review | alert_only`, vocabulario de `RulesCache.evaluate`, default `alert_only` por RN-06) y `action_failed`:
+
+  | `action` | `action_failed` | `status` resultante |
+  |---|---|---|
+  | `auto_restore` | `false` | `auto_restored` |
+  | `quarantine` | `false` | `quarantined` |
+  | `alert_only` | — | `alert_only` |
+  | `manual_review` | — | `pending` |
+  | `auto_restore` | `true` | `pending` |
+  | `quarantine` | `true` | `pending` |
+  | ausente o desconocida | — | `pending` |
+
+- **Acción fallida ⇒ `pending`, no terminal.** Cuando la acción automática falla, el archivo permanece adulterado en disco: el incidente no está resuelto y debe volver a la cola del operador con las acciones de aprobar y rechazar disponibles. Cerrarlo como terminal dejaría un archivo comprometido sin ningún actor capaz de intervenir desde la interfaz.
+- **`Event.action_failed: bool`** (default `false`) se persiste para no perder la información de que se intentó una acción automática y falló. La interfaz distingue visualmente un `pending` normal de un `pending` con `action_failed = true`, que representa un fallo de remediación y tiene prioridad operativa. `EventOut` expone el campo.
+- **Un `action` desconocido o ausente no invalida el evento**: se ingiere como `pending` (tolerancia hacia adelante, mismo criterio que D33 para `is_symlink`/`symlink_target`). Un agente de una versión anterior mantiene el comportamiento actual.
+- **Eventos terminales de origen agente** (`auto_restored`, `quarantined`, `alert_only`) se persisten con `resolved_at = received_at` y `resolved_by = NULL`. `resolved_by` nulo con `resolved_at` presente identifica una resolución automática del agente, sin operador humano; la traza de la acción vive en el journal del agente y en el propio evento.
+- **Limpieza del léxico (RN-71)**: `_auto_restore` sobrescribe `payload["event_type"]` con el literal `"auto_restored"`, contaminando un campo cuyo vocabulario declarado es `file_modified | file_absent | file_deleted | file_created`. `_quarantine` no hace lo simétrico. Esa sobrescritura se elimina: `event_type` conserva siempre el tipo de operación del filesystem, y el resultado de la acción viaja exclusivamente en `action` / `action_failed`.
+- Migración SQL idempotente en `backend/db/migrations/` (convención D3, sin Alembic). Las filas preexistentes reciben backfill `action_failed = false`.
+
+**Excepciones:**
+- Los estados `approved`, `rejected` y `superseded` no son derivables desde el agente en ninguna circunstancia: son transiciones exclusivas del backend, originadas por una decisión de operador (RN-25/RN-26) o por la supersesión automática (RN-77). Un payload de agente que pretenda inducirlos se ingiere como `pending`.
+- Esta decisión no altera la lógica de supersesión de `ingest_event`: un evento entrante, sea terminal o `pending`, sigue superseding al `pending` activo del mismo path si existe.
+
+#### D36 / RN-130: Acceso de escritura del agente para remediación automática
+
+**Descripción:** Las acciones automáticas `auto_restore` y `quarantine` (RN-30 a RN-37) son inejecutables en el despliegue especificado. Dos barreras independientes lo impiden, y ninguna de las dos se levanta corrigiendo la otra:
+
+1. **Mount read-only.** `ProtectSystem=strict` (RN-51) remonta toda la jerarquía del sistema como solo-lectura para el servicio, salvo lo declarado en `ReadWritePaths`, que hoy lista únicamente `/var/lib/fim-agent` y `/var/log/fim-agent`. Los `watch_paths` por defecto (`/etc`, `/bin`, `/usr/bin`) quedan afuera. Ninguna capability atraviesa un mount de solo-lectura: la escritura falla con `EROFS` con independencia de los privilegios del proceso.
+2. **Chequeo DAC.** El servicio corre como `User=fim-agent` con `AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH`. `CAP_DAC_READ_SEARCH` habilita lectura y búsqueda, no escritura; `CAP_SYS_ADMIN` no exime de los chequeos de permisos DAC. Reemplazar un archivo cuyo dueño es `root` requiere `CAP_DAC_OVERRIDE`, y restaurar modo y propiedad desde la entrada de baseline (RN-30) requiere además `CAP_FOWNER` y `CAP_CHOWN`.
+
+**Condición:** Todo despliegue del agente como servicio systemd nativo.
+
+**Resultado:**
+
+- **Capabilities**: `AmbientCapabilities` y `CapabilityBoundingSet` incorporan `CAP_DAC_OVERRIDE`, `CAP_FOWNER` y `CAP_CHOWN`. La expansión de privilegio marginal es baja: el servicio ya posee `CAP_SYS_ADMIN`, que es equivalente a root en la práctica. El valor real de `ProtectSystem=strict` no es contener a un atacante que ya controle el proceso, sino acotar el daño de un defecto del propio agente — por eso se conserva.
+- **`ProtectSystem=strict` se mantiene.** `ReadWritePaths` deja de ser una lista fija: `install.sh` la deriva de los `watch_paths` declarados en `/etc/fim-agent/config.yaml` y la emite como drop-in de systemd (`/etc/systemd/system/fim-agent.service.d/10-watchpaths.conf`), preservando el unit base sin editar. Se descartó bajar a `ProtectSystem=full` porque dejaría `/usr/bin` en solo-lectura, es decir sin remediación posible sobre binarios del sistema — precisamente el escenario de un atacante que reemplaza un binario, que motiva la herramienta.
+- **Preflight de escritura.** Al arrancar y en cada recarga de configuración (`update_config`), el agente verifica que cada `watch_path` sea escribible. Un path no escribible **no detiene al agente ni interrumpe el monitoreo**: se marca como solo-detección, se registra en el log y se reporta en el heartbeat. La detección es la función primaria; la remediación es una capacidad adicional que puede estar ausente sin invalidar el servicio.
+- **Causa de fallo distinguible.** Un fallo de acción por falta de permiso de escritura se distingue de un fallo por baseline ausente o corrupto (`no_baseline_content`, `no_restorable_content`), de modo que el operador pueda diferenciar un problema de despliegue de un problema de datos. Compone con `Event.action_failed` (D35/RN-129).
+- **`install.sh` no otorga al usuario del servicio la propiedad de su propio código.** `/opt/fim-agent` y `/etc/fim-agent` quedan bajo propiedad de `root` con permiso de lectura para `fim-agent`; sólo `/var/lib/fim-agent` y `/var/log/fim-agent` pertenecen al usuario del servicio. Hoy `install.sh` hace `chown -R fim-agent` sobre los tres, lo que permitiría a quien obtenga ese uid reescribir el código del agente y recibir `CAP_SYS_ADMIN` en el siguiente reinicio.
+- Se actualizan en consecuencia las menciones a `ReadWritePaths` y al modelo de capabilities en [arquitectura_stack.md](arquitectura_stack.md), [flujo_de_usuario.md](flujo_de_usuario.md) y RN-51 de este documento.
+
+**Excepciones:**
+- **Limitación conocida — `watch_paths` agregados en runtime.** `ReadWritePaths` se materializa en el momento de la instalación; `update_config` cambia los `watch_paths` en caliente. Un path incorporado desde la interfaz queda **monitoreado pero no remediable** hasta que se re-ejecute la configuración privilegiada en el anfitrión (regeneración del drop-in y `systemctl daemon-reload`). Esta limitación es inherente a que el aislamiento de systemd se resuelve en el espacio de nombres de montaje al arrancar el servicio, no un defecto de implementación. El preflight la hace visible en lugar de silenciosa: el operador ve en la interfaz que ese path es solo-detección.
+- La remediación automática sobre paths fuera de todo `watch_path` sigue prohibida por D18/RN-116; esta decisión no amplía el alcance de containment.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
