@@ -665,6 +665,8 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 - Eventos de agente: 100 eventos/min por `agent_id`.
 
 Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se descartan con alerta (eventos).
+
+> **Superado por D37/RN-131 en la parte de eventos.** Un evento excedido ya no se descarta: el backend responde `event_nack` con `retry_after` y el agente lo retiene en cola aplicando backpressure. La alerta que este párrafo prometía nunca se implementó. El límite de recursos sigue siendo el drop-oldest de RN-40. El comportamiento de la API (429) no cambia.
 **Excepciones:** Ninguna.
 
 #### W6 / RN-89: Logging estructurado con sanitización
@@ -677,6 +679,8 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 **Descripción:** Los eventos llevan dos timestamps y se rechazan si hay desfase excesivo.
 **Condición:** Consumo de evento por el backend.
 **Resultado:** Evento incluye `detected_at` (agente). Backend agrega `received_at`. Si `abs(received_at - detected_at) > 5 min`, se rechaza con código `clock_skew` y se persiste en `rejected_events_audit`.
+
+> **Enmendada por D37/RN-131.** La ventana de 5 minutos se evalúa sobre `sent_at` —sellado al publicar y re-sellado en cada republicación, dentro del payload firmado— y `detected_at` deja de tener ventana, conservando sólo su validación de parseabilidad. El texto de arriba describe el comportamiento previo y sigue vigente como fallback cuando el payload no trae `sent_at` (agente anterior a la enmienda). Motivo: tal como estaba, esta regla anulaba a RN-38/RN-41 — cualquier corte mayor a cinco minutos convertía el contenido íntegro de la cola offline en eventos irrecibibles.
 **Excepciones:** Ninguna.
 
 #### W14 / RN-91: `schema_version` en payloads
@@ -803,6 +807,9 @@ Sincronización: cada `event_ack` exitoso de `baseline_update` actualiza la fila
 - `payload_dump: str` (JSON crudo, truncado a 4 KB)
 
 El uso de enum (no `str` libre) garantiza que cualquier valor fuera del léxico es rechazado a nivel de schema.
+
+> **Ampliada por D37/RN-131.** La persistencia en `rejected_events_audit` no cambia: todo rechazo se sigue auditando igual. Lo que se agrega es que el rechazo además **se comunica** al agente mediante una respuesta tipada, para cuatro de los motivos. `invalid_signature` y `unknown_agent` siguen sin respuesta: no se puede firmar una respuesta verificable para un emisor que no autenticó, y responder convertiría al backend en un oráculo que confirma qué `agent_id` existen. El enum incorpora `rate_limited` y `schema_version_unsupported`.
+
 **Excepciones:** Ninguna.
 
 #### D6 / RN-107: Tabla unificada `alerts` (fusión con `failed_notifications`)

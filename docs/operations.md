@@ -336,3 +336,29 @@ Si la tarjeta del agente muestra un `watch_path` como solo-detección
    es la causa más común.
 3. `missing` → el path configurado no existe en el host. Antes de D36/RN-130
    este caso se aceptaba sin ningún reporte.
+
+## Directorio de descarte del agente (D37/RN-131)
+
+**Ubicación**: `/var/lib/fim-agent/discard/`, junto a la cola. Permisos `0700`, owner `fim-agent`.
+
+**Qué contiene**: eventos que el agente dejó de intentar publicar, cada uno con el motivo del descarte. Los motivos posibles son:
+
+| Motivo | Significado |
+|---|---|
+| `invalid_schema` | el backend consideró el payload ilegible |
+| `clock_skew` | el desfase entre `sent_at` y la hora del backend excedió los 5 minutos |
+| `max_attempts_exceeded` | se agotó el techo de intentos sin recibir respuesta de ningún tipo |
+
+**Esto es evidencia, no basura.** Cada archivo es un cambio de integridad detectado en el host que **nunca llegó al backend**. Un directorio de descarte con contenido es una anomalía a investigar, no un residuo a limpiar por rutina.
+
+Cómo leer cada motivo:
+
+- `max_attempts_exceeded` es el más grave: significa que el agente publicó y no obtuvo ni ack ni nack. Las causas típicas son un `agent_id` desconocido para el backend (el agente fue dado de baja o su registro se perdió) o un `shared_secret` desincronizado, porque ninguno de esos dos casos genera respuesta a propósito. Verificar el registro del agente antes que la red.
+- `clock_skew` con `sent_at` apunta a un reloj adulterado o a NTP caído en el host, no a una cola vieja: la ventana se evalúa sobre el momento del envío, así que una cola que sobrevivió un corte largo **no** produce este motivo. Si aparece, el reloj es sospechoso.
+- `invalid_schema` en un despliegue estable indica corrupción del payload o versiones incompatibles entre agente y backend.
+
+**Cota**: 1000 archivos con drop-oldest. Al llegar al tope se pierden los descartes más antiguos, de modo que un directorio exactamente en 1000 puede estar ocultando descartes previos — revisarlo antes de que llegue ahí.
+
+**Contador**: `discarded_events` viaja en el heartbeat (acumulativo desde el arranque del proceso) y el backend lo persiste y lo muestra en la tarjeta del agente. Un contador que crece es la señal temprana; el directorio es la evidencia.
+
+**No se purga automáticamente.** La retención de RN-98 no lo toca: es material forense y su borrado es una decisión del operador.

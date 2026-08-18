@@ -2487,3 +2487,63 @@ El check de "agente al día" de D5 (`SELECT MAX(ruleset_version) FROM published_
 **Motivación**: Diferir la tabla a C14 (`backend-agents-status`) agrega deuda técnica — D5 ya está definida y C12 necesita el registro para que el dashboard posterior tenga datos históricos desde el primer `rule_sync`. La tabla es trivial y su ownership natural es el primer change que la escribe.
 
 **Aplicación**: `backend/app/modules/rules/models.py` agrega `class PublishedCommand(SQLModel, table=True)`. `backend/app/main.py` importa el modelo para que `create_all()` lo incluya. `rules/service.py` inserta en `published_commands` al publicar `rule_sync`.
+---
+
+### D37 / RN-131: Contrato de durabilidad del transporte agente ↔ backend
+
+Complemento técnico de D37/RN-131 (ver [reglas_de_negocio.md](reglas_de_negocio.md), appendix de decisiones de implementación). La regla de negocio define **qué** garantiza el transporte; acá va la forma de los mensajes.
+
+#### `sent_at` en el payload de evento
+
+El payload de evento incorpora `sent_at`, **dentro del JSON canónico firmado**. Se sella inmediatamente antes de cada `XADD` y se re-sella en cada republicación.
+
+Que esté cubierto por el HMAC no es un detalle de implementación: si quedara afuera, un tercero que capture un mensaje podría re-sellarlo con la hora actual y reproducirlo, que es exactamente el ataque que la ventana de skew existe para frenar. La consecuencia estructural es que **la firma deja de ser una propiedad del evento almacenado y pasa a ser una propiedad del envío**: el archivo de cola guarda el payload sin `signature` y sin `sent_at`, y hay un único punto de firma que sirve al primer envío, al reintento y al drenaje post-reinicio.
+
+Efecto lateral deseable: rotar el `shared_secret` deja de invalidar la cola en disco, cosa que antes ocurría en silencio.
+
+#### Mensaje `event_nack` (stream `commands`)
+
+```json
+{
+  "type": "event_nack",
+  "event_id": "<uuid del evento rechazado>",
+  "reason": "invalid_schema | clock_skew | rate_limited | schema_version_unsupported",
+  "retry_after": 37.4,
+  "schema_version": 1,
+  "signature": "<hmac>"
+}
+```
+
+`retry_after` (segundos, float) aparece **sólo** en los motivos retenibles. Su ausencia es lo que hace terminal al nack — no hay un campo booleano aparte que pueda desincronizarse del motivo.
+
+#### Matriz de respuestas
+
+| Situación | Respuesta | Efecto en el agente |
+|---|---|---|
+| ingesta exitosa · `duplicate_event` · carrera de supersesión | `event_ack` | borra el evento de la cola |
+| `invalid_schema` (payload ilegible) · `clock_skew` · `InvalidTransitionError` | `event_nack` sin `retry_after` | borra y archiva en el directorio de descarte |
+| `rate_limited` | `event_nack` con `retry_after` derivado del rate limiter | retiene y aplica backpressure |
+| `schema_version_unsupported` | `event_nack` con `retry_after` constante | retiene y espera al backend |
+| `invalid_signature` · `unknown_agent` | sin respuesta | caduca por techo de intentos |
+
+`retry_after` se deriva del rate limiter sólo en `rate_limited`, porque ahí sí existe un presupuesto consultable. En `schema_version_unsupported` es una constante: una brecha de versión de esquema no tiene relación alguna con el presupuesto de tasa.
+
+Los motivos retenibles **no incrementan** el contador de intentos: señalan una condición del backend, no un fallo de entrega. Si lo incrementaran, el propio backpressure quemaría el presupuesto de reintentos y convertiría un transitorio en un descarte.
+
+#### Contención del `event_nack` no autenticado
+
+El backend responde algunos nacks antes de autenticar al emisor. Eso abre una superficie acotada: un tercero sin el secreto puede publicar un payload con un `agent_id` válido y un `schema_version` roto, y provocar que el backend emita un `event_nack` **correctamente firmado** hacia el agente legítimo, con un `event_id` elegido por el atacante.
+
+La contención es normativa y vive en el agente:
+
+> El agente MUST ignorar todo `event_ack` y `event_nack` cuyo `event_id` no corresponda a un evento presente en su cola local.
+
+La firma prueba origen, no legitimidad del contenido.
+
+#### Orden de despliegue ante un bump de `SCHEMA_VERSION`
+
+`check_schema_version` deja de devolver un booleano y distingue tres resultados: `ok`, `invalid` (payload ilegible, terminal) y `unsupported` (emisor adelantado, retenible).
+
+Esa distinción es la que **evita** que un bump de esquema exija desplegar el backend antes que los agentes. Con un `invalid_schema` terminal indiscriminado, un agente adelantado contra un backend viejo habría **borrado sus propios eventos**: un bump se habría vuelto una operación con pérdida de datos si el orden se invertía. Con `unsupported` retenible, el agente adelantado conserva sus eventos y espera; el orden de despliegue vuelve a ser una buena práctica y no un requisito bajo pena de pérdida.
+
+Se mantiene la recomendación de desplegar backend primero, por tiempo de convergencia, no por corrección.
