@@ -41,16 +41,23 @@ class PublishedCommand(SQLModel, table=True):
     """Outbox de comandos versionados hacia el stream commands (D9, D10, H6) +
     tracking de ejecución confirmada por el agente (D30/RN-124, C36).
 
-    Para el fan-out `rule_sync` (H6), la fila se inserta como `pending` con el
-    payload firmado completo en la MISMA transacción que avanza `Rule` +
-    `RulesetVersion`; un background task (`publish_pending_commands`) hace el
-    `XADD` de forma diferida con retry y marca la fila `published` al
-    confirmar. Esto garantiza que un fallo de Valkey no pierda el comando ni
-    deje la versión avanzada sin comando entregable.
+    Para el fan-out `rule_sync` (H6) y, desde D37/RN-131, también para
+    `baseline_update`, `restore_file`, `quarantine_file`, `update_config` y
+    `rescan_baseline` (C13/C14), la fila se inserta como `pending` con el
+    payload firmado completo en la MISMA transacción que avanza la mutación
+    correspondiente (`Rule`+`RulesetVersion`, o el evento, o el agente); el
+    despachador genérico (`publish_pending_commands`) hace el `XADD` de
+    forma diferida con retry y marca la fila `published` al confirmar. Esto
+    garantiza que un fallo de Valkey no pierda el comando ni deje la
+    mutación avanzada sin comando entregable.
 
-    El resto de los comandos (baseline_update, restore_file, quarantine_file —
-    C13/D10) se siguen insertando como `published` de forma síncrona, sin
-    pasar por el outbox — su publicación ya ocurre post-commit del evento.
+    Antes de D37/RN-131 era exactamente al revés: `baseline_update`,
+    `restore_file` y `quarantine_file` se insertaban como `published` de
+    forma síncrona, publicándose recién DESPUÉS del `commit` del evento
+    (FIX-02) y sin pasar por el outbox — con dos modos de pérdida (secreto
+    no resoluble tragado en silencio, o `XADD` fallido con el evento ya
+    terminal). D37/RN-131 los migró al mismo outbox transaccional que ya
+    usaba `rule_sync`, en vez de mantener un segundo mecanismo.
 
     **Dos columnas de estado con semánticas distintas y ortogonales (D-1 del
     design de C36 — NO fusionar ni confundir):**

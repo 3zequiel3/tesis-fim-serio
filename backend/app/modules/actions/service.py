@@ -1,27 +1,50 @@
 """
-Lógica de negocio para aprobación y rechazo de eventos FIM (C13).
+Lógica de negocio para aprobación y rechazo de eventos FIM (C13, D37/RN-131).
 
 Expone: _approve_single, _reject_single, approve_bulk, reject_bulk.
 
-Orden de operaciones en approve (FIX-02):
+Orden de operaciones en approve (D37/RN-131 — reemplaza el orden post-commit
+de FIX-02, ver "Inversión de FIX-02" abajo):
   1. Verificar confirm_absent si hash is None (antes del UPDATE).
   2. UPDATE optimista sobre events (status, version, resolved_at, resolved_by).
   3. flush + refresh.
   4. increment_ruleset_version.
   5. Upsert en baseline_entries.
   6. Escribir audit_log.
-  7. commit.
-  8. refresh.
-  9. Publicar baseline_update en Valkey (post-commit).
+  7. Encolar baseline_update en el outbox (`enqueue_baseline_update`) — MISMA
+     transacción que la mutación del evento.
+  8. commit.
+  9. refresh.
+  10. Intento inmediato best-effort de `publish_pending_commands` (no agrega
+      la latencia del poller al camino feliz; si Valkey está caído, el
+      comando queda `pending` y el background task lo reintenta).
 
-Orden de operaciones en reject (FIX-02):
+Orden de operaciones en reject (D37/RN-131):
   1. UPDATE optimista sobre events.
   2. flush + refresh.
   3. Consultar baseline_entry.
   4. Escribir audit_log.
-  5. commit.
-  6. refresh.
-  7. Publicar restore_file o quarantine_file post-commit (no-op si baseline absent).
+  5. Encolar restore_file o quarantine_file en el outbox, salvo no-op de
+     baseline `absent` (RN-74) — MISMA transacción que la mutación.
+  6. commit.
+  7. refresh.
+  8. Intento inmediato best-effort de `publish_pending_commands`.
+
+Inversión de FIX-02: antes, el comando se publicaba (XADD síncrono) recién
+DESPUÉS del `commit`, para que el agente no recibiera un comando de una
+transacción que después se revertía. Con el outbox esa protección la da la
+**atomicidad**: la fila `PublishedCommand` vive o muere con la transacción
+del evento. Si se revierte, no queda nada que publicar; si comitea, el
+comando está garantizado en el outbox y el despachador (`rules.service.
+publish_pending_commands`, ya genérico y ya corrido por `outbox_publisher_task`
+en el lifespan) lo entrega con reintento — más fuerte que la garantía previa,
+que dependía de un `XADD` síncrono sin outbox. Ver D-10 del design de
+`stream-ack-durability`.
+
+`_get_agent_secret` (actions/streams.py) ya NO atrapa su propio `ValueError`:
+la excepción SHALL propagarse y revertir la transacción completa — un
+agente sin `shared_secret_hex` deja de poder terminar un evento sin emitir
+comando (el bug que motivó esta change).
 """
 
 from __future__ import annotations
@@ -151,8 +174,11 @@ def _approve_single(
     Raises:
         AbsentConfirmationRequired: si hash is None y confirm_absent is False.
         ConflictError: si el UPDATE no afecta ninguna fila.
+        ValueError: si el agente destino no tiene shared_secret_hex — la
+            transacción NO se comitea (D37/RN-131, ver docstring del módulo).
     """
-    from app.modules.actions.streams import publish_baseline_update
+    from app.modules.actions.streams import enqueue_baseline_update
+    from app.modules.rules.service import publish_pending_commands
 
     # 1. Leer el evento para detectar hash None ANTES del UPDATE (no modifica estado)
     # En el modelo Event, hash_detected es str; cadena vacía "" indica archivo ausente (D-C13-04).
@@ -201,15 +227,22 @@ def _approve_single(
     # 6. Audit log
     _write_audit(db, user_id, "approve", event_id, {"version": version})
 
-    # 7. Commit
+    # 7. Encolar baseline_update en el outbox — MISMA transacción que la
+    #    mutación del evento (D37/RN-131). Si el agente no tiene
+    #    shared_secret, ValueError se propaga acá y revierte todo lo de
+    #    arriba (nada se comitea).
+    enqueue_baseline_update(db, event, new_version)
+
+    # 8. Commit
     db.commit()
 
-    # 8. Refresh post-commit
+    # 9. Refresh post-commit
     db.refresh(event)
 
-    # 9. Publicar baseline_update post-commit (FIX-02: el agente recibe el comando solo
-    #    cuando la transacción ya es durable en Postgres)
-    publish_baseline_update(db, valkey_client, event, new_version)
+    # 10. Intento inmediato best-effort de publicación del outbox (D37/RN-131):
+    #     no agrega la latencia del poller al camino feliz. Si Valkey está
+    #     caído, el comando queda `pending` y el background task lo reintenta.
+    publish_pending_commands(db, valkey_client)
 
     log.info("service.actions.approve", event_id=event_id, user_id=user_id)
     return event
@@ -236,8 +269,11 @@ def _reject_single(
 
     Raises:
         ConflictError: si el UPDATE no afecta ninguna fila.
+        ValueError: si el agente destino no tiene shared_secret_hex — la
+            transacción NO se comitea (D37/RN-131, ver docstring del módulo).
     """
-    from app.modules.actions.streams import publish_quarantine_file, publish_restore_file
+    from app.modules.actions.streams import enqueue_quarantine_file, enqueue_restore_file
+    from app.modules.rules.service import publish_pending_commands
 
     event = _get_event(db, event_id)
     if event is None:
@@ -275,14 +311,9 @@ def _reject_single(
     # 4. Audit log
     _write_audit(db, user_id, "reject", event_id, {"version": version, "action": action.value})
 
-    # 5. Commit
-    db.commit()
-
-    # 6. Refresh post-commit
-    db.refresh(event)
-
-    # 7. Publicar comando post-commit (FIX-02: el agente recibe el comando solo
-    #    cuando la transacción ya es durable en Postgres)
+    # 5. Encolar restore_file/quarantine_file en el outbox — MISMA transacción
+    #    que la mutación del evento (D37/RN-131), salvo el no-op de baseline
+    #    absent (RN-74), que no encola ningún comando.
     if baseline_absent:
         log.warning(
             "service.actions.reject.baseline_absent_noop",
@@ -291,9 +322,18 @@ def _reject_single(
         )
     else:
         if action == RejectAction.restore:
-            publish_restore_file(db, valkey_client, event)
+            enqueue_restore_file(db, event)
         else:
-            publish_quarantine_file(db, valkey_client, event)
+            enqueue_quarantine_file(db, event)
+
+    # 6. Commit
+    db.commit()
+
+    # 7. Refresh post-commit
+    db.refresh(event)
+
+    # 8. Intento inmediato best-effort de publicación del outbox (D37/RN-131).
+    publish_pending_commands(db, valkey_client)
 
     log.info("service.actions.reject", event_id=event_id, user_id=user_id, action=action.value)
     return event, baseline_absent

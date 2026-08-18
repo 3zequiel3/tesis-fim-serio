@@ -7,11 +7,13 @@ Cubre:
     PublishedCommand con command_id y ack_status=pending.
   - rule_sync: persiste con ack_status=NULL (excluido del barrido de timeout,
     que se agrega en slice 2).
-  - Regresión del bug de commit faltante en publish_* post-commit (FIX C36):
-    publish_restore_file/publish_baseline_update/publish_quarantine_file y
-    publish_update_config/publish_rescan_baseline se llaman post-commit del
-    caller real y deben persistir su PublishedCommand sin depender de un
-    commit posterior del caller.
+  - enqueue_restore_file/enqueue_baseline_update/enqueue_quarantine_file y
+    enqueue_update_config/enqueue_rescan_baseline (D37/RN-131 — renombradas
+    desde publish_*, ver módulo actions/streams.py y agents/streams.py):
+    insertan PublishedCommand `pending` en la sesión SIN hacer XADD ni commit
+    propio. El caller decide cuándo comitea (misma transacción que su
+    mutación) — a diferencia del contrato anterior (C36), donde estas
+    funciones corrían post-commit y comiteaban ellas mismas tras el XADD.
 
 Usa SQLite in-memory. Salta si psycopg/libpq no está disponible.
 """
@@ -67,22 +69,23 @@ def agent_online(mem_engine) -> Agent:
 # ── update_config: no avanza al publicar, sí registra PublishedCommand ───────
 
 
-def test_publish_update_config_creates_pending_command_without_advancing_version(mem_engine, agent_online):
-    from app.modules.agents.streams import publish_update_config
+def test_enqueue_update_config_creates_pending_command_without_advancing_version(mem_engine, agent_online):
+    from app.modules.agents.streams import enqueue_update_config
 
-    mock_valkey = MagicMock()
     with Session(mem_engine) as s:
         agent = s.get(Agent, agent_online.agent_id)
-        publish_update_config(s, mock_valkey, agent, ["/etc"], ruleset_version=42)
+        enqueue_update_config(s, agent, ["/etc"], ruleset_version=42)
+        s.commit()  # D37/RN-131: enqueue_* ya no comitea — lo hace el caller
 
     with Session(mem_engine) as s:
         cmds = s.exec(select(PublishedCommand).where(PublishedCommand.command_type == "update_config")).all()
         assert len(cmds) == 1
+        assert cmds[0].status == "pending"  # nace pending, el XADD lo hace el despachador
         assert cmds[0].ack_status == "pending"
         assert cmds[0].command_id is not None
 
         agent = s.get(Agent, agent_online.agent_id)
-        assert agent.ruleset_version_applied == 5, "publicar NO debe avanzar ruleset_version_applied (D5/RN-106)"
+        assert agent.ruleset_version_applied == 5, "encolar NO debe avanzar ruleset_version_applied (D5/RN-106)"
 
 
 def test_update_agent_config_service_does_not_advance_ruleset_version_applied(mem_engine, agent_online):
@@ -103,17 +106,18 @@ def test_update_agent_config_service_does_not_advance_ruleset_version_applied(me
         assert agent.ruleset_version_applied == 5
 
 
-def test_publish_rescan_baseline_creates_pending_command(mem_engine, agent_online):
-    from app.modules.agents.streams import publish_rescan_baseline
+def test_enqueue_rescan_baseline_creates_pending_command(mem_engine, agent_online):
+    from app.modules.agents.streams import enqueue_rescan_baseline
 
-    mock_valkey = MagicMock()
     with Session(mem_engine) as s:
         agent = s.get(Agent, agent_online.agent_id)
-        publish_rescan_baseline(s, mock_valkey, agent)
+        enqueue_rescan_baseline(s, agent)
+        s.commit()
 
     with Session(mem_engine) as s:
         cmds = s.exec(select(PublishedCommand).where(PublishedCommand.command_type == "rescan_baseline")).all()
         assert len(cmds) == 1
+        assert cmds[0].status == "pending"
         assert cmds[0].ack_status == "pending"
         assert cmds[0].command_id is not None
 
@@ -134,16 +138,18 @@ def test_rule_sync_persists_with_null_ack_status(mem_engine, agent_online):
         assert cmd.ack_status is None
 
 
-# ── Regresión del bug de commit faltante (fix C36) ───────────────────────────
+# ── D37/RN-131: enqueue_* persiste en la sesión, el caller decide el commit ──
 
 
-def test_publish_restore_file_persists_without_caller_commit(mem_engine, agent_online):
+def test_enqueue_restore_file_requires_caller_commit(mem_engine, agent_online):
     """
-    Regresión del bug descubierto en el apply de C36: publish_restore_file se
-    invoca post-commit del caller real (actions/service.py) y NO debe
-    depender de un session.commit() posterior para persistir PublishedCommand.
+    D37/RN-131 invierte el contrato de C36: antes, `publish_restore_file`
+    corría post-commit del caller y comiteaba ella misma tras el XADD (no
+    dependía de un commit posterior). Ahora `enqueue_restore_file` NO hace
+    XADD ni commit — es el caller quien debe comitear, en la MISMA
+    transacción que su propia mutación. Sin ese commit, la fila no persiste.
     """
-    from app.modules.actions.streams import publish_restore_file
+    from app.modules.actions.streams import enqueue_restore_file
 
     ev = Event(
         event_id="evt-commit-fix-001",
@@ -159,16 +165,45 @@ def test_publish_restore_file_persists_without_caller_commit(mem_engine, agent_o
         s.commit()
         s.refresh(ev)
 
-    mock_valkey = MagicMock()
     with Session(mem_engine) as s:
         event = s.get(Event, ev.id)
-        publish_restore_file(s, mock_valkey, event)
-        # NO se llama session.commit() acá — simula el caller real (post-commit, sin comitear de nuevo)
+        enqueue_restore_file(s, event)
+        # Sin commit acá: la sesión se cierra sin comitear (simula un caller
+        # que aborta antes de su propio db.commit()).
 
-    # Sesión NUEVA e independiente: si el fix no persistió, esto falla.
+    # Sesión NUEVA e independiente: sin el commit del caller, no debe existir.
+    with Session(mem_engine) as s:
+        cmds = s.exec(select(PublishedCommand).where(PublishedCommand.command_type == "restore_file")).all()
+        assert cmds == []
+
+
+def test_enqueue_restore_file_persists_once_caller_commits(mem_engine, agent_online):
+    """Contraparte del test anterior: SI el caller comitea, la fila persiste pending."""
+    from app.modules.actions.streams import enqueue_restore_file
+
+    ev = Event(
+        event_id="evt-commit-fix-002",
+        agent_id=agent_online.agent_id,
+        path="/etc/commit-fix-test-2",
+        hash_detected="deadbeef",
+        status=EventStatus.rejected,
+        detected_at=datetime.now(timezone.utc),
+        received_at=datetime.now(timezone.utc),
+    )
+    with Session(mem_engine) as s:
+        s.add(ev)
+        s.commit()
+        s.refresh(ev)
+
+    with Session(mem_engine) as s:
+        event = s.get(Event, ev.id)
+        enqueue_restore_file(s, event)
+        s.commit()
+
     with Session(mem_engine) as s:
         cmds = s.exec(select(PublishedCommand).where(PublishedCommand.command_type == "restore_file")).all()
         assert len(cmds) == 1
+        assert cmds[0].status == "pending"
         assert cmds[0].command_id is not None
         assert cmds[0].ack_status == "pending"
         assert cmds[0].event_id == ev.id

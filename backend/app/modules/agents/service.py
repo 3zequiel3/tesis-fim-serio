@@ -110,6 +110,8 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
         watch_paths=agent.watch_paths or [],
         # D36/RN-130 (C41): None si el agente nunca reportó (no default a {}).
         watch_path_status=agent.watch_path_status,
+        # D37/RN-131: None si el agente nunca reportó (distinto de 0).
+        discarded_events=agent.discarded_events,
     )
 
 
@@ -136,14 +138,18 @@ def update_agent_config(
 ) -> AgentResponse:
     """
     Actualiza watch_paths del agente (replace-all), incrementa ruleset_version,
-    publica update_config HMAC-signed y registra en audit_log.
+    encola update_config HMAC-signed en el outbox y registra en audit_log.
 
     D-C14-02: semántica replace-all — el array anterior es completamente sobreescrito.
-    D-C14-05: el ruleset_version se incrementa aquí antes de publicar.
+    D-C14-05: el ruleset_version se incrementa aquí antes de encolar.
+    D37/RN-131: el comando se encola en el outbox transaccional (misma
+    transacción que watch_paths + ruleset_version + audit_log) en vez de
+    publicarse post-commit. Si el agente no tiene shared_secret_hex, la
+    excepción se propaga y revierte toda la transacción.
     """
-    from app.modules.agents.streams import publish_update_config
+    from app.modules.agents.streams import enqueue_update_config
     from app.modules.audit.models import AuditLog
-    from app.modules.rules.service import increment_ruleset_version
+    from app.modules.rules.service import increment_ruleset_version, publish_pending_commands
 
     agent = db.get(Agent, agent_id)
     if agent is None:
@@ -172,11 +178,15 @@ def update_agent_config(
         detail=json.dumps({"agent_id": agent_id, "watch_paths": watch_paths}),
     )
     db.add(audit)
+
+    # Encolar update_config en el outbox — MISMA transacción (D37/RN-131).
+    enqueue_update_config(db, agent, watch_paths, new_version)
+
     db.commit()
     db.refresh(agent)
 
-    # Publicar update_config post-commit (mismo patrón D-F que rules.py)
-    publish_update_config(db, valkey_client, agent, watch_paths, new_version)
+    # Intento inmediato best-effort de publicación del outbox (D37/RN-131).
+    publish_pending_commands(db, valkey_client)
 
     return _agent_to_response(agent)
 
@@ -192,11 +202,17 @@ def rescan_agent(
     Fuerza re-scan de baseline del agente.
 
     D-C14-03: si force=False y hay pending → raise PendingEventsExist(count=N).
-    Si force=True → marcar pending como superseded y publicar rescan_baseline.
+    Si force=True → marcar pending como superseded y encolar rescan_baseline.
+    D37/RN-131: el comando se encola en el outbox transaccional (misma
+    transacción que la supersesión de pending + audit_log) en vez de
+    publicarse post-commit. Sin esto, los eventos quedan `superseded` y el
+    agente puede no recibir nunca la orden de re-escanear si Valkey falla
+    justo ahí.
     """
-    from app.modules.agents.streams import publish_rescan_baseline
+    from app.modules.agents.streams import enqueue_rescan_baseline
     from app.modules.audit.models import AuditLog
     from app.modules.events.models import Event, EventStatus
+    from app.modules.rules.service import publish_pending_commands
 
     agent = db.get(Agent, agent_id)
     if agent is None:
@@ -229,10 +245,14 @@ def rescan_agent(
         detail=f'{{"agent_id": "{agent_id}", "force": {str(force).lower()}, "superseded_count": {len(pending_events)}}}',
     )
     db.add(audit)
+
+    # Encolar rescan_baseline en el outbox — MISMA transacción (D37/RN-131).
+    enqueue_rescan_baseline(db, agent)
+
     db.commit()
 
-    # Publicar rescan_baseline post-commit
-    publish_rescan_baseline(db, valkey_client, agent)
+    # Intento inmediato best-effort de publicación del outbox (D37/RN-131).
+    publish_pending_commands(db, valkey_client)
 
 
 def _validate_csr(csr_pem: str, expected_agent_id: str) -> None:

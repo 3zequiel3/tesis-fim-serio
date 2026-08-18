@@ -1,27 +1,42 @@
 """
-Publicación de comandos HMAC-signed al stream Valkey `commands` (C13).
+Encolado de comandos HMAC-signed al outbox `published_commands` (C13, D37/RN-131).
 
-publish_baseline_update  — al aprobar un evento.
-publish_restore_file     — al rechazar con action=restore.
-publish_quarantine_file  — al rechazar con action=quarantine.
+enqueue_baseline_update  — al aprobar un evento.
+enqueue_restore_file     — al rechazar con action=restore.
+enqueue_quarantine_file  — al rechazar con action=quarantine.
 
 Todos firman con el shared_secret del agente destino (mismo patrón que C12).
 El ruleset_version para baseline_update ya fue incrementado por el caller
 (service._approve_single llama a _increment_ruleset_version primero).
 
-FIX-03 (D10): Cada función inserta un registro PublishedCommand ANTES del XADD
-para garantizar trazabilidad de auditoría. Si el XADD falla, el INSERT se
-revierte junto con la transacción del caller.
+D37/RN-131 (outbox transaccional, reemplaza FIX-03/C36 síncrono): estas tres
+funciones ya NO hacen `XADD` ni `session.commit()` propio. Firman y serializan
+el payload igual que siempre, e insertan la fila `PublishedCommand` con
+`status="pending"` y `published_at=None` — el caller (`actions/service.py`)
+debe llamarlas ANTES de su propio `db.commit()`, dentro de la MISMA
+transacción que la mutación del evento. La publicación efectiva (el `XADD`)
+la hace el despachador genérico `rules.service.publish_pending_commands`,
+que ya corre post-commit best-effort y también como background task
+periódico (ver `main.py` lifespan) — no se inventa un segundo mecanismo.
 
-C36 (D30/RN-124): cada función ahora persiste `command_id` (antes se generaba
-y se descartaba) y `event_id` en la fila PublishedCommand, para que el
-consumer de `command_ack` (agents/command_ack_consumer.py) pueda correlacionar
-la confirmación de ejecución. Se agrega además `session.commit()` inmediato
-tras el XADD exitoso: estas funciones se invocan DESPUÉS de que el caller ya
-hizo `db.commit()` (post-commit del evento), así que sin este commit propio
-la fila quedaba agregada a la sesión pero nunca llegaba a Postgres (bug
-descubierto durante el apply de C36 — el rollback-on-XADD-failure existente
-se preserva, ver test_published_command_inserted_before_xadd_atomicity).
+Esto invierte la norma previa "publicar solo post-commit" (FIX-02): la
+protección que FIX-02 buscaba —que el agente no reciba un comando de una
+transacción que después se revierte— ahora la da la atomicidad de la fila
+del outbox en la misma transacción del evento, de forma más fuerte: si la
+transacción se revierte, la fila del comando se revierte con ella; si
+comitea, el comando está garantizado en el outbox y el despachador lo
+entrega con reintento. Ver D-10 del design de `stream-ack-durability`.
+
+Si `_get_agent_secret` no puede resolver el secreto del agente, la excepción
+SHALL propagarse sin capturarse acá — revierte la transacción del caller en
+vez de dejar un evento terminal con ningún comando emitido (el bug que
+motivó esta change).
+
+C36 (D30/RN-124): cada función persiste `command_id` y `event_id` en la fila
+PublishedCommand, para que el consumer de `command_ack`
+(agents/command_ack_consumer.py) pueda correlacionar la confirmación de
+ejecución. `ack_status="pending"` marca el comando como confirmable —
+distinto de `status`, que es el estado de outbox (D-1 del design de C36).
 """
 
 from __future__ import annotations
@@ -34,7 +49,7 @@ from typing import Any
 import structlog
 from sqlmodel import Session
 
-from app.core.streams import SCHEMA_VERSION, STREAM_COMMANDS, sign_payload
+from app.core.streams import SCHEMA_VERSION, sign_payload
 from app.modules.agents.models import Agent
 from app.modules.events.models import Event
 from app.modules.rules.models import PublishedCommand
@@ -47,17 +62,20 @@ def _record_published_command(
     agent_id: str,
     command_type: str,
     command_id: str,
+    payload: str,
     event_id: int | None = None,
     ruleset_version: int = 0,
 ) -> None:
     """
-    Inserta un registro PublishedCommand en la sesión (sin commit — el caller
-    debe comitear después del XADD exitoso, ver C36).
-    FIX-03 / D10: garantiza trazabilidad de auditoría para todos los tipos de comando.
-    La inserción ocurre antes del XADD — si el XADD falla, el INSERT se revierte.
-    C36 / D30: persiste `command_id` y `event_id` para correlacionar el
-    `command_ack` de ejecución; `ack_status="pending"` marca el comando como
-    confirmable (distinto de `status`, que es el estado de outbox).
+    Inserta un registro PublishedCommand `pending` en la sesión (D37/RN-131:
+    outbox — sin `XADD` ni commit propio, el caller decide cuándo comitea y
+    el despachador genérico publica después). `payload` es el JSON ya
+    firmado y serializado, listo para que `publish_pending_commands` lo
+    `XADD`-ee tal cual.
+
+    `command_id` y `event_id` se conservan para correlacionar el
+    `command_ack` de ejecución (C36/D30); `ack_status="pending"` marca el
+    comando como confirmable.
     """
     cmd = PublishedCommand(
         command_type=command_type,
@@ -66,8 +84,9 @@ def _record_published_command(
         command_id=command_id,
         ack_status="pending",
         ruleset_version=ruleset_version,
-        status="published",
-        published_at=datetime.now(timezone.utc),
+        payload=payload,
+        status="pending",
+        published_at=None,
     )
     session.add(cmd)
 
@@ -75,7 +94,9 @@ def _record_published_command(
 def _get_agent_secret(session: Session, agent_id: str) -> bytes:
     """
     Obtiene el shared_secret_hex del agente desde la DB (persistido en C06).
-    Lanza ValueError si el agente no existe o no tiene secret.
+    Lanza ValueError si el agente no existe o no tiene secret. D37/RN-131:
+    el caller NO debe capturar esta excepción — MUST propagarse para
+    revertir la transacción (ver docstring del módulo).
     """
     from sqlmodel import select
 
@@ -87,14 +108,13 @@ def _get_agent_secret(session: Session, agent_id: str) -> bytes:
     return bytes.fromhex(agent.shared_secret_hex)
 
 
-def publish_baseline_update(
+def enqueue_baseline_update(
     session: Session,
-    valkey_client: Any,
     event: Event,
     ruleset_version: int,
 ) -> None:
     """
-    Publica comando `baseline_update` al stream `commands` firmado con HMAC-SHA256.
+    Encola el comando `baseline_update` en el outbox, firmado con HMAC-SHA256.
 
     Payload:
       type, command_id, event_id, target_agent_id, path, hash,
@@ -102,12 +122,11 @@ def publish_baseline_update(
 
     D2: usa event.hash_detected directamente, nunca consulta al agente.
     D5: lleva ruleset_version++ (incrementado por el caller).
+
+    MUST llamarse ANTES de `db.commit()`, dentro de la transacción que muta
+    el evento (D37/RN-131) — ver docstring del módulo.
     """
-    try:
-        secret = _get_agent_secret(session, event.agent_id)
-    except ValueError as exc:
-        log.error("streams.actions.publish_baseline_update.no_secret", agent_id=event.agent_id, error=str(exc))
-        return
+    secret = _get_agent_secret(session, event.agent_id)
 
     # hash vacío == archivo ausente (D-C13-04, mismo criterio que service.py)
     hash_value: str | None = event.hash_detected if event.hash_detected else None
@@ -129,17 +148,13 @@ def publish_baseline_update(
     payload["signature"] = sign_payload(secret, payload)
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    # FIX-03: registrar ANTES del XADD para atomicidad (D10)
     _record_published_command(
-        session, event.agent_id, "baseline_update", command_id,
+        session, event.agent_id, "baseline_update", command_id, data,
         event_id=event.id, ruleset_version=ruleset_version,
     )
-    valkey_client.xadd(STREAM_COMMANDS, {"data": data})
-    # C36: commit propio — esta función corre post-commit del caller (ver docstring del módulo)
-    session.commit()
 
     log.info(
-        "streams.actions.baseline_update_published",
+        "streams.actions.baseline_update_enqueued",
         event_id=event.id,
         agent_id=event.agent_id,
         ruleset_version=ruleset_version,
@@ -147,22 +162,19 @@ def publish_baseline_update(
     )
 
 
-def publish_restore_file(
+def enqueue_restore_file(
     session: Session,
-    valkey_client: Any,
     event: Event,
 ) -> None:
     """
-    Publica comando `restore_file` al stream `commands` firmado con HMAC-SHA256.
+    Encola el comando `restore_file` en el outbox, firmado con HMAC-SHA256.
 
     Payload: type, command_id, event_id, target_agent_id, path, issued_at, signature.
     No incluye hash ni ruleset_version (según spec).
+
+    MUST llamarse ANTES de `db.commit()` (D37/RN-131) — ver docstring del módulo.
     """
-    try:
-        secret = _get_agent_secret(session, event.agent_id)
-    except ValueError as exc:
-        log.error("streams.actions.publish_restore_file.no_secret", agent_id=event.agent_id, error=str(exc))
-        return
+    secret = _get_agent_secret(session, event.agent_id)
 
     command_id = str(uuid.uuid4())
     payload: dict[str, Any] = {
@@ -177,36 +189,29 @@ def publish_restore_file(
     payload["signature"] = sign_payload(secret, payload)
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    # FIX-03: registrar ANTES del XADD para atomicidad (D10)
-    _record_published_command(session, event.agent_id, "restore_file", command_id, event_id=event.id)
-    valkey_client.xadd(STREAM_COMMANDS, {"data": data})
-    # C36: commit propio — esta función corre post-commit del caller (ver docstring del módulo)
-    session.commit()
+    _record_published_command(session, event.agent_id, "restore_file", command_id, data, event_id=event.id)
 
     log.info(
-        "streams.actions.restore_file_published",
+        "streams.actions.restore_file_enqueued",
         event_id=event.id,
         agent_id=event.agent_id,
         command_id=command_id,
     )
 
 
-def publish_quarantine_file(
+def enqueue_quarantine_file(
     session: Session,
-    valkey_client: Any,
     event: Event,
 ) -> None:
     """
-    Publica comando `quarantine_file` al stream `commands` firmado con HMAC-SHA256.
+    Encola el comando `quarantine_file` en el outbox, firmado con HMAC-SHA256.
 
     Payload: type, command_id, event_id, target_agent_id, path, issued_at, signature.
     No incluye hash ni ruleset_version (según spec).
+
+    MUST llamarse ANTES de `db.commit()` (D37/RN-131) — ver docstring del módulo.
     """
-    try:
-        secret = _get_agent_secret(session, event.agent_id)
-    except ValueError as exc:
-        log.error("streams.actions.publish_quarantine_file.no_secret", agent_id=event.agent_id, error=str(exc))
-        return
+    secret = _get_agent_secret(session, event.agent_id)
 
     command_id = str(uuid.uuid4())
     payload: dict[str, Any] = {
@@ -221,14 +226,10 @@ def publish_quarantine_file(
     payload["signature"] = sign_payload(secret, payload)
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    # FIX-03: registrar ANTES del XADD para atomicidad (D10)
-    _record_published_command(session, event.agent_id, "quarantine_file", command_id, event_id=event.id)
-    valkey_client.xadd(STREAM_COMMANDS, {"data": data})
-    # C36: commit propio — esta función corre post-commit del caller (ver docstring del módulo)
-    session.commit()
+    _record_published_command(session, event.agent_id, "quarantine_file", command_id, data, event_id=event.id)
 
     log.info(
-        "streams.actions.quarantine_file_published",
+        "streams.actions.quarantine_file_enqueued",
         event_id=event.id,
         agent_id=event.agent_id,
         command_id=command_id,
