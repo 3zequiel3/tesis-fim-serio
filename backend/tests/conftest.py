@@ -53,7 +53,11 @@ def pytest_sessionstart(session):  # noqa: D103
 # before the first import of app.core.config (or any module that imports it).
 # Use direct assignment (not setdefault) so our values always win.
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
-os.environ["VALKEY_URL"] = "valkey://localhost:6379"
+# Mismo patron que DATABASE_URL: TEST_VALKEY_URL permite apuntar a un Valkey
+# real (p.ej. la IP del contenedor, que no publica puerto al host). Sin esa
+# valvula, los tests de semantica de rate limit se saltean SIEMPRE y en
+# silencio, porque exigen un Valkey vivo y localhost:6379 nunca lo es.
+os.environ["VALKEY_URL"] = os.environ.get("TEST_VALKEY_URL", "valkey://localhost:6379")
 os.environ["JWT_SECRET_CURRENT"] = "test-secret-current-32-chars-xxxxx"
 os.environ["JWT_SECRET_PREVIOUS"] = ""
 os.environ["ADMIN_USERNAME"] = "admin"
