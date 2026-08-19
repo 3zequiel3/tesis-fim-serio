@@ -23,6 +23,31 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+
+# ── psycopg es dependencia dura, no opcional ─────────────────────────────────
+# 32 archivos de tests hacen `pytest.skip(..., allow_module_level=True)` si no
+# pueden importar psycopg. Eso suma 354 de los ~492 tests: sin psycopg, el 72 %
+# de la suite desaparece en silencio y pytest reporta CERO fallos. Un lector
+# del resumen concluye que la suite esta sana.
+#
+# psycopg esta en requirements.txt: si falta, el entorno esta roto y la corrida
+# no es valida. Fallamos al arrancar la sesion, fuerte y temprano, en vez de
+# degradar a un skip masivo. FIM_ALLOW_SKIP_DB_TESTS=1 preserva la valvula de
+# escape para plataformas sin libpq, pero exige pedirla explicitamente.
+def pytest_sessionstart(session):  # noqa: D103
+    if os.environ.get("FIM_ALLOW_SKIP_DB_TESTS") == "1":
+        return
+    try:
+        import psycopg  # noqa: F401
+    except ImportError as exc:  # pragma: no cover - depende del entorno
+        raise pytest.UsageError(
+            "psycopg no esta instalado: 354 de ~492 tests se saltearian en "
+            "silencio y la corrida reportaria 0 fallos. Instala las "
+            "dependencias (backend/requirements-dev.txt) o, si realmente "
+            "queres una corrida parcial, exporta FIM_ALLOW_SKIP_DB_TESTS=1 "
+            "y declara el skip masivo al informar los resultados."
+        ) from exc
+
 # ── Canonical env vars — set BEFORE any app module import ────────────────────
 # Settings() is instantiated at import time; these must be in the environment
 # before the first import of app.core.config (or any module that imports it).
