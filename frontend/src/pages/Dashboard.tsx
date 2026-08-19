@@ -79,6 +79,7 @@ const EVENT_STATUSES: EventStatus[] = [
   'auto_restored',
   'quarantined',
   'alert_only',
+  'superseded',
 ]
 
 const AGENT_STATUSES: AgentStatus[] = ['online', 'offline', 'draining', 'dead', 'revoked']

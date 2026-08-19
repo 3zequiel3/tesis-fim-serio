@@ -27,7 +27,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 
   // Contar eventos por estado: el backend no agrega por status, se usa el
   // total de una request page_size=1 por cada status relevante.
-  const statuses: EventStatus[] = ['pending', 'approved', 'rejected', 'auto_restored', 'quarantined', 'alert_only']
+  const statuses: EventStatus[] = ['pending', 'approved', 'rejected', 'auto_restored', 'quarantined', 'alert_only', 'superseded']
 
   const countResults = await Promise.all(
     statuses.map((s) =>
