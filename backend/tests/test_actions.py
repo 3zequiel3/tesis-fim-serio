@@ -278,6 +278,9 @@ def test_reject_restore(session, mock_valkey, admin_user, agent_with_secret):
 
     assert result.status == EventStatus.rejected
     assert baseline_absent is False
+    # US-12: reject sella la resolución igual que approve (anexo §7, nivel 1 #6).
+    assert result.resolved_by == admin_user.id
+    assert result.resolved_at is not None
 
     # restore_file publicado
     mock_valkey.xadd.assert_called_once()
@@ -314,6 +317,9 @@ def test_reject_quarantine(session, mock_valkey, admin_user, agent_with_secret):
 
     assert result.status == EventStatus.rejected
     assert baseline_absent is False
+    # US-12: reject sella la resolución igual que approve (anexo §7, nivel 1 #6).
+    assert result.resolved_by == admin_user.id
+    assert result.resolved_at is not None
 
     mock_valkey.xadd.assert_called_once()
     payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
@@ -350,6 +356,9 @@ def test_reject_absent_baseline_noop(session, mock_valkey, admin_user, agent_wit
     )
 
     assert result.status == EventStatus.rejected
+    # US-12: incluso en el no-op, el evento queda resuelto y trazado.
+    assert result.resolved_by == admin_user.id
+    assert result.resolved_at is not None
     # Sin comando publicado (no-op)
     mock_valkey.xadd.assert_not_called()
     # M8: el flag baseline_absent hace observable el no-op sin cambiar el comportamiento.

@@ -11,6 +11,8 @@ from unittest.mock import MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.security import ACCESS_TOKEN_EXPIRE_MINUTES
+
 
 @pytest.fixture
 def mock_valkey():
@@ -50,6 +52,56 @@ async def auth_client(mock_valkey):
     app.dependency_overrides.pop(get_valkey_client, None)
 
 
+# ─── Blacklist compartida entre el cliente sync y el async ──────────────────
+#
+# `logout` escribe la blacklist con el cliente SYNC (dependency get_valkey_client)
+# y `get_current_user` la consulta con el ASYNC (get_async_valkey_client). Con dos
+# mocks independientes —como hacía el test viejo de logout— la escritura nunca es
+# leída y el token revocado sigue pasando. Estos fixtures les dan un único store.
+
+_NEW_ADMIN_PASSWORD = "LogoutTestAdmin1!"
+
+
+@pytest.fixture
+def blacklist_store() -> dict:
+    """{key: (ttl, value)} — lo que `setex` escribió."""
+    return {}
+
+
+@pytest.fixture
+def blacklist_valkey(blacklist_store, _patch_async_valkey):
+    """Cliente sync fake que escribe en `blacklist_store`; el async fake lo lee."""
+    m = MagicMock()
+    m.incr.return_value = 1
+    m.expire.return_value = True
+    m.get.return_value = None
+    m.close.return_value = None
+
+    def _setex(key, ttl, value):
+        blacklist_store[key] = (ttl, value)
+        return True
+
+    m.setex.side_effect = _setex
+    m.exists.side_effect = lambda key: 1 if key in blacklist_store else 0
+    # get_current_user consulta la blacklist por el cliente ASYNC.
+    _patch_async_valkey.exists.side_effect = lambda key: 1 if key in blacklist_store else 0
+    return m
+
+
+@pytest.fixture
+async def blacklist_client(blacklist_valkey):
+    from app.core.valkey import get_valkey_client
+    from app.main import app
+
+    app.dependency_overrides[get_valkey_client] = lambda: blacklist_valkey
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="https://testserver",
+    ) as ac:
+        yield ac
+    app.dependency_overrides.pop(get_valkey_client, None)
+
+
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
 def _admin_creds():
@@ -66,6 +118,27 @@ async def _login(auth_client, username=None, password=None) -> dict:
         json={"username": username or creds["username"], "password": password or creds["password"]},
     )
     return resp
+
+
+async def _full_access_login(client) -> tuple[str, dict]:
+    """
+    Completa el cambio de password forzado y devuelve (access_token, cookies)
+    con scope pleno — el admin sembrado nace con must_change_password=True, y
+    su primer token sólo sirve para /users/change-password.
+    """
+    first = await _login(client)
+    assert first.status_code == 200, first.text
+    change = await client.post(
+        "/users/change-password",
+        json={"new_password": _NEW_ADMIN_PASSWORD},
+        headers={"Authorization": f"Bearer {first.json()['access_token']}"},
+    )
+    assert change.status_code == 200, change.text
+
+    full = await _login(client, password=_NEW_ADMIN_PASSWORD)
+    assert full.status_code == 200, full.text
+    assert full.json()["must_change_password"] is False
+    return full.json()["access_token"], dict(full.cookies)
 
 
 # ─── Tests: login ────────────────────────────────────────────────────────────
@@ -105,6 +178,27 @@ async def test_login_password_incorrecta_retorna_401(auth_client):
 async def test_login_usuario_inexistente_retorna_401(auth_client):
     resp = await _login(auth_client, username="nosuchuser", password="x")
     assert resp.status_code == 401
+
+
+async def test_login_error_es_identico_para_password_mala_y_usuario_inexistente(auth_client):
+    """
+    US-01 (anexo §7, nivel 1 #9): el error de login no debe permitir enumerar
+    usuarios. Hasta ahora sólo se comparaba el código 401; acá se compara el
+    cuerpo completo de las dos respuestas, que es donde podría filtrarse la
+    diferencia entre "esa contraseña no es" y "ese usuario no existe".
+    """
+    bad_password = await _login(auth_client, password="ThisIsNotThePassword1!")
+    unknown_user = await _login(
+        auth_client, username="nosuchuser", password="ThisIsNotThePassword1!"
+    )
+
+    assert bad_password.status_code == 401
+    assert unknown_user.status_code == 401
+    assert bad_password.json() == unknown_user.json()
+    assert bad_password.json()["detail"] == "Incorrect username or password"
+    # El mensaje tampoco nombra al usuario probado.
+    assert "nosuchuser" not in unknown_user.text
+    assert os.environ["ADMIN_USERNAME"] not in bad_password.json()["detail"]
 
 
 # ─── Tests: rate limit login ─────────────────────────────────────────────────
@@ -206,28 +300,75 @@ async def test_refresh_sin_cookie_retorna_401(auth_client):
 
 # ─── Tests: logout ───────────────────────────────────────────────────────────
 
-async def test_logout_invalida_access_token(mock_valkey, auth_client):
-    """Después del logout, el access token debe estar en la blacklist."""
-    login_resp = await _login(auth_client)
-    assert login_resp.status_code == 200
-    access_token = login_resp.json()["access_token"]
+async def test_logout_invalida_access_token(blacklist_client, blacklist_store):
+    """
+    US-02 (anexo §7, nivel 2 #15): el criterio central de la historia es que un
+    token invalidado sea RECHAZADO. Se ejercita contra `GET /events`, que exige
+    autenticación real (`require_full_access`), y se comprueba que la misma
+    request pasa antes del logout y falla con 401 después.
 
-    logout_resp = await auth_client.post(
+    La versión anterior de este test consultaba `GET /health` —público, sin
+    auth—, nunca miraba esa respuesta y su única aserción real era que
+    `setex` había sido llamado: verificaba que Valkey recibió *una* escritura,
+    no que el token dejara de servir.
+    """
+    from app.core.security import BLACKLIST_PREFIX, decode_token
+
+    access_token, refresh_cookies = await _full_access_login(blacklist_client)
+    auth_header = {"Authorization": f"Bearer {access_token}"}
+
+    # Precondición: con el token vivo, el endpoint protegido responde.
+    before = await blacklist_client.get("/events", headers=auth_header)
+    assert before.status_code == 200, before.text
+
+    logout_resp = await blacklist_client.post(
+        "/auth/logout", headers=auth_header, cookies=refresh_cookies
+    )
+    assert logout_resp.status_code == 200
+    assert logout_resp.json()["message"] == "logged_out"
+
+    # El criterio de la historia: el mismo token ya no sirve.
+    after = await blacklist_client.get("/events", headers=auth_header)
+    assert after.status_code == 401, "el access token revocado sigue siendo aceptado"
+
+    # La entrada de blacklist existe y su TTL es el remanente del token, no eterno.
+    access_jti = decode_token(access_token)["jti"]
+    access_key = f"{BLACKLIST_PREFIX}{access_jti}"
+    assert access_key in blacklist_store, "el jti del access token no se blacklisteó"
+    access_ttl = blacklist_store[access_key][0]
+    assert 0 < access_ttl <= ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    assert access_ttl > ACCESS_TOKEN_EXPIRE_MINUTES * 60 - 60  # recién emitido
+
+
+async def test_logout_invalida_tambien_el_refresh_token(blacklist_client, blacklist_store):
+    """
+    US-02: el logout revoca los DOS tokens. El refresh revocado no puede
+    reabrir la sesión, y su TTL de blacklist es el de 7 días del refresh.
+    """
+    from app.core.security import BLACKLIST_PREFIX, REFRESH_TOKEN_EXPIRE_DAYS, decode_token
+
+    access_token, refresh_cookies = await _full_access_login(blacklist_client)
+    refresh_token = refresh_cookies["refresh_token"]
+
+    logout_resp = await blacklist_client.post(
         "/auth/logout",
         headers={"Authorization": f"Bearer {access_token}"},
-        cookies=login_resp.cookies,
+        cookies=refresh_cookies,
     )
     assert logout_resp.status_code == 200
 
-    # Tras logout, simular que el jti está en blacklist para la siguiente request
-    mock_valkey.exists.return_value = 1
-    protected_resp = await auth_client.get(
-        "/health",
-        headers={"Authorization": f"Bearer {access_token}"},
+    refresh_jti = decode_token(refresh_token)["jti"]
+    refresh_key = f"{BLACKLIST_PREFIX}{refresh_jti}"
+    assert refresh_key in blacklist_store, "el jti del refresh token no se blacklisteó"
+    refresh_ttl = blacklist_store[refresh_key][0]
+    expected = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+    assert expected - 60 < refresh_ttl <= expected
+
+    # Y el refresh revocado ya no rota la sesión (fuera de la ventana de gracia).
+    reuse = await blacklist_client.post(
+        "/auth/refresh", cookies={"refresh_token": refresh_token}
     )
-    # /health no requiere auth — usamos otro endpoint cuando exista;
-    # Por ahora verificamos que el token en blacklist es rechazado en /auth/logout mismo
-    assert mock_valkey.setex.called  # blacklist_token fue llamado
+    assert reuse.status_code == 401
 
 
 # ─── Tests: scope password_change_only ──────────────────────────────────────

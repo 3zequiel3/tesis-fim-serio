@@ -181,6 +181,67 @@ def test_sent_at_unparseable_rejected(mem_engine, agent, shared_secret) -> None:
     assert rejections[0].reason == RejectionReason.clock_skew
 
 
+def test_sent_at_at_299s_is_accepted(mem_engine, agent, shared_secret) -> None:
+    """
+    W13 / anexo §7 nivel 1 #10: frontera exacta de `_CLOCK_SKEW_S = 300`.
+    Los casos existentes usan valores claramente dentro (segundos) o fuera
+    (horas) de la ventana, así que un umbral mal fijado en 60 s o en 3600 s
+    pasaría igual. 299 s debe aceptarse.
+    """
+    from app.modules.events.consumer import _CLOCK_SKEW_S
+
+    assert _CLOCK_SKEW_S == 300, "la frontera de este test asume la ventana de 5 minutos"
+    sent = (datetime.now(timezone.utc) - timedelta(seconds=_CLOCK_SKEW_S - 1)).isoformat()
+    payload = _sign(_base_payload("agent-durability", sent_at=sent), shared_secret)
+    _run_handle(mem_engine, payload)
+
+    with Session(mem_engine) as session:
+        events = session.exec(select(Event)).all()
+        rejections = session.exec(select(RejectedEventAudit)).all()
+    assert len(events) == 1
+    assert not rejections
+
+
+def test_sent_at_at_301s_is_rejected(mem_engine, agent, shared_secret) -> None:
+    """El otro lado de la frontera: 301 s fuera de la ventana → clock_skew."""
+    from app.modules.events.consumer import _CLOCK_SKEW_S
+
+    sent = (datetime.now(timezone.utc) - timedelta(seconds=_CLOCK_SKEW_S + 1)).isoformat()
+    payload = _sign(_base_payload("agent-durability", sent_at=sent), shared_secret)
+    _run_handle(mem_engine, payload)
+
+    with Session(mem_engine) as session:
+        events = session.exec(select(Event)).all()
+        rejections = session.exec(select(RejectedEventAudit)).all()
+    assert not events
+    assert len(rejections) == 1
+    assert rejections[0].reason == RejectionReason.clock_skew
+
+
+def test_detected_at_fallback_boundary_at_299s_and_301s(mem_engine, agent, shared_secret) -> None:
+    """
+    Misma frontera en la rama de fallback (sin `sent_at`, agente anterior a
+    D37): la ventana se evalúa sobre `detected_at` con el mismo umbral.
+    """
+    from app.modules.events.consumer import _CLOCK_SKEW_S
+
+    inside = (datetime.now(timezone.utc) - timedelta(seconds=_CLOCK_SKEW_S - 1)).isoformat()
+    _run_handle(mem_engine, _sign(_base_payload("agent-durability", detected_at=inside), shared_secret))
+
+    with Session(mem_engine) as session:
+        assert len(session.exec(select(Event)).all()) == 1
+        assert not session.exec(select(RejectedEventAudit)).all()
+
+    outside = (datetime.now(timezone.utc) - timedelta(seconds=_CLOCK_SKEW_S + 1)).isoformat()
+    _run_handle(mem_engine, _sign(_base_payload("agent-durability", detected_at=outside), shared_secret))
+
+    with Session(mem_engine) as session:
+        assert len(session.exec(select(Event)).all()) == 1  # el de afuera no se persistió
+        rejections = session.exec(select(RejectedEventAudit)).all()
+    assert len(rejections) == 1
+    assert rejections[0].reason == RejectionReason.clock_skew
+
+
 def test_sent_at_naive_interpreted_as_utc(mem_engine, agent, shared_secret) -> None:
     """sent_at sin tzinfo, dentro de la ventana → se acepta (sin TypeError)."""
     naive_sent = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()

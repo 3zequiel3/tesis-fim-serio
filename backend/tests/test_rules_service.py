@@ -287,6 +287,78 @@ class TestWriteOperations:
         logs = session.exec(select(AuditLog)).all()
         assert any(l.action == "rule_updated" for l in logs)
 
+    def test_update_rule_persists_the_new_field_values(self, session, mock_valkey, admin_user):
+        """
+        US-16 (anexo §7, nivel 1 #5): el núcleo de la historia es que los campos
+        cambien en la fila persistida, no que se escriba una auditoría. Se relee
+        la fila desde la base en una sesión limpia para no leer el objeto en
+        memoria que `update_rule` ya mutó.
+        """
+        rule = Rule(pattern="/etc/*", severity=RuleSeverity.low, action=RuleAction.alert_only)
+        session.add(rule)
+        session.commit()
+        session.refresh(rule)
+        rule_id = rule.id
+        original_updated_at = rule.updated_at
+
+        update_rule(
+            session,
+            mock_valkey,
+            admin_user.id,
+            rule_id,
+            {"pattern": "/etc/ssh/*", "severity": "critical", "action": "auto_restore"},
+        )
+
+        session.expire_all()
+        persisted = session.exec(select(Rule).where(Rule.id == rule_id)).one()
+        assert persisted.pattern == "/etc/ssh/*"
+        assert persisted.severity == RuleSeverity.critical
+        assert persisted.action == RuleAction.auto_restore
+        assert persisted.updated_at >= original_updated_at
+        # No se creó una regla nueva: sigue habiendo una sola fila.
+        assert len(session.exec(select(Rule)).all()) == 1
+
+    def test_update_rule_partial_payload_keeps_untouched_fields(
+        self, session, mock_valkey, admin_user
+    ):
+        """Los campos ausentes del payload conservan su valor previo."""
+        rule = Rule(pattern="/var/log/*", severity=RuleSeverity.high, action=RuleAction.quarantine)
+        session.add(rule)
+        session.commit()
+        session.refresh(rule)
+        rule_id = rule.id
+
+        update_rule(session, mock_valkey, admin_user.id, rule_id, {"severity": "medium"})
+
+        session.expire_all()
+        persisted = session.exec(select(Rule).where(Rule.id == rule_id)).one()
+        assert persisted.severity == RuleSeverity.medium
+        assert persisted.pattern == "/var/log/*"
+        assert persisted.action == RuleAction.quarantine
+
+    def test_delete_rule_removes_the_row(self, session, mock_valkey, admin_user):
+        """
+        US-17 (anexo §7, nivel 1 #5): la fila desaparece de la tabla. Hoy los
+        tests de borrado sólo verifican la auditoría y el contador de versión.
+        """
+        kept = Rule(pattern="/keep/*", severity=RuleSeverity.low, action=RuleAction.alert_only)
+        doomed = Rule(pattern="/tmp/*", severity=RuleSeverity.low, action=RuleAction.alert_only)
+        session.add(kept)
+        session.add(doomed)
+        session.commit()
+        session.refresh(kept)
+        session.refresh(doomed)
+        doomed_id = doomed.id
+        kept_id = kept.id
+
+        delete_rule(session, mock_valkey, admin_user.id, doomed_id)
+
+        session.expire_all()
+        assert session.exec(select(Rule).where(Rule.id == doomed_id)).first() is None
+        # Sólo se borró la regla pedida.
+        remaining = session.exec(select(Rule)).all()
+        assert [r.id for r in remaining] == [kept_id]
+
     def test_update_rule_increments_counter(self, session, mock_valkey, admin_user):
         rule = Rule(pattern="/proc/*", severity=RuleSeverity.low, action=RuleAction.alert_only)
         session.add(rule)

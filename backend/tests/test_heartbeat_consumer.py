@@ -120,6 +120,47 @@ def test_sweep_marks_offline_after_30s(mem_engine, agent) -> None:
     assert a.status == AgentStatus.offline
 
 
+def test_sweep_marks_draining_agent_offline_after_30s(mem_engine, agent) -> None:
+    """
+    US-30 (anexo §7, nivel 1 #8): un agente que se apagó de forma graceful queda
+    en `draining`; si deja de latir 30 s, el barrido debe llevarlo a `offline`.
+    El barrido sólo se ejercitaba desde `online`, así que esta rama del
+    `status.in_([online, draining])` no estaba cubierta.
+    """
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+        a.status = AgentStatus.draining
+        a.last_heartbeat = datetime.now(timezone.utc) - timedelta(seconds=35)
+        session.add(a)
+        session.commit()
+
+    import app.modules.agents.heartbeat_consumer as hc
+    with patch.object(hc, "engine", mem_engine):
+        hc._sweep_offline()
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.status == AgentStatus.offline
+
+
+def test_sweep_keeps_draining_agent_if_heartbeat_is_recent(mem_engine, agent) -> None:
+    """Un agente drenando que sigue latiendo NO se marca offline (US-30)."""
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+        a.status = AgentStatus.draining
+        a.last_heartbeat = datetime.now(timezone.utc) - timedelta(seconds=10)
+        session.add(a)
+        session.commit()
+
+    import app.modules.agents.heartbeat_consumer as hc
+    with patch.object(hc, "engine", mem_engine):
+        hc._sweep_offline()
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.status == AgentStatus.draining
+
+
 def test_sweep_does_not_mark_offline_if_recent(mem_engine, agent) -> None:
     with Session(mem_engine) as session:
         a = session.get(Agent, "hb-agent")

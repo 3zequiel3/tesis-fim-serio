@@ -493,6 +493,79 @@ async def test_retry_alert_not_found(session):
         await retry_alert(99999, session)
 
 
+@pytest.mark.asyncio
+async def test_retry_alert_resets_dlq_state_and_reschedules(session, agent):
+    """
+    US-29 (anexo §7, nivel 1 #7) — camino feliz del reintento: la fila sale de
+    la DLQ (failed_at, last_error y retry_count reseteados) y la notificación
+    se vuelve a disparar con la misma alerta y el mismo evento.
+    """
+    import app.modules.alerts.service as alerts_service
+
+    event = _make_event(session)
+    alert = _make_alert(session, event.id, failed=True)
+    assert alert.failed_at is not None and alert.retry_count == 3  # precondición: está en la DLQ
+
+    preexisting = set(alerts_service._background_tasks)
+    with patch.object(
+        alerts_service, "notify_event", new_callable=AsyncMock
+    ) as mock_notify:
+        returned = await retry_alert(alert.id, session)
+        # La notificación es fire-and-forget: cederle el loop para que corra.
+        # Sólo las tareas que creó esta llamada, no las que pudo dejar otro test.
+        await asyncio.gather(*(alerts_service._background_tasks - preexisting))
+
+    # Estado reseteado y persistido.
+    session.expire_all()
+    persisted = session.get(Alert, alert.id)
+    assert persisted.failed_at is None
+    assert persisted.last_error is None
+    assert persisted.retry_count == 0
+    assert persisted.delivered_at is None
+    assert returned.id == alert.id
+
+    # La cascada se volvió a disparar sobre la misma alerta y el mismo evento.
+    assert mock_notify.await_count == 1
+    called_alert, called_event = mock_notify.await_args.args
+    assert called_alert.id == alert.id
+    assert called_event.id == event.id
+
+
+@pytest.mark.asyncio
+async def test_retry_alert_delivers_and_leaves_the_dlq(session, agent):
+    """
+    US-29: el reintento efectivo entrega por n8n y la alerta deja de figurar
+    en `list_failed_alerts` — el ciclo completo, no sólo el reseteo de campos.
+    """
+    import app.modules.alerts.service as alerts_service
+
+    event = _make_event(session)
+    alert = _make_alert(session, event.id, failed=True)
+    assert [a.id for a in list_failed_alerts(session)] == [alert.id]
+
+    preexisting = set(alerts_service._background_tasks)
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.send_n8n", new_callable=AsyncMock, return_value=True), \
+         patch("app.modules.alerts.service.settings") as mock_settings:
+
+        mock_settings.n8n_webhook_url = "http://n8n.local/webhook"
+        mock_settings.smtp_host = ""
+        mock_settings.webhook_fallback_url = ""
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        await retry_alert(alert.id, session)
+        await asyncio.gather(*(alerts_service._background_tasks - preexisting))
+
+    session.expire_all()
+    persisted = session.get(Alert, alert.id)
+    assert persisted.delivered_at is not None
+    assert persisted.channel == AlertChannel.n8n
+    assert persisted.failed_at is None
+    assert persisted.last_error is None
+    assert list_failed_alerts(session) == []
+
+
 def test_post_retry_alert_409_if_delivered(session, agent):
     """POST /alerts/{id}/retry → 409 si ya entregada."""
     event = _make_event(session)
