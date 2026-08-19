@@ -49,12 +49,61 @@ Batería 4 medirían el tiempo hasta un `GET /healthz`, no hasta una notificaci�
 ejerce porque el primer canal "tiene éxito" siempre. Cerrar el Change 13
 (`integration-n8n-notifications`) o apuntar la variable a un webhook real antes de medir.
 
-## 0.1 Definición de la topología oficial
+## 0.0 Decisiones cerradas (2026-08-19)
 
-Decisión pendiente que afecta a **todos** los ítems de latencia: la corrida del 2026-07-02 tuvo al
-agente en contenedor sobre el mismo host que el backend (Valkey local, sin latencia de red).
-Definir y asentar si la corrida oficial usa esa topología o **agente remoto sobre red** — y
-declararlo explícitamente en el Cap. 5. No dejarlo implícito.
+Las tres decisiones que este plan dejaba abiertas quedan resueltas así. Cada una se declara
+explícitamente en el Cap. 5 junto al resultado que afecta.
+
+### Topología oficial: **agente remoto sobre red**
+
+El agente corre en un host separado del backend, no co-residente. Se registra el RTT medido contra
+el host del backend y se declara junto a los ítems de latencia.
+
+**Por qué.** La afirmación arquitectónica central de la tesis es el desacople agente↔backend sobre
+Valkey Streams con mTLS, sin HTTP (RN-108, D8). Medir con Valkey en `localhost` mide una topología
+que nadie desplegaría y produce latencias que no representan al sistema que se describe. Un P99 de
+detección obtenido sin red es una cota inferior, no un resultado.
+
+Además no cuesta infraestructura extra: las verificaciones manuales pendientes de las changes 41 y
+42 ya exigen un host real con `root`, `systemd` y capabilities efectivas. Es el mismo host.
+
+**Si no se consigue el host remoto**: correr co-residente es admisible, pero entonces el Cap. 5
+debe decir que los ítems 1-10 son una **cota inferior medida sin latencia de red**, y no
+presentarlos como latencia de la plataforma. Lo que no es admisible es medir co-residente y
+reportarlo sin la aclaración.
+
+### Ítem 55 — captura `.pcap`: **opción (b), sobre la interfaz de red con `SSLKEYLOGFILE`**
+
+Se captura el tráfico real de la interfaz y se archiva el archivo de claves junto al `.pcap`.
+
+**Por qué.** La opción (a) —capturar en el loopback del contenedor de Valkey, del lado ya
+descifrado— no evidencia nada de lo que el ítem pretende evidenciar: muestra texto plano en el
+único punto donde el texto plano es esperable. No distingue un canal cifrado de uno que no lo está.
+La opción (b) demuestra las dos cosas a la vez: que en el cable el tráfico está cifrado, y qué
+viajaba adentro.
+
+**Cuidado operativo**: el archivo de claves permite descifrar la captura. Es material sensible.
+Se archiva con las planillas, nunca en el repositorio, y se declara su existencia en el anexo.
+
+### Batería 7 — criterio de atribución: **`primer_cambio`** (el default)
+
+La latencia del control se computa contra el **primer** cambio no detectado de cada archivo, no
+contra el último.
+
+**Por qué.** Es la lectura de seguridad. Si un archivo cambia en T1, vuelve a cambiar en T2 y el
+escáner lo detecta en T3, la ventana de exposición empezó en T1: el sistema estuvo comprometido
+desde el primer cambio. Atribuir a T2 mide el mejor caso del escáner y subestima la exposición,
+que es justamente la magnitud que la tesis quiere comparar.
+
+No es una diferencia cosmética: en la corrida de humo la mediana pasa de 442 ms con
+`primer_cambio` a 590 ms con `ultimo_cambio`. Se reporta `ultimo_cambio` como **análisis de
+sensibilidad** en el anexo, para mostrar que la conclusión no depende del criterio elegido.
+
+## 0.1 Antecedente de la topología
+
+La corrida del 2026-07-02 tuvo al agente en contenedor sobre el mismo host que el backend (Valkey
+local, sin latencia de red). Por eso sus valores quedan como referencia de orden de magnitud y no
+como resultado oficial. La topología de la corrida oficial está resuelta en §0.0.
 
 ## 0.2 Instrumentación ya disponible
 
