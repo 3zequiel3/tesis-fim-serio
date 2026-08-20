@@ -1,0 +1,66 @@
+# Override que habilita TLS en el canal Valkey (RN-115, D17).
+#
+# POR QUÉ EXISTE
+#   El compose base corre `valkey://` en texto plano. La arquitectura declara
+#   `valkeys://` con verificación de hostname, y el ítem 55 del Cap. 5 (captura
+#   .pcap del canal agente↔backend) sólo tiene sentido si el canal está
+#   realmente cifrado: una captura sobre texto plano evidencia lo contrario de
+#   lo que el capítulo afirma.
+#
+# PRECONDICIÓN
+#   El certificado de servidor de Valkey tiene que existir en el volumen
+#   backend_certs. Emitirlo con:
+#     docker compose exec -T backend python /tmp/emitir_cert_valkey.py
+#   (ver scripts/emitir_cert_valkey.py — el SAN debe incluir `valkey`, porque
+#   el agente conecta con ssl_check_hostname=True.)
+#
+# USO
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+#
+#   Para volver a texto plano, basta con omitir este archivo.
+#
+# QUÉ CAMBIA
+#   - Valkey escucha TLS en 6380 y deja de escuchar en claro (`--port 0`).
+#   - Se exige certificado de cliente (`--tls-auth-clients yes`): es mTLS, no
+#     sólo cifrado de transporte.
+#   - Backend y agente pasan a `valkeys://valkey:6380`.
+
+services:
+  valkey:
+    volumes:
+      - valkey_data:/data
+      - backend_certs:/certs:ro
+    command: >
+      valkey-server
+      --port 0
+      --tls-port 6380
+      --tls-cert-file /certs/valkey.pem
+      --tls-key-file /certs/valkey-key.pem
+      --tls-ca-cert-file /certs/ca.pem
+      --tls-auth-clients yes
+    healthcheck:
+      test:
+        - CMD
+        - valkey-cli
+        - --tls
+        - -p
+        - "6380"
+        - --cert
+        - /certs/valkey.pem
+        - --key
+        - /certs/valkey-key.pem
+        - --cacert
+        - /certs/ca.pem
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    environment:
+      VALKEY_URL: valkeys://valkey:6380
+
+  agent:
+    environment:
+      FIM_VALKEY_URL: valkeys://valkey:6380
