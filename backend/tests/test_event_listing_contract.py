@@ -21,7 +21,8 @@ Cada test crea sus propios eventos sobre una base ya truncada, de modo que
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 import pytest
 
@@ -38,10 +39,12 @@ from app.modules.agents.models import Agent, AgentStatus
 from app.modules.events.models import Event, EventStatus
 from app.modules.rules.models import RuleSeverity
 
-# Las columnas de timestamp son `timestamp without time zone`: se trabaja con
-# datetimes naive en UTC para que el filtro por fechas compare lo mismo que
-# guarda la base.
-_NOW = datetime(2026, 5, 1, 12, 0, 0)
+# D39/RN-133: las columnas de timestamp son `timestamptz` y toda escritura vía
+# ORM/API es UTC-aware. _NOW es aware a propósito — un `_NOW` naive comparado
+# por `==` contra un valor aware devuelve False sin lanzar excepción (D-5,
+# design de timestamps-timezone-aware), que es exactamente el modo de fallo
+# silencioso que esta suite existe para no volver a dejar pasar.
+_NOW = datetime(2026, 5, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 @pytest.fixture()
@@ -249,8 +252,11 @@ async def test_pagination_total_respects_date_range_filter(client, session, agen
     too_new = _new_event(agent, created_at=_NOW + timedelta(days=5))
     _persist(session, *inside, too_old, too_new)
 
-    date_from = (_NOW - timedelta(hours=4)).isoformat()
-    date_to = (_NOW - timedelta(hours=1)).isoformat()
+    # quote(): un `+` crudo en la query string se decodifica como espacio
+    # (urllib.parse.parse_qsl), así que el desfase aware de _NOW debe ir
+    # percent-encoded para llegar intacto al parser de FastAPI.
+    date_from = quote((_NOW - timedelta(hours=4)).isoformat())
+    date_to = quote((_NOW - timedelta(hours=1)).isoformat())
     resp = await client.get(
         f"/events?date_from={date_from}&date_to={date_to}&page_size=1",
         headers=_auth_headers(),
@@ -307,8 +313,16 @@ async def test_get_event_by_id_returns_full_detail(client, session, agent) -> No
     assert body["process_exe"] == "/usr/bin/vim"
 
     # Timestamps dobles (W13): detected_at del agente, received_at del backend.
+    # D-5 regla 1 (design de timestamps-timezone-aware): estas dos aserciones
+    # comparan datetimes aware contra datetimes aware refrescados desde la
+    # base — no un mero "fromisoformat no lanza", que pasaría igual con o sin
+    # el defecto porque acepta ambas formas.
     assert datetime.fromisoformat(body["detected_at"]) == event.detected_at
     assert datetime.fromisoformat(body["received_at"]) == event.received_at
+    # Esta comparación de orden es el ejemplo canónico que pasa antes Y
+    # después del arreglo: el orden entre dos instantes se conserva sea cual
+    # sea la forma en que se serialicen. Se deja intacta a propósito — no es
+    # una omisión, es la contrademostración documentada de D-5 regla 1.
     assert datetime.fromisoformat(body["detected_at"]) < datetime.fromisoformat(
         body["received_at"]
     )

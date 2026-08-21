@@ -22,6 +22,7 @@ import asyncio
 import glob
 import json
 import os
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -747,12 +748,36 @@ def test_fix08_naive_datetime_within_range_accepted(mem_engine):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FIX-09 — datetime.utcnow() erradicado de módulos de producción
+#
+# D39/RN-133 (timestamps-timezone-aware): el predicado original buscaba la
+# cadena literal "datetime.utcnow()" — CON paréntesis, es decir, la *llamada*.
+# Los 9 usos reales de producción no eran llamadas: eran *referencias*
+# pasadas como fábrica (`default_factory=datetime.utcnow`, sin paréntesis
+# porque no se invoca ahí, SQLModel la invoca por fila), y pasaban por debajo
+# del grep sin tocarlo. El test tenía el nombre del defecto, existía para
+# atraparlo, y pasaba en verde con el defecto presente en 9 lugares — separado
+# por dos caracteres. El predicado ahora es una regex con \b que detecta
+# `datetime.utcnow` en CUALQUIER forma: llamada (`datetime.utcnow()`) o
+# referencia bare (`datetime.utcnow`), y se prueba contra su propio caso
+# negativo (test siguiente) para que un guard roto no vuelva a pasar en verde
+# sin que nadie lo haya visto fallar nunca.
 # ═══════════════════════════════════════════════════════════════════════════════
+
+_UTCNOW_PATTERN = re.compile(r"datetime\.utcnow\b")
+
+
+def _find_utcnow_offenders(content: str) -> bool:
+    """True si `content` contiene `datetime.utcnow` en cualquier forma
+    (llamada o referencia bare) — el predicado compartido entre el guard
+    real (test_fix09_no_utcnow_in_production_modules) y su prueba negativa
+    (test_fix09_guard_detects_bare_reference_form)."""
+    return bool(_UTCNOW_PATTERN.search(content))
 
 
 def test_fix09_no_utcnow_in_production_modules():
-    """8.13 — Verificar que datetime.utcnow() no aparece en ningún módulo
-    de producción bajo backend/app/."""
+    """8.13 — Verificar que datetime.utcnow no aparece en ningún módulo
+    de producción bajo backend/app/, ni como llamada ni como referencia
+    bare (`default_factory=datetime.utcnow`)."""
     backend_app_root = os.path.join(
         os.path.dirname(__file__),  # backend/tests/
         "..",                        # backend/
@@ -765,10 +790,35 @@ def test_fix09_no_utcnow_in_production_modules():
     for fpath in py_files:
         with open(fpath, encoding="utf-8") as f:
             content = f.read()
-        if "datetime.utcnow()" in content:
+        if _find_utcnow_offenders(content):
             offenders.append(os.path.relpath(fpath))
 
     assert offenders == [], (
-        f"datetime.utcnow() encontrado en módulos de producción: {offenders}\n"
-        "Reemplazar con datetime.now(timezone.utc)"
+        f"datetime.utcnow encontrado en módulos de producción: {offenders}\n"
+        "Reemplazar con datetime.now(timezone.utc), sea llamada o "
+        "default_factory=datetime.utcnow"
+    )
+
+
+def test_fix09_guard_detects_bare_reference_form():
+    """Caso negativo del guard (D39/RN-133): un fragmento con la forma
+    bare `default_factory=datetime.utcnow` — la que dejó pasar el defecto
+    original, SIN paréntesis — debe ser rechazado. Un guard que nunca se vio
+    fallar contra su propio caso negativo no es evidencia de nada; esta es
+    la prueba de que el agujero de dos caracteres está cerrado."""
+    offending_fragment = "    created_at: datetime = Field(default_factory=datetime.utcnow)\n"
+    assert _find_utcnow_offenders(offending_fragment), (
+        "el guard debe rechazar la forma bare default_factory=datetime.utcnow"
+    )
+
+    # Y sigue detectando la forma con paréntesis que ya cubría.
+    call_fragment = "    now = datetime.utcnow()\n"
+    assert _find_utcnow_offenders(call_fragment), (
+        "el guard debe seguir rechazando la forma con paréntesis datetime.utcnow()"
+    )
+
+    # Control: código correcto no dispara el guard.
+    correct_fragment = "    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))\n"
+    assert not _find_utcnow_offenders(correct_fragment), (
+        "el guard no debe rechazar datetime.now(timezone.utc)"
     )

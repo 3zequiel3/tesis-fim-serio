@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { useAlerts } from '@/hooks/useAlerts'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { formatAbsolute } from '@/utils/timeDisplay'
 import type { AlertFilters, AlertStatus, AlertSeverity } from '@/api/alerts'
 
 // ─── URL param helpers ────────────────────────────────────────────────────────
@@ -35,16 +36,6 @@ const STATUS_COLORS: Record<string, string> = {
   pending: 'text-yellow-400',
   delivered: 'text-green-400',
   failed: 'text-red-400',
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 // ─── Página ───────────────────────────────────────────────────────────────────
@@ -154,9 +145,9 @@ export function Alerts() {
                     {alert.status}
                   </td>
                   <td className="px-4 py-2.5 text-gray-400 font-mono text-xs">{alert.channel}</td>
-                  <td className="px-4 py-2.5 text-gray-400 text-xs">{formatDate(alert.created_at)}</td>
+                  <td className="px-4 py-2.5 text-gray-400 text-xs">{formatAbsolute(alert.created_at)}</td>
                   <td className="px-4 py-2.5 text-gray-400 text-xs">
-                    {alert.delivered_at ? formatDate(alert.delivered_at) : '—'}
+                    {formatAbsolute(alert.delivered_at, { nullLabel: '—' })}
                   </td>
                 </tr>
               ))}

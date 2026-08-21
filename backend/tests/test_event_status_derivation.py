@@ -81,7 +81,8 @@ def mem_engine():
 
 
 def _make_event(session: Session, path: str, status: EventStatus) -> Event:
-    now = datetime.utcnow()
+    # D39/RN-133: aware, no datetime.utcnow() — escribe contra columnas migradas.
+    now = datetime.now(timezone.utc)
     e = Event(
         event_id=f"eid-{uuid.uuid4().hex[:8]}",
         agent_id="agent-test",

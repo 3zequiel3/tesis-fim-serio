@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -33,7 +33,8 @@ def mem_engine():
 
 
 def _old_event(session: Session, path: str, status: EventStatus, days_old: int = 31) -> Event:
-    created = datetime.utcnow() - timedelta(days=days_old)
+    # D39/RN-133: aware, no datetime.utcnow() — escribe contra columnas migradas.
+    created = datetime.now(timezone.utc) - timedelta(days=days_old)
     e = Event(
         event_id=f"eid-{path}-{days_old}",
         agent_id="agent-x",

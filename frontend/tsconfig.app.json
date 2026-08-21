@@ -28,5 +28,10 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Los archivos de test no forman parte del artefacto desplegable: los
+  // compila vitest, no `tsc -b`. Sin esta exclusión `pnpm build` falla
+  // sobre los tipos de los mocks aunque `pnpm typecheck` pase, porque
+  // usan configuraciones distintas (`tsc --noEmit` vs `tsc -b`).
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test"]
 }

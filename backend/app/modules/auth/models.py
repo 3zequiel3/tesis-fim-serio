@@ -1,6 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
+import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
+
+# D39/RN-133: ver events/models.py — mismo motivo, mismo patrón.
+_TZ_AWARE = sa.DateTime(timezone=True)
 
 
 class User(SQLModel, table=True):
@@ -13,4 +17,4 @@ class User(SQLModel, table=True):
     role: str = Field(default="admin")
     is_active: bool = Field(default=True)
     must_change_password: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=_TZ_AWARE)

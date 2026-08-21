@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-132 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-133 |
 
 ---
 
@@ -776,7 +776,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1241,6 +1241,30 @@ Esta decisión cierra el contrato: el estado **se deriva en el backend** a parti
 
 **Excepciones:**
 - El límite configurado no relaja ninguna otra garantía: los eventos que exceden el presupuesto siguen tratándose según D37/RN-131 —nack retenible con `retry_after` y backpressure, sin destruir el evento—, con lo cual un límite bajo alarga el drenaje pero **no pierde** eventos. Esa es justamente la propiedad que vuelve medible al indicador.
+
+#### D39 / RN-133: Instantes con zona horaria explícita de punta a punta
+
+**Descripción:** El sistema representa instantes de tres maneras incompatibles a la vez, y el resultado es que **toda la interfaz muestra las fechas corridas por el desfase horario local**. Son tres defectos encadenados:
+
+1. **Las 19 columnas de fecha son `timestamp without time zone`.** El instante que guardan es UTC por convención, no por tipo: nada en el esquema lo declara.
+2. **El código mezcla naive y aware** — 9 usos de `datetime.utcnow()` (naive) contra 25 de `datetime.now(timezone.utc)` (aware), escribiendo todos sobre las mismas columnas naive. Hoy no rompe **únicamente** porque la zona horaria de la sesión de PostgreSQL es UTC: es una dependencia implícita de configuración por debajo de la ventana anti-replay de RN-90/RN-131, que es un control de seguridad.
+3. **La API serializa sin desfase**: `'2026-08-20T19:55:59.641248'`, sin `Z` ni offset. La especificación de ECMAScript obliga a interpretar una fecha-hora sin zona como **hora local**, de modo que `new Date(iso)` en el navegador desplaza cada instante por el desfase del operador. En Argentina (UTC−3) la consola muestra cada evento **tres horas más tarde** de lo ocurrido.
+
+El caso más visible es la tarjeta del agente, que calcula `Date.now() - fecha`: con un latido recién recibido la resta da **negativo**. Para una consola forense, donde la correlación temporal es el instrumento principal, esto invalida la pantalla — y con ella los criterios de US-08 y US-21.
+
+**Condición:** Toda persistencia, serialización y presentación de un instante.
+
+**Resultado:**
+
+- **Las 19 columnas migran a `timestamptz`.** PostgreSQL convierte in situ con `ALTER COLUMN ... TYPE timestamptz USING columna AT TIME ZONE 'UTC'`, que es exactamente la semántica correcta porque el contenido ya era UTC. El instante deja de depender de la configuración de la sesión.
+- **Se elimina `datetime.utcnow()` del código.** Toda escritura usa `datetime.now(timezone.utc)`. `utcnow()` devuelve un naive que *aparenta* ser UTC y es la fuente de la mezcla; además está desaconsejado desde Python 3.12.
+- **La API emite ISO-8601 con desfase explícito** (`...+00:00`). Ningún cliente vuelve a adivinar la zona de un instante.
+- **El frontend deja de depender de la interpretación por defecto** y presenta en la zona del operador de forma deliberada. Los filtros de fecha (`datetime-local`, hora local del navegador) se convierten a UTC antes de enviarse: hoy se comparan crudos contra columnas UTC, con lo cual el rango filtrado no es el rango pedido.
+- **La interfaz muestra siempre la zona junto a la hora**, y las horas absolutas se acompañan de la forma relativa donde ayuda a decidir («hace 4 min»). Un operador que correlaciona con `journalctl` o con un `.pcap` necesita saber contra qué reloj está leyendo.
+
+**Excepciones:**
+- No se altera la semántica de ninguna comparación existente: la ventana de skew de RN-90/RN-131, la retención de RN-98 y el barrido de comandos siguen operando sobre los mismos instantes. Lo que cambia es que dejan de depender de que la sesión esté en UTC.
+- `detected_at` viaja en el payload del agente como cadena ISO y no cambia de formato: `_parse_datetime` ya normaliza a UTC-aware en la ingesta.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

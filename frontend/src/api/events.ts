@@ -79,6 +79,25 @@ export interface EventFilters {
   page_size?: number
 }
 
+// D39/RN-133 (D-4 del design de timestamps-timezone-aware): los filtros de
+// fecha de <input type="datetime-local"> son hora de pared del navegador,
+// sin desfase. La conversión a UTC ocurre ACÁ, al construir la petición
+// HTTP — no al escribir la URL (eventFilters.ts no se toca, D-4). La URL
+// sigue llevando la hora local que el operador tipeó, legible y estable
+// para links compartidos; este es el único punto de conversión y por lo
+// tanto el único lugar donde va el test (frontend-events spec).
+//
+// `new Date(local)` interpreta un string sin desfase como hora LOCAL — la
+// misma regla de ECMAScript que causa el defecto en el sentido inverso
+// (parsear un instante UTC sin desfase como si fuera local) es, usada acá
+// a propósito, la conversión correcta: el valor de un datetime-local YA es
+// hora de pared local, y ese es exactamente el significado que se le da.
+function localFilterToUtcInstant(local: string): string | undefined {
+  const parsed = new Date(local)
+  if (Number.isNaN(parsed.getTime())) return undefined
+  return parsed.toISOString()
+}
+
 // ─── Funciones API ────────────────────────────────────────────────────────────
 
 export async function getEvents(filters: EventFilters = {}): Promise<EventListResponse> {
@@ -90,8 +109,10 @@ export async function getEvents(filters: EventFilters = {}): Promise<EventListRe
         p.status.forEach((s) => sp.append('status', s))
       }
       if (p.path_prefix) sp.set('path_prefix', p.path_prefix)
-      if (p.date_from) sp.set('date_from', p.date_from)
-      if (p.date_to) sp.set('date_to', p.date_to)
+      const dateFrom = p.date_from ? localFilterToUtcInstant(p.date_from) : undefined
+      const dateTo = p.date_to ? localFilterToUtcInstant(p.date_to) : undefined
+      if (dateFrom) sp.set('date_from', dateFrom)
+      if (dateTo) sp.set('date_to', dateTo)
       if (p.include_superseded) sp.set('include_superseded', 'true')
       if (p.page && p.page > 1) sp.set('page', String(p.page))
       if (p.page_size) sp.set('page_size', String(p.page_size))

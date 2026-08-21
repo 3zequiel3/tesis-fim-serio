@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Agent } from '@/api/agents'
 import { getWatchPathStatusMeta } from '@/utils/watchPathStatus'
 import { getDiscardedEventsMeta } from '@/utils/discardedEvents'
+import { formatAbsolute, formatRelative } from '@/utils/timeDisplay'
 
 interface AgentCardProps {
   agent: Agent
@@ -54,16 +55,6 @@ function DiscardedEventsIndicator({ count }: { count: number | null | undefined 
       Descartes: {meta.label}
     </span>
   )
-}
-
-function formatLastSeen(iso: string | null): string {
-  if (!iso) return 'nunca'
-  const d = new Date(iso)
-  const diff = Math.floor((Date.now() - d.getTime()) / 1000)
-  if (diff < 60) return `hace ${diff}s`
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
-  return `hace ${Math.floor(diff / 86400)}d`
 }
 
 export function AgentCard({
@@ -141,9 +132,17 @@ export function AgentCard({
         </div>
       </div>
 
-      {/* Last seen */}
-      <p className="text-xs text-gray-500">
-        Visto {formatLastSeen(agent.last_heartbeat)}
+      {/* Last seen — D39/RN-133: forma relativa + absoluta con zona visible
+          (frontend-agents spec). El transcurrido nunca es negativo: un
+          heartbeat futuro (reloj del agente desincronizado, RN-90/RN-131)
+          se rotula como tal en vez de restar en negativo. */}
+      <p className="text-xs text-gray-500" title={formatAbsolute(agent.last_heartbeat, { nullLabel: 'nunca' })}>
+        Visto {formatRelative(agent.last_heartbeat, { nullLabel: 'nunca' })}
+        {agent.last_heartbeat && (
+          <span className="ml-2 text-gray-600">
+            ({formatAbsolute(agent.last_heartbeat)})
+          </span>
+        )}
         {agent.ruleset_version_applied != null && (
           <span className="ml-2">· ruleset v{agent.ruleset_version_applied}</span>
         )}

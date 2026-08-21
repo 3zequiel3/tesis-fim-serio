@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -55,7 +55,8 @@ def _make_event(
     Crea un evento con created_at sobreescrito explícitamente para simular antigüedad.
     No usa sleep (D4).
     """
-    created = datetime.utcnow() - timedelta(days=days_old)
+    # D39/RN-133: aware, no datetime.utcnow() — escribe contra columnas migradas.
+    created = datetime.now(timezone.utc) - timedelta(days=days_old)
     suffix = event_id_suffix or f"{path}-{days_old}"
     e = Event(
         event_id=f"eid-{suffix}",

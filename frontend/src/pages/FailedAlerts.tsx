@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import axios from 'axios'
 import { useFailedAlerts, useRetryAlert, useDiscardAlert } from '@/hooks/useAlerts'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { formatAbsolute } from '@/utils/timeDisplay'
 import type { Alert } from '@/api/alerts'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -12,16 +13,6 @@ const SEVERITY_COLORS: Record<string, string> = {
   high: 'text-orange-400',
   medium: 'text-yellow-400',
   low: 'text-blue-400',
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 // ─── Página ───────────────────────────────────────────────────────────────────
@@ -200,7 +191,7 @@ export function FailedAlerts() {
                   </td>
                   <td className="px-4 py-2.5 text-gray-400 font-mono text-xs">{alert.channel}</td>
                   <td className="px-4 py-2.5 text-gray-400 text-xs">
-                    {alert.failed_at ? formatDate(alert.failed_at) : '—'}
+                    {formatAbsolute(alert.failed_at, { nullLabel: '—' })}
                   </td>
                   <td className="px-4 py-2.5">
                     {discardingId === alert.id ? (

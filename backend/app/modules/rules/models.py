@@ -1,7 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
+import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
+
+# D39/RN-133: ver events/models.py — mismo motivo, mismo patrón.
+_TZ_AWARE = sa.DateTime(timezone=True)
 
 
 class RuleAction(str, Enum):
@@ -25,8 +29,8 @@ class Rule(SQLModel, table=True):
     pattern: str
     severity: RuleSeverity
     action: RuleAction
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=_TZ_AWARE)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=_TZ_AWARE)
 
 
 class RulesetVersion(SQLModel, table=True):
@@ -34,7 +38,7 @@ class RulesetVersion(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     version: int = Field(default=0)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=_TZ_AWARE)
 
 
 class PublishedCommand(SQLModel, table=True):
@@ -83,10 +87,10 @@ class PublishedCommand(SQLModel, table=True):
     ruleset_version: int
     payload: str = Field(default="")
     status: str = Field(default="published", index=True)  # outbox: "pending" | "published"
-    published_at: datetime | None = Field(default=None)
+    published_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
 
     # Tracking de ejecución (D30/RN-124, C36) — ver docstring arriba.
     command_id: str | None = Field(default=None, unique=True, index=True)
     ack_status: str | None = Field(default=None)  # "pending" | "acked" | "failed" | "timeout"
-    acked_at: datetime | None = Field(default=None)
+    acked_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     error: str | None = Field(default=None)

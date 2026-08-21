@@ -55,7 +55,8 @@ def _now() -> datetime:
 
 
 def _make_event(session: Session, path: str, status: EventStatus, minutes_ago: int = 0) -> Event:
-    created = datetime.utcnow() - timedelta(minutes=minutes_ago)
+    # D39/RN-133: aware, no datetime.utcnow() — escribe contra columnas migradas.
+    created = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
     e = Event(
         event_id=f"eid-{path}-{status}-{minutes_ago}",
         agent_id="agent-test",

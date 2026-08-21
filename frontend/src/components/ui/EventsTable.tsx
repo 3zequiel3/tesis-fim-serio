@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { EventListItem } from '@/api/events'
 import { getAckStatusMeta } from '@/utils/ackStatus'
 import { getActionFailedMeta } from '@/utils/actionFailed'
+import { formatAbsolute } from '@/utils/timeDisplay'
 
 interface EventsTableProps {
   items: EventListItem[]
@@ -153,7 +154,7 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                   })()}
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">
-                  {new Date(item.detected_at).toLocaleString('es-AR')}
+                  {formatAbsolute(item.detected_at)}
                 </td>
                 <td className="px-4 py-3">
                   {/* Ícono de cadena para eventos superseded con link al padre */}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { EventDetail } from '@/api/events'
+import { formatAbsolute } from '@/utils/timeDisplay'
 
 interface EventTimelineProps {
   event: EventDetail
@@ -52,11 +53,11 @@ export function EventTimeline({ event }: EventTimelineProps) {
               <StatusBadge status={event.status} />
             </p>
             <p className="text-gray-400">
-              Detectado: {new Date(event.detected_at).toLocaleString('es-AR')}
+              Detectado: {formatAbsolute(event.detected_at)}
             </p>
             {event.resolved_at && (
               <p className="text-gray-400">
-                Resuelto: {new Date(event.resolved_at).toLocaleString('es-AR')}
+                Resuelto: {formatAbsolute(event.resolved_at)}
               </p>
             )}
           </div>

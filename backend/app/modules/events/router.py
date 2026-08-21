@@ -7,7 +7,7 @@ GET /events/{event_id} — detalle de un evento
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -72,6 +72,12 @@ async def list_events(
     # D34/RN-128 (C38): filtro repetible por severidad, mismo patrón que status.
     severity_filter: Annotated[list[RuleSeverity], Query(alias="severity")] = [],
     path_prefix: str | None = Query(default=None),
+    # D39/RN-133: date_from/date_to se interpretan como INSTANTES, no como hora
+    # de pared del servidor. Un valor con desfase (`+00:00`, `-03:00`, `Z`) se
+    # respeta tal cual; uno sin desfase se interpreta como UTC explícitamente
+    # (_as_utc_instant), nunca en la zona local del proceso — ver D-4 del design
+    # de timestamps-timezone-aware: la conversión de hora local ya ocurrió en
+    # el frontend antes de construir la petición HTTP.
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
     include_superseded: bool = Query(default=False),
@@ -95,10 +101,10 @@ async def list_events(
         q = q.where(Event.path.startswith(path_prefix))
 
     if date_from:
-        q = q.where(Event.created_at >= date_from)
+        q = q.where(Event.created_at >= _as_utc_instant(date_from))
 
     if date_to:
-        q = q.where(Event.created_at <= date_to)
+        q = q.where(Event.created_at <= _as_utc_instant(date_to))
 
     # FIX-04: paginación SQL real con COUNT subquery + LIMIT/OFFSET (sin full table scan)
     count_q = select(func.count()).select_from(q.subquery())
@@ -127,6 +133,24 @@ async def get_event(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     ack_map = _get_ack_status_map(session, [event.id] if event.id is not None else [])
     return _to_event_out(event, ack_map)
+
+
+# ── Helpers — filtros de fecha (D39/RN-133) ──────────────────────────────────
+
+
+def _as_utc_instant(value: datetime) -> datetime:
+    """
+    Interpreta un datetime de filtro como instante UTC.
+
+    Un valor que ya trae zona (aware) se preserva tal cual. Uno sin zona
+    (naive) se interpreta como UTC de forma explícita, NUNCA en la zona local
+    del proceso del servidor — así el endpoint mantiene un significado
+    definido para links existentes sin depender de la configuración de la
+    sesión de PostgreSQL (D39/RN-133).
+    """
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 # ── Helpers — indicador secundario de ejecución (C36, D30/RN-124) ───────────────

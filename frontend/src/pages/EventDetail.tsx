@@ -8,6 +8,7 @@ import type { RejectAction } from '@/api/actions'
 import { getAckStatusMeta } from '@/utils/ackStatus'
 import { getActionFailedMeta } from '@/utils/actionFailed'
 import { getActionErrorMeta } from '@/utils/actionError'
+import { formatAbsolute } from '@/utils/timeDisplay'
 import type { CommandAckStatus } from '@/api/events'
 
 export function EventDetail() {
@@ -174,16 +175,16 @@ export function EventDetail() {
         </FieldCard>
 
         <FieldCard label="Detectado">
-          {new Date(event.detected_at).toLocaleString('es-AR')}
+          {formatAbsolute(event.detected_at)}
         </FieldCard>
 
         <FieldCard label="Recibido por backend">
-          {new Date(event.received_at).toLocaleString('es-AR')}
+          {formatAbsolute(event.received_at)}
         </FieldCard>
 
         {event.resolved_at && (
           <FieldCard label="Resuelto">
-            {new Date(event.resolved_at).toLocaleString('es-AR')}
+            {formatAbsolute(event.resolved_at)}
           </FieldCard>
         )}
 

@@ -1,8 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
+
+# D39/RN-133: toda columna de instante declara su zona explícitamente (timestamptz),
+# de modo que create_all (backend/tests/conftest.py:80) fabrique el mismo tipo que
+# la migración 011. Ver D-2 del design de timestamps-timezone-aware.
+_TZ_AWARE = sa.DateTime(timezone=True)
 
 from app.modules.rules.models import RuleSeverity
 
@@ -52,10 +57,10 @@ class Event(SQLModel, table=True):
     process_pid: int | None = Field(default=None)
     process_uid: int | None = Field(default=None)
     process_exe: str | None = Field(default=None)
-    detected_at: datetime
-    received_at: datetime
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    resolved_at: datetime | None = Field(default=None)
+    detected_at: datetime = Field(sa_type=_TZ_AWARE)
+    received_at: datetime = Field(sa_type=_TZ_AWARE)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=_TZ_AWARE)
+    resolved_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     resolved_by: int | None = Field(default=None, foreign_key="users.id")
 
 
@@ -80,6 +85,6 @@ class RejectedEventAudit(SQLModel, table=True):
     event_id: str | None = Field(default=None)
     agent_id: str
     reason: RejectionReason
-    received_at: datetime
-    detected_at: datetime | None = Field(default=None)
+    received_at: datetime = Field(sa_type=_TZ_AWARE)
+    detected_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     payload_dump: str

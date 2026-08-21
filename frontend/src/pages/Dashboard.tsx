@@ -1,5 +1,6 @@
 import { useDashboard } from '@/hooks/useDashboard'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { formatAbsolute } from '@/utils/timeDisplay'
 import type { EventStatus } from '@/api/events'
 import type { AgentStatus } from '@/api/agents'
 
@@ -87,9 +88,9 @@ const AGENT_STATUSES: AgentStatus[] = ['online', 'offline', 'draining', 'dead', 
 export function Dashboard() {
   const { data, isLoading, isError, refetch, dataUpdatedAt } = useDashboard()
 
-  const lastUpdate = dataUpdatedAt
-    ? new Date(dataUpdatedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    : null
+  // D39/RN-133: pasa por el helper compartido como el resto de la consola —
+  // ningún componente formatea un instante por su cuenta (frontend-time-display).
+  const lastUpdate = dataUpdatedAt ? formatAbsolute(dataUpdatedAt) : null
 
   return (
     <div className="space-y-6">

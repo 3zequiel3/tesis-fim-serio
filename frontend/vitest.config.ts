@@ -15,6 +15,16 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     // Sin `globals: true`: los tests existentes importan describe/it/expect
     // explicitamente desde 'vitest' y esa convencion se mantiene.
+    //
+    // D39/RN-133 (D-5 regla 3 del design de timestamps-timezone-aware):
+    // jsdom hereda la zona del PROCESO. Fijarla acá — no por archivo — a
+    // America/Argentina/Buenos_Aires, una zona con desfase NO nulo y además
+    // la del operador real: un test de formateo corrido bajo una zona en
+    // UTC no distingue el código correcto del roto, que es exactamente el
+    // punto ciego que dejó pasar el defecto original en producción.
+    env: {
+      TZ: 'America/Argentina/Buenos_Aires',
+    },
   },
   resolve: {
     alias: {
