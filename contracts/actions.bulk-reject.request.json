@@ -1,0 +1,6 @@
+{
+  "items": [
+    { "event_id": 999001, "version": 0, "action": "restore" },
+    { "event_id": 999002, "version": 0, "action": "quarantine" }
+  ]
+}

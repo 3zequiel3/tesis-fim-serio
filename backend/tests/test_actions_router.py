@@ -22,8 +22,10 @@ firman para usuarios que existen en la base, sin sobreescribir `get_current_user
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -36,11 +38,33 @@ from sqlmodel import Session, select
 
 from app.core.database import engine
 from app.core.security import create_access_token
+from app.modules.actions.schemas import BulkRejectRequest
 from app.modules.agents.models import Agent, AgentStatus, BaselineEntry, BaselineStatus
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus
 
 _ENDPOINTS = ("/actions/approve", "/actions/reject", "/actions/bulk-approve", "/actions/bulk-reject")
+
+
+# ── Fixture de contrato de wire (capacidad api-contract-fixtures) ─────────────
+# D-5 del design de frontend-severity-triage, 7.13: resuelto desde el
+# directorio de trabajo de pytest (backend/, según el comando canónico de
+# verificación), nunca relativo a este archivo — así no depende de dónde
+# viva el test dentro del árbol de `tests/`. `contracts/` vive en la raíz
+# del repo por diseño (D-5): no le pertenece ni al frontend ni al backend.
+def _contract_fixture_path(name: str) -> Path:
+    candidates = [Path.cwd() / "contracts" / name, Path.cwd().parent / "contracts" / name]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError(
+        f"No se encontró el fixture de contrato '{name}' en {candidates!r}. "
+        "Ejecutar pytest desde backend/ o desde la raíz del repo."
+    )
+
+
+def _load_contract_fixture(name: str) -> dict:
+    return json.loads(_contract_fixture_path(name).read_text())
 
 
 @pytest.fixture()
@@ -442,3 +466,60 @@ async def test_bulk_endpoints_accept_an_empty_batch(client, admin_id) -> None:
         assert resp.status_code == 200, endpoint
         assert resp.json()["succeeded"] == []
         assert resp.json()["failed"] == []
+
+
+# ── Contrato de wire: contracts/actions.bulk-reject.request.json (7.9-7.11) ───
+# El corazón de D-5: el mismo fixture que el frontend compara contra el
+# cuerpo serializado que emite su cliente axios real (frontend/src/api/actions.test.ts)
+# se valida acá contra el schema Pydantic real y contra el endpoint real. Si
+# cualquiera de los dos lados cambia de forma sin que el fixture cambie con
+# él, su propia aserción se pone en rojo.
+
+
+def test_bulk_reject_request_fixture_matches_pydantic_schema() -> None:
+    """`BulkRejectRequest.model_validate(fixture)` no lanza (7.9)."""
+    fixture = _load_contract_fixture("actions.bulk-reject.request.json")
+    BulkRejectRequest.model_validate(fixture)  # no debe lanzar
+
+
+async def test_bulk_reject_request_fixture_is_accepted_by_the_real_endpoint(client, admin_id) -> None:
+    """El fixture no es rechazado por el endpoint real (7.10).
+
+    Los `event_id` del fixture no existen en la base — es correcto y
+    deseable: el resultado esperado es 200 con esos ítems en `failed[]`, que
+    es precisamente lo que demuestra que el CUERPO fue aceptado y procesado,
+    no que los eventos existan.
+    """
+    fixture = _load_contract_fixture("actions.bulk-reject.request.json")
+
+    resp = await client.post("/actions/bulk-reject", json=fixture, headers=_headers(admin_id))
+
+    assert resp.status_code != 422, resp.text
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["succeeded"] == []
+    assert len(body["failed"]) == len(fixture["items"])
+
+
+async def test_bulk_reject_superseded_shape_is_rejected_with_422_naming_the_missing_field(
+    client, admin_id
+) -> None:
+    """Caso negativo obligatorio (7.11): la forma vieja —acción arriba, ausente
+    por ítem— sigue siendo 422, y el error nombra el campo que falta.
+
+    Afirmar sólo "422" dejaría pasar un 422 por cualquier otro motivo, que es
+    la misma clase de aserción laxa que dejó vivo el defecto original.
+    """
+    old_shape_body = {
+        "items": [{"event_id": 999001, "version": 0}, {"event_id": 999002, "version": 0}],
+        "action": "restore",
+    }
+
+    resp = await client.post("/actions/bulk-reject", json=old_shape_body, headers=_headers(admin_id))
+
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert any(
+        err.get("type") == "missing" and err.get("loc") == ["body", "items", 0, "action"]
+        for err in detail
+    ), detail

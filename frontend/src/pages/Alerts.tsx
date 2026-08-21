@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useAlerts } from '@/hooks/useAlerts'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import { formatAbsolute } from '@/utils/timeDisplay'
+import { getSeverityMeta } from '@/utils/severity'
 import type { AlertFilters, AlertStatus, AlertSeverity } from '@/api/alerts'
 
 // ─── URL param helpers ────────────────────────────────────────────────────────
@@ -24,13 +25,6 @@ function serializeAlertFilters(f: AlertFilters): URLSearchParams {
 }
 
 // ─── Helpers visuales ────────────────────────────────────────────────────────
-
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'text-red-400',
-  high: 'text-orange-400',
-  medium: 'text-yellow-400',
-  low: 'text-blue-400',
-}
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'text-yellow-400',
@@ -138,7 +132,7 @@ export function Alerts() {
               {data.items.map((alert) => (
                 <tr key={alert.id} className="hover:bg-gray-750">
                   <td className="px-4 py-2.5 text-gray-400 tabular-nums">{alert.id}</td>
-                  <td className={`px-4 py-2.5 font-medium ${SEVERITY_COLORS[alert.severity] ?? 'text-gray-300'}`}>
+                  <td className={`px-4 py-2.5 font-medium ${getSeverityMeta(alert.severity).textClass}`}>
                     {alert.severity}
                   </td>
                   <td className={`px-4 py-2.5 font-medium ${STATUS_COLORS[alert.status] ?? 'text-gray-300'}`}>

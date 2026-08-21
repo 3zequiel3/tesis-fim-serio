@@ -4,16 +4,8 @@ import axios from 'axios'
 import { useFailedAlerts, useRetryAlert, useDiscardAlert } from '@/hooks/useAlerts'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import { formatAbsolute } from '@/utils/timeDisplay'
+import { getSeverityMeta } from '@/utils/severity'
 import type { Alert } from '@/api/alerts'
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'text-red-400',
-  high: 'text-orange-400',
-  medium: 'text-yellow-400',
-  low: 'text-blue-400',
-}
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
@@ -186,7 +178,7 @@ export function FailedAlerts() {
                     />
                   </td>
                   <td className="px-4 py-2.5 text-gray-400 tabular-nums">{alert.id}</td>
-                  <td className={`px-4 py-2.5 font-medium ${SEVERITY_COLORS[alert.severity] ?? 'text-gray-300'}`}>
+                  <td className={`px-4 py-2.5 font-medium ${getSeverityMeta(alert.severity).textClass}`}>
                     {alert.severity}
                   </td>
                   <td className="px-4 py-2.5 text-gray-400 font-mono text-xs">{alert.channel}</td>

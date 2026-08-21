@@ -11,8 +11,22 @@ import {
   type RejectParams,
   type BulkItem,
   type BulkRejectItem,
-  type RejectAction,
 } from '@/api/actions'
+
+/**
+ * Un 422 en una acción bulk es una violación de contrato — el cuerpo que el
+ * cliente emitió no fue el que el backend acepta —, no una falla operativa
+ * como un timeout o un 5xx. Presentarlos con el mismo texto genérico es lo
+ * que mantuvo el bulk-reject roto en silencio toda la vida del proyecto
+ * (D-5 del design de frontend-severity-triage).
+ */
+function bulkActionErrorMessage(err: unknown, verb: string): string | null {
+  if (!axios.isAxiosError(err)) return null
+  if (err.response?.status === 422) {
+    return `Petición de ${verb} rechazada por el servidor (cuerpo inválido)`
+  }
+  return `Error al ${verb} en lote`
+}
 
 interface UseEventActionsOptions {
   /** event_id del evento individual (solo para acciones individuales) */
@@ -70,9 +84,8 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   const bulkApproveMutation = useMutation({
     mutationFn: (items: BulkItem[]) => bulkApprove(items),
     onError: (err: unknown) => {
-      if (axios.isAxiosError(err)) {
-        toast.error('Error al aprobar en lote')
-      }
+      const message = bulkActionErrorMessage(err, 'aprobar')
+      if (message) toast.error(message)
     },
     onSuccess: (result) => {
       const ok = result.succeeded.length
@@ -87,12 +100,10 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   })
 
   const bulkRejectMutation = useMutation({
-    mutationFn: ({ items, action }: { items: BulkRejectItem[]; action: RejectAction }) =>
-      bulkReject(items, action),
+    mutationFn: (items: BulkRejectItem[]) => bulkReject(items),
     onError: (err: unknown) => {
-      if (axios.isAxiosError(err)) {
-        toast.error('Error al rechazar en lote')
-      }
+      const message = bulkActionErrorMessage(err, 'rechazar')
+      if (message) toast.error(message)
     },
     onSuccess: (result) => {
       const ok = result.succeeded.length

@@ -98,12 +98,15 @@ function queriedEventStatuses(): string[] {
     .map(([, config]: [string, GetConfig]) => String((config?.params as Record<string, unknown>).status))
 }
 
-/** Devuelve la tarjeta (contenedor) que corresponde a una etiqueta de metrica. */
+/** Devuelve la tarjeta (contenedor) que corresponde a una etiqueta de metrica.
+ * Las tarjetas con destino son un <a> (5.1 del design); las que no lo tienen
+ * (agentes, infraestructura) siguen siendo un <div> — `closest` se detiene
+ * en la que sea la más cercana de las dos. */
 function statCard(label: string): HTMLElement {
   const labelNode = screen.getByText(label)
-  const card = labelNode.closest('div')
+  const card = labelNode.closest('div, a')
   if (!card) throw new Error(`La etiqueta "${label}" no esta dentro de una tarjeta`)
-  return card
+  return card as HTMLElement
 }
 
 describe('Dashboard — US-04: metricas generales', () => {
@@ -133,11 +136,13 @@ describe('Dashboard — US-04: metricas generales', () => {
     renderWithProviders(<Dashboard />)
     await screen.findByRole('heading', { name: /eventos por estado/i })
 
-    expect(within(statCard('Approved')).getByText('12')).toBeInTheDocument()
-    expect(within(statCard('Rejected')).getByText('3')).toBeInTheDocument()
-    expect(within(statCard('Auto-restored')).getByText('2')).toBeInTheDocument()
-    expect(within(statCard('Quarantined')).getByText('1')).toBeInTheDocument()
-    expect(within(statCard('Alert only')).getByText('4')).toBeInTheDocument()
+    // C1/RN-71: la etiqueta ES el valor canónico (5.5) — ver también la
+    // cobertura explícita del léxico en "ninguna etiqueta ... difiere" más abajo.
+    expect(within(statCard('approved')).getByText('12')).toBeInTheDocument()
+    expect(within(statCard('rejected')).getByText('3')).toBeInTheDocument()
+    expect(within(statCard('auto_restored')).getByText('2')).toBeInTheDocument()
+    expect(within(statCard('quarantined')).getByText('1')).toBeInTheDocument()
+    expect(within(statCard('alert_only')).getByText('4')).toBeInTheDocument()
   })
 
   it('consulta al backend usando el lexico canonico en minusculas snake_case (C1)', async () => {
@@ -165,7 +170,22 @@ describe('Dashboard — US-04: metricas generales', () => {
     await screen.findByRole('heading', { name: /eventos por estado/i })
 
     expect(queriedEventStatuses().sort()).toEqual([...CANONICAL_EVENT_STATUSES].sort())
-    expect(within(statCard('Superseded')).getByText('5')).toBeInTheDocument()
+    expect(within(statCard('superseded')).getByText('5')).toBeInTheDocument()
+  })
+
+  it('ninguna etiqueta de estado de evento difiere de su valor canónico (C1/RN-71)', async () => {
+    mockBackend()
+
+    renderWithProviders(<Dashboard />)
+    await screen.findByRole('heading', { name: /eventos por estado/i })
+
+    // Recorre los siete estados en vez de aserciones sueltas, para que un
+    // estado nuevo entre solo en la cobertura (8.5). La etiqueta ES el
+    // valor canónico: si alguna pantalla usara un label distinto
+    // (`Auto-restored` en vez de `auto_restored`), este `getByText` fallaría.
+    for (const status of CANONICAL_EVENT_STATUSES) {
+      expect(statCard(status)).toBeInTheDocument()
+    }
   })
 })
 
@@ -209,6 +229,29 @@ describe('Dashboard — US-05: estado general del sistema', () => {
     // El realce es puramente visual: la tarjeta se diferencia del resto.
     expect(critical.className).not.toBe(plain.className)
     expect(critical.className).toMatch(/red/)
+  })
+
+  it('la tarjeta de pending critical/high enlaza a la lista prefiltrada con los dos severity presentes (8.4)', async () => {
+    mockBackend({ pendingCriticalHigh: 2 })
+
+    renderWithProviders(<Dashboard />)
+    await screen.findByRole('heading', { name: /eventos por estado/i })
+
+    const card = statCard('Pending critical + high')
+    const href = card.getAttribute('href')
+    expect(href).toBeTruthy()
+
+    const [path, query] = href!.split('?')
+    expect(path).toBe('/events')
+
+    // Destino parseado como URLSearchParams, no la cadena literal, para que
+    // el orden de los parámetros no vuelva frágil al test — pero se afirma
+    // explícitamente que `getAll('severity')` tiene longitud 2: un href con
+    // un solo `severity` es el error plausible acá y tiene que fallar.
+    const sp = new URLSearchParams(query)
+    expect(sp.get('status')).toBe('pending')
+    expect(sp.getAll('severity')).toHaveLength(2)
+    expect(sp.getAll('severity').sort()).toEqual(['critical', 'high'])
   })
 
   it('no destaca la tarjeta de pending critical/high cuando no hay ninguno', async () => {

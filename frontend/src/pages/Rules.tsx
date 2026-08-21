@@ -5,16 +5,10 @@ import { useRules, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/u
 import { RuleForm } from '@/components/ui/RuleForm'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { getSeverityMeta } from '@/utils/severity'
 import type { Rule, CreateRulePayload, UpdateRulePayload } from '@/api/rules'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'text-red-400',
-  high: 'text-orange-400',
-  medium: 'text-yellow-400',
-  low: 'text-blue-400',
-}
 
 const ACTION_LABELS: Record<string, string> = {
   auto_restore: 'Auto-restaurar',
@@ -179,7 +173,7 @@ export function Rules() {
                   <td className="px-4 py-2.5 font-mono text-gray-200 max-w-xs truncate">
                     {rule.pattern}
                   </td>
-                  <td className={`px-4 py-2.5 font-medium ${SEVERITY_COLORS[rule.severity] ?? 'text-gray-300'}`}>
+                  <td className={`px-4 py-2.5 font-medium ${getSeverityMeta(rule.severity).textClass}`}>
                     {rule.severity}
                   </td>
                   <td className="px-4 py-2.5 text-gray-300">

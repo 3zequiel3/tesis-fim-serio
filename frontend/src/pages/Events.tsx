@@ -16,6 +16,10 @@ const ALL_STATUSES = [
   'alert_only',
 ] as const
 
+// Orden de precedencia descendente (critical > high > medium > low): el
+// orden en que el operador los busca, no el alfabético (:4.5).
+const ALL_SEVERITIES = ['critical', 'high', 'medium', 'low'] as const
+
 export function Events() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = parseEventFilters(searchParams)
@@ -51,6 +55,14 @@ export function Events() {
       ? current.filter((s) => s !== status)
       : [...current, status]
     updateFilter({ status: next.length > 0 ? next : undefined })
+  }
+
+  function handleSeverityToggle(severity: string) {
+    const current = filters.severity ?? []
+    const next = current.includes(severity)
+      ? current.filter((s) => s !== severity)
+      : [...current, severity]
+    updateFilter({ severity: next.length > 0 ? next : undefined })
   }
 
   function handlePageChange(newPage: number) {
@@ -102,6 +114,24 @@ export function Events() {
                 <span className="font-mono text-xs">superseded</span>
               </label>
             )}
+          </div>
+        </div>
+
+        {/* Filtro por severidad (D34/RN-128) */}
+        <div>
+          <p className="text-xs text-gray-400 mb-1.5">Severidad</p>
+          <div className="flex flex-wrap gap-2">
+            {ALL_SEVERITIES.map((s) => (
+              <label key={s} className="flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={(filters.severity ?? []).includes(s)}
+                  onChange={() => handleSeverityToggle(s)}
+                  className="rounded"
+                />
+                <span className="font-mono text-xs">{s}</span>
+              </label>
+            ))}
           </div>
         </div>
 

@@ -16,6 +16,7 @@ para ingest_event; Postgres real para serialización, API y migración).
 
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from datetime import datetime, timezone
@@ -221,3 +222,47 @@ def test_events_table_has_severity_column_after_migration() -> None:
             )
         ).all()
     assert {r[0] for r in rows} == {"severity"}
+
+
+# ── Contrato de wire: contracts/events.list-severity.request.json (7.12) ──────
+# Capacidad api-contract-fixtures (D-6 del design de frontend-severity-triage):
+# el mismo fixture que el frontend compara contra la query que emite su
+# `paramsSerializer` real (frontend/src/api/events.contract.test.ts) se
+# valida acá contra el endpoint real, con la parte que D34 documenta como
+# "problema base" — que la selectividad sea real y no un parámetro ignorado
+# en silencio.
+
+
+def _contract_fixture_path(name: str) -> Path:
+    candidates = [Path.cwd() / "contracts" / name, Path.cwd().parent / "contracts" / name]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError(
+        f"No se encontró el fixture de contrato '{name}' en {candidates!r}. "
+        "Ejecutar pytest desde backend/ o desde la raíz del repo."
+    )
+
+
+@pytest.mark.asyncio
+async def test_events_severity_query_fixture_is_accepted_and_selective(
+    session: Session, agent: Agent
+) -> None:
+    fixture = json.loads(_contract_fixture_path("events.list-severity.request.json").read_text())
+    fixture_severities = fixture["severity"]
+
+    _make_event(session, agent, RuleSeverity.critical)
+    _make_event(session, agent, RuleSeverity.high)
+    # Severidad fuera del fixture: no debe aparecer en la respuesta —sin
+    # esta parte, un parámetro ignorado en silencio pasaría igual (D34).
+    _make_event(session, agent, RuleSeverity.low)
+
+    query = "&".join(f"severity={s}" for s in fixture_severities)
+    async with await _get_client() as ac:
+        resp = await ac.get(f"/events?{query}", headers=_auth_headers())
+
+    assert resp.status_code != 422
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 2
+    assert all(item["severity"] in fixture_severities for item in body["items"])

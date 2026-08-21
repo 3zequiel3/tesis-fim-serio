@@ -17,9 +17,15 @@ export interface BulkItem {
   confirm_absent?: boolean
 }
 
+// D-5 del design de frontend-severity-triage: `action` va DENTRO de cada
+// ítem, espejando `BulkRejectItem` del backend (schemas.py:57-61), donde es
+// obligatoria y sin default. El backend rechaza con 422 el cuerpo con la
+// acción al nivel superior — con el campo en el tipo, omitirlo deja de
+// compilar.
 export interface BulkRejectItem {
   event_id: number
   version: number
+  action: RejectAction
 }
 
 export interface BulkFailedItem {
@@ -61,7 +67,7 @@ export async function bulkApprove(items: BulkItem[]): Promise<BulkResult> {
   return data
 }
 
-export async function bulkReject(items: BulkRejectItem[], action: RejectAction): Promise<BulkResult> {
-  const { data } = await apiClient.post<BulkResult>('/actions/bulk-reject', { items, action })
+export async function bulkReject(items: BulkRejectItem[]): Promise<BulkResult> {
+  const { data } = await apiClient.post<BulkResult>('/actions/bulk-reject', { items })
   return data
 }

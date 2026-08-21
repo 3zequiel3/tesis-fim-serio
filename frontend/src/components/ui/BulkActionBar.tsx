@@ -39,19 +39,20 @@ export function BulkActionBar({ selected, items, onClearSelection }: BulkActionB
   }
 
   function handleBulkReject() {
+    // La elección única del modal es la UX que pide US-25; mapearla sobre
+    // cada ítem es lo que exige el wire (BulkRejectItem.action, obligatoria
+    // por ítem en el backend). Las dos cosas valen a la vez.
     const bulkItems = selectedItems.map((item) => ({
       event_id: item.id,
       version: item.version,
+      action: rejectAction,
     }))
-    bulkRejectMutation.mutate(
-      { items: bulkItems, action: rejectAction },
-      {
-        onSuccess: () => {
-          onClearSelection()
-          setModal(null)
-        },
-      }
-    )
+    bulkRejectMutation.mutate(bulkItems, {
+      onSuccess: () => {
+        onClearSelection()
+        setModal(null)
+      },
+    })
   }
 
   const isPending = bulkApproveMutation.isPending || bulkRejectMutation.isPending

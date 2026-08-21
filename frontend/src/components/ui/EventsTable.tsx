@@ -3,6 +3,7 @@ import type { EventListItem } from '@/api/events'
 import { getAckStatusMeta } from '@/utils/ackStatus'
 import { getActionFailedMeta } from '@/utils/actionFailed'
 import { formatAbsolute } from '@/utils/timeDisplay'
+import { getSeverityMeta } from '@/utils/severity'
 
 interface EventsTableProps {
   items: EventListItem[]
@@ -18,6 +19,22 @@ const STATUS_CLASSES: Record<string, string> = {
   auto_restored: 'bg-blue-900 text-blue-300',
   quarantined: 'bg-orange-900 text-orange-300',
   alert_only: 'bg-purple-900 text-purple-300',
+}
+
+/**
+ * Etiqueta del proceso causante (US-06), o null cuando los tres campos son
+ * null — un evento sin contexto de proceso es un caso normal, no un error
+ * de datos, y no se renderiza ni vacío ni con guiones (:3.5).
+ */
+function processContextLabel(item: EventListItem): string | null {
+  if (item.process_pid == null && item.process_uid == null && item.process_exe == null) {
+    return null
+  }
+  const parts: string[] = []
+  if (item.process_pid != null) parts.push(`pid ${item.process_pid}`)
+  if (item.process_uid != null) parts.push(`uid ${item.process_uid}`)
+  const exe = item.process_exe ?? '?'
+  return parts.length > 0 ? `${exe} (${parts.join(', ')})` : exe
 }
 
 export function EventsTable({ items, selected, onSelectionChange }: EventsTableProps) {
@@ -75,6 +92,7 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
             </th>
             <th className="px-4 py-3">Path</th>
             <th className="px-4 py-3 w-40">Estado</th>
+            <th className="px-4 py-3 w-28">Severidad</th>
             <th className="px-4 py-3 w-40">Ejecución</th>
             <th className="px-4 py-3 w-48">Detectado</th>
             <th className="px-4 py-3 w-10"></th>
@@ -83,12 +101,20 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
         <tbody>
           {items.map((item) => {
             const isSuperseded = item.status === 'superseded'
+            // D-1 del design: la severidad se codifica dos veces — banda de
+            // borde izquierdo (canal de escaneo) y celda de texto canónico
+            // (criterio de US-06). La banda va en el <tr> para que sobreviva
+            // a las clases de fondo que `selected` y `superseded` ya usan.
+            const severityMeta = getSeverityMeta(item.severity)
+            const processContext = processContextLabel(item)
             return (
               <tr
                 key={item.id}
-                className={`border-b border-gray-700 hover:bg-gray-750 transition-colors ${
-                  isSuperseded ? 'opacity-60' : ''
-                } ${selected.has(item.id) ? 'bg-gray-700' : 'bg-gray-900'}`}
+                className={`border-b border-b-gray-700 border-l-4 hover:bg-gray-750 transition-colors ${
+                  severityMeta.bandClass
+                } ${isSuperseded ? 'opacity-60' : ''} ${
+                  selected.has(item.id) ? 'bg-gray-700' : 'bg-gray-900'
+                }`}
               >
                 <td className="px-3 py-3">
                   <input
@@ -121,6 +147,14 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                       &rarr; {item.symlink_target}
                     </div>
                   )}
+                  {/* Proceso causante (US-06): mismo registro tipográfico que ya
+                      usa symlink_target arriba. Omitido por completo — ni vacío
+                      ni con guiones — cuando los tres campos son null (:3.5/:3.6). */}
+                  {processContext && (
+                    <div className="text-[11px] text-gray-500 font-mono break-all mt-0.5">
+                      {processContext}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -141,6 +175,9 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                       )
                     })()}
                   </div>
+                </td>
+                <td className={`px-4 py-3 text-xs font-mono ${severityMeta.textClass}`}>
+                  {item.severity}
                 </td>
                 <td className="px-4 py-3">
                   {(() => {

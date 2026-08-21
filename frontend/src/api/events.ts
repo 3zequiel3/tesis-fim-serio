@@ -71,6 +71,12 @@ export interface EventListResponse {
 
 export interface EventFilters {
   status?: string[]
+  // Filtro repetible por severidad (D34/RN-128), simétrico con `status`.
+  // `string[]` y no `EventSeverity[]` a propósito (D-4 del design de
+  // frontend-severity-triage): la URL es entrada no confiable, y un tipo
+  // estricto acá daría una garantía falsa sobre un valor que viene de una
+  // query string. El backend valida contra su enum y responde 422.
+  severity?: string[]
   path_prefix?: string
   date_from?: string
   date_to?: string
@@ -107,6 +113,12 @@ export async function getEvents(filters: EventFilters = {}): Promise<EventListRe
       const sp = new URLSearchParams()
       if (p.status && p.status.length > 0) {
         p.status.forEach((s) => sp.append('status', s))
+      }
+      // Repetible, no comma-joined ni bracket notation: el backend declara
+      // `Annotated[list[RuleSeverity], Query(alias="severity")]` (router.py:73)
+      // y sólo acepta la forma repetida — verificado en vivo (D-4).
+      if (p.severity && p.severity.length > 0) {
+        p.severity.forEach((s) => sp.append('severity', s))
       }
       if (p.path_prefix) sp.set('path_prefix', p.path_prefix)
       const dateFrom = p.date_from ? localFilterToUtcInstant(p.date_from) : undefined

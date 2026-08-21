@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useDashboard } from '@/hooks/useDashboard'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import { formatAbsolute } from '@/utils/timeDisplay'
@@ -6,15 +7,11 @@ import type { AgentStatus } from '@/api/agents'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const EVENT_STATUS_LABELS: Record<EventStatus, string> = {
-  pending: 'Pending',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  superseded: 'Superseded',
-  auto_restored: 'Auto-restored',
-  quarantined: 'Quarantined',
-  alert_only: 'Alert only',
-}
+// C1/RN-71: minúsculas snake_case en toda la UI, con excepción única para
+// botones de acción — una etiqueta de tarjeta no lo es. Reemplaza
+// EVENT_STATUS_LABELS (que rotulaba `Pending`, `Auto-restored`, `Alert only`
+// mientras la tabla de eventos ya renderiza el valor canónico) por el valor
+// canónico mismo, para que las dos pantallas nombren el mismo estado igual.
 
 const EVENT_STATUS_COLORS: Record<EventStatus, string> = {
   pending: 'text-yellow-400',
@@ -49,26 +46,38 @@ function StatCard({
   value,
   colorClass,
   emphasis,
+  to,
 }: {
   label: string
   value: number
   colorClass?: string
   emphasis?: boolean
+  /** Destino opcional (5.1 del design): sin él la tarjeta queda inerte, como
+   * agentes e infraestructura, que no tienen lista prefiltrada a la que ir. */
+  to?: string
 }) {
-  return (
-    <div
-      className={`bg-gray-800 border rounded-lg p-4 flex flex-col gap-1 ${
-        emphasis
-          ? 'border-red-600 bg-red-950/30'
-          : 'border-gray-700'
-      }`}
-    >
+  const className = `bg-gray-800 border rounded-lg p-4 flex flex-col gap-1 ${
+    emphasis ? 'border-red-600 bg-red-950/30' : 'border-gray-700'
+  }`
+
+  const content = (
+    <>
       <span className={`text-2xl font-bold tabular-nums ${colorClass ?? 'text-white'}`}>
         {value}
       </span>
       <span className={`text-xs ${emphasis ? 'text-red-300' : 'text-gray-400'}`}>{label}</span>
-    </div>
+    </>
   )
+
+  if (to) {
+    return (
+      <Link to={to} className={`${className} hover:border-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary`}>
+        {content}
+      </Link>
+    )
+  }
+
+  return <div className={className}>{content}</div>
 }
 
 // ─── Página ───────────────────────────────────────────────────────────────────
@@ -120,12 +129,14 @@ export function Dashboard() {
                 label="Pending (todos)"
                 value={data?.eventsByStatus.pending ?? 0}
                 colorClass="text-yellow-400"
+                to="/events?status=pending"
               />
               <StatCard
                 label="Pending critical + high"
                 value={data?.pendingCriticalHigh ?? 0}
                 colorClass="text-red-400"
                 emphasis={(data?.pendingCriticalHigh ?? 0) > 0}
+                to="/events?status=pending&severity=critical&severity=high"
               />
             </div>
           </section>
@@ -139,9 +150,17 @@ export function Dashboard() {
               {EVENT_STATUSES.map((s) => (
                 <StatCard
                   key={s}
-                  label={EVENT_STATUS_LABELS[s]}
+                  label={s}
                   value={data?.eventsByStatus[s] ?? 0}
                   colorClass={EVENT_STATUS_COLORS[s]}
+                  // `superseded` está excluido del listado por default (RN-22/RN-98):
+                  // sin `include_superseded=true` el enlace llevaría a una lista
+                  // vacía (:5.4).
+                  to={
+                    s === 'superseded'
+                      ? `/events?status=${s}&include_superseded=true`
+                      : `/events?status=${s}`
+                  }
                 />
               ))}
             </div>
