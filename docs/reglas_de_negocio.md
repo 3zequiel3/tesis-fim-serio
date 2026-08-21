@@ -983,15 +983,15 @@ El `ca_cert_pem` recibido en la **respuesta** del bootstrap es el CA que firmar�
 
 **Excepciones:** Si `state.watch_paths` está vacío (estado corrupto), rechazar la operación con log de error. Esta validación es defensa en profundidad sobre la garantía HMAC.
 
-#### D19 / RN-117: Sufijo `.fim_restore_tmp` filtrado en el detector
+#### D19 / RN-117: Sufijo `.fim_restore_tmp` filtrado en el detector, y descarte por hash del `MOVED_TO` sobre el path final
 
-**Descripción:** El detector ignora todos los eventos de fanotify para paths cuyo nombre de archivo (`path.name`) termina en `.fim_restore_tmp`. Este sufijo es el mecanismo interno de escritura atómica del agente para restauración de archivos (`_auto_restore` y `handle_restore_file`). El filtro se aplica al inicio de `_process_event`, antes de cualquier clasificación.
+**Descripción:** El mecanismo tiene dos mitades. **Primera mitad:** el detector ignora todos los eventos de fanotify para paths cuyo nombre de archivo (`path.name`) termina en `.fim_restore_tmp`. Este sufijo es el mecanismo interno de escritura atómica del agente para restauración de archivos (`_auto_restore` y `handle_restore_file`). El filtro se aplica al inicio de `_process_event`, antes de cualquier clasificación, y cubre los eventos sobre el archivo temporal. **Segunda mitad:** ese filtro no alcanza al `FAN_MOVED_TO` que `os.replace` entrega sobre el path FINAL al completar la restauración — ese path nunca lleva el sufijo. Por eso, para toda clasificación que produce un hash (`file_modified`, `file_absent`, `file_created` — que cubre tanto `FAN_CREATE` como `FAN_MOVED_TO`), el detector descarta el evento sin publicar cuando el hash resultante coincide con el hash registrado en el baseline **y** el tipo de objeto no cambió (symlink vs. archivo regular, ver D33/RN-127). Ambas mitades son necesarias: la primera evita el ruido del archivo temporal, la segunda evita reportar como cambio una restauración que, por RN-33, deja contenido idéntico al baseline.
 
-**Limitación conocida:** Crea un punto ciego deliberado — archivos externos que por coincidencia terminen en `.fim_restore_tmp` no serán monitoreados. El riesgo es negligible dado lo específico del sufijo.
+**Limitación conocida:** El filtro de sufijo crea un punto ciego deliberado — archivos externos que por coincidencia terminen en `.fim_restore_tmp` no serán monitoreados. El riesgo es negligible dado lo específico del sufijo.
 
-**Condición:** Siempre en `_process_event`, para todos los tipos de evento.
+**Condición:** El filtro de sufijo aplica siempre en `_process_event`, para todos los tipos de evento. El descarte por hash aplica a toda clasificación que produce un `current_hash` (`file_modified`, `file_absent`, `file_created`); no aplica a `file_deleted`, que no produce hash.
 
-**Motivación:** Sin este filtro, cada restauración genera eventos espurios (FAN_CREATE, FAN_CLOSE_WRITE, FAN_MOVED_FROM para el tmp) que contaminan el baseline y el backend. Con una regla `file_created + auto_restore` activa, el FAN_MOVED_TO que emite `os.replace` dispara una nueva restauración, generando un loop infinito.
+**Motivación:** Sin el filtro de sufijo, cada restauración genera eventos espurios (FAN_CREATE, FAN_CLOSE_WRITE, FAN_MOVED_FROM para el tmp) que contaminan el baseline y el backend. Las reglas de decisión se evalúan por path, no por tipo de evento (`RulesCache.evaluate` no recibe el `event_type`), así que **cualquier** regla `auto_restore` que cubra el path —no solo una hipotética regla acotada a `file_created`— alcanza para que el `FAN_MOVED_TO` que emite `os.replace` sobre el path final dispare una nueva restauración. Sin el descarte por hash de la segunda mitad, eso genera un loop infinito: cada restauración exitosa produce un `MOVED_TO` con contenido idéntico al baseline, que sin el descarte se reporta igual como cambio y reactiva la remediación sobre el mismo path.
 
 **Excepciones:** Ninguna.
 

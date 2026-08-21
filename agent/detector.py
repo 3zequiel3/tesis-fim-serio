@@ -551,6 +551,25 @@ class FanotifyDetector:
                 except OSError:
                     pass
 
+            # D19/RN-117 (segunda mitad del mecanismo) + RN-33: el filtro de
+            # sufijo de :457 solo cubre los eventos sobre el `.fim_restore_tmp`;
+            # no cubre el FAN_MOVED_TO que `os.replace` entrega sobre el path
+            # FINAL tras una restauración (agent/decision.py, agent/commands.py).
+            # RN-33 garantiza que, tras una restauración exitosa, el hash del
+            # archivo coincide con el del baseline — así que un MOVED_TO/CREATE
+            # que aterriza contenido ya conocido no es un cambio real y no debe
+            # reportarse, exactamente como ya hace la rama file_modified en
+            # :620-621. Se exige además identidad de tipo de objeto (D33/RN-127):
+            # un cambio de symlink a archivo regular (o viceversa) SIEMPRE se
+            # reporta, aunque los hashes coincidan.
+            if current_hash is not None and current_hash == previous_hash and is_symlink == was_symlink:
+                log.debug(
+                    "detector.discard_no_real_change",
+                    path=path,
+                    event_class=event_class,
+                )
+                return
+
             event_id = str(uuid.uuid4())
             parent_event_id = self._pending.get(path)
             if parent_event_id is not None:

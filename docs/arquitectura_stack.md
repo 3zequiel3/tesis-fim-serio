@@ -2201,13 +2201,13 @@ El `ca_cert_pem` de la respuesta del bootstrap es el CA que firma los certs mTLS
 
 **Aplicación**: `agent/commands.py` (validación al inicio de ambos handlers, antes de cualquier I/O).
 
-#### D19: Sufijo `.fim_restore_tmp` filtrado en el detector
+#### D19: Sufijo `.fim_restore_tmp` filtrado en el detector, y descarte por hash del `MOVED_TO` sobre el path final
 
-**Decisión**: `agent/detector.py` ignora eventos de fanotify para `path.name.endswith(".fim_restore_tmp")` al inicio de `_process_event`. Crea un punto ciego deliberado de monitoreo para archivos con ese sufijo exacto (negligible en práctica).
+**Decisión**: El mecanismo tiene dos mitades. `agent/detector.py` ignora eventos de fanotify para `path.name.endswith(".fim_restore_tmp")` al inicio de `_process_event` — crea un punto ciego deliberado de monitoreo para archivos con ese sufijo exacto (negligible en práctica), y cubre los eventos sobre el archivo temporal. Ese filtro no cubre el `FAN_MOVED_TO` que `os.replace` entrega sobre el path FINAL, que nunca lleva el sufijo: para eso, toda clasificación que produce un hash (`file_modified`, `file_absent`, `file_created` — que cubre `FAN_CREATE` y `FAN_MOVED_TO`) descarta el evento sin publicar cuando el hash resultante coincide con el del baseline **y** el tipo de objeto no cambió (symlink vs. archivo regular, D33/RN-127).
 
-**Motivación**: Sin filtro, cada `os.replace(tmp, path)` del mecanismo de restauración atómica genera eventos espurios (FAN_CREATE + FAN_CLOSE_WRITE del tmp + FAN_MOVED_FROM del tmp al renombrarse). Con regla `file_created + auto_restore`, el FAN_MOVED_TO para `path` desencadena un loop infinito de restauraciones.
+**Motivación**: Sin el filtro de sufijo, cada `os.replace(tmp, path)` del mecanismo de restauración atómica genera eventos espurios (FAN_CREATE + FAN_CLOSE_WRITE del tmp + FAN_MOVED_FROM del tmp al renombrarse). Las reglas se evalúan por path, no por tipo de evento (`RulesCache.evaluate` no recibe `event_type`), así que **cualquier** regla `auto_restore` que cubra `path` —no solo una regla acotada a `file_created`— hace que el `FAN_MOVED_TO` para `path` desencadene una nueva restauración. Sin el descarte por hash, eso es un loop infinito de restauraciones: cada `MOVED_TO` aterriza contenido idéntico al baseline (RN-33) y, sin el descarte, se reporta igual como cambio.
 
-**Aplicación**: `agent/detector.py` (guard al inicio de `_process_event`).
+**Aplicación**: `agent/detector.py` (guard al inicio de `_process_event`, y descarte por hash en cada rama que produce `current_hash`).
 
 #### D20: Guard de warning para conexión Valkey en texto plano
 
