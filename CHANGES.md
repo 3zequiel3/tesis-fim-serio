@@ -995,6 +995,29 @@ Reglas: RN-86 (retry + DLQ — se cumple `retry_count` y `last_error` por primer
 
 ---
 
+### Change 49 — `openspec-main-specs-repair`
+
+**Capa**: tooling / artefactos · **Depende de**: ninguno · **Paralelizable con**: 47, 48 · **Origen**: descubierto al archivar el change 46 (2026-08-24) · **Decisiones**: ninguna nueva
+
+> **Nota**: **los archives de OpenSpec vinieron destruyendo contenido normativo en silencio.** Dos defectos con una causa común — varios archives crearon la main spec **copiando el delta verbatim** en vez de mergearlo. **(1) Truncamiento**: un encabezado de delta (`## ADDED Requirements`) dentro de una main spec trunca la sección `## Requirements` y el parser deja de ver lo que sigue → **29 specs afectadas, 110 requisitos invisibles**, `validate --specs` en 31 de 40 inválidas, y `openspec archive` **aborta** al toparse con una (así abortó el archive del change 46). **(2) Pérdida real de requisitos**: cuando el delta se copió encima del archivo entero, lo que el delta no mencionaba **desapareció** → **44 requisitos borrados en 8 capabilities**. Las specs del agente quedaron vaciadas: `agent-core` conserva 2 de 11, `agent-fanotify-detector` 2 de 11, `agent-baseline` 1 de 9. Verificado que son borrados y no renombres (**no existe un solo `## RENAMED Requirements`** en ningún delta archivado, y los `REMOVED` explícitos se descontaron), y trazado al commit culpable en al menos un caso: `agent-core` cayó de 9 a 2 en `5355465`. **El código sí implementa lo perdido** —`agent/baseline.py` tiene AES-256-GCM y HKDF cuyos requisitos ya no figuran—: lo destruido es el registro especificado, no el comportamiento. Son recuperables desde `openspec/changes/archive/*/specs/<cap>/spec.md`.
+
+Capacidades:
+- **Tres clases de daño, tres reparaciones distintas.** No es un `sed` global, y tratarlo como tal es cómo se pierden requisitos:
+  - **21 specs — caso simple**: un único `## ADDED Requirements` y ningún `## Requirements`. Renombre de encabezado más bloque `## Purpose`. Es el transform ya aplicado a `backend-core` (14 requisitos) e `infra-compose` (9) en el change 46.
+  - **1 spec — `agent-decision-engine`**: lleva un `## MODIFIED Requirements` en la main spec. Un MODIFIED en una main spec significa que el merge **nunca ocurrió**: hay que reconstruir cuál era el requisito original y cuál la modificación, no renombrar el encabezado.
+  - **7 specs — sin encabezado de delta pero también sin `## Requirements`**: `agent-cert-renewal`, `agent-transport`, `backend-agents`, `frontend-auth`, `frontend-events`, `frontend-scaffold`, `frontend-shell`. Requisitos huérfanos de sección; hay que insertar la sección en la posición correcta sin alterar el orden.
+- **Conteo de requisitos verificado archivo por archivo, antes y después.** Es la única defensa real contra una reparación que "valida" habiendo perdido contenido: un archivo con la estructura arreglada y menos requisitos pasa `validate` igual. La aserción es por archivo, no agregada.
+- **El `## Purpose` no se inventa.** Los archives que sí funcionaron generan `TBD - created by archiving change <name>`; las reparadas llevan una marca equivalente que dice de dónde salieron, para que nadie lea un Purpose fabricado como si fuera decisión de diseño.
+- **Guarda de regresión**: un test que recorre `openspec/specs/*/spec.md` y falla si alguna contiene un encabezado de delta o carece de `## Requirements`. Sin esto, el próximo archive mal hecho reintroduce el problema y nadie se entera hasta el archive siguiente.
+
+Reglas: ninguna de negocio — es integridad de los artefactos del workflow. Decisiones nuevas: ninguna.
+
+> **Por qué merece un change y no un fix inline**: toca 29 archivos que gobiernan el contrato de todo el proyecto, y una de las tres clases (`agent-decision-engine`) exige reconstruir intención histórica, no aplicar un patrón. Además el `## Purpose` de cada archivo es contenido, no formato.
+
+**Done**: `openspec validate --specs` pasa las 40; el conteo de `### Requirement:` por archivo es idéntico antes y después en las 29; el test de guarda falla si se introduce un encabezado de delta en una main spec; y `openspec archive` de un change que toque cualquiera de las 29 ya no aborta.
+
+---
+
 ## Decisiones de implementación cerradas — Abril 2026
 
 Las 8 suposiciones que estaban abiertas en una versión anterior de este roadmap se cerraron el 2026-04-24 y se documentaron formalmente en los appendices "Decisiones de implementación — Abril 2026" de:
