@@ -1,7 +1,8 @@
-# Spec delta: backend-core
+# backend-core Specification
 
-## ADDED Requirements
-
+## Purpose
+TBD - estructura reparada al archivar n8n-contract-and-config. El archivo se había escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar Purpose.
+## Requirements
 ### Requirement: Estructura de paquete backend según docs canónicos
 
 El sistema SHALL crear el paquete Python `backend/app/` con submódulos `core/` y `modules/` según `docs/arquitectura_stack.md §Módulos del backend`. El subpaquete `core/` SHALL contener al menos los archivos `config.py`, `database.py`, `logging.py`, y un subpaquete `middleware/` con `trace_id.py` y `sanitize_logs.py`. El subpaquete `modules/` SHALL existir con un `__init__.py` vacío como placeholder para los módulos de dominio que introducen los changes posteriores (Change 03+). El paquete `app/` SHALL exportar la app FastAPI desde `app/main.py` como `app: FastAPI`.

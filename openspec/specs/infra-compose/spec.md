@@ -1,7 +1,8 @@
-# Spec delta: infra-compose
+# infra-compose Specification
 
-## ADDED Requirements
-
+## Purpose
+TBD - estructura reparada al archivar n8n-contract-and-config. El archivo se había escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar Purpose.
+## Requirements
 ### Requirement: Compose orquesta los servicios del servidor central
 
 El sistema SHALL proveer un archivo `docker-compose.yml` en la raíz del repositorio que declare los servicios `db`, `valkey`, `backend`, `frontend` y `n8n`, sin servicio `db-init` (D3). Los servicios `backend` y `frontend` SHALL existir como placeholders compatibles con `docker compose config` aunque sus imágenes/builds aún no produzcan binarios funcionales en este change. El agente FIM NO SHALL aparecer en el compose (RN-68: se despliega nativo con systemd).
