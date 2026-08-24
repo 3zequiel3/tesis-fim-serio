@@ -193,5 +193,45 @@ identificador *es* el cumplimiento del requisito, y un escaneo ingenuo las repor
 |---|---:|---|
 | Recuperados (9 capabilities del agente) | 60 | Barridos — 1 divergencia, resuelta |
 | Invisibles por truncamiento (22 specs) | 98 | Barridos — 3 divergencias, 2 resueltas + 1 escalada |
-| Visibles todo el tiempo | 86 | **No barridos** — riesgo menor: un `validate` los estuvo mirando |
-| **Total** | **244** | |
+| Visibles todo el tiempo | 86 | Barridos — **cero divergencias** |
+| **Total** | **244** | Cobertura completa |
+
+
+---
+
+# Tercera pasada — los 86 siempre visibles, y el dato que deja
+
+Barridos los 86 requisitos restantes en 12 specs (`backend-auth`, `backend-core`,
+`backend-event-consumer`, `backend-events-api`, `backend-health`, `backend-notifications`,
+`backend-pki`, `backend-rules`, `backend-test-harness`, `infra-compose`,
+`notification-payload-contract`, `sse-alerts`), con las mismas tres técnicas.
+
+**Resultado: cero divergencias.** Los cuatro candidatos que surgieron son prohibiciones
+correctamente satisfechas o valores de escenario:
+
+| Candidato | Veredicto |
+|---|---|
+| «el harness `SHALL NOT` depender del lifespan» | Satisfecha: `conftest.py:5-6` lo declara y maneja `create_all`/`seed_admin` por su cuenta |
+| «la suite `SHALL NOT` colgarse» | Satisfecha: `timeout = 60` en `pyproject.toml` |
+| `db_password` | El requisito exige que `settings` **no** tenga ese atributo (`extra="ignore"`) |
+| `agent_a1`, `SSL_ERROR_NO_CERTIFICATE` | Valores de escenario, no identificadores de código |
+
+## Cobertura final y la correlación que importa
+
+| Conjunto | Requisitos | Divergencias |
+|---|---:|---:|
+| Recuperados desde deltas | 60 | 1 |
+| **Invisibles por truncamiento** | 98 | **3** |
+| **Visibles todo el tiempo** | 86 | **0** |
+| **Total** | **244** | **4** |
+
+**Las cuatro divergencias del proyecto estaban en specs que el tooling no podía ver.** Los 86
+requisitos que `openspec validate` estuvo procesando todos estos meses no acumularon ninguna.
+
+Eso no es casualidad ni suerte: una spec visible se contrasta contra el código cada vez que alguien
+corre el tooling, abre el archivo o archiva un change que la toca. Una spec truncada no se contrasta
+nunca — y acumula contradicciones en silencio hasta que alguien la desentierra.
+
+Es el argumento más fuerte a favor de la guarda de `D47/RN-141`, y conviene tenerlo escrito: no
+protege el formato, protege la **capacidad de detectar que lo especificado y lo construido se
+separaron**.

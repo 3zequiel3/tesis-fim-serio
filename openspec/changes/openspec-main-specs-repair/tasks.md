@@ -47,7 +47,9 @@
 
 - [ ] 6.7 **`POST /agents/renew` no existe en el backend, y el agente lo llama.** `agent/__main__.py:82` hace el POST cuando el certificado vence en ≤ 15 días; el backend no expone la ruta. El agente recibe 404, loguea y sigue: **los certificados nunca se renuevan**, y pasada la vigencia de RN-78 el agente pierde el canal mTLS. No se resuelve editando la spec — **la spec tiene razón y falta el código**. Registrado como **change 50 `backend-agent-cert-renewal`**; emitir certificados contra la CA propia es trabajo sensible y merece su propio diseño.
 
-- [ ] 6.8 **Barrer los 86 requisitos restantes** (los que siempre fueron visibles). Riesgo menor —un `validate` los estuvo mirando todo este tiempo— pero la cobertura no está completa hasta hacerlo.
+- [x] 6.8 **Barrer los 86 requisitos restantes** (los que siempre fueron visibles), en 12 specs. **Cero divergencias.** Los 4 candidatos eran prohibiciones satisfechas o valores de escenario. **Cobertura completa: 244/244 requisitos barridos.**
+
+> **El dato que deja el barrido completo**: las 4 divergencias del proyecto estaban **todas** en specs que el tooling no podía ver — 1 entre las recuperadas, 3 entre las invisibles por truncamiento, **0** entre las 86 que `validate` procesó todos estos meses. Una spec visible se contrasta contra el código cada vez que alguien corre el tooling; una truncada no se contrasta nunca. Es el argumento de fondo a favor de la guarda de D47/RN-141: no protege el formato, protege la capacidad de **detectar que lo especificado y lo construido se separaron**.
 
 - [ ] 6.2 **Revisar si el capítulo de arquitectura de la tesis cita estas specs** como evidencia del contrato del agente. Hasta hoy esas citas apuntaban a archivos vaciados.
 - [ ] 6.3 **Correr la guarda antes de archivar cada uno de los changes pendientes.** Hay changes sin archivar que apuntan a `agent-fanotify-detector` y `agent-baseline`, las dos capabilities más destruidas: la recurrencia está agendada, no es hipotética.
