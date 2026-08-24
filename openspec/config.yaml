@@ -5,7 +5,7 @@ context: |
 
   Stack:
   - Backend: Python 3.13 + FastAPI 0.136 + SQLModel + PostgreSQL 18.3 + Valkey 9.0.3
-  - Agente: Python + pyfanotify 0.3.0 + systemd (CAP_SYS_ADMIN)
+  - Agente: Python + backend fanotify propio (ctypes, modo FID) + systemd (CAP_SYS_ADMIN + CAP_DAC_READ_SEARCH)
   - Frontend: Vite + React 19 + TypeScript + Tailwind v4 (sin tailwind.config.js)
   - Notificaciones: n8n 2.17.8
   - Deployment: Docker Compose (backend single-instance, RN-76)

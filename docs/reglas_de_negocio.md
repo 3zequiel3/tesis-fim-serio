@@ -29,14 +29,14 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-139 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-141 |
 
 ---
 
 ## 1. Detección y monitoreo
 
 ### RN-01: Detección de cambios en tiempo real
-**Descripción:** El agente detecta cambios en el filesystem mediante `pyfanotify` sobre el subsistema `fanotify` del núcleo Linux (kernel ≥ 5.1).
+**Descripción:** El agente detecta cambios en el filesystem mediante un backend propio sobre el subsistema `fanotify` del núcleo Linux (kernel ≥ 5.1), implementado en `agent/_fanotify.py` con `ctypes` sobre syscalls crudas y operando en **modo FID** (`FAN_REPORT_DFID_NAME`). No se depende de `pyfanotify` — ver D46/RN-140, que explica por qué el modo fd clásico no puede entregar las máscaras que RN-110 exige.
 **Condición:** El agente está en ejecución como servicio nativo de `systemd` y monitoreando los paths configurados.
 **Resultado:** Se genera un evento de cambio con metadata: path, tipo de operación, timestamp del agente (`detected_at`), hash SHA-256 del contenido, **y contexto del proceso causante** (PID, UID, path del ejecutable).
 **Excepciones:** Los paths excluidos por configuración no generan eventos. Los directorios del propio agente (`/var/lib/fim-agent/**`) deben estar excluidos para evitar recursión.
@@ -880,7 +880,11 @@ Excepción futura (out-of-scope MVP): si se requiere debug interactivo local, se
 **Descripción:** El agente registra las siguientes máscaras fanotify en el mark del filesystem:
 `FAN_CLOSE_WRITE`, `FAN_DELETE`, `FAN_MOVED_FROM`, `FAN_MOVED_TO`, `FAN_CREATE`.
 
-**Resolución de path:** pyfanotify resuelve `ev.path` para todos los tipos de evento en el momento de captura. Si `ev.path` es `None` (caso de borde bajo carga extrema de kernel), el evento se descarta con log warning. No se usa `FAN_REPORT_DFID_NAME` ni `FAN_REPORT_FID` — pyfanotify resuelve el path vía `/proc/self/fd/<fd>` internamente.
+**Resolución de path (D46/RN-140):** el detector opera en **modo FID** con `FAN_REPORT_DFID_NAME` y reconstruye el path vía `open_by_handle_at(2)` sobre el handle del directorio padre más el nombre que reporta el kernel. Eso es lo que permite resolver el path de un archivo **ya borrado**, imposible con un fd del objeto. Si el path no puede resolverse, el evento se descarta con log warning.
+
+El modo fd clásico (`FAN_CLASS_NOTIF` sin FID) **no admite** `FAN_CREATE`, `FAN_DELETE` ni `FAN_MOVED_*` sobre una marca de filesystem: el kernel responde `EINVAL`. Por eso prohibir el reporte FID y a la vez exigir esas máscaras era contradictorio.
+
+`open_by_handle_at(2)` requiere **`CAP_DAC_READ_SEARCH` además de `CAP_SYS_ADMIN`**.
 
 **Léxico canónico de operaciones** (extiende RN-71 al campo `operation_type` del payload de evento, además de `status`):
 
@@ -1478,6 +1482,79 @@ login sin error explícito. El correo del owner no puede pertenecer a otro usuar
 **Reglas afectadas:** el requisito de versiones pinneadas de la spec `infra-compose` y el §Stack de
 `arquitectura_stack.md` pasan a declarar `n8nio/n8n:2.17.8`. La prohibición de `latest` y de rangos
 abiertos se mantiene sin cambios.
+
+#### D46 / RN-140: Backend fanotify propio en modo FID; se abandona `pyfanotify`
+
+**Descripción:** La detección de cambios NO usa `pyfanotify`. El agente implementa un backend
+propio sobre syscalls crudas (`agent/_fanotify.py`, `ctypes` → glibc) y opera en **modo FID**, con
+`FAN_REPORT_DFID_NAME`.
+
+**Motivo — y es una imposibilidad técnica, no una preferencia.** El modo fd clásico
+(`FAN_CLASS_NOTIF` sin FID) **no admite** los eventos de entrada de directorio `FAN_CREATE`,
+`FAN_DELETE` y `FAN_MOVED_*` sobre una marca de filesystem: el kernel responde `EINVAL`. Como
+RN-110 exige exactamente esas máscaras, el requisito previo —que mandaba `pyfanotify` y prohibía
+`FAN_REPORT_DFID_NAME`— **se contradecía a sí mismo**: pedía eventos que su propio mecanismo no
+puede entregar. No era una decisión superada por el tiempo; era irrealizable desde su redacción.
+
+El modo FID además permite reconstruir el path de un archivo **ya borrado**, porque el kernel
+reporta el handle del directorio padre más el nombre — algo imposible cuando sólo se tiene un fd
+del objeto, que para entonces ya no existe. Eso es lo que hace viable el evento `file_absent`.
+
+**Condición:** Arranque del detector del agente.
+
+**Resultado:** El detector inicializa el grupo fanotify con `FAN_CLASS_NOTIF | FAN_REPORT_DFID_NAME`
+y resuelve los paths vía `open_by_handle_at(2)`.
+
+Consecuencia operativa: `open_by_handle_at(2)` exige **`CAP_DAC_READ_SEARCH` además de
+`CAP_SYS_ADMIN`**. La unidad `fim-agent.service` declara
+`CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN` en
+`AmbientCapabilities` y `CapabilityBoundingSet`; las tres últimas las requieren las acciones de
+restauración y cuarentena sobre archivos ajenos.
+
+**Excepciones:** El módulo sólo es funcional en Linux con kernel ≥ 5.1. En otras plataformas la
+importación degrada a `_HAS_FAN=False` y el detector lo contempla.
+
+**Por qué esta decisión aparece recién ahora.** El reemplazo se hizo en el commit `f1e8681`
+(*feat(agent): backend fanotify propio (ctypes, modo FID) reemplaza pyfanotify*) y **se documentó**
+en `docs/operations.md` y en `docs/valores_planillas_cap5.md`. Lo que no se actualizó fueron las
+reglas de negocio, el stack de arquitectura y las specs de OpenSpec — y las specs del agente
+llevaban meses vaciadas por archives defectuosos (ver D47/RN-141), así que su contradicción con el
+código era literalmente invisible para el tooling. El desalineamiento se detectó al recuperarlas.
+
+**Reglas modificadas por esta decisión:** RN-01 y RN-110 dejan de nombrar `pyfanotify` y de
+prohibir el reporte FID.
+
+#### D47 / RN-141: Integridad estructural de las main specs de OpenSpec
+
+**Descripción:** Toda main spec bajo `openspec/specs/<capability>/spec.md` SHALL tener título de
+nivel 1, sección `## Purpose` y sección `## Requirements`, y SHALL NOT contener encabezados de
+delta (`## ADDED Requirements` y equivalentes), que sólo son válidos dentro de
+`openspec/changes/<name>/specs/`.
+
+Además, el conjunto de requisitos de una main spec SHALL incluir todo requisito que sus deltas
+archivados aportaron y que no fue eliminado con un `## REMOVED Requirements` explícito ni
+renombrado de forma declarada.
+
+**Motivo:** un encabezado de delta dentro de una main spec **trunca la sección `## Requirements`**;
+el parser deja de ver lo que sigue. Llegó a haber 29 specs así, con 110 requisitos invisibles para
+`validate`, `list` y `archive`. Peor: varios archives escribieron la main spec copiando el delta
+verbatim, y lo que el delta no mencionaba **desapareció** — 48 requisitos borrados en 9
+capabilities, dos de las cuales nunca llegaron a tener main spec. Ninguna herramienta lo señaló: un
+`validate` en verde sobre una spec truncada no dice «esto está bien», dice «no vi nada».
+
+**Condición:** Antes de cada `openspec archive`, y en la suite de tests.
+
+**Resultado:** `scripts/check_spec_integrity.py` verifica las invariantes **por archivo** —nunca
+sobre un total agregado, donde una pérdida se cancelaría con una ganancia ajena— y falla nombrando
+capability y requisito. `backend/tests/test_openspec_artifact_integrity.py` lo ejecuta en la suite.
+
+**Excepciones:** Los renombres hechos vía `MODIFIED` con el header cambiado —el proyecto nunca usó
+`## RENAMED Requirements`— se declaran en `CONFIRMED_RENAMES` dentro del script, con evidencia del
+delta de origen. Sin ese mapa la guarda exigiría requisitos legítimamente renombrados.
+
+**Nota sobre la causa raíz:** al menos un archive dañino (commit `5355465`) fue **escrito a mano**,
+sin invocar el CLI. Por eso la guarda vive fuera del CLI y se corre como paso de proceso: ningún
+arreglo de la herramienta habría prevenido ese caso.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

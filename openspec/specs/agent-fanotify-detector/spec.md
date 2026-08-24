@@ -7,7 +7,9 @@ TBD — estructura reparada por el change openspec-main-specs-repair. El archivo
 
 ### Requirement: Marcado FAN_MARK_FILESYSTEM sobre watch_paths con exclusión de /var/lib/fim-agent
 
-El detector SHALL inicializar un grupo fanotify con `pyfanotify 0.3.0` y marcar cada filesystem que contiene un `watch_path` usando `FAN_MARK_FILESYSTEM | FAN_MARK_ADD` con la máscara combinada `FAN_CLOSE_WRITE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO | FAN_CREATE` (RN-01, RN-02, RN-110). El detector MUST NOT usar `FAN_REPORT_DFID_NAME` ni `FAN_REPORT_FID`: la resolución de path se realiza vía `ev.path` que pyfanotify resuelve internamente. El módulo `agent/detector.py` MUST excluir con `FAN_MARK_FILESYSTEM | FAN_MARK_IGNORED_MASK` el path `/var/lib/fim-agent/**` para prevenir ciclos de auto-detección (RN-04). El marcado MUST ocurrir antes de que el detector empiece a leer eventos.
+El detector SHALL inicializar un grupo fanotify con el backend propio de `agent/_fanotify.py` (`ctypes` sobre syscalls crudas) usando `FAN_CLASS_NOTIF | FAN_REPORT_DFID_NAME` — **modo FID** — y marcar cada filesystem que contiene un `watch_path` con `FAN_MARK_FILESYSTEM | FAN_MARK_ADD` y la máscara combinada `FAN_CLOSE_WRITE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO | FAN_CREATE` (RN-01, RN-02, RN-110, D46/RN-140).
+
+El modo FID es **obligatorio, no preferido**: el modo fd clásico (`FAN_CLASS_NOTIF` sin FID) no admite `FAN_CREATE`, `FAN_DELETE` ni `FAN_MOVED_*` sobre una marca de filesystem — el kernel responde `EINVAL` —, de modo que exigir esas máscaras y prohibir el reporte FID a la vez es irrealizable. La resolución de path usa `open_by_handle_at(2)` sobre el handle del directorio padre más el nombre, lo que además permite resolver el path de un archivo **ya borrado**. Eso exige `CAP_DAC_READ_SEARCH` además de `CAP_SYS_ADMIN`. El módulo `agent/detector.py` MUST excluir con `FAN_MARK_FILESYSTEM | FAN_MARK_IGNORED_MASK` el path `/var/lib/fim-agent/**` para prevenir ciclos de auto-detección (RN-04). El marcado MUST ocurrir antes de que el detector empiece a leer eventos.
 
 #### Scenario: Archivo monitoreado modificado genera evento
 
@@ -182,7 +184,7 @@ Si `ev.path` es `None` (caso de borde bajo carga extrema del kernel), el detecto
 
 #### Scenario: Evento sin path resoluble se descarta
 
-- **WHEN** pyfanotify entrega un evento con `ev.path is None`
+- **WHEN** el backend fanotify entrega un evento cuyo path no puede resolverse vía `open_by_handle_at(2)`
 - **THEN** el detector registra un warning y no produce ningún cambio
 
 ### Requirement: Detector exposes close() for deterministic teardown

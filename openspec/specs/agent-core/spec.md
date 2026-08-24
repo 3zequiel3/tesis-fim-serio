@@ -82,11 +82,11 @@ El script `install.sh` SHALL crear los directorios de trabajo del agente con los
 - **THEN** la segunda ejecución termina sin errores y los permisos son los mismos
 
 ### Requirement: Systemd service unit with capability hardening
-La unidad `fim-agent.service` SHALL arrancar el agente con `AmbientCapabilities=CAP_SYS_ADMIN` y `CapabilityBoundingSet=CAP_SYS_ADMIN`. MUST aplicarse `ProtectSystem=strict`, `NoNewPrivileges=true`, `PrivateTmp=true`. El servicio MUST correr como user `fim-agent` con `ReadWritePaths=/var/lib/fim-agent /var/log/fim-agent`. El servicio MUST configurarse con `Restart=on-failure` y `RestartSec=5s`.
+La unidad `fim-agent.service` SHALL arrancar el agente con `AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN` y el mismo conjunto en `CapabilityBoundingSet`. `CAP_DAC_READ_SEARCH` la exige `open_by_handle_at(2)` del modo FID (D46/RN-140); `CAP_DAC_OVERRIDE`, `CAP_FOWNER` y `CAP_CHOWN` las requieren las acciones de restauración y cuarentena sobre archivos de otros usuarios. MUST aplicarse `ProtectSystem=strict`, `NoNewPrivileges=true`, `PrivateTmp=true`. El servicio MUST correr como user `fim-agent` con `ReadWritePaths=/var/lib/fim-agent /var/log/fim-agent`. El servicio MUST configurarse con `Restart=on-failure` y `RestartSec=5s`.
 
 #### Scenario: Servicio arranca con capabilities correctas
 - **WHEN** `systemctl start fim-agent`
-- **THEN** el proceso corre como `fim-agent` y `capsh --decode=$(cat /proc/$(pgrep -f fim-agent)/status | grep CapAmb | awk '{print $2}')` muestra `cap_sys_admin`
+- **THEN** el proceso corre como `fim-agent` y `capsh --decode=$(cat /proc/$(pgrep -f fim-agent)/status | grep CapAmb | awk '{print $2}')` muestra `cap_sys_admin` y `cap_dac_read_search`
 
 #### Scenario: Hardening de namespaces activo
 - **WHEN** el servicio está corriendo
@@ -101,7 +101,8 @@ La unidad `fim-agent.service` SHALL arrancar el agente con `AmbientCapabilities=
 
 #### Scenario: Instalación limpia
 - **WHEN** `install.sh` se ejecuta en un sistema sin instalación previa
-- **THEN** existe `/opt/fim-agent/venv/bin/python` y `pip show pyfanotify` dentro del venv muestra `0.3.0`
+- **THEN** existe `/opt/fim-agent/venv/bin/python` y `pip freeze` dentro del venv coincide con las versiones fijadas en `agent/requirements.txt`
+- **AND** `pyfanotify` NO está instalado: el detector usa el backend propio de `agent/_fanotify.py` (D46/RN-140)
 
 #### Scenario: Reinstalación idempotente
 - **WHEN** `install.sh` se ejecuta en un sistema con instalación previa

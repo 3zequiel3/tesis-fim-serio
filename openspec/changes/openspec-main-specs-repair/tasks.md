@@ -38,7 +38,11 @@
 
 ## 6. Pendientes que este change NO resuelve
 
-- [ ] 6.1 **Reconciliar spec ↔ código** en las 9 capabilities reparadas, empezando por `agent-fanotify-detector`. Requiere decidir caso por caso si manda la spec o el código, y es cambio de contenido normativo: merece su propia change con su propia revisión.
+- [x] 6.1 **Reconciliar spec ↔ código** en las 9 capabilities reparadas. **RESUELTO** — barrido de los 60 requisitos por clase de afirmación verificable (14 prohibiciones, 6 citas de librería, 9 módulos, 28 paths). Una sola divergencia real: el clúster fanotify en 4 requisitos. Cerrada con **D46/RN-140**, más la corrección de RN-01, RN-110, el stack de `arquitectura_stack.md`, `CLAUDE.md` y `openspec/config.yaml`. Detalle y verificación en `divergences-spec-code.md`.
+
+> **El requisito viejo no estaba desactualizado: era irrealizable.** Exigía `FAN_CREATE`/`FAN_DELETE`/`FAN_MOVED_*` sobre una marca de filesystem **y** prohibía `FAN_REPORT_DFID_NAME` — pero el modo fd clásico no entrega esos eventos, el kernel responde `EINVAL`. Manda el código porque la spec pedía algo imposible, no por antigüedad.
+
+- [x] 6.5 Registrar la asimetría que explica el desalineamiento: el reemplazo de `pyfanotify` **sí se documentó** en `docs/operations.md` y `docs/valores_planillas_cap5.md` cuando ocurrió. No se actualizaron las reglas ni las specs — y las specs del agente estaban vaciadas, así que la contradicción era invisible para el tooling. El daño estructural no sólo escondía requisitos: escondía **contradicciones entre lo especificado y lo construido**.
 - [ ] 6.2 **Revisar si el capítulo de arquitectura de la tesis cita estas specs** como evidencia del contrato del agente. Hasta hoy esas citas apuntaban a archivos vaciados.
 - [ ] 6.3 **Correr la guarda antes de archivar cada uno de los changes pendientes.** Hay changes sin archivar que apuntan a `agent-fanotify-detector` y `agent-baseline`, las dos capabilities más destruidas: la recurrencia está agendada, no es hipotética.
 - [ ] 6.4 **Decidir sobre la causa raíz.** El CLI actual (1.4.1) archiva correctamente — lo demuestra la spec bien formada que generó el 2026-08-24. El daño histórico incluye archives escritos a mano, que ningún arreglo del CLI habría evitado. Falta una regla de proceso que lo prohíba explícitamente.

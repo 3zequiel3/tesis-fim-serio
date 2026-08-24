@@ -6,7 +6,7 @@ Tesis de grado: **File Integrity Monitoring (FIM) Platform** para hosts Linux.
 
 Stack:
 - **Backend**: Python 3.13 + FastAPI 0.136 + SQLModel + PostgreSQL 18.3 + Valkey 9.0.3
-- **Agente**: Python + pyfanotify 0.3.0 + systemd (con `CAP_SYS_ADMIN`)
+- **Agente**: Python + backend fanotify propio (`agent/_fanotify.py`, ctypes, modo FID) + systemd (con `CAP_SYS_ADMIN` y `CAP_DAC_READ_SEARCH`) — D46/RN-140
 - **Frontend**: Vite + React 19 + TypeScript + Tailwind v4 (CSS-first, sin tailwind.config.js)
 - **Notificaciones**: n8n 2.17.8 (D45/RN-139)
 - **Deployment**: Docker Compose (single-instance backend, RN-76)

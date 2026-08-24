@@ -34,7 +34,7 @@ Definir una arquitectura profesional para un sistema FIM (File Integrity Monitor
 
 | Capa | Tecnología | Versión | Rol |
 |------|-----------|---------|-----|
-| **Agente** | Python + pyfanotify | 0.3.0 | Monitoreo filesystem reactivo sobre `fanotify` (kernel Linux ≥ 5.1) |
+| **Agente** | Python + backend fanotify propio (`ctypes`, modo FID) | — | Monitoreo filesystem reactivo sobre `fanotify` (kernel Linux ≥ 5.1). Se abandonó `pyfanotify` por D46/RN-140: su modo fd no entrega `FAN_CREATE`/`FAN_DELETE`/`FAN_MOVED_*` sobre marca de filesystem |
 | **Backend** | FastAPI | 0.136.0 | API REST modular, SSE para alertas real-time |
 | **ORM** | SQLModel | latest | Modelos + queries, integración nativa con FastAPI y Pydantic |
 | **DB Driver** | psycopg (psycopg3) | latest | Driver PostgreSQL async-capable para Python |

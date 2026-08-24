@@ -1,81 +1,132 @@
-# Divergencias spec ↔ código entre los requisitos recuperados
+# Divergencias spec ↔ código — RESUELTAS
 
-Los 48 requisitos se restituyeron con **su texto histórico, sin reescritura**. Esa fidelidad
-tiene una consecuencia inevitable: un requisito que describía comportamiento que el código
-abandonó después vuelve a estar vigente, y como nadie escribió nunca un bloque
-`## REMOVED Requirements` en este repositorio, no hay registro de que se lo haya retirado a
-propósito.
+Los 48 requisitos se restituyeron con su texto histórico. Esa fidelidad revivió requisitos que
+describían comportamiento que el código abandonó después, sin que nadie hubiera escrito nunca un
+bloque `## REMOVED Requirements`.
 
-Este documento lista las divergencias detectadas. **No se corrigió ninguna acá**: editar el
-texto recuperado sería inventar contenido, que es exactamente lo que el change prohíbe.
-Resolverlas es trabajo aparte y requiere decidir, caso por caso, si manda la spec o el código.
+Este documento registra el barrido completo y la resolución de cada divergencia.
 
----
-
-## Confirmada — `agent-fanotify-detector`
-
-**Requisito**: `Marcado FAN_MARK_FILESYSTEM sobre watch_paths con exclusión de /var/lib/fim-agent`
-
-El texto restituido dice:
-
-> «El detector SHALL inicializar un grupo fanotify con **`pyfanotify 0.3.0`** […] El detector
-> **MUST NOT usar `FAN_REPORT_DFID_NAME` ni `FAN_REPORT_FID`**: la resolución de path se realiza
-> vía `ev.path` que pyfanotify resuelve internamente.»
-
-El código embarcado hace lo contrario, en ambos puntos:
-
-| Afirmación del requisito | Estado real |
-|---|---|
-| Usa `pyfanotify 0.3.0` | **No.** `agent/requirements.txt:6` dice explícitamente «No se depende de pyfanotify» |
-| `MUST NOT` usar `FAN_REPORT_DFID_NAME` | **Lo usa.** `agent/_fanotify.py:132` → `flags \|= FAN_REPORT_DFID_NAME` |
-
-Causa: el commit `f1e8681` (*feat(agent): backend fanotify propio (ctypes, modo FID) reemplaza
-pyfanotify*) cambió la implementación. El requisito que lo prohibía nunca se actualizó — porque
-para entonces ya había sido borrado de la main spec y era invisible.
-
-**Por qué importa más que un desalineamiento normal**: es un `MUST NOT` normativo, en un artefacto
-que la tesis puede citar como contrato del agente, afirmando lo contrario de lo que el sistema
-hace. Un evaluador que lo lea y mire el código encuentra una contradicción directa.
-
-**Resolución pendiente**: casi con seguridad manda el código y el requisito debe reescribirse para
-describir el backend ctypes en modo FID. Eso es un cambio de contenido normativo y merece su propia
-change con su propia revisión, no un parche dentro de una reparación estructural.
+**Estado: todas resueltas.** `scripts/check_spec_integrity.py` en verde, `openspec validate --specs`
+en 43/43, y ninguna prohibición técnica de las specs es violada por el código.
 
 ---
 
-## Candidatos débiles — identificadores citados que no aparecen en el código
+## Método del barrido
 
-Un escaneo automático buscó identificadores entre backticks en los 48 requisitos recuperados y los
-contrastó contra `agent/`, `backend/app/` y `frontend/src/`. Encontró tres:
+Se revisaron los **60 requisitos** de las 9 capabilities del agente, extrayendo de cada uno las
+afirmaciones verificables:
 
-| Capability | Requisito | Identificador |
+| Clase | Encontradas | Divergentes |
+|---|---:|---:|
+| Prohibiciones (`MUST NOT` / `SHALL NOT`) | 14 | **1** |
+| Librerías y versiones citadas | 6 citas | **4 requisitos** |
+| Módulos `agent/*.py` referenciados | 9 | 0 |
+| Paths absolutos citados | 28 | 0 |
+
+Los paths que un escaneo ingenuo marcó como ausentes resultaron falsos positivos: unos son ejemplos
+de escenario (`/etc/deleted_file`, `/var/log/app.log`), otros se construyen desde
+`AgentConfig` (`baseline_dir`, `queue_dir`, `journal_dir`) o están literalmente en `agent/config.py`
+(`secrets_dir`, `certs_dir`).
+
+---
+
+## Divergencia resuelta — el clúster fanotify
+
+Cuatro requisitos afirmaban que el detector usa `pyfanotify 0.3.0` y **prohibían** el reporte FID.
+El código hace exactamente lo contrario desde `f1e8681`.
+
+### El hallazgo que definió la resolución
+
+El requisito viejo no estaba meramente desactualizado: **era irrealizable desde su redacción**.
+
+Exigía las máscaras `FAN_CREATE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO` sobre una marca de
+filesystem, **y** prohibía `FAN_REPORT_DFID_NAME`. Pero el modo fd clásico (`FAN_CLASS_NOTIF` sin
+FID) **no admite** esos eventos sobre una marca de filesystem: el kernel responde `EINVAL`. Pedía
+eventos que su propio mecanismo no puede entregar.
+
+Por eso **manda el código**, y no por antigüedad: la spec pedía algo imposible.
+
+El modo FID además habilita algo que el requisito necesitaba y no podía tener — reconstruir el path
+de un archivo **ya borrado**, vía el handle del directorio padre más el nombre. Con un fd del objeto
+es imposible, porque para entonces el objeto no existe. Eso es lo que hace viable `file_absent`.
+
+### Qué se corrigió
+
+**Decisión de appendix** — `D46/RN-140` en `docs/reglas_de_negocio.md`, que documenta el backend
+propio, el argumento del kernel y la capability adicional que arrastra.
+
+**Reglas canónicas:**
+
+| Ubicación | Antes | Ahora |
 |---|---|---|
-| `agent-core` | Persistent state with atomic writes | `state.json.tmp` |
-| `agent-core` | Systemd service unit with capability hardening | `cap_sys_admin` |
-| `agent-fanotify-detector` | Deduplicación en memoria por path con encadenamiento parent_event_id | `pending_paths` |
+| RN-01 | «mediante `pyfanotify`» | backend propio `agent/_fanotify.py`, ctypes, modo FID |
+| RN-110 §Resolución de path | «No se usa `FAN_REPORT_DFID_NAME`… pyfanotify resuelve vía `/proc/self/fd`» | modo FID con `open_by_handle_at(2)`, más el motivo del `EINVAL` |
+| `arquitectura_stack.md` §Stack | `Python + pyfanotify \| 0.3.0` | backend propio, sin versión de librería |
+| `CLAUDE.md`, `openspec/config.yaml` | `pyfanotify 0.3.0`, `CAP_SYS_ADMIN` | backend propio, `CAP_SYS_ADMIN` + `CAP_DAC_READ_SEARCH` |
 
-Los tres son señales débiles y probablemente falsos positivos: `state.json.tmp` se construye
-dinámicamente concatenando el sufijo, `cap_sys_admin` aparece en mayúsculas en el código, y
-`pending_paths` puede ser un nombre interno que cambió sin alterar el comportamiento. Verificar
-uno por uno antes de actuar.
+**Requisitos normativos:**
+
+| Capability | Requisito | Corrección |
+|---|---|---|
+| `agent-fanotify-detector` | Marcado `FAN_MARK_FILESYSTEM` | Modo FID **obligatorio**, con el argumento del `EINVAL`. Se eliminó el `MUST NOT` |
+| `agent-fanotify-detector` | Eventos con path nulo | «pyfanotify entrega» → el backend; el escenario habla de resolución vía `open_by_handle_at(2)` |
+| `agent-core` | Install script | El escenario afirmaba `pip show pyfanotify` → `0.3.0`. Ahora afirma que **NO** está instalado |
+| `agent-core` | Systemd capability hardening | Declaraba sólo `CAP_SYS_ADMIN`. El unit real declara cinco; `CAP_DAC_READ_SEARCH` la exige `open_by_handle_at(2)` |
+
+### Verificación
+
+```
+spec: `FAN_CLASS_NOTIF | FAN_REPORT_DFID_NAME` — modo FID
+code: agent/_fanotify.py:132  flags |= FAN_REPORT_DFID_NAME          ✓
+
+spec: AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_FOWNER CAP_CHOWN
+unit: agent/deploy/fim-agent.service:32  (idéntico)                  ✓
+
+prohibiciones técnicas violadas por el código: NINGUNA               ✓
+```
 
 ---
 
-## Limitación de este análisis — declararla importa
+## Por qué el desalineamiento existió tanto tiempo
 
-**El escaneo automático NO detectó la divergencia confirmada de arriba.** Falló por dos motivos que
-vale la pena dejar escritos, porque acotan cuánta confianza merece:
+Vale registrarlo, porque es la parte instructiva.
 
-1. El requisito cita `` `pyfanotify 0.3.0` `` — con la versión adentro del backtick, así que no
+El reemplazo de `pyfanotify` **sí se documentó** cuando ocurrió — en `docs/operations.md` y en
+`docs/valores_planillas_cap5.md`, que describen el backend propio con precisión. Lo que no se
+actualizó fueron las reglas de negocio, el stack de arquitectura y las specs.
+
+Y las specs del agente llevaban meses **vaciadas** por archives defectuosos: el requisito que
+contradecía al código era literalmente **invisible** para `validate`, `list` y `archive`. Nadie podía
+tropezárselo. Sólo apareció al recuperarlas.
+
+O sea: el daño estructural de las specs no sólo escondía requisitos — escondía **contradicciones**
+entre lo especificado y lo construido. Esa es la razón por la que la guarda de `D47/RN-141` importa
+más que la prolijidad del formato.
+
+---
+
+## Candidatos débiles descartados
+
+Tres identificadores que un escaneo automático marcó como ausentes del código, verificados uno por
+uno y descartados:
+
+| Capability | Identificador | Veredicto |
+|---|---|---|
+| `agent-core` | `state.json.tmp` | Falso positivo: se construye concatenando el sufijo `.tmp` |
+| `agent-core` | `cap_sys_admin` | Falso positivo: aparece en mayúsculas; el escenario cita la salida de `capsh --decode`, que es minúscula |
+| `agent-fanotify-detector` | `pending_paths` | Falso positivo: nombre interno de la estructura de deduplicación |
+
+## Limitación del escaneo automático — sigue vigente
+
+**El escaneo automático no detectó la divergencia real.** Falló por dos motivos que acotan cuánta
+confianza merece cualquier herramienta parecida:
+
+1. El requisito citaba `` `pyfanotify 0.3.0` `` — con la versión adentro del backtick, así que no
    matchea un patrón de identificador.
-2. `FAN_REPORT_DFID_NAME` **sí está** en el código; lo que diverge no es su ausencia sino su
-   **uso invertido** respecto de lo que el requisito prohíbe. Ninguna búsqueda por presencia
+2. `FAN_REPORT_DFID_NAME` **sí estaba** en el código; lo que divergía no era su ausencia sino su
+   **uso invertido** respecto de lo que el requisito prohibía. Ninguna búsqueda por presencia
    detecta eso.
 
-O sea: el caso real lo encontró una lectura adversarial del contenido, no una herramienta. **No hay
-que tratar esta lista como cobertura.** Pueden existir más divergencias entre los 48 recuperados, y
-la única forma de encontrarlas es leerlos contra el código.
-
-Recomendación: una pasada de reconciliación spec↔código sobre las 9 capabilities reparadas,
-priorizando `agent-core`, `agent-fanotify-detector` y `agent-baseline`, que son las que más
-requisitos recuperaron y las que más tiempo estuvieron invisibles.
+Lo que sí funcionó fue extraer las **prohibiciones** (`MUST NOT` / `SHALL NOT`) y contrastar su
+polaridad contra el código. Esa técnica está ahora aplicada a las 14 prohibiciones de las specs del
+agente y es la que conviene repetir ante futuras recuperaciones.
