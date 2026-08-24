@@ -102,7 +102,7 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 **Capa**: infra · **Depende de**: ninguno
 
 Capacidades:
-- `docker-compose.yml` con servicios: `db` (PostgreSQL 18.3), `valkey` (Valkey 9.0.3), `backend` (placeholder), `frontend` (placeholder), `n8n` (2.16.1). **Sin** `db-init` (D3: el lifespan de FastAPI hace `create_all` + `seed_admin`).
+- `docker-compose.yml` con servicios: `db` (PostgreSQL 18.3), `valkey` (Valkey 9.0.3), `backend` (placeholder), `frontend` (placeholder), `n8n` (2.16.1 en su momento; el pin sube a 2.17.8 en el change 47 por D45/RN-139). **Sin** `db-init` (D3: el lifespan de FastAPI hace `create_all` + `seed_admin`).
 - Script SQL de init: bases `fim` y `fim_n8n` con permisos restringidos (ejecutado por la imagen oficial de PostgreSQL via `/docker-entrypoint-initdb.d/`).
 - `.env.example` con variables documentadas (DB_PASSWORD, JWT_SECRET_CURRENT/PREVIOUS, ADMIN_USERNAME, ADMIN_PASSWORD, paths CA).
 - Red interna Docker; backend único expuesto (`8443` mTLS agentes, `8000` API).
@@ -925,6 +925,73 @@ Reglas: RN-128/D34 (severidad persistida y filtrable — se consume del lado de 
 > **Follow-ups declarados fuera de scope**: `ORDER BY severity` del lado del servidor, con parámetro de orden en `GET /events` e índice compuesto sobre `(severity, created_at)` — es la forma correcta del impulso que este change rechaza, y necesita decisión de appendix sobre si el default de US-06 cambia. El selector de estados que **enumera 6 de los 7** (`Events.tsx:10-17`), criterio abierto de US-07 y pregunta de UX real: un checkbox para un estado que el toggle excluye es contradictorio, y la respuesta puede ser corregir la historia. El detalle expandible del resumen bulk (US-25, hoy solo un toast agregado) y la severidad en `EventDetail.tsx` (US-08). Extender los fixtures de contrato a las respuestas, no solo a las peticiones. Y una observación documental: el appendix de `docs/arquitectura_stack.md` quedó rezagado — su párrafo introductorio (`:1928`) y su tabla de cierre (hasta `:2469`) se detienen en D34 mientras `reglas_de_negocio.md` va por D39/RN-133.
 
 > **Nota de despliegue**: ninguna. Sin cambios de base de datos, de API ni de contrato de respuesta; el despliegue es un build de frontend y el rollback es revertir el commit. El único artefacto compartido nuevo, `contracts/`, solo lo consumen tests: un rollback parcial que revirtiera el frontend dejando el test del backend sería inofensivo, porque ese test valida el fixture contra el schema del backend y seguiría pasando.
+
+---
+
+### Change 46 — `n8n-contract-and-config`
+
+**Capa**: backend + config · **Depende de**: 15 (`backend-notifications`, archivada) · **Origen**: [docs/n8n_estado_y_requisitos.md](docs/n8n_estado_y_requisitos.md) + análisis de integración Bridge 2026-08-24 · **Decisiones**: D40/RN-134, D41/RN-135 (parcial: sólo el campo), D43/RN-137
+
+> **Nota**: el sistema **miente sobre el estado de sus notificaciones, y el default del compose es el mecanismo**. `docker-compose.yml:138` apunta `N8N_WEBHOOK_URL` a `${N8N_WEBHOOK_URL:-http://n8n:5678/healthz}`; `/healthz` responde 200 a cualquier POST; `send_n8n` retorna `True`; la alerta se marca `delivered` con `channel="n8n"`. Ese es el camino que produjo 3.885 filas marcadas como entregadas con el contenedor de n8n apagado hacía siete semanas. Y el payload que emite `_build_payload` **no cumple RN-53**: faltan la acción tomada, el contexto de proceso (`process_pid`, `process_uid`, `process_exe`) y `received_at` — el dato de mayor valor forense de un FIM nunca sale del sistema. El hallazgo que abarata todo esto: **`Event` ya persiste los tres campos de proceso, `received_at`, `is_symlink`, `action_failed` y `status`**. Ampliar el payload es leer columnas existentes: cero cambios en el agente, cero migración.
+
+Capacidades:
+- **El payload cumple RN-53 completo, con sobre plano (D40/RN-134).** `schema_version`, `notification_id` y `type` son hermanos de los campos de datos, no sus padres. La forma anidada se descartó por evidencia, no por gusto: `scripts/receptor_webhook.py` lee `alert_id`, `event_id`, `severity` y `path` al tope del objeto, y los tres workflows leen `$json.body.<campo>` — anidar rompe ambos y obliga a re-correr la Batería 4 sin ganar nada.
+- **El nombre canónico del path es `path`, y la contradicción documental se cierra en el mismo movimiento.** RN-53 dice `path`; el código dice `path`; los tres workflows dicen `path`; `arquitectura_stack.md` decía `file_path`. No era un empate entre dos convenciones: era un doc desalineado contra la regla normativa. Ya corregido, con D40/RN-134 como referencia.
+- **Test de contrato workflows ↔ payload.** Carga los JSON de `n8n/workflows/`, extrae por expresión regular toda referencia `$json.body.X`, y afirma que `X` está en el payload que emite `_build_payload`. **Es el test que habría detectado toda la sección 3.1 del documento de origen**, y su ausencia es exactamente la razón por la que el contrato pudo divergir sin que nadie lo notara. Misma lección que `contracts/` de la change 45: un artefacto al que los dos lados responden.
+- **Sin `n8n_webhook_url` explícito, el canal queda NO configurado (D43/RN-137).** Se elimina el default `/healthz`. Un deploy limpio reportará el canal n8n como no configurado — que es la verdad — en vez de falsamente sano.
+- **`n8n_health_url` separada del webhook (D43/RN-137).** Es el arreglo que el propio docstring de `_check_n8n` dejó anotado y difirió: hoy el fallback a `GET` pega sobre la URL del webhook, y «un GET a un webhook productivo puede disparar el workflow n8n». Con el enrutador de la change 47 operativo, eso sería un disparo espurio cada 10 s.
+- **Las ocho variables de notificación llegan a `.env.example`.** Hoy existen en `Settings` con default vacío y en `docs/operations.md`, pero configurarlas exige editar el compose.
+- **`smtp_starttls` / `smtp_ssl` en `Settings`.** `notifier.py:70` fuerza `start_tls=True` incondicional: un relay en 465 (SMTPS implícito) o uno interno sin STARTTLS falla siempre, y el modo de falla es un `except` genérico que sólo loguea.
+
+Reglas: RN-53 (contenido de la notificación — se cumple por primera vez), RN-52 (cascada), D23/RN-120 (semántica de `log_only` — sin cambios). Decisiones nuevas: **D40/RN-134**, **D43/RN-137**.
+
+**Done**: `_build_payload` emite los campos de RN-53 y el test de contrato pasa; agregar una referencia `$json.body.foo` a un workflow sin `foo` en el payload pone el test en rojo; un `docker compose up` sin `N8N_WEBHOOK_URL` deja el canal no configurado y `GET /health/components` reporta n8n `degraded`, no `ok`; `_check_n8n` no emite ningún request contra la URL del webhook.
+
+---
+
+### Change 47 — `n8n-operable-workflows`
+
+**Capa**: infra + n8n · **Depende de**: 46 (el payload correcto tiene que existir antes de escribir workflows contra él) · **Origen**: ídem 46 · **Decisiones**: D44/RN-138, D41/RN-135
+
+> **Nota**: hoy **nada carga los workflows y ninguno sería ejecutable si algo los cargara**. Verificado: nada monta `./n8n/workflows`, nada corre `n8n import:workflow`, no hay script ni init container, y las únicas instrucciones son prosa dentro de una clave no estándar `__meta` que manda a una UI inalcanzable porque el 5678 no se publica (D-04). Los tres declaran paths distintos entre sí y distintos del documentado, y el backend tiene **una sola** `n8n_webhook_url`: como mucho uno puede recibir tráfico. Y los **tres** nodos de salida están rotos — el documento de origen marca Slack y Jira por usar `$credentials` sin bloque `credentials`, pero `email_alert.json` hace lo mismo en `fromEmail` con `{{ $credentials.smtp.from }}`, y `$credentials` no está expuesto en expresiones de parámetros normales de n8n.
+
+Capacidades:
+- **Un solo webhook, `fim-alert`, y los tres sub-flujos pasan a `Execute Workflow Trigger` (D44/RN-138).** La decisión es estructural, no cosmética: mientras haya tres webhooks paralelos y una sola URL en el backend, dos son inalcanzables **por construcción**, y ningún arreglo de expresiones cambia eso. Con sub-flujos invocados, la divergencia de paths deja de ser posible. Es además lo que RN-52 ya manda y no tenía implementación: n8n como «enrutador acotado» que recibe una vez y abanica.
+- **Provisioning idempotente por `id` estable.** `n8n import:workflow` sobrescribe la entrada existente con el mismo `id` en vez de duplicarla, así que darle a cada workflow un UUID fijo en la raíz arregla el defecto de metadatos **y** hace el import idempotente de un solo movimiento. Servicio one-shot del compose montando `./n8n/workflows` contra el volumen `n8n_data`.
+- **La activación se verifica, no se asume.** `--activeState` tiene default `false`: todo lo importado queda desactivado, y un workflow inactivo sólo responde en `/webhook-test/...`, no en `/webhook/...` — el primer POST del backend daría 404 con todo lo demás correcto. `--activeState=fromJson` está documentado únicamente para *multi-main* y *queue mode*, y el despliegue es single-instance por RN-76. El criterio de aceptación es un POST real que ejecuta, no un import que retorna 0.
+- **Contenedor operable**: `N8N_ENCRYPTION_KEY` (sin ella las credenciales quedan atadas a una clave autogenerada dentro del volumen y recrear el volumen las invalida **en silencio**), `WEBHOOK_URL` / `N8N_HOST` / `N8N_PROTOCOL`, healthcheck del servicio y `depends_on: {n8n: service_healthy}` en `backend`.
+- **Expresiones corregidas**: `.toUpperCase()` en lugar del filtro Jinja `| upper` (que en JavaScript se evalúa como OR bit a bit contra una variable inexistente); bloques `credentials` reales en los nodos de correo, Slack, Jira y Linear; Switch v3 con `numberOutputs` y salidas por índice numérico, no por nombre; `responseMode` / `responseData` coherentes entre sí.
+- **Search-before-create en el sub-flujo de ticketing (D41/RN-135).** La entrega es at-least-once: un timeout no distingue «n8n no recibió» de «n8n recibió, ejecutó y se perdió la respuesta», y con el enrutador operativo cada reintento **vuelve a abanicar**. Un mail repetido molesta; un ticket de Jira repetido contamina el backlog. La defensa va donde el duplicado cuesta.
+
+Reglas: RN-52 (rol de enrutador acotado — se implementa), RN-53. Decisiones nuevas: **D44/RN-138**, **D41/RN-135**.
+
+> **Setup de owner — resuelto por D45/RN-139.** n8n 2.x exige completar el setup de owner en el primer arranque antes de poder activar un workflow, y con el 5678 sin publicar (D-04) no hay camino de UI. El mecanismo declarativo (`N8N_INSTANCE_OWNER_MANAGED_BY_ENV` + `_EMAIL` / `_FIRST_NAME` / `_LAST_NAME` / `_PASSWORD_HASH` en **bcrypt** — texto plano rompe el login sin error explícito) existe **desde n8n 2.17.0**, así que **el pin sube de 2.16.1 a 2.17.8**: la patch más alta de la mínima minor que trae la capacidad. Este change actualiza `docker-compose.yml` y el requisito de versiones pinneadas de la spec `infra-compose`. Dos consecuencias a tener presentes: con la variable en `true`, n8n **sobrescribe el owner en cada arranque** y bloquea su edición desde la UI (deseable acá — el estado queda declarado y no deriva); y los registros de medición del Cap. 5 (`entrega_valores_cap5.md`, `plan_medicion_cap5.md`) **conservan 2.16.1**, porque documentan contra qué se midió — el cambio de versión se **declara**, no se reescribe.
+
+> **Deuda transitoria a cerrar en este change**: al subir el pin en los docs prospectivos (D45/RN-139) quedó una inconsistencia temporal — `docs/entrega_valores_cap5.md:214` verifica «declarado vs real» citando `docs/arquitectura_stack.md:44` (ahora 2.17.8) contra `docker-compose.yml:85` (todavía 2.16.1). Al aplicar este change, ambos quedan en 2.17.8 y la fila vuelve a ser coherente: actualizar la cita de esa tabla en el mismo movimiento que el compose y que `openspec/specs/infra-compose/spec.md:21,25`. Los **valores medidos** del Cap. 5 no se tocan.
+
+**Done**: `docker compose up` deja n8n saludable y con los tres sub-flujos + el enrutador importados y **activos**; un `POST` real a `/webhook/fim-alert` con el payload de D40/RN-134 ejecuta el enrutador y entrega a los canales configurados; re-correr el provisioning no duplica workflows; dos POST con el mismo `event_id` producen **un** ticket.
+
+---
+
+### Change 48 — `n8n-delivery-durability`
+
+**Capa**: backend · **Depende de**: 46 · **Paralelizable con**: 47 · **Origen**: ídem 46 · **Decisiones**: D42/RN-136, D43/RN-137
+
+> **Nota**: **la notificación no sobrevive un reinicio, y hay una fila en producción que lo demuestra.** `notify_event` vive en una `asyncio.Task` fire-and-forget con la escalera `[5, 30, 120]` en un bucle `for` con `asyncio.sleep`: dura hasta 155 s, y si el proceso reinicia en esa ventana la fila queda con `delivered_at IS NULL AND failed_at IS NULL` para siempre. No entra a la DLQ, no aparece en el banner de RN-102, nada la retoma. La garantía de entrega que la tesis compromete es hoy una propiedad de un proceso vivo, no del sistema.
+
+Capacidades:
+- **`next_retry_at` + `attempt` persistidos y barrido en el lifespan (D42/RN-136).** `notify_event` ejecuta **un** intento y agenda el siguiente; `notification_dispatch_task()` toma las filas vencidas. **No es diseño nuevo**: copia `outbox_publisher_task()` (H6), que ya corre en el lifespan con la misma forma —poll periódico, trabajo sync en threadpool, y la regla de que el poller nunca muere porque matarlo anula la durabilidad—. El primer barrido tras el deploy adopta las filas huérfanas preexistentes.
+- **`retry_count` acumula el total histórico.** Hoy se sobrescribe con el índice del intento actual y un reintento manual desde la DLQ lo resetea a 0. RN-86 pide el total.
+- **`last_error` dice qué falló.** Hoy es `"All channels failed on attempt N"` y el error real de cada canal se pierde en el log. RN-86 define `last_error` como **el** dato accionable de la DLQ; un mensaje que no nombra el canal ni el error no lo es.
+- **La notificación de cambio de salud pasa por la cascada.** Hoy `check_components` llama `send_n8n` directo: sin retry, sin fallback, sin fila en `alerts`, sin DLQ. El modo de falla es exactamente el peor: **si n8n está caído —el escenario que motiva la alerta— la alerta de que n8n está caído se pierde.**
+- **RN-92 por agente, no por agregado.** «Sin heartbeat 5 min → `dead` + webhook n8n» no tiene implementación: la única emisión por cambio de salud opera sobre el agregado «ok si alguno online», así que un agente que muere en una flota de dos no mueve el agregado y **no notifica nada**.
+- **`POST /alerts/test` (admin).** Dispara la cascada con un payload sintético y devuelve por qué canal salió y con qué error por canal. Hoy la única forma de verificar la configuración es esperar un evento `critical`/`high` real — que es también la razón por la que nadie notó nada durante siete semanas.
+
+Reglas: RN-86 (retry + DLQ — se cumple `retry_count` y `last_error` por primera vez), RN-87 (health check), RN-92 (transiciones de agente), RN-102 (visibilidad de DLQ), RN-54. Decisiones nuevas: **D42/RN-136**.
+
+> **Follow-up declarado**: las **3.885 filas marcadas `delivered` con `channel="n8n"`** durante el período en que el webhook apuntaba a `/healthz` son falsas. El mecanismo está verificado en código; el conteo viene del documento de origen. No es deuda técnica sino **integridad de dato de tesis**: el Cap. 5 afirma entregas que no ocurrieron. Decidir si se anotan, se purgan o se declara la limitación — y hacerlo antes de la defensa, no después.
+
+**Done**: matar el backend a mitad de la escalera y levantarlo de nuevo termina entregando la notificación o la deja en la DLQ, nunca en limbo; `retry_count` de una fila reintentada manualmente es mayor que antes del reintento; `last_error` nombra canal y error concreto; con n8n caído, la alerta de que n8n está caído llega por SMTP o queda en la DLQ; un agente sin heartbeat 5 min en una flota de dos dispara notificación; `POST /alerts/test` reporta el resultado por canal.
 
 ---
 

@@ -41,7 +41,7 @@ Definir una arquitectura profesional para un sistema FIM (File Integrity Monitor
 | **Base de datos** | PostgreSQL | 18.3 | Almacenamiento persistente de eventos, reglas, alertas, acciones, audit_log |
 | **Migraciones** | SQL manual + db-init | — | Scripts SQL versionados. Tablas creadas por SQLModel al iniciar |
 | **Streams + Cache** | Valkey | 9.0.3 | Cola de eventos agent→backend, commands backend→agent, cache de reglas |
-| **Notificaciones** | n8n | 2.16.1 | Enrutador de notificaciones externas (email, mensajería, SIEM) |
+| **Notificaciones** | n8n | 2.17.8 | Enrutador de notificaciones externas (email, mensajería, SIEM). Pin subido de 2.16.1 por D45/RN-139 — el setup de owner por variables de entorno existe desde 2.17.0 |
 | **Auth** | python-jose + JWT | latest | Autenticación stateless con tokens JWT |
 | **Hashing Passwords** | argon2-cffi | latest | Hashing de contraseñas con Argon2id (ganador de PHC) |
 | **Auth Agente** | mTLS (certificados) | — | Autenticación mutua agente↔backend con certificados TLS 1.3 |
@@ -116,7 +116,7 @@ Definir una arquitectura profesional para un sistema FIM (File Integrity Monitor
 │    · audit_log (retención ilimitada)     │
 │    · failed_notifications                │
 │                                          │
-│  [ n8n 2.16.1 ] ── webhook ──► canales   │
+│  [ n8n 2.17.8 ] ── webhook ──► canales   │
 │    enrutador de notificaciones           │
 │    (fair-code, fallbacks a SMTP/log/DLQ) │
 │                                          │
@@ -137,7 +137,7 @@ services:
   frontend:     # React (Vite build → nginx)
   db:           # PostgreSQL 18.3
   valkey:       # Valkey 9.0.3
-  n8n:          # n8n 2.16.1 (enrutador acotado)
+  n8n:          # n8n 2.17.8 (enrutador acotado)
   db-init:      # init-container, corre una vez
 ```
 
@@ -1296,14 +1296,30 @@ POST http://n8n:5678/webhook/fim-alert
 Content-Type: application/json
 
 {
+  "schema_version": 1,
+  "notification_id": "3f2b1c8e-...",
+  "type": "alert",
+  "alert_id": 123,
   "event_id": "...",
+  "path": "/etc/passwd",
   "severity": "critical",
-  "file_path": "/etc/passwd",
-  "process_exe": "/usr/bin/curl",
+  "status": "pending",
   "action_taken": "auto_restored",
-  "timestamp": "2026-04-23T14:32:11Z"
+  "action_failed": false,
+  "is_symlink": false,
+  "agent_id": "...",
+  "process_pid": 4242,
+  "process_uid": 0,
+  "process_exe": "/usr/bin/curl",
+  "detected_at": "2026-04-23T14:32:11Z",
+  "received_at": "2026-04-23T14:32:11Z",
+  "alert_created_at": "2026-04-23T14:32:11Z"
 }
 ```
+
+> **Contrato canónico**: D40/RN-134. El nombre del path es **`path`** (RN-53), no `file_path`.
+> El sobre es **plano**: `schema_version`, `notification_id` y `type` son hermanos de los campos
+> de datos. `type` discrimina `"alert"` de `"health_change"`, que comparten esta misma URL.
 
 **Política de retry**: 3 intentos con delays 5 s / 30 s / 120 s (exponencial).
 
@@ -1567,7 +1583,7 @@ services:
     # nginx con headers CSP, HSTS, etc. (W7)
 
   n8n:
-    image: n8nio/n8n:2.16.1
+    image: n8nio/n8n:2.17.8
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -1686,7 +1702,7 @@ El sistema implementa un **modelo híbrido de respuesta automatizada y validaci�
 |------------|--------|------------|
 | FastAPI 0.136.0 | [PyPI](https://pypi.org/project/fastapi/) / [GitHub](https://github.com/fastapi/fastapi/releases) | 23 Abr 2026 |
 | Valkey 9.0.3 | [GitHub](https://github.com/valkey-io/valkey/releases) / [valkey.io](https://valkey.io) | 23 Abr 2026 |
-| n8n 2.16.1 | [GitHub](https://github.com/n8n-io/n8n/releases) / [n8n.io](https://n8n.io) | 23 Abr 2026 |
+| n8n 2.17.8 | [GitHub](https://github.com/n8n-io/n8n/releases) / [n8n.io](https://n8n.io) | 23 Abr 2026 |
 | PostgreSQL 18.3 | [postgresql.org](https://www.postgresql.org/) | 23 Abr 2026 |
 | pyfanotify 0.3.0 | [PyPI](https://pypi.org/project/pyfanotify/) | 23 Abr 2026 |
 | SQLModel | [sqlmodel.tiangolo.com](https://sqlmodel.tiangolo.com/) | 23 Abr 2026 |

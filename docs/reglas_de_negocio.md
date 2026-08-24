@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-133 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-139 |
 
 ---
 
@@ -1266,6 +1266,219 @@ El caso más visible es la tarjeta del agente, que calcula `Date.now() - fecha`:
 - No se altera la semántica de ninguna comparación existente: la ventana de skew de RN-90/RN-131, la retención de RN-98 y el barrido de comandos siguen operando sobre los mismos instantes. Lo que cambia es que dejan de depender de que la sesión esté en UTC.
 - `detected_at` viaja en el payload del agente como cadena ISO y no cambia de formato: `_parse_datetime` ya normaliza a UTC-aware en la ingesta.
 
+#### D40 / RN-134: Contrato canónico del payload de notificación (sobre plano)
+
+**Descripción:** El payload que el backend emite hacia n8n adopta un **sobre plano**: los campos de
+metadatos del sobre (`schema_version`, `notification_id`, `type`) son hermanos de los campos de
+datos, no sus padres. La forma anidada (`{"type": ..., "data": {...}}`) queda **descartada**: el
+receptor de laboratorio de la Batería 4 lee `alert_id`, `event_id`, `severity` y `path` al tope del
+objeto (`scripts/receptor_webhook.py`), y los workflows de n8n leen `$json.body.<campo>` — anidar
+rompería ambos y obligaría a re-correr la Batería 4 sin beneficio.
+
+El contrato queda:
+
+```json
+{
+  "schema_version": 1,
+  "notification_id": "<uuid v4, estable a lo largo de toda la escalera de reintentos>",
+  "type": "alert",
+  "alert_id": 123,
+  "event_id": "<uuid del agente>",
+  "path": "/etc/passwd",
+  "severity": "critical",
+  "status": "pending",
+  "action_taken": "auto_restored",
+  "action_failed": false,
+  "is_symlink": false,
+  "agent_id": "<agent_id>",
+  "process_pid": 4242,
+  "process_uid": 0,
+  "process_exe": "/usr/bin/curl",
+  "detected_at": "...",
+  "received_at": "...",
+  "alert_created_at": "..."
+}
+```
+
+**Condición:** Toda emisión de `_build_payload` en `modules/alerts/service.py`.
+
+**Resultado:** El payload cumple RN-53, que exige `event_id`, path, severidad, **acción tomada**,
+**contexto del proceso causante** (`process_pid`, `process_uid`, `process_exe`) y los timestamps
+`detected_at` y `received_at`. Ninguno de esos campos requiere captura nueva: el modelo `Event` ya
+los persiste. El nombre canónico del path es **`path`** — el que fija RN-53, el que usa el código y
+el que leen los tres workflows.
+
+El campo `type` discrimina las dos formas que hoy comparten una única URL de webhook: `"alert"` y
+`"health_change"`. Sin él, n8n no puede distinguir una alerta de evento de una notificación de
+cambio de salud.
+
+**Excepciones:** `notification_id` es estable **entre reintentos de la misma notificación** y
+distinto entre notificaciones — es la clave de deduplicación de D41/RN-135, no un identificador de
+intento.
+
+**Deroga:** el ejemplo de payload de `arquitectura_stack.md` (§«Integración con backend»), que usa
+`file_path` y `timestamp`. RN-53 es la regla normativa y dice `path`; el ejemplo de arquitectura
+queda alineado a este contrato.
+
+#### D41 / RN-135: Idempotencia asimétrica de la entrega de notificaciones
+
+**Descripción:** La entrega hacia n8n es **at-least-once**, no exactly-once, y el sistema lo asume
+explícitamente. Un timeout del webhook no distingue «n8n no recibió» de «n8n recibió, ejecutó el
+workflow y se perdió la respuesta»; con el enrutador operativo, cada reintento de la escalera
+**vuelve a abanicar** hacia los canales.
+
+La defensa es **asimétrica según el costo del duplicado**:
+
+| Canal | Costo del duplicado | Defensa |
+|---|---|---|
+| Email | Molesto | Ninguna — se acepta at-least-once |
+| Mensajería (Slack/Teams) | Molesto | Ninguna — se acepta at-least-once |
+| Ticketing (Jira/Linear) | Contamina el backlog | **Search-before-create** por `event_id` en el sub-flujo |
+
+**Condición:** Cualquier reintento de `notify_event` sobre una notificación ya emitida.
+
+**Resultado:** El sub-flujo de ticketing consulta por `event_id` antes de crear y no crea un segundo
+issue para el mismo evento. Los canales de mensajería y correo pueden entregar duplicados ante
+reintento, y eso se declara como comportamiento conocido, no como defecto.
+
+**Excepciones:** Ninguna. `notification_id` (D40/RN-134) viaja siempre para que un consumidor futuro
+pueda deduplicar por su cuenta sin cambiar el contrato.
+
+#### D42 / RN-136: Durabilidad de la escalera de reintentos de notificaciones
+
+**Descripción:** La escalera `[5, 30, 120]` s deja de vivir en memoria. Hoy `notify_event` corre un
+bucle `for` con `asyncio.sleep` dentro de una task fire-and-forget: la escalera dura hasta 155 s y,
+si el proceso reinicia en esa ventana, la fila queda con `delivered_at IS NULL AND failed_at IS
+NULL` para siempre — no entra a la DLQ, no aparece en el banner de RN-102, y nada la retoma.
+
+El modelo `Alert` incorpora `next_retry_at: datetime | None` y `attempt: int`. `notify_event`
+ejecuta **un** intento y agenda el siguiente escribiendo `next_retry_at`. Una tarea de barrido
+`notification_dispatch_task()` corre en el lifespan de FastAPI y toma las filas con
+`delivered_at IS NULL AND failed_at IS NULL AND next_retry_at <= now()`.
+
+El patrón es el mismo que ya usa `outbox_publisher_task()` (H6) para el outbox de `rule_sync`:
+poll periódico desde el lifespan, trabajo sync en threadpool, y la regla de que **el poller nunca
+muere** — cualquier excepción se loguea y el ciclo continúa, porque matarlo anula la durabilidad.
+
+**Condición:** Toda notificación disparada por RN-53.
+
+**Resultado:** La garantía de entrega pasa a ser una propiedad del **sistema** y no de un proceso
+vivo. Un reinicio del backend durante la ventana de reintentos ya no pierde la notificación.
+
+Además:
+
+- `retry_count` **acumula el total histórico** de intentos, en lugar de sobrescribirse con el índice
+  del intento actual. Un reintento manual desde la DLQ **suma**, no resetea. Es lo que pide RN-86.
+- `last_error` registra **el error real de cada canal**, no el genérico `"All channels failed on
+  attempt N"`. RN-86 define `last_error` como el dato accionable de la DLQ; un mensaje que no dice
+  qué falló no lo es.
+
+**Excepciones:** Las filas huérfanas preexistentes (`delivered_at IS NULL AND failed_at IS NULL` sin
+`next_retry_at`) las adopta el primer barrido tras el deploy.
+
+#### D43 / RN-137: Health check de n8n con URL propia; sin webhook no hay canal configurado
+
+**Descripción:** Dos correcciones al canal n8n, ambas de configuración.
+
+**(a) `n8n_health_url` separada del webhook.** `_check_n8n` hace hoy fallback a `GET` sobre la misma
+URL del webhook cuando `HEAD` devuelve 404/405 — y el propio docstring del código admite que «un GET
+a un webhook productivo puede disparar el workflow n8n». Con el enrutador operativo, eso significa
+que el health check puede emitir notificaciones espurias cada 10 s. Se incorpora
+`n8n_health_url` a `Settings`, apuntando al `/healthz` de n8n, y el check deja de tocar el webhook.
+
+**(b) Sin `n8n_webhook_url` explícito, el canal no está configurado.** Se elimina el default
+`${N8N_WEBHOOK_URL:-http://n8n:5678/healthz}` del `docker-compose.yml`. Ese default apunta el canal
+principal a un endpoint de salud que responde 200 a cualquier POST, con lo cual `send_n8n` retorna
+`True` y la alerta se marca `delivered` con `channel="n8n"` sin que nadie haya recibido nada.
+
+Las ocho variables de notificación (`n8n_webhook_url`, `n8n_health_url`, `smtp_*`,
+`webhook_fallback_url`) se declaran en `.env.example`, para que configurarlas no exija editar el
+compose.
+
+**Condición:** Siempre.
+
+**Resultado:** Un deploy limpio reporta el canal n8n como **no configurado**, no como falsamente
+sano. El health check no puede disparar workflows.
+
+**Excepciones:** `send_smtp` deja de forzar `start_tls=True` incondicionalmente — se incorporan
+`smtp_starttls` y `smtp_ssl` a `Settings`, porque un relay en 465 (SMTPS implícito) o uno interno
+sin STARTTLS falla siempre con el comportamiento actual.
+
+#### D44 / RN-138: n8n como enrutador único `fim-alert` con sub-flujos invocados
+
+**Descripción:** n8n expone **un solo webhook**, `fim-alert`, coherente con lo documentado en
+`arquitectura_stack.md`. Ese workflow enrutador recibe el payload de D40/RN-134, discrimina por
+`type`, y abanica por severidad y por configuración del administrador hacia los sub-flujos de correo,
+mensajería y ticketing.
+
+Los tres workflows existentes dejan de ser webhooks y pasan a `Execute Workflow Trigger`. La decisión
+es estructural, no cosmética: mientras haya tres webhooks paralelos con tres paths distintos y el
+backend tenga una sola `n8n_webhook_url`, como mucho **uno** puede recibir tráfico y los otros dos
+son inalcanzables por construcción. Con sub-flujos invocados, esa divergencia deja de ser posible.
+
+Esto materializa el rol que RN-52 ya le asigna a n8n — **«enrutador acotado»** — y que hoy no tiene
+implementación: ningún workflow recibe una vez y abanica.
+
+**Condición:** Toda notificación emitida por el backend.
+
+**Resultado:** Un `POST` a `/webhook/fim-alert` entrega a los canales que el administrador configuró.
+
+**Excepciones:** El provisioning es **idempotente por `id`**: cada workflow lleva un UUID estable en
+la raíz del JSON, y `n8n import:workflow` sobrescribe la entrada existente con el mismo `id` en vez
+de duplicarla. Un servicio one-shot del compose monta `./n8n/workflows` y corre el import contra el
+volumen `n8n_data`.
+
+**Limitación conocida:** `n8n import:workflow --activeState` tiene default `false` — todo lo
+importado queda **desactivado**, y un workflow inactivo sólo responde en la URL de prueba
+`/webhook-test/...`, no en `/webhook/...`. La variante `--activeState=fromJson` está documentada
+únicamente para *multi-main* y *queue mode*, y el despliegue es single-instance por RN-76. El
+provisioning debe **verificar la activación efectiva**, no asumirla: importar sin activar produce un
+404 en el primer POST del backend aun con todo lo demás correcto.
+
+#### D45 / RN-139: Pin de n8n en 2.17.8 y setup de owner por variables de entorno
+
+**Descripción:** El pin de n8n sube de **2.16.1** a **2.17.8**, y el setup de owner de la instancia pasa
+a resolverse por variables de entorno en lugar de un procedimiento manual.
+
+**Motivo.** n8n 2.x exige completar el setup de owner en el primer arranque **antes** de poder activar
+un workflow, y un workflow inactivo sólo responde en la URL de prueba `/webhook-test/...`, no en
+`/webhook/...`. Con el puerto 5678 sin publicar por D-04, no existe camino de UI para completarlo. El
+mecanismo declarativo —`N8N_INSTANCE_OWNER_MANAGED_BY_ENV` junto con `N8N_INSTANCE_OWNER_EMAIL`,
+`N8N_INSTANCE_OWNER_FIRST_NAME`, `N8N_INSTANCE_OWNER_LAST_NAME` y `N8N_INSTANCE_OWNER_PASSWORD_HASH`—
+está documentado **a partir de n8n 2.17.0**, de modo que en 2.16.1 ese camino no existe.
+
+Se elige **2.17.8**: la patch más alta de la **mínima** minor que incorpora la capacidad. Subir lo
+mínimo necesario acota la superficie de cambio; tomar su última patch evita arrastrar defectos ya
+corregidos dentro de esa misma minor. La existencia del tag está verificada contra el registro de
+imágenes.
+
+**Condición:** Despliegue del servicio `n8n` del `docker-compose.yml`.
+
+**Resultado:** El provisioning queda completamente automático y reproducible: el contenedor arranca
+con el owner ya establecido, el import de workflows corre sin intervención, y no queda ningún paso
+manual en el camino crítico de un despliegue limpio. Esto es lo que permite que un evaluador levante
+el stack y vea la integración funcionando sin instrucciones fuera de banda.
+
+`N8N_INSTANCE_OWNER_PASSWORD_HASH` SHALL recibir un hash **bcrypt**; un valor en texto plano rompe el
+login sin error explícito. El correo del owner no puede pertenecer a otro usuario de la instancia.
+
+**Excepciones y limitaciones conocidas:**
+
+- Con `N8N_INSTANCE_OWNER_MANAGED_BY_ENV` en `true`, n8n **sobrescribe los datos del owner en cada
+  arranque**, bloquea el control de ese usuario en la UI y rechaza escrituras por API sobre él. Es
+  deseable acá —el estado del owner queda declarado en el compose y no deriva—, pero significa que
+  el owner deja de ser editable desde la interfaz.
+- La corrección de este pin **no se propaga a los registros de medición del Capítulo 5**. Las corridas
+  documentadas en `docs/entrega_valores_cap5.md` y `docs/plan_medicion_cap5.md` se ejecutaron contra
+  **2.16.1**, y esos documentos registran lo que efectivamente se midió. Reescribirlos convertiría un
+  registro en una afirmación falsa. **El cambio de versión debe declararse** en el capítulo, junto con
+  la observación ya pendiente de que la Batería 4 se midió contra un receptor de laboratorio y no
+  contra n8n.
+
+**Reglas afectadas:** el requisito de versiones pinneadas de la spec `infra-compose` y el §Stack de
+`arquitectura_stack.md` pasan a declarar `n8nio/n8n:2.17.8`. La prohibición de `latest` y de rangos
+abiertos se mantiene sin cambios.
+
 ### Decisiones técnicas referenciadas en otros documentos
 
 Las siguientes decisiones cierran suposiciones del roadmap pero su contenido es puramente técnico/operativo y se documenta en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo appendix:
@@ -1283,4 +1496,6 @@ Este appendix **modifica** el comportamiento descrito en las siguientes reglas p
 | RN-86 (referencia a `failed_notifications` separada) | D6 / RN-107 (tabla unificada `alerts`) |
 | RN-102 (banner amarillo basado en `failed_notifications`) | D6 / RN-107 (banner amarillo basado en `alerts WHERE delivered_at IS NULL AND failed_at IS NOT NULL`) |
 | RN-75 (versión monotónica solamente) | D5 / RN-106 (versión monotónica + `target_agent_id` + semántica de `ruleset_version_applied`) |
+| Payload de notificación con `file_path` / `timestamp` (ejemplo de `arquitectura_stack.md`) | D40 / RN-134 (sobre plano; `path` canónico según RN-53; contexto de proceso obligatorio) |
+| RN-86 (escalera de reintentos en memoria) | D42 / RN-136 (`next_retry_at` + `attempt` persistidos + barrido en el lifespan) |
 **Excepciones:** Si `postgres` está `down`, el backend retorna 503 a la mayoría de endpoints — la UI refleja esto con mensajes inline. Si un agente está `draining`, los botones de re-scan / update config quedan deshabilitados (RN-93).
