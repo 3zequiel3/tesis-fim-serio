@@ -11,6 +11,7 @@ Responsabilidades:
 from __future__ import annotations
 
 import asyncio
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -20,6 +21,11 @@ from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.database import engine
+from app.modules.alerts.contract import (
+    NOTIFICATION_TYPE_ALERT,
+    SCHEMA_VERSION,
+    action_taken_for,
+)
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
 from app.modules.alerts.stream import alerts_broadcaster
 from app.modules.alerts.notifier import (
@@ -112,14 +118,37 @@ async def notify_if_applicable(event: Event) -> None:
 # ── Envío con retry y cascada ─────────────────────────────────────────────────
 
 def _build_payload(alert: Alert, event: Event) -> dict[str, Any]:
-    """Construye el payload estándar de notificación."""
+    """
+    Construye el payload canónico de notificación (D40/RN-134).
+
+    Sobre PLANO: `schema_version`, `notification_id` y `type` son hermanos de
+    los campos de datos, nunca padres. La forma anidada rompería el receptor de
+    la Batería 4 (lee los campos al tope del objeto) y los tres workflows de n8n
+    (leen `$json.body.<campo>`). Ver contract.py para el fundamento completo.
+
+    Todos los campos de RN-53 salen de columnas que `Event` YA persiste: no
+    requiere captura nueva en el agente ni migración de esquema.
+    """
     return {
+        # Sobre
+        "schema_version": SCHEMA_VERSION,
+        "notification_id": str(uuid.uuid4()),
+        "type": NOTIFICATION_TYPE_ALERT,
+        # Datos
         "alert_id": alert.id,
         "event_id": event.event_id,
         "path": event.path,
         "severity": alert.severity.value,
+        "status": event.status.value,
+        "action_taken": action_taken_for(event.status),
+        "action_failed": event.action_failed,
+        "is_symlink": event.is_symlink,
         "agent_id": event.agent_id,
+        "process_pid": event.process_pid,
+        "process_uid": event.process_uid,
+        "process_exe": event.process_exe,
         "detected_at": event.detected_at.isoformat(),
+        "received_at": event.received_at.isoformat(),
         "alert_created_at": alert.created_at.isoformat(),
     }
 
@@ -128,6 +157,21 @@ async def notify_event(alert: Alert, event: Event) -> None:
     """
     Retry loop con RETRY_DELAYS y cascada n8n → SMTP → webhook_fallback → log_only.
     Actualiza la fila alerts tras cada intento.
+
+    INVARIANTE (D40/RN-134): `_build_payload` se invoca UNA sola vez, fuera del
+    bucle. Eso es lo que hace que `notification_id` sea estable a lo largo de
+    toda la escalera de reintentos — que es la única razón por la que sirve como
+    clave de deduplicación (D41/RN-135). Moverlo adentro del bucle generaría un
+    id por intento y volvería indistinguible un reintento de una notificación
+    nueva, que es exactamente la ambigüedad que el campo existe para resolver.
+
+    ALCANCE CONOCIDO: la estabilidad cubre el ciclo de vida de esta llamada. Un
+    reintento manual desde la DLQ (`retry_alert`) vuelve a entrar por acá y
+    produce un `notification_id` nuevo, porque hoy no hay dónde persistirlo. El
+    change 48 agrega `next_retry_at`/`attempt` a la fila `alerts` y es el
+    momento de persistir también este id. Mientras tanto la defensa contra
+    duplicados en ticketing no depende de esto: deduplica por `event_id`
+    (D41/RN-135), que sí es estable siempre.
     """
     payload = _build_payload(alert, event)
     attempts = len(RETRY_DELAYS) + 1  # 4 intentos totales (1 inicial + 3 reintentos)

@@ -69,12 +69,36 @@ class Settings(BaseSettings):
 
     # Notificaciones — todas opcionales; si faltan, el canal correspondiente se salta.
     n8n_webhook_url: str = ""
+
+    # Endpoint de salud de n8n (D43/RN-137). DELIBERADAMENTE independiente de
+    # n8n_webhook_url y NO derivado de él: derivarlo (parsear el host y sustituir
+    # el path por /healthz) adivinaría la topología — el webhook puede estar
+    # detrás de un proxy, un path prefix o un host distinto — y devolvería el
+    # health check al problema que esta decisión corrige: pegarle a algo que no
+    # es un endpoint de salud. Un GET contra un webhook productivo puede DISPARAR
+    # el workflow, convirtiendo un check de 10 s en un emisor de notificaciones.
+    # Vacío ⇒ el componente n8n se reporta `degraded` (no se puede afirmar que
+    # está sano sin con qué comprobarlo).
+    n8n_health_url: str = ""
+
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_to: str = ""
+
+    # Modo de cifrado del canal SMTP (D43/RN-137). Antes `send_smtp` forzaba
+    # start_tls=True sin condición, así que un relay en 465 (SMTPS implícito) o
+    # uno interno sin STARTTLS fallaba siempre. Los defaults reproducen
+    # exactamente el comportamiento previo: migración de cero pasos.
+    #   smtp_ssl=True                        → TLS implícito (SMTPS, típico 465)
+    #   smtp_starttls=True y smtp_ssl=False  → STARTTLS (típico 587) — default
+    #   ambos False                          → sin cifrar (solo relay interno)
+    # Ambos en True es configuración inválida y se registra como error.
+    smtp_starttls: bool = True
+    smtp_ssl: bool = False
+
     webhook_fallback_url: str = ""
 
     def get_allowed_origins(self) -> list[str]:

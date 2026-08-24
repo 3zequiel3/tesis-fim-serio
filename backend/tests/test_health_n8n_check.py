@@ -1,18 +1,22 @@
 """
-M9 — regression tests: health check de n8n reporta status HTTP correctamente (C34).
+Health check de n8n — M9 (C34) reescrito para D43/RN-137 (C46).
 
-Antes del fix, `_check_n8n` (core/health.py) usaba `client.head()` sin
-`raise_for_status()` y comparaba `status_code < 500`: cualquier 4xx (p. ej.
-405 Method Not Allowed) se reportaba como `ok`, y el `except
-httpx.HTTPStatusError` era dead code porque `head()` nunca lo lanzaba sin
-`raise_for_status()`. Tampoco había fallback real a GET cuando HEAD fallaba
-o no estaba soportado.
+QUÉ CAMBIÓ Y POR QUÉ ESTE ARCHIVO SE REESCRIBIÓ EN VEZ DE BORRARSE
 
-El fix usa `raise_for_status()` para tratar cualquier 4xx/5xx como `down`,
-con la excepción de 404 y 405 (el webhook no soporta HEAD) que disparan un
-fallback a GET antes de decidir el resultado final. Un webhook n8n sano
-responde 404 a un HEAD ("not registered for HEAD"), así que 404 NO debe
-reportarse `down` directo: debe reintentar con GET.
+  Hasta C46 el check apuntaba a `settings.n8n_webhook_url`. De ahí salía todo
+  el baile HEAD→GET que este archivo verificaba: se prefería HEAD porque un GET
+  a un webhook puede disparar el workflow, y se caía a GET igual ante 404/405
+  porque eso es lo que responde un webhook n8n sano a un HEAD. El fallback
+  terminaba haciendo justo lo que el HEAD buscaba evitar.
+
+  D43/RN-137 apunta el check a un endpoint de salud propio (`n8n_health_url`).
+  Con eso el GET es la operación correcta y sin efectos secundarios, y toda la
+  heurística de 404/405 deja de tener sentido — de hecho pasa a ser incorrecta:
+  un endpoint de salud que responde 404 está mal configurado, no sano.
+
+  Lo que M9 arregló SIGUE VIGENTE y se conserva abajo: cualquier 4xx/5xx se
+  reporta `down`. La regresión original era comparar `status_code < 500`, que
+  trataba un 405 como `ok`. Esos tests no desaparecen, cambian de forma.
 """
 
 from __future__ import annotations
@@ -21,6 +25,9 @@ import httpx
 import pytest
 
 from app.core.health import _check_n8n
+
+_HEALTH_URL = "http://n8n.local/healthz"
+_WEBHOOK_URL = "http://n8n.local/webhook/fim-alert"
 
 
 def _patched_async_client(monkeypatch: pytest.MonkeyPatch, handler) -> None:
@@ -34,101 +41,93 @@ def _patched_async_client(monkeypatch: pytest.MonkeyPatch, handler) -> None:
     monkeypatch.setattr(httpx, "AsyncClient", _factory)
 
 
-async def test_n8n_ok_on_200_head(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_n8n_ok_on_200(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str]] = []
+
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "HEAD"
+        calls.append((request.method, str(request.url)))
         return httpx.Response(200)
 
     _patched_async_client(monkeypatch, handler)
-    result = await _check_n8n("http://n8n.local/webhook/fim")
-    assert result == "ok"
+    assert await _check_n8n(_HEALTH_URL) == "ok"
+    assert calls == [("GET", _HEALTH_URL)], "un endpoint de salud se consulta con GET, una vez"
 
 
-async def test_n8n_down_on_500(monkeypatch: pytest.MonkeyPatch) -> None:
-    """M9: un 500 se reporta `down`, nunca `ok` (antes: bug de status_code < 500)."""
+async def test_health_check_never_touches_the_webhook_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    D43/RN-137 — la razón de ser del cambio.
+
+    Con el enrutador `fim-alert` operativo (change 47), un request contra la URL
+    del webhook DISPARA el workflow. Un health check que corre cada 10 s se
+    convertiría en un emisor de notificaciones espurias. Este test es el que
+    impide que un "fallback conveniente" reintroduzca ese comportamiento.
+    """
+    urls: list[str] = []
+
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(500)
+        urls.append(str(request.url))
+        return httpx.Response(200)
 
     _patched_async_client(monkeypatch, handler)
-    result = await _check_n8n("http://n8n.local/webhook/fim")
-    assert result == "down"
+    await _check_n8n(_HEALTH_URL)
+
+    assert urls == [_HEALTH_URL]
+    assert _WEBHOOK_URL not in urls
+    assert not any("webhook" in u for u in urls)
 
 
-async def test_n8n_fallback_to_get_when_head_returns_404(monkeypatch: pytest.MonkeyPatch) -> None:
-    """M9: un webhook n8n sano responde 404 a HEAD ("not registered for HEAD")
-    → fallback a GET; si el GET responde 2xx, el resultado es `ok`, no `down`."""
+@pytest.mark.parametrize("status_code", [400, 403, 404, 405, 500, 502, 503])
+async def test_any_error_status_is_down(
+    monkeypatch: pytest.MonkeyPatch, status_code: int
+) -> None:
+    """
+    M9 conservado: cualquier 4xx/5xx es `down`. La regresión original comparaba
+    `status_code < 500` y reportaba `ok` ante un 405.
+
+    Nota sobre 404/405: antes disparaban un fallback a GET porque un WEBHOOK
+    sano responde así a un HEAD. Contra un endpoint de SALUD no hay nada que
+    excusar — un 404 ahí significa mal configurado, y `down` es la respuesta
+    correcta.
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status_code)
+
+    _patched_async_client(monkeypatch, handler)
+    assert await _check_n8n(_HEALTH_URL) == "down"
+
+
+async def test_no_retry_on_error_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    """El check es una sola consulta: sin fallback, sin segundo intento."""
     calls: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request.method)
-        if request.method == "HEAD":
-            return httpx.Response(404)
-        return httpx.Response(200)
+        return httpx.Response(404)
 
     _patched_async_client(monkeypatch, handler)
-    result = await _check_n8n("http://n8n.local/webhook/fim")
-    assert result == "ok"
-    assert calls == ["HEAD", "GET"], "un 404 en HEAD debe disparar el fallback a GET"
+    assert await _check_n8n(_HEALTH_URL) == "down"
+    assert calls == ["GET"], "no debe haber fallback: el baile HEAD→GET se eliminó"
 
 
-async def test_n8n_fallback_to_get_when_head_returns_405(monkeypatch: pytest.MonkeyPatch) -> None:
-    """M9: HEAD devuelve 405 (no soportado) → fallback a GET, que decide el resultado."""
-    calls: list[str] = []
-
+async def test_n8n_down_on_connection_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request.method)
-        if request.method == "HEAD":
-            return httpx.Response(405)
-        return httpx.Response(200)
+        raise httpx.ConnectError("connection refused", request=request)
 
     _patched_async_client(monkeypatch, handler)
-    result = await _check_n8n("http://n8n.local/webhook/fim")
-    assert result == "ok"
-    assert calls == ["HEAD", "GET"]
-
-
-async def test_n8n_down_on_403_no_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    """M9: un 4xx que NO indica "HEAD no soportado" (p. ej. 403) → down directo, sin fallback."""
-    calls: list[str] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request.method)
-        return httpx.Response(403)
-
-    _patched_async_client(monkeypatch, handler)
-    result = await _check_n8n("http://n8n.local/webhook/fim")
-    assert result == "down"
-    assert calls == ["HEAD"], "un 403 no debe disparar el fallback a GET"
-
-
-async def test_n8n_fallback_to_get_still_fails(monkeypatch: pytest.MonkeyPatch) -> None:
-    """M9: HEAD no soportado (405) y el fallback GET también falla (500) → down."""
-    def handler(request: httpx.Request) -> httpx.Response:
-        if request.method == "HEAD":
-            return httpx.Response(405)
-        return httpx.Response(500)
-
-    _patched_async_client(monkeypatch, handler)
-    result = await _check_n8n("http://n8n.local/webhook/fim")
-    assert result == "down"
-
-
-async def test_n8n_fallback_to_get_on_connection_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    """M9: HEAD falla por error de conexión (no HTTPStatusError) → fallback a GET."""
-    calls: list[str] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request.method)
-        if request.method == "HEAD":
-            raise httpx.ConnectError("connection refused", request=request)
-        return httpx.Response(200)
-
-    _patched_async_client(monkeypatch, handler)
-    result = await _check_n8n("http://n8n.local/webhook/fim")
-    assert result == "ok"
-    assert calls == ["HEAD", "GET"]
+    assert await _check_n8n(_HEALTH_URL) == "down"
 
 
 async def test_n8n_degraded_when_not_configured() -> None:
-    result = await _check_n8n("")
-    assert result == "degraded"
+    """Sin URL de salud no se puede afirmar que n8n esté sano."""
+    assert await _check_n8n("") == "degraded"
+
+
+async def test_check_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RN-101: el check reporta estado, nunca propaga una excepción."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise RuntimeError("algo totalmente inesperado")
+
+    _patched_async_client(monkeypatch, handler)
+    assert await _check_n8n(_HEALTH_URL) == "down"

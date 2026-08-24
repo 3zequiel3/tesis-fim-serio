@@ -130,12 +130,28 @@ services:
       BACKEND_CERT_PATH: ${BACKEND_CERT_PATH}
       BACKEND_KEY_PATH: ${BACKEND_KEY_PATH}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1}
-      # DEMO PLACEHOLDER (no es la integración real): apunta el health check de n8n
-      # a /healthz (responde 200) para que el dashboard muestre n8n "online" en la
-      # demo, SIN un workflow de notificaciones. NO envía notificaciones reales.
-      # La integración funcional (webhook del workflow n8n) es el Change 13
-      # (integration-n8n-notifications); reemplazar esta URL por ese webhook.
-      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://n8n:5678/healthz}
+      # Notificaciones (D43/RN-137). NINGUNA de estas variables lleva default.
+      #
+      # El default anterior era `${N8N_WEBHOOK_URL:-http://n8n:5678/healthz}`:
+      # /healthz responde 200 a cualquier POST, así que `send_n8n` retornaba True
+      # y la alerta se marcaba `delivered` con channel="n8n" sin que nadie
+      # recibiera nada. Un canal sin configurar debe reportarse NO CONFIGURADO,
+      # no falsamente sano — si estas quedan vacías, /health/components devuelve
+      # n8n: "degraded", que es la verdad.
+      #
+      # N8N_HEALTH_URL es deliberadamente distinta del webhook: un GET contra un
+      # webhook productivo puede DISPARAR el workflow.
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+      N8N_HEALTH_URL: ${N8N_HEALTH_URL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_TO: ${SMTP_TO}
+      SMTP_STARTTLS: ${SMTP_STARTTLS}
+      SMTP_SSL: ${SMTP_SSL}
+      WEBHOOK_FALLBACK_URL: ${WEBHOOK_FALLBACK_URL}
       # P1 del plan de medición (Cap. 5): rate limit de ingesta parametrizado
       # (RN-88). Los defaults reproducen el comportamiento histórico —
       # 100 eventos por ventana de 60 s y por agent_id. Subirlos SOLO para las

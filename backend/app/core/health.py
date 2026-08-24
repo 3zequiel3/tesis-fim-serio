@@ -4,7 +4,9 @@ Health check de componentes para FIM Platform (C15 — backend-notifications).
 Implementa GET /health/components (D-C15-05):
   - postgres: SELECT 1 con timeout 2s
   - valkey: PING con timeout 2s
-  - n8n: GET/HEAD webhook URL con timeout 3s; degraded si no configurado
+  - n8n: GET a N8N_HEALTH_URL con timeout 3s; degraded si no configurado.
+         NUNCA toca N8N_WEBHOOK_URL — un GET a un webhook productivo puede
+         disparar el workflow (D43/RN-137).
   - agents: query DB; ok si alguno online, degraded si ninguno
 
 Cache del último estado en _last_state (variable de módulo) para detección de cambios.
@@ -14,6 +16,7 @@ Si hay cambio → asyncio.create_task(send_n8n(change_payload, ...)).
 from __future__ import annotations
 
 import asyncio
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -68,53 +71,46 @@ async def _check_valkey(valkey_client: Any) -> str:
         return "down"
 
 
-async def _check_n8n(n8n_webhook_url: str) -> str:
+async def _check_n8n(n8n_health_url: str) -> str:
     """
-    HEAD al webhook de n8n con timeout 3s (M9). Cualquier status de error
-    (4xx/5xx) se reporta `down` vía `raise_for_status()` — antes, el check
-    comparaba `status_code < 500`, que trataba erróneamente los 4xx (p. ej.
-    405 Method Not Allowed) como `ok`, y el `except httpx.HTTPStatusError`
-    era dead code porque `head()` sin `raise_for_status()` nunca lo lanzaba.
+    GET al endpoint de salud de n8n con timeout 3s (D43/RN-137).
 
-    Preferimos HEAD sobre GET porque un GET a un webhook n8n podría disparar
-    el workflow; si HEAD falla (conexión/timeout) o el endpoint no soporta
-    HEAD, reintentamos con GET como fallback documentado antes de decidir el
-    resultado final. Un webhook n8n sano suele responder 404 ("not
-    registered for HEAD") — NO 405 —, así que tanto 404 como 405 disparan el
-    fallback; de lo contrario un n8n sano se reportaría `down` en cada check.
+    POR QUÉ CAMBIÓ (y por qué el baile HEAD→GET ya no existe)
+        Hasta C46 este check apuntaba a `settings.n8n_webhook_url`. Eso obligaba
+        a intentar HEAD primero —un GET contra un webhook productivo puede
+        DISPARAR el workflow— y a caer a GET igual cuando HEAD devolvía 404/405,
+        que es lo que responde un webhook n8n sano. El fallback terminaba
+        haciendo exactamente lo que el HEAD intentaba evitar: el docstring
+        anterior lo admitía y lo difería. Con el enrutador `fim-alert` operativo
+        (change 47) eso sería un disparo espurio cada 10 segundos.
 
-    NOTA (efecto secundario): el fallback usa la misma URL (webhook). Un GET a
-    un webhook productivo puede disparar el workflow n8n. Si se dispone de un
-    endpoint de health/base de n8n, es preferible apuntar el fallback ahí; se
-    deja como mejora acotada para no cambiar el contrato de configuración
-    (settings.n8n_webhook_url) en este fix.
+        Apuntando a un endpoint de salud real, un GET es la operación correcta y
+        no tiene efectos secundarios, así que toda la heurística desaparece.
+
+    LO QUE SE CONSERVA DE M9 (C34)
+        Cualquier 4xx/5xx se reporta `down` vía `raise_for_status()`. La
+        regresión original era comparar `status_code < 500`, que trataba un 405
+        como `ok`. Un endpoint de salud que responde 404 está mal configurado,
+        no sano — acá sí es `down`, sin excepciones por código.
+
+    Vacío ⇒ `degraded`: sin URL de salud no se puede afirmar que n8n esté sano.
     """
-    if not n8n_webhook_url:
+    if not n8n_health_url:
         return "degraded"
+
+    # Importado FUERA del try: el except referencia httpx.HTTPStatusError, así
+    # que si el import fallara dentro del try la cláusula levantaría NameError
+    # en vez de devolver "down" — y RN-101 exige que este check nunca lance.
+    import httpx
+
     try:
-        import httpx
-
         async with httpx.AsyncClient(timeout=_N8N_TIMEOUT) as client:
-            try:
-                response = await client.head(n8n_webhook_url)
-                response.raise_for_status()
-                return "ok"
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code not in (404, 405):
-                    # Error real (4xx que no indica "HEAD no soportado", o 5xx) — down directo.
-                    log.warning(
-                        "health.n8n_error_status",
-                        status_code=exc.response.status_code,
-                    )
-                    return "down"
-                # 404/405 — HEAD no soportado por el webhook n8n, fallback a GET.
-            except httpx.HTTPError as exc:
-                # HEAD falló por conexión/timeout — fallback a GET.
-                log.warning("health.n8n_head_failed", error=str(exc))
-
-            response = await client.get(n8n_webhook_url)
+            response = await client.get(n8n_health_url)
             response.raise_for_status()
             return "ok"
+    except httpx.HTTPStatusError as exc:
+        log.warning("health.n8n_error_status", status_code=exc.response.status_code)
+        return "down"
     except Exception as exc:
         log.warning("health.n8n_down", error=str(exc))
         return "down"
@@ -154,7 +150,7 @@ async def check_components(
     postgres_status, valkey_status, n8n_status = await asyncio.gather(
         _check_postgres(session),
         _check_valkey(valkey_client),
-        _check_n8n(settings.n8n_webhook_url),
+        _check_n8n(settings.n8n_health_url),
     )
     agents_result = _check_agents(session)
 
@@ -185,9 +181,21 @@ async def check_components(
                     new=new_status,
                 )
                 if settings.n8n_webhook_url:
+                    from app.modules.alerts.contract import (
+                        NOTIFICATION_TYPE_HEALTH_CHANGE,
+                        SCHEMA_VERSION,
+                    )
                     from app.modules.alerts.notifier import send_n8n
 
+                    # Sobre plano de D40/RN-134. `type` es el discriminador
+                    # canónico: alertas de evento y cambios de salud comparten
+                    # una única URL de webhook, así que sin él el receptor no
+                    # puede distinguir las dos formas. `event` se conserva por
+                    # compatibilidad con cualquier consumidor previo.
                     change_payload = {
+                        "schema_version": SCHEMA_VERSION,
+                        "notification_id": str(uuid.uuid4()),
+                        "type": NOTIFICATION_TYPE_HEALTH_CHANGE,
                         "event": "health_change",
                         "component": component,
                         "old_status": old_status,

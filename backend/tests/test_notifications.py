@@ -679,12 +679,19 @@ async def test_health_valkey_down(session):
 
 @pytest.mark.asyncio
 async def test_health_n8n_degraded_when_not_configured(session):
-    """N8N_WEBHOOK_URL no configurado → n8n: 'degraded'."""
+    """
+    N8N_HEALTH_URL no configurado → n8n: 'degraded' (D43/RN-137).
+
+    Antes de C46 la variable que gobernaba este check era N8N_WEBHOOK_URL. La
+    intención del test no cambió —sin configuración no se puede afirmar que n8n
+    esté sano—, cambió cuál es la variable que la aporta.
+    """
     mock_valkey = AsyncMock()
     mock_valkey.ping = AsyncMock(return_value=True)
 
     mock_settings = MagicMock()
-    mock_settings.n8n_webhook_url = ""  # no configurado
+    mock_settings.n8n_health_url = ""     # no configurado
+    mock_settings.n8n_webhook_url = ""
 
     with patch("app.core.health._check_postgres", new_callable=AsyncMock, return_value="ok"):
         from app.core import health as health_module
@@ -693,6 +700,75 @@ async def test_health_n8n_degraded_when_not_configured(session):
         result = await health_module.check_components(session, mock_valkey, mock_settings)
 
     assert result["n8n"] == "degraded"
+
+
+@pytest.mark.asyncio
+async def test_health_check_reads_health_url_not_webhook_url(session):
+    """
+    D43/RN-137: `check_components` pasa n8n_health_url al check, nunca el webhook.
+
+    Con el enrutador `fim-alert` operativo (change 47), consultar la URL del
+    webhook dispararía el workflow. Este test fija qué variable llega al check,
+    complementando a test_health_n8n_check.py, que fija qué URL se consulta.
+    """
+    mock_valkey = AsyncMock()
+    mock_valkey.ping = AsyncMock(return_value=True)
+
+    mock_settings = MagicMock()
+    mock_settings.n8n_health_url = "http://n8n.local/healthz"
+    mock_settings.n8n_webhook_url = "http://n8n.local/webhook/fim-alert"
+
+    from app.core import health as health_module
+    health_module._last_state = {}
+
+    with patch("app.core.health._check_postgres", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.core.health._check_n8n", new_callable=AsyncMock, return_value="ok") as spy:
+        await health_module.check_components(session, mock_valkey, mock_settings)
+
+    spy.assert_awaited_once_with("http://n8n.local/healthz")
+
+
+@pytest.mark.asyncio
+async def test_health_change_payload_carries_the_discriminator(session):
+    """
+    4.6 / D40/RN-134: el webhook de cambio de salud lleva el sobre plano.
+
+    Alertas de evento y cambios de salud comparten una única URL de webhook, así
+    que sin `type` el receptor no puede distinguir las dos formas. `event` se
+    conserva por compatibilidad con consumidores previos.
+    """
+    mock_valkey = AsyncMock()
+    mock_settings = MagicMock()
+    mock_settings.n8n_webhook_url = "http://n8n.local/webhook/fim-alert"
+    mock_settings.n8n_health_url = "http://n8n.local/healthz"
+
+    from app.core import health as health_module
+    health_module._last_state = {
+        "postgres": "ok", "valkey": "ok", "n8n": "ok", "agents": "degraded",
+    }
+
+    sent: list[dict] = []
+
+    async def fake_send_n8n(payload, url, timeout=None):
+        sent.append(payload)
+        return True
+
+    with patch("app.core.health._check_postgres", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.core.health._check_valkey", new_callable=AsyncMock, return_value="down"), \
+         patch("app.core.health._check_n8n", new_callable=AsyncMock, return_value="ok"), \
+         patch("app.modules.alerts.notifier.send_n8n", side_effect=fake_send_n8n):
+        await health_module.check_components(session, mock_valkey, mock_settings)
+        await asyncio.sleep(0)  # dejar correr la task fire-and-forget
+
+    assert sent, "un cambio ok→down debe emitir el webhook de salud"
+    payload = sent[0]
+    assert payload["type"] == "health_change"
+    assert payload["schema_version"] == 1
+    assert "notification_id" in payload
+    assert payload["event"] == "health_change"  # compatibilidad
+    assert payload["component"] == "valkey"
+    assert payload["old_status"] == "ok"
+    assert payload["new_status"] == "down"
 
 
 @pytest.mark.asyncio

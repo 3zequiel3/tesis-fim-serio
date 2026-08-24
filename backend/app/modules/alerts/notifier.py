@@ -45,12 +45,52 @@ async def send_n8n(payload: dict[str, Any], url: str, timeout: float = _N8N_TIME
 async def send_smtp(payload: dict[str, Any], cfg: Any) -> bool:
     """
     Envía un email async con aiosmtplib.
-    cfg debe tener: smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, smtp_to.
+
+    cfg debe tener: smtp_host, smtp_port, smtp_user, smtp_password, smtp_from,
+    smtp_to, smtp_starttls, smtp_ssl.
+
+    MODO DE CIFRADO (D43/RN-137)
+        Hasta C46 esta función pasaba `start_tls=True` sin condición, así que un
+        relay en 465 (SMTPS implícito) o uno interno sin STARTTLS fallaba
+        SIEMPRE — y el modo de falla era un `except` genérico que sólo logueaba,
+        con lo cual el canal de fallback más importante de la cascada estaba
+        muerto en silencio para esas topologías.
+
+          smtp_ssl=True                        → TLS implícito (SMTPS, típ. 465)
+          smtp_starttls=True y smtp_ssl=False  → STARTTLS (típ. 587) — default
+          ambos False                          → sin cifrar (sólo relay interno)
+
+        Los defaults reproducen el comportamiento previo: migración de cero pasos.
+
     Retorna True si el envío fue exitoso.
     """
     if not cfg.smtp_host:
         log.debug("notifier.smtp_skipped", reason="smtp_host_not_configured")
         return False
+
+    use_ssl = bool(getattr(cfg, "smtp_ssl", False))
+    use_starttls = bool(getattr(cfg, "smtp_starttls", True))
+
+    if use_ssl and use_starttls:
+        # TLS implícito y STARTTLS son mutuamente excluyentes: la sesión ya está
+        # cifrada antes del saludo, así que no hay nada que promover. Se rechaza
+        # explícitamente en vez de elegir uno en silencio — una configuración
+        # contradictoria es un error del operador y merece decirlo.
+        # El mensaje dice QUÉ hacer, no sólo qué está mal: smtp_starttls
+        # defaultea a True, así que quien configure sólo SMTP_SSL=true cae acá
+        # sin haber pedido nada contradictorio a propósito. Un error que no
+        # nombra la salida es la misma clase de defecto que este change corrige
+        # en `last_error` de la DLQ.
+        log.error(
+            "notifier.smtp_config_invalid",
+            reason="smtp_starttls and smtp_ssl are mutually exclusive",
+            remedy="for implicit TLS (port 465) set SMTP_SSL=true and SMTP_STARTTLS=false; "
+                   "for STARTTLS (port 587) set SMTP_SSL=false",
+            smtp_starttls=use_starttls,
+            smtp_ssl=use_ssl,
+        )
+        return False
+
     try:
         import aiosmtplib
         from email.mime.text import MIMEText
@@ -67,9 +107,10 @@ async def send_smtp(payload: dict[str, Any], cfg: Any) -> bool:
             port=cfg.smtp_port,
             username=cfg.smtp_user or None,
             password=cfg.smtp_password or None,
-            start_tls=True,
+            use_tls=use_ssl,
+            start_tls=use_starttls if not use_ssl else False,
         )
-        log.info("notifier.smtp_sent", to=cfg.smtp_to)
+        log.info("notifier.smtp_sent", to=cfg.smtp_to, tls="implicit" if use_ssl else ("starttls" if use_starttls else "none"))
         return True
     except Exception as exc:
         log.warning("notifier.smtp_failed", error=str(exc))
