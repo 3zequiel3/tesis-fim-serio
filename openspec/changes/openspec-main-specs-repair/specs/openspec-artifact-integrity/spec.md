@@ -29,7 +29,7 @@ El motivo no es de estilo: un encabezado de delta dentro de una main spec **trun
 
 El conjunto de requisitos de una main spec SHALL incluir todo requisito que sus deltas archivados hayan agregado y que no haya sido eliminado mediante un bloque `## REMOVED Requirements` explícito ni renombrado mediante `## RENAMED Requirements`.
 
-Esta invariante existe porque el daño observado no fue estructural sino de **contenido**: al copiar un delta encima del archivo entero, los requisitos que el delta no mencionaba desaparecieron. Se midieron **44 requisitos borrados en 8 capabilities** — `agent-core` conservaba 2 de 11, `agent-fanotify-detector` 2 de 11, `agent-baseline` 1 de 9 — sin que ninguna herramienta lo señalara.
+Esta invariante existe porque el daño observado no fue estructural sino de **contenido**: al copiar un delta encima del archivo entero, los requisitos que el delta no mencionaba desaparecieron. Se midieron **48 requisitos borrados en 9 capabilities** — `agent-core` conservaba 2 de 11, `agent-fanotify-detector` 2 de 11, `agent-baseline` 1 de 9, y dos capabilities (`agent-command-dispatch`, `agent-change-detection-integrity`) **no tenían main spec alguna** — sin que ninguna herramienta lo señalara.
 
 Un archive que reduce el corpus sin declararlo SHALL considerarse un defecto, no una simplificación.
 
@@ -52,7 +52,14 @@ Un archive que reduce el corpus sin declararlo SHALL considerarse un defecto, no
 
 ### Requirement: La reparación preserva el texto histórico de los requisitos
 
-Un requisito recuperado desde un delta archivado SHALL restituirse con su texto original, sin reescritura ni mejora de redacción. La reconstrucción SHALL aplicar los deltas de una capability en **orden cronológico de archive** (el prefijo `YYYY-MM-DD` del directorio), de modo que un `MODIFIED` posterior prevalezca sobre la versión previa del mismo requisito.
+Un requisito recuperado desde un delta archivado SHALL restituirse con su texto original, sin reescritura ni mejora de redacción. La reconstrucción SHALL aplicar los deltas de una capability en el orden en que **entraron al repositorio según git**, de modo que un `MODIFIED` posterior prevalezca sobre la versión previa del mismo requisito.
+
+El prefijo `YYYY-MM-DD` del nombre del directorio SHALL NOT usarse como criterio de orden: difiere de
+la fecha real de commit hasta en 4 días, y siete archives comparten el mismo prefijo, de modo que no
+induce un orden total. `git log --diff-filter=A` sí lo induce.
+
+Un `MODIFIED` cuyo header no coincida con ningún requisito previo SHALL tratarse como el estado
+efectivo del requisito (equivale a un `ADDED`), salvo que figure en el mapa de renombres confirmados.
 
 La unión de todos los requisitos vistos alguna vez SHALL usarse como **verificación** de completitud, nunca como método de reconstrucción: resucitaría requisitos legítimamente eliminados y restituiría versiones superadas.
 

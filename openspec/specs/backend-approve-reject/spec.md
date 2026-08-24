@@ -1,10 +1,9 @@
 # Spec: backend-approve-reject
 
-Capability: Endpoints REST de aprobación y rechazo de eventos FIM — optimistic locking, publicación de comandos HMAC-signed a Valkey Streams, upsert de `baseline_entries`, `audit_log` y soporte bulk con resultado parcial.
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
 
----
-
-## ADDED Requirements
+## Requirements
 
 ### Requirement: POST /actions/approve — approve single pending event
 
@@ -42,8 +41,6 @@ El sistema SHALL exponer `POST /actions/approve` (requiere JWT de admin) que ace
 - **WHEN** `POST /actions/approve` sin header `Authorization`
 - **THEN** la respuesta es `401 Unauthorized`
 
----
-
 ### Requirement: POST /actions/reject — reject single pending event
 
 El sistema SHALL exponer `POST /actions/reject` (requiere JWT de admin) que acepta `{event_id: int, version: int, action: "restore" | "quarantine"}`. MUST ejecutar UPDATE optimista idéntico al de approve pero con `status='rejected'`. Si rowcount=0 → 409. En éxito MUST publicar `restore_file` o `quarantine_file` (según `action`) al stream `commands`. El baseline NO se actualiza en reject. Si `baseline_entries.status='absent'` para ese path (archivo ya registrado como eliminado), MUST hacer no-op del comando (log de advertencia) pero la transición de estado del evento sigue ocurriendo.
@@ -70,8 +67,6 @@ El sistema SHALL exponer `POST /actions/reject` (requiere JWT de admin) que acep
 - **WHEN** el admin envía `version` incorrecta
 - **THEN** la respuesta es `409 Conflict`
 
----
-
 ### Requirement: POST /actions/bulk-approve — bulk approve múltiples eventos
 
 El sistema SHALL exponer `POST /actions/bulk-approve` (requiere JWT de admin) que acepta `{items: [{event_id: int, version: int, confirm_absent: bool = false}]}`. MUST procesar cada ítem de forma independiente (sin transacción global). MUST retornar `200 OK` con `{"succeeded": [event_id, ...], "failed": [{event_id, reason}, ...]}` independientemente de cuántos ítems fallen. Cada ítem exitoso MUST hacer upsert en `baseline_entries` y publicar `baseline_update`. Cada ítem MUST registrarse en `audit_log`.
@@ -94,8 +89,6 @@ El sistema SHALL exponer `POST /actions/bulk-approve` (requiere JWT de admin) qu
 - **WHEN** el admin envía `items: []`
 - **THEN** la respuesta es `200 OK` con `{"succeeded": [], "failed": []}`
 
----
-
 ### Requirement: POST /actions/bulk-reject — bulk reject múltiples eventos
 
 El sistema SHALL exponer `POST /actions/bulk-reject` (requiere JWT de admin) que acepta `{items: [{event_id: int, version: int, action: "restore" | "quarantine"}]}`. MUST procesar cada ítem de forma independiente. MUST retornar `200 OK` con `{"succeeded": [event_id, ...], "failed": [{event_id, reason}, ...]}`. Cada ítem exitoso MUST publicar el comando correspondiente (`restore_file` o `quarantine_file`). Cada ítem MUST registrarse en `audit_log`.
@@ -110,8 +103,6 @@ El sistema SHALL exponer `POST /actions/bulk-reject` (requiere JWT de admin) que
 - **WHEN** el admin envía 2 ítems: uno con `action="restore"` y otro con `action="quarantine"`
 - **THEN** `succeeded` contiene ambos `event_id`
 - **AND** se publicó un `restore_file` y un `quarantine_file` en el stream
-
----
 
 ### Requirement: Comando baseline_update publicado en Valkey al aprobar
 
@@ -133,8 +124,6 @@ La publicación en Valkey MUST ejecutarse DESPUÉS de `db.commit()` — la trans
 - **WHEN** se procesa cualquier approve o reject
 - **THEN** no aparece ningún mensaje de tipo `get_file_hash` en el stream `commands`
 
----
-
 ### Requirement: Comandos restore_file / quarantine_file publicados en Valkey al rechazar
 
 Al rechazar exitosamente, el sistema SHALL publicar en el stream `commands` un mensaje con: `type="restore_file"` o `type="quarantine_file"`, `command_id` (UUID v4), `event_id`, `target_agent_id`, `path`, `issued_at`, `signature`. No incluye `hash` ni `ruleset_version`.
@@ -150,8 +139,6 @@ La publicación en Valkey MUST ejecutarse DESPUÉS de `db.commit()`. El orden en
 - **WHEN** se rechaza un evento exitosamente
 - **THEN** el mensaje `restore_file` o `quarantine_file` se publica en Valkey únicamente después de que `db.commit()` completó
 - **AND** si el proceso falla entre `db.commit()` y la publicación, la DB tiene el estado correcto (`status=rejected`)
-
----
 
 ### Requirement: audit_log en cada acción de approve/reject
 

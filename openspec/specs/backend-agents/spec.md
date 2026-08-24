@@ -1,8 +1,9 @@
 # Spec: backend-agents
 
-Capability: Registro y bootstrap de agentes FIM en el backend — endpoints de pre-registro (admin) y bootstrap mTLS con CSR exchange.
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
 
----
+## Requirements
 
 ### Requirement: Admin pre-registers agent with bootstrap secret
 El backend SHALL proveer `POST /agents/register` (requiere JWT de admin) que recibe `{agent_id: str, bootstrap_secret: str}` y persiste el agente en DB con `bootstrap_secret_hash = Argon2id(bootstrap_secret)`. Si ya existe un agente con ese `agent_id`, el endpoint MUST retornar 409. `bootstrap_secret` MUST tener al menos 16 caracteres.
@@ -49,8 +50,6 @@ El campo `bootstrap_secret_hash` en la tabla `agents` MUST ser nulleado atómica
 - **WHEN** el bootstrap completa exitosamente
 - **THEN** `agents.bootstrap_secret_hash` es NULL en DB inmediatamente; cualquier segundo intento retorna 401
 
----
-
 ### Requirement: Endpoints GET /agents y GET /agents/{id} son parte del recurso agents
 
 Los endpoints `GET /agents` y `GET /agents/{id}` (definidos en la spec `backend-agent-management`) MUST ser registrados bajo el mismo router de agents con prefix `/agents` y tag `agents`. El recurso `/agents` incluye tanto los endpoints de ciclo de vida (register, bootstrap — C06) como los de consulta y configuración (C14).
@@ -58,8 +57,6 @@ Los endpoints `GET /agents` y `GET /agents/{id}` (definidos en la spec `backend-
 #### Scenario: GET /agents accesible bajo el mismo prefix que POST /register
 - **WHEN** el backend arranca
 - **THEN** tanto `GET /agents` como `POST /agents/register` son accesibles bajo el prefix `/agents`
-
----
 
 ### Requirement: AgentStatus incluye el valor revoked
 
@@ -72,8 +69,6 @@ El enum `AgentStatus` en `agents/models.py` MUST incluir el valor `revoked`. La 
 #### Scenario: Migración idempotente
 - **WHEN** el script SQL de migración se ejecuta dos veces
 - **THEN** no produce error en la segunda ejecución (IF NOT EXISTS garantiza idempotencia)
-
----
 
 ### Requirement: Consumers rechazan mensajes de agentes revocados
 

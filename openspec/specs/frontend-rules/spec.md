@@ -1,4 +1,9 @@
-## ADDED Requirements
+# frontend-rules Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
 
 ### Requirement: Admin can list monitoring rules
 The system SHALL display a list of all monitoring rules with pattern, severity, action, and sync status.

@@ -1,4 +1,9 @@
-## MODIFIED Requirements
+# agent-decision-engine Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
 
 ### Requirement: Cache local de reglas con evaluación glob y negación
 
@@ -62,3 +67,98 @@ El `DecisionEngine` SHALL evaluar cada `DetectedChange` contra la `RulesCache`, 
 
 - **WHEN** un evento para `/var/log/app.log` es evaluado y no hay regla (default `alert_only`)
 - **THEN** se escribe journal `{state: "pending"}` sin ejecutar acción física, el evento se publica normalmente, y tras el publish exitoso `commit_fn()` marca el journal `{state: "completed"}`
+
+### Requirement: Acción auto_restore — restauración desde baseline
+
+Cuando la acción determinada es `auto_restore`, el `DecisionEngine` SHALL leer el `content_b64` del `BaselineEntry` para el path afectado (vía `BaselineEngine.read_entry(path)`), decodificarlo de Base64, escribirlo en el path original (atomicamente via `.tmp`), y verificar que el SHA-256 del archivo restaurado coincide con `entry.hash` (RN-30, RN-31). Si la verificación es exitosa, el evento MUST publicarse con `event_type: "auto_restored"`. Si `content_b64` es `None` (archivo binario u oversize), la acción MUST fallar gracefully con `error: "no_baseline_content"` en el journal (RN-32, RN-33).
+
+#### Scenario: Restauración exitosa — hash verificado
+
+- **WHEN** `/etc/hosts` fue modificado y el baseline tiene `content_b64` válido con hash `abc123`
+- **THEN** el archivo es restaurado, su SHA-256 coincide con `abc123`, el journal queda `completed`, y el evento se publica con `event_type: "auto_restored"`
+
+#### Scenario: Restauración con verificación fallida — falla reportada
+
+- **WHEN** el archivo restaurado tiene SHA-256 diferente al `entry.hash` del baseline
+- **THEN** el journal queda `failed` con `error: "hash_mismatch_after_restore"` y el evento se publica con `action_failed: true`
+
+#### Scenario: Baseline sin content_b64 — falla graceful
+
+- **WHEN** el baseline para `/bin/ls` tiene `content_b64: null` (archivo binario)
+- **THEN** la restauración no se intenta, journal queda `failed` con `error: "no_baseline_content"`, evento publicado con `action_failed: true`
+
+#### Scenario: Archivo ya no existe al restaurar
+
+- **WHEN** el archivo fue eliminado entre la detección y la ejecución de auto_restore
+- **THEN** el archivo es creado desde el contenido del baseline, hash verificado, evento publicado con `event_type: "auto_restored"`
+
+### Requirement: Acción quarantine — movimiento a directorio de cuarentena
+
+Cuando la acción determinada es `quarantine`, el `DecisionEngine` SHALL mover el archivo afectado a `/var/lib/fim-agent/quarantine/{event_id}_{basename}` usando `shutil.move()` (RN-34, RN-35). Si el archivo ya no existe al momento de ejecutar la cuarentena, la acción MUST fallar gracefully con `error: "file_not_found"` (RN-36). El evento MUST publicarse con `action: "quarantine"` y el `quarantine_path` resultante en el payload (RN-37).
+
+#### Scenario: Quarantine exitosa
+
+- **WHEN** el archivo `/opt/app/malware.sh` debe ser puesto en cuarentena
+- **THEN** el archivo se mueve a `/var/lib/fim-agent/quarantine/{event_id}_malware.sh`, journal queda `completed`, y el evento incluye `quarantine_path`
+
+#### Scenario: Archivo ya eliminado — falla graceful
+
+- **WHEN** el archivo `/opt/app/gone.sh` no existe al momento de ejecutar quarantine
+- **THEN** journal queda `failed` con `error: "file_not_found"`, evento publicado con `action_failed: true`
+
+### Requirement: Rehidratación de journal al arrancar
+
+Al iniciar, el agente SHALL escanear `/var/lib/fim-agent/journal/` y procesar todas las entradas con `state: "pending"` (RN-83). Para cada entrada pendiente con acción `auto_restore` o `quarantine`: MUST reintentarse la acción. Para cada entrada pendiente con acción `manual_review` o `alert_only`: MUST marcarse `state: "failed"` con `error: "rehydrated_without_action"` y re-publicarse como evento `alert_only` para que el backend lo registre. La rehidratación MUST completarse antes de que el detector comience a aceptar nuevos eventos.
+
+#### Scenario: Journal pending auto_restore — reintentado al arrancar
+
+- **WHEN** el agente arranca y encuentra `journal/evt-001.json` con `action: "auto_restore"` y `state: "pending"`
+- **THEN** intenta restaurar el archivo, actualiza el journal a `completed` o `failed`, y publica el resultado
+
+#### Scenario: Journal pending manual_review — descartado con aviso
+
+- **WHEN** el agente arranca y encuentra `journal/evt-002.json` con `action: "manual_review"` y `state: "pending"`
+- **THEN** marca el journal `failed` con `error: "rehydrated_without_action"` y publica un evento `alert_only` al stream
+
+#### Scenario: Sin entradas pending — arranque limpio
+
+- **WHEN** el agente arranca y no hay entradas `pending` en el journal
+- **THEN** la fase de rehidratación termina sin publicar eventos adicionales
+
+### Requirement: Comportamiento offline — acciones automáticas con reglas cacheadas
+
+Cuando el backend no está disponible (Valkey inaccesible o sin conectividad), el agente SHALL continuar evaluando y ejecutando acciones automáticas (`auto_restore`, `quarantine`) usando las reglas persistidas localmente en `state.json`. Los eventos MUST encolarse en la cola persistente local y publicarse al backend cuando la conectividad se restaure (RN-42). El agente NO MUST descartar reglas cacheadas por ausencia de conectividad.
+
+#### Scenario: auto_restore offline ejecutado correctamente
+
+- **WHEN** el backend está inalcanzable y se detecta un cambio en `/etc/hosts` con regla `auto_restore`
+- **THEN** el archivo se restaura desde el baseline local, el evento se encola localmente, y cuando el backend vuelva, el evento se publica
+
+#### Scenario: Caché de reglas persiste entre reinicios
+
+- **WHEN** el agente se reinicia sin haber recibido un nuevo `rule_sync`
+- **THEN** las reglas del último `rule_sync` se cargan de `state.json` y están disponibles para evaluación
+
+### Requirement: auto_restore cae a snapshots cuando el contenido activo es nulo
+
+Al ejecutar `auto_restore`, si la entrada de baseline tiene `content_b64` nulo (típicamente porque el archivo está en estado `absent`), el motor de decisión SHALL buscar el snapshot más reciente cuyo `content_b64` no sea nulo, descomprimirlo si `gzip=True`, y usar ese contenido para restaurar el archivo. El motor MUST verificar el SHA-256 del contenido restaurado contra el hash del snapshot usado. Si no existe ningún snapshot utilizable, el motor MUST fallar con el error `no_restorable_content` (RN-30–33, F3).
+
+#### Scenario: Restauración desde snapshot cuando el contenido activo es nulo
+
+- **WHEN** se gatilla `auto_restore` sobre un path cuya entrada de baseline tiene `content_b64=None` pero existe un snapshot con contenido
+- **THEN** el motor restaura el archivo desde el snapshot más reciente con contenido y verifica el hash
+
+#### Scenario: Snapshot comprimido se descomprime antes de restaurar
+
+- **WHEN** el snapshot seleccionado tiene `gzip=True`
+- **THEN** el motor descomprime el contenido antes de escribirlo y verificar el hash
+
+#### Scenario: Sin contenido restaurable falla con error claro
+
+- **WHEN** se gatilla `auto_restore` y ni el contenido activo ni ningún snapshot tienen contenido
+- **THEN** el motor falla la acción con el error `no_restorable_content` y journaliza el fallo
+
+#### Scenario: Contenido activo presente conserva el comportamiento previo
+
+- **WHEN** se gatilla `auto_restore` y la entrada de baseline tiene `content_b64` no nulo
+- **THEN** el motor restaura desde el contenido activo sin consultar snapshots

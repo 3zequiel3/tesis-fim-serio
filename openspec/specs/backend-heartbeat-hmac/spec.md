@@ -1,10 +1,9 @@
 # Spec: backend-heartbeat-hmac
 
 ## Purpose
-
 Define los requisitos de verificación HMAC para el consumer del stream `agent_heartbeat`. Simétrico con el protocolo de verificación del events consumer (RN-79, D22).
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Verificación HMAC-SHA256 en el consumer de heartbeat (D22 / RN-119)
 

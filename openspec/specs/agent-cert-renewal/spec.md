@@ -1,8 +1,9 @@
 # Spec: agent-cert-renewal
 
-Capability: Renovación proactiva de certificados mTLS del agente FIM — tarea asyncio en background que verifica la vigencia del certificado de cliente periódicamente, renueva via `POST /agents/renew` con el certificado actual, persiste atómicamente el nuevo certificado, y tolera fallos sin interrumpir las tareas principales (RN-111, D13).
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
 
----
+## Requirements
 
 ### Requirement: Tarea de renovación proactiva de certificado mTLS
 

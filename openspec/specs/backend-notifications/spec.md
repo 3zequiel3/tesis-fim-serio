@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change backend-notifications. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Notificación asincrónica post-ingesta de eventos críticos o altos
 
 El sistema SHALL disparar una notificación asincrónica no bloqueante (`asyncio.create_task`) tras persistir exitosamente un evento en DB. La notificación MUST evaluarse solo para eventos con `status != superseded` (RN-22). La severidad SHALL determinarse buscando en la tabla `rules` las reglas cuyo `pattern` (glob) matchee el `event.path` usando `fnmatch.fnmatch`; si hay matches, se usa la severidad más alta; si no hay matches, se usa `low`. La notificación solo se envía si la severidad resultante es `critical` o `high` (RN-52).
@@ -27,8 +29,6 @@ El sistema SHALL disparar una notificación asincrónica no bloqueante (`asyncio
 - **WHEN** el envío del webhook n8n tarda 5 segundos
 - **THEN** el consumer procesa el siguiente evento de Valkey sin esperar al webhook
 
----
-
 ### Requirement: Envío al canal n8n con retry exponencial 3x
 
 El sistema SHALL intentar enviar `POST {N8N_WEBHOOK_URL}` con timeout 10s. Si falla, MUST esperar 5 segundos y reintentar; si vuelve a fallar, MUST esperar 30 segundos; si falla de nuevo (3er intento), MUST esperar 120 segundos. Si el 4to intento (contando el primero) también falla, MUST marcar la fila en `alerts` con `failed_at=now()`, `last_error=<mensaje>`, `retry_count=3`. En cualquier intento exitoso MUST actualizar `alerts` con `delivered_at=now()`, `channel=n8n`, `retry_count=<intentos_realizados>`.
@@ -44,8 +44,6 @@ El sistema SHALL intentar enviar `POST {N8N_WEBHOOK_URL}` con timeout 10s. Si fa
 #### Scenario: Fallo total de n8n — DLQ
 - **WHEN** n8n falla en los 4 intentos
 - **THEN** la cascada continúa con el canal SMTP (si configurado); si todos los canales fallan, `alerts.failed_at` está poblado y `delivered_at IS NULL`
-
----
 
 ### Requirement: Cascada de canales — SMTP → webhook_fallback → log_only
 
@@ -98,8 +96,6 @@ El sistema SHALL exponer `GET /alerts/failed` (requiere JWT admin) que retorna a
 - **WHEN** no hay alertas fallidas
 - **THEN** la respuesta es `{"items": [], "total": 0}`
 
----
-
 ### Requirement: POST /alerts/{id}/retry — reintento manual desde DLQ
 
 El sistema SHALL exponer `POST /alerts/{id}/retry` (requiere JWT admin) que toma una alerta fallida (`failed_at IS NOT NULL`) y la re-intenta enviando la notificación. MUST resetear `failed_at=null`, `last_error=null`, `retry_count=0` antes de re-intentar. Si el alerta no existe o ya fue entregada → 404 o 409.
@@ -115,8 +111,6 @@ El sistema SHALL exponer `POST /alerts/{id}/retry` (requiere JWT admin) que toma
 #### Scenario: Alerta no encontrada retorna 404
 - **WHEN** el `id` no existe en `alerts`
 - **THEN** la respuesta es `404 Not Found`
-
----
 
 ### Requirement: DELETE /alerts/{id} — descartar alerta de la DLQ
 
@@ -155,8 +149,6 @@ El mismo payload SHALL usarse en todos los canales de la cascada (n8n, `smtp_fal
 - **WHEN** n8n falla y la cascada entrega por `smtp_fallback`
 - **THEN** el contenido enviado por SMTP se deriva del mismo payload que se intentó enviar a n8n
 
----
-
 ### Requirement: Configuración explícita de TLS para SMTP
 
 `Settings` SHALL exponer `smtp_starttls` y `smtp_ssl` como booleanos configurables. `send_smtp` SHALL NO forzar `start_tls=True` de manera incondicional.
@@ -183,4 +175,3 @@ Declarar ambos en `true` SHALL considerarse configuración inválida y SHALL reg
 #### Scenario: Configuración contradictoria
 - **WHEN** `smtp_starttls=true` y `smtp_ssl=true`
 - **THEN** el sistema registra un error de configuración identificando ambas variables
-

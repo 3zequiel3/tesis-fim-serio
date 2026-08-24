@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change backend-notifications. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: GET /health/components — verificación real de dependencias
 
 El sistema SHALL exponer `GET /health/components` que realiza comprobaciones reales (no cached) de:
@@ -56,8 +58,6 @@ No requiere autenticación JWT (RN-101 — monitoreo sin login).
 - **WHEN** hay 3 agentes registrados y 1 está `online`
 - **THEN** `agents.status = "ok"`
 
----
-
 ### Requirement: Detección de cambio de estado y webhook n8n
 
 El sistema SHALL mantener en memoria (variable de módulo) el último estado conocido de cada componente. Cuando se llama `GET /health/components`, si el estado de algún componente cambió respecto al anterior (ej. `ok → down` o `down → ok`), el sistema SHALL disparar un POST asincrónico a `N8N_WEBHOOK_URL` informando el cambio. Este disparo es `asyncio.create_task` — no bloqueante. Si `N8N_WEBHOOK_URL` no está configurado, no se dispara.
@@ -104,4 +104,3 @@ El health checker MUST guardar una referencia fuerte a cualquier `asyncio.Task` 
 - **WHEN** el health checker detecta un cambio de estado y crea una task para notificar vía n8n
 - **THEN** la task mantiene una referencia fuerte hasta completar
 - **AND** el GC no puede cancelar la task durante el I/O HTTP de la notificación
-

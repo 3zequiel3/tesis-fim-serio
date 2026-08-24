@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - estructura reparada al archivar n8n-contract-and-config. El archivo se había escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar Purpose.
+
 ## Requirements
+
 ### Requirement: Estructura de paquete backend según docs canónicos
 
 El sistema SHALL crear el paquete Python `backend/app/` con submódulos `core/` y `modules/` según `docs/arquitectura_stack.md §Módulos del backend`. El subpaquete `core/` SHALL contener al menos los archivos `config.py`, `database.py`, `logging.py`, y un subpaquete `middleware/` con `trace_id.py` y `sanitize_logs.py`. El subpaquete `modules/` SHALL existir con un `__init__.py` vacío como placeholder para los módulos de dominio que introducen los changes posteriores (Change 03+). El paquete `app/` SHALL exportar la app FastAPI desde `app/main.py` como `app: FastAPI`.
@@ -216,6 +218,18 @@ El sistema SHALL incluir tests automatizados en `backend/tests/` ejecutables ví
 - **THEN** todos los tests pasan
 - **AND** la suite incluye al menos un test por cada uno de los tres requisitos arriba
 
+### Requirement: Done criterion del Change 02
+
+La infraestructura backend SHALL satisfacer el criterio de aceptación adaptado de `CHANGES.md` línea 107: `docker compose --profile app up backend` arranca limpio en M1; `GET /health` responde 200; los logs son JSON con `trace_id` por request y sin secrets cuando una request los pasa. La parte original "tabla `users` con seed admin" del done criterion del roadmap se cumple en Change 03 (modelo `User`) + Change 04 (cuerpo de `seed_admin`); este change deja el hook listo y verificable cuando esos changes se merguen.
+
+#### Scenario: Smoke test M1 reproducible
+- **WHEN** un operador clona el repo en estado `Change 02 merged, Change 03 no merged`
+- **AND** ejecuta `docker compose --profile app up -d db valkey backend`
+- **THEN** el contenedor backend queda `running` en menos de 30 segundos
+- **AND** `curl http://localhost:8000/health` retorna `{"status":"ok"}` con header `X-Trace-Id`
+- **AND** `docker compose logs backend` contiene al menos una línea JSON con `event=seed_admin.skipped reason=users_table_not_yet_created`
+- **AND** no hay tracebacks ni errores fatales en los logs
+
 ### Requirement: Middleware CORS con validación de Origin (RN-95, D7)
 
 El sistema SHALL registrar un middleware CORS en `backend/app/main.py` que valide el header `Origin` de cada request contra una whitelist configurable. La whitelist SHALL leerse de la variable de entorno `CORS_ALLOWED_ORIGINS` (lista separada por comas, ej. `http://localhost:5173,https://fim.internal`). Si `Origin` no está en la whitelist, la request SHALL ser rechazada con 403. En ausencia de la variable `CORS_ALLOWED_ORIGINS`, la whitelist SHALL ser vacía y el backend SHALL rechazar toda request con `Origin` presente (seguro por defecto). Las requests sin header `Origin` (ej. curl, herramientas internas) SHALL pasar sin restricción.
@@ -251,16 +265,3 @@ El sistema SHALL establecer una conexión Valkey (`valkey.Valkey`) durante el li
 #### Scenario: Shutdown cierra la conexión
 - **WHEN** la app recibe señal de shutdown
 - **THEN** el lifespan cierra el cliente Valkey sin excepción
-
-### Requirement: Done criterion del Change 02
-
-La infraestructura backend SHALL satisfacer el criterio de aceptación adaptado de `CHANGES.md` línea 107: `docker compose --profile app up backend` arranca limpio en M1; `GET /health` responde 200; los logs son JSON con `trace_id` por request y sin secrets cuando una request los pasa. La parte original "tabla `users` con seed admin" del done criterion del roadmap se cumple en Change 03 (modelo `User`) + Change 04 (cuerpo de `seed_admin`); este change deja el hook listo y verificable cuando esos changes se merguen.
-
-#### Scenario: Smoke test M1 reproducible
-- **WHEN** un operador clona el repo en estado `Change 02 merged, Change 03 no merged`
-- **AND** ejecuta `docker compose --profile app up -d db valkey backend`
-- **THEN** el contenedor backend queda `running` en menos de 30 segundos
-- **AND** `curl http://localhost:8000/health` retorna `{"status":"ok"}` con header `X-Trace-Id`
-- **AND** `docker compose logs backend` contiene al menos una línea JSON con `event=seed_admin.skipped reason=users_table_not_yet_created`
-- **AND** no hay tracebacks ni errores fatales en los logs
-

@@ -1,9 +1,10 @@
 # Spec: backend-rules
 
 ## Purpose
-
 API REST del backend para gestión de reglas de decisión — CRUD de reglas, validación de patterns, y fan-out de sincronización a agentes.
+
 ## Requirements
+
 ### Requirement: Crear una regla de decisión
 
 El sistema SHALL exponer `POST /rules` para crear una regla. La operación MUST estar restringida al rol admin (RN-29 análogo a escrituras administrativas). El cuerpo del request MUST contener `pattern` (string), `severity` (enum `RuleSeverity`) y `action` (enum `RuleAction`) (RN-08). Tras crear la regla, el sistema MUST incrementar el counter global `RulesetVersion` (RN-75), hacer fan-out del comando `rule_sync` (ver capability de sincronización), registrar en `published_commands` y escribir una fila en `audit_log` (RN-94).
@@ -137,4 +138,3 @@ Por cada mensaje `rule_sync` publicado, el sistema SHALL insertar una fila en `p
 #### Scenario: Check de agente al día
 - **WHEN** se consulta `SELECT MAX(ruleset_version) FROM published_commands WHERE target_agent_id = :agent_id OR target_agent_id IS NULL`
 - **THEN** el resultado es la máxima versión de comando dirigida a ese agente, comparable con `Agent.ruleset_version_applied`
-

@@ -1,3 +1,10 @@
+# frontend-auth Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
+
 ### Requirement: Zustand auth store con access token en memoria
 
 El sistema SHALL tener `frontend/src/stores/auth.store.ts` con un store Zustand que mantiene: `accessToken: string | null`, `user: { id, username, role } | null`, `isLoading: boolean`. El access token MUST almacenarse SOLO en memoria (RAM); NUNCA en localStorage ni sessionStorage (RN-96). El store SHALL exponer: `login(credentials)`, `logout()`, `refreshToken()`, `setToken(token, user)`.
@@ -9,8 +16,6 @@ El sistema SHALL tener `frontend/src/stores/auth.store.ts` con un store Zustand 
 #### Scenario: logout() limpia el store completamente
 - **WHEN** se llama `logout()`
 - **THEN** `accessToken` es `null`, `user` es `null`, y se llama `POST /auth/logout`
-
----
 
 ### Requirement: Página Login con manejo de rate limit
 
@@ -32,8 +37,6 @@ El sistema SHALL tener `frontend/src/pages/Login.tsx` con un formulario de usern
 - **WHEN** se navega a `/login` con una sesión activa
 - **THEN** el usuario es redirigido al dashboard sin ver el formulario
 
----
-
 ### Requirement: Página ForcePasswordChange con scope password_change_only
 
 El sistema SHALL tener `frontend/src/pages/ForcePasswordChange.tsx`. Esta página MUST ser accesible solo cuando el JWT tiene scope `password_change_only` (RN-100). Cualquier ruta protegida que no sea `/change-password` con ese scope MUST redirigir a `/change-password`. El formulario envía `POST /users/change-password` con el nuevo password (≥12 chars). En éxito, refresca el token (scope limpio) y redirige al dashboard.
@@ -49,8 +52,6 @@ El sistema SHALL tener `frontend/src/pages/ForcePasswordChange.tsx`. Esta págin
 #### Scenario: Password corto muestra error de validación
 - **WHEN** el usuario ingresa un password de menos de 12 caracteres
 - **THEN** se muestra error de validación sin enviar la request (RN-100)
-
----
 
 ### Requirement: ProtectedRoute con verificación de sesión y refresh silencioso
 

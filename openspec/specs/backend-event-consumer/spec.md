@@ -1,9 +1,10 @@
 # Spec: backend-event-consumer
 
 ## Purpose
-
 Consumers del backend para los streams `events` y `agent_heartbeat` — validación (schema, HMAC, clock skew), persistencia, protocolo ACK end-to-end y transiciones de estado de agente por heartbeat.
+
 ## Requirements
+
 ### Requirement: Consumer group fim-backend sobre el stream events
 
 El backend SHALL consumir el stream `events` mediante un consumer group llamado `fim-backend` (RN-56), implementado en `backend/app/modules/events/consumer.py` y arrancado como tarea asyncio en el lifespan de `backend/app/main.py`. El consumer MUST crear el group si no existe (`MKSTREAM`) y, al arrancar, MUST reprocesar sus propias entradas pendientes (`XREADGROUP` con id `0`) antes de leer entradas nuevas (id `>`), garantizando recuperación idempotente ante reinicio (RN-76).
@@ -270,4 +271,3 @@ El consumer de eventos MUST guardar una referencia fuerte a cualquier `asyncio.T
 - **WHEN** el consumer crea una task de notificación para un evento crítico
 - **THEN** la task mantiene una referencia fuerte hasta que `notify_if_applicable` complete
 - **AND** el GC no puede cancelar la task mientras está en vuelo
-

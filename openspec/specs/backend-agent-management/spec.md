@@ -1,10 +1,9 @@
 # Spec: backend-agent-management
 
-Capability: Endpoints REST de gestión operacional de agentes FIM — consulta de lista y detalle, actualización de watch_paths con publicación de update_config HMAC-signed, forzado de re-scan con gestión de pending, y transición automática al estado `dead`.
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
 
----
-
-## ADDED Requirements
+## Requirements
 
 ### Requirement: watch_paths almacenado en el modelo Agent
 
@@ -18,8 +17,6 @@ El sistema SHALL agregar el campo `watch_paths: list[str]` al modelo `Agent` en 
 - **WHEN** un admin hace `POST /agents/{id}/config` con `watch_paths=["/etc", "/usr/bin"]`
 - **THEN** `agents.watch_paths` es `["/etc", "/usr/bin"]` en DB
 - **AND** el valor anterior queda completamente reemplazado
-
----
 
 ### Requirement: GET /agents — lista todos los agentes con estado operacional
 
@@ -37,8 +34,6 @@ El sistema SHALL exponer `GET /agents` (requiere JWT admin) que retorna la lista
 - **WHEN** un agente no envió heartbeat por más de 5 minutos
 - **THEN** aparece en `GET /agents` con `status="dead"`
 
----
-
 ### Requirement: GET /agents/{id} — detalle de agente con estado operacional
 
 El sistema SHALL exponer `GET /agents/{id}` (requiere JWT admin) que retorna el detalle completo de un agente. La respuesta SHALL incluir todos los campos de `GET /agents` más `watch_paths`. Si el agente no existe SHALL retornar `404 Not Found`.
@@ -50,8 +45,6 @@ El sistema SHALL exponer `GET /agents/{id}` (requiere JWT admin) que retorna el 
 #### Scenario: Agente no encontrado retorna 404
 - **WHEN** se hace `GET /agents/nonexistent`
 - **THEN** la respuesta es `404 Not Found`
-
----
 
 ### Requirement: POST /agents/{id}/config — actualizar watch_paths y publicar update_config
 
@@ -76,8 +69,6 @@ El sistema SHALL exponer `POST /agents/{id}/config` (requiere JWT admin) que ace
 - **WHEN** se actualiza la config
 - **THEN** existe una fila en `audit_log` con `action="agent_config"` y el `agent_id`
 
----
-
 ### Requirement: POST /agents/{id}/rescan — forzar re-scan con gestión de pending
 
 El sistema SHALL exponer `POST /agents/{id}/rescan` (requiere JWT admin) que acepta `{force: bool = false}`. Si `force=false` y existen eventos `pending` del agente, MUST retornar `409` con `{"code": "pending_events_exist", "count": N}`. Si `force=true` o no hay pending, MUST marcar todos los eventos `pending` del agente como `superseded` (con `parent_event_id=null`), publicar `rescan_baseline` HMAC-signed al stream `commands`, y registrar en `audit_log`.
@@ -101,8 +92,6 @@ El sistema SHALL exponer `POST /agents/{id}/rescan` (requiere JWT admin) que ace
 #### Scenario: Rescan registrado en audit_log
 - **WHEN** se ejecuta un rescan
 - **THEN** existe una fila en `audit_log` con `action="agent_rescan"` y el `agent_id`
-
----
 
 ### Requirement: Transición automática al estado dead (5 min sin heartbeat)
 

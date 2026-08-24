@@ -1,9 +1,10 @@
 # Spec: backend-auth
 
 ## Purpose
-
 Implementar autenticación JWT dual-key con rotación de refresh tokens, scope-gating, y rate-limiting de login.
+
 ## Requirements
+
 ### Requirement: core/security.py — Firma y validación JWT dual-key
 
 El sistema SHALL implementar `backend/app/core/security.py` con las funciones:
@@ -58,8 +59,6 @@ La función `seed_admin()` en `backend/app/modules/auth/service.py` SHALL tener 
 - **THEN** la tabla sigue con exactamente un registro
 - **AND** no se lanza excepción
 
----
-
 ### Requirement: POST /auth/login
 
 El endpoint `POST /auth/login` SHALL aceptar JSON `{username: str, password: str}` y:
@@ -97,8 +96,6 @@ El endpoint `POST /auth/login` SHALL aceptar JSON `{username: str, password: str
 - **WHEN** el login es exitoso
 - **THEN** existe un registro en `audit_log` con `action="login"` y el `user_id` correspondiente
 
----
-
 ### Requirement: POST /auth/refresh — rotación de refresh token
 
 El endpoint `POST /auth/refresh` SHALL leer el refresh token de la cookie `refresh_token` y:
@@ -122,8 +119,6 @@ El endpoint `POST /auth/refresh` SHALL leer el refresh token de la cookie `refre
 - **WHEN** se hace `POST /auth/refresh` sin cookie `refresh_token`
 - **THEN** responde 401
 
----
-
 ### Requirement: POST /auth/logout — blacklist de ambos tokens
 
 El endpoint `POST /auth/logout` SHALL requerir autenticación (access token válido en `Authorization: Bearer`) y:
@@ -145,8 +140,6 @@ El endpoint `POST /auth/logout` SHALL requerir autenticación (access token vál
 #### Scenario: audit_log en logout
 - **WHEN** el logout es exitoso
 - **THEN** existe un registro en `audit_log` con `action="logout"` y el `user_id`
-
----
 
 ### Requirement: get_current_user dependency — validación y blacklist
 
@@ -196,8 +189,6 @@ La dependency `require_full_access(user: User = Depends(get_current_user)) -> Us
 - **WHEN** se usa un access token sin scope especial
 - **THEN** el endpoint procede normalmente
 
----
-
 ### Requirement: POST /users/change-password
 
 El endpoint `POST /users/change-password` SHALL requerir autenticación (acepta tanto scope normal como `password_change_only`) y aceptar `{current_password: str, new_password: str}`:
@@ -234,8 +225,6 @@ El endpoint `POST /users/change-password` SHALL requerir autenticación (acepta 
 - **WHEN** el cambio de password es exitoso
 - **THEN** existe un registro en `audit_log` con `action="change_password"` y el `user_id`
 
----
-
 ### Requirement: Done criterion del Change 04 — verificación end-to-end
 
 El sistema SHALL satisfacer todos los criterios de aceptación de `CHANGES.md §Change 04`: login retorna access+refresh; refresh rota el token viejo; logout invalida ambos tokens; segundo uso del refresh revocado → 401; primer admin es forzado a cambiar password en el primer login; el 6to intento de login en 15 min → 429.
@@ -246,4 +235,3 @@ El sistema SHALL satisfacer todos los criterios de aceptación de `CHANGES.md §
 - **AND** refresh retorna 200 con nuevo access token
 - **AND** logout retorna 200
 - **AND** login con el access token del logout (revocado) responde 401
-

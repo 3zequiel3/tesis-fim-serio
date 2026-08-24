@@ -1,4 +1,9 @@
-## ADDED Requirements
+# backend-user-management Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
 
 ### Requirement: Admin can list all admin users (RN-45)
 The system SHALL allow an authenticated admin to retrieve a paginated list of all admin users. Password hashes MUST NOT be returned in any response.

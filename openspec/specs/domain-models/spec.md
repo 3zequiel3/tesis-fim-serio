@@ -1,4 +1,9 @@
-## ADDED Requirements
+# domain-models Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
 
 ### Requirement: Modelo Event con EventStatus canónico y optimistic locking
 

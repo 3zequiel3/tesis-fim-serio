@@ -1,3 +1,10 @@
+# frontend-scaffold Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
+
 ### Requirement: Proyecto frontend inicializado con Vite + React 19 + TypeScript + Tailwind v4 + pnpm
 
 El sistema SHALL tener un proyecto frontend en `frontend/` inicializado con Vite, React 19, TypeScript strict, Tailwind v4 (plugin `@tailwindcss/vite`, sin PostCSS, sin `tailwind.config.js`) y pnpm como package manager. El CSS global SHALL contener `@import "tailwindcss"` y un bloque `@theme {}` para tokens de diseño del proyecto. El `tsconfig.json` MUST tener `strict: true` y `paths` configurados para alias `@/` apuntando a `src/`.
@@ -10,8 +17,6 @@ El sistema SHALL tener un proyecto frontend en `frontend/` inicializado con Vite
 - **WHEN** se ejecuta `pnpm build` en `frontend/`
 - **THEN** genera `dist/` sin errores de TypeScript ni de build
 
----
-
 ### Requirement: Estructura de carpetas canónica del frontend
 
 El proyecto SHALL tener la estructura `frontend/src/{api,stores,pages,components/{ui,layout},hooks}/` según las convenciones del proyecto. Los archivos de entrada SHALL ser `src/main.tsx` y `src/App.tsx`.
@@ -19,8 +24,6 @@ El proyecto SHALL tener la estructura `frontend/src/{api,stores,pages,components
 #### Scenario: Estructura de directorios correcta
 - **WHEN** se inspecciona `frontend/src/`
 - **THEN** existen los directorios `api/`, `stores/`, `pages/`, `components/ui/`, `components/layout/`, `hooks/`
-
----
 
 ### Requirement: Axios client con interceptores JWT
 
@@ -41,8 +44,6 @@ El sistema SHALL tener `frontend/src/api/client.ts` con una instancia Axios con 
 #### Scenario: Múltiples 401 simultáneos disparan un solo refresh
 - **WHEN** 3 requests simultáneas reciben 401
 - **THEN** solo se ejecuta un `POST /auth/refresh`; las 3 requests se reintentamos tras el refresh exitoso
-
----
 
 ### Requirement: React Router con rutas definidas
 

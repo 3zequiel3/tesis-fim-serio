@@ -1,3 +1,10 @@
+# frontend-shell Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
+
 ### Requirement: Layout shell con MainLayout y AuthLayout
 
 El sistema SHALL tener `frontend/src/components/layout/MainLayout.tsx` (con Sidebar + Navbar, para rutas autenticadas) y `frontend/src/components/layout/AuthLayout.tsx` (centrado, para login y change-password). `MainLayout` MUST incluir `SystemBanner` y `AlertsBanner` en la parte superior. `Sidebar` MUST incluir navegación a las secciones principales: Eventos, Reglas, Agentes, Dashboard, Alertas.
@@ -9,8 +16,6 @@ El sistema SHALL tener `frontend/src/components/layout/MainLayout.tsx` (con Side
 #### Scenario: Rutas de auth usan AuthLayout
 - **WHEN** el usuario navega a `/login` o `/change-password`
 - **THEN** se muestra el layout centrado sin Sidebar ni Navbar
-
----
 
 ### Requirement: SystemBanner con polling de /health/components
 
@@ -28,8 +33,6 @@ El sistema SHALL tener `frontend/src/components/layout/SystemBanner.tsx` que hac
 - **WHEN** un componente pasa de `"ok"` a `"down"` entre polls
 - **THEN** el banner aparece en el próximo ciclo de 10 segundos sin recargar la página
 
----
-
 ### Requirement: AlertsBanner con conteo de alertas fallidas
 
 El sistema SHALL tener `frontend/src/components/layout/AlertsBanner.tsx` que consulta `GET /alerts?status=failed&size=1` para verificar si hay alertas fallidas en la DLQ (RN-102, D6). Si `total > 0`, MUST mostrar un banner amarillo con el conteo de alertas fallidas y un enlace a la página de alertas fallidas. El banner MUST desaparecer automáticamente cuando no hay alertas fallidas.
@@ -45,8 +48,6 @@ El sistema SHALL tener `frontend/src/components/layout/AlertsBanner.tsx` que con
 #### Scenario: Banner desaparece tras resolver alertas
 - **WHEN** todas las alertas fallidas son reintentadas exitosamente y el siguiente poll retorna `total = 0`
 - **THEN** el banner amarillo desaparece sin recargar la página
-
----
 
 ### Requirement: nginx.conf con headers de seguridad y SPA fallback
 

@@ -1,4 +1,9 @@
-## ADDED Requirements
+# frontend-dashboard Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
 
 ### Requirement: Dashboard shows event counters by status (RN-101)
 The system SHALL display aggregate counts of events grouped by status (pending, approved, rejected, auto_restored, quarantined), refreshed automatically.

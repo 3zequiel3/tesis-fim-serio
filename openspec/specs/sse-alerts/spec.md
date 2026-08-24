@@ -37,8 +37,6 @@ La cola interna por conexión MUST ser creada con `asyncio.Queue(maxsize=100)`. 
 - **WHEN** la cola interna del stream tiene 100 eventos pendientes y llega un evento nuevo
 - **THEN** el evento nuevo se descarta, no se encola, y se emite un log WARNING; los 100 eventos previos permanecen en la cola intactos
 
----
-
 ### Requirement: Reconexión SSE sin pérdida de alertas via Last-Event-ID
 
 El sistema SHALL leer el header `Last-Event-ID` al reconectar. Si está presente, MUST emitir en orden ascendente todas las alertas con `id > Last-Event-ID` antes de suscribir al broadcaster en tiempo real. Luego MUST continuar emitiendo eventos nuevos normalmente.
@@ -54,8 +52,6 @@ El sistema SHALL leer el header `Last-Event-ID` al reconectar. Si está presente
 #### Scenario: Last-Event-ID con valor ya al día no emite nada extra
 - **WHEN** un cliente reconecta con `Last-Event-ID` igual al id de la última alerta existente
 - **THEN** no se emiten eventos de replay; el cliente recibe solo alertas nuevas
-
----
 
 ### Requirement: GET /alerts — Listado paginado completo de alertas
 

@@ -1,9 +1,10 @@
 # Spec: backend-events-api
 
 ## Purpose
-
 Exponer un endpoint REST `GET /events` con paginación y filtros multi-select (status, path, fechas), y un endpoint `GET /events/{id}` para consulta de eventos individuales con contexto de proceso. Permitir consultas desde el frontend con autenticación JWT.
+
 ## Requirements
+
 ### Requirement: GET /events con paginación y filtros multi-select
 
 El sistema SHALL exponer `GET /events` en `backend/app/modules/events/router.py` que retorna eventos paginados. Los parámetros de query SHALL ser: `status` (multi-value, acepta múltiples valores, e.g. `?status=pending&status=approved`), `path_prefix` (string, match case-sensitive de prefijo), `date_from` (ISO8601 datetime), `date_to` (ISO8601 datetime), `include_superseded` (bool, default `false`), `page` (int, default `1`, min `1`), `page_size` (int, default `50`, min `1`, max `200`). La respuesta SHALL ser `{"total": int, "page": int, "page_size": int, "items": [...]}`. Cuando `include_superseded=false` (default), los eventos con `status=superseded` SHALL ser excluidos del resultado y del conteo `total` (RN-22, RN-98). El endpoint SHALL requerir `require_full_access` (no solo `get_current_user`): un usuario con `must_change_password=True` (token con `scope=password_change_only`) MUST recibir 403 `password_change_required` y no puede leer eventos hasta cambiar su password (C7).
@@ -137,4 +138,3 @@ El modelo `Event` en `backend/app/modules/events/models.py` SHALL definir la for
 - **WHEN** se ejecuta `db/migrations/001_fix_parent_event_id_ondelete.sql` sobre una base con la constraint antigua (`NO ACTION`)
 - **THEN** la constraint se recrea con `ON DELETE SET NULL`
 - **AND** re-ejecutar el script no produce error
-

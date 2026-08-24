@@ -1,4 +1,9 @@
-## ADDED Requirements
+# frontend-agents Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
 
 ### Requirement: Admin can view the agent list with operational status (RN-92, RN-93)
 The system SHALL display all registered agents with their status (online/offline/draining/dead), queue_pressure indicator, and last-seen timestamp.

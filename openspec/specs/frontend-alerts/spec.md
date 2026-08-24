@@ -1,4 +1,9 @@
-## ADDED Requirements
+# frontend-alerts Specification
+
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
+
+## Requirements
 
 ### Requirement: Admin can view alerts history with filters (RN-103, D6)
 The system SHALL display a paginated list of all alerts from the unified alerts table with filters by status (pending/delivered/failed) and severity.

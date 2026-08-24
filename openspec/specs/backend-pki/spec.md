@@ -1,9 +1,10 @@
 # Spec: backend-pki
 
 ## Purpose
-
 PKI interna del backend FIM — CA Ed25519 auto-firmada, emisión de certificados para agentes, revocación, y listener mTLS en puerto 8443.
+
 ## Requirements
+
 ### Requirement: CA generation on first startup
 El backend SHALL generar una CA raíz auto-firmada Ed25519 con validez 10 años al arrancar si `CA_KEY_PATH` no existe. La CA MUST persistirse en los paths indicados por las variables de entorno `CA_CERT_PATH` y `CA_KEY_PATH`. La generación MUST ser idempotente: si los archivos ya existen, no se regenera.
 
@@ -70,4 +71,3 @@ De esta forma el puerto 8443 arranca de forma confiable; el bug previo (llamar `
 - **WHEN** el servidor mTLS no puede arrancar (por ejemplo, el puerto 8443 ya está en uso)
 - **THEN** el error queda registrado en los logs
 - **AND** el fallo no se silencia
-

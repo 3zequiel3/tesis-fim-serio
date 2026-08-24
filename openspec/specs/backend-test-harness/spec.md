@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change backend-test-harness. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Test harness owns schema, seeding, and isolation
 
 The backend test harness SHALL provide a single root `backend/tests/conftest.py`
@@ -81,4 +83,3 @@ stalling it.
 
 - **WHEN** any test exceeds the configured global timeout
 - **THEN** that test fails with a timeout error and the rest of the suite continues
-

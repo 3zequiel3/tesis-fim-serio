@@ -1,10 +1,9 @@
 # Spec: agent-approve-reject-handler
 
-Capability: Handlers del agente FIM para los comandos entrantes desde el backend — `baseline_update` (re-cifrado del baseline local), `restore_file` (restauración con journal) y `quarantine_file` (cuarentena con journal); todos con verificación HMAC, filtro `target_agent_id` y confirmación `event_ack`.
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
 
----
-
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Dispatch de comandos entrantes por tipo
 
@@ -17,8 +16,6 @@ El agente SHALL implementar `agent/commands.py` con una función `dispatch(comma
 #### Scenario: Tipo desconocido no bloquea el loop
 - **WHEN** el agente recibe un mensaje con `type="unknown_command_xyz"`
 - **THEN** el agente emite un log de warning y continúa procesando el siguiente mensaje sin lanzar excepción
-
----
 
 ### Requirement: Verificación de firma HMAC en todos los comandos
 
@@ -33,8 +30,6 @@ Antes de ejecutar cualquier handler, el agente SHALL verificar la firma HMAC-SHA
 - **THEN** el comando es descartado sin ejecutar acción
 - **AND** se emite un log de error de nivel `security`
 
----
-
 ### Requirement: Filtro de target_agent_id
 
 El agente SHALL ignorar silenciosamente cualquier comando cuyo `target_agent_id` no coincida con el `agent_id` propio y no sea `null`. Si `target_agent_id` es `null`, el comando aplica a todos los agentes (broadcast). Si `target_agent_id` coincide con el `agent_id` del agente, el comando aplica solo a este agente.
@@ -46,8 +41,6 @@ El agente SHALL ignorar silenciosamente cualquier comando cuyo `target_agent_id`
 #### Scenario: Comando broadcast (target_agent_id null)
 - **WHEN** el agente recibe un comando con `target_agent_id=null`
 - **THEN** el agente lo procesa como si fuera dirigido a él
-
----
 
 ### Requirement: Handler baseline_update — re-cifrado de baseline local
 
@@ -67,8 +60,6 @@ El handler de `baseline_update` SHALL: verificar que `ruleset_version` del coman
 #### Scenario: Versión de ruleset menor que la local
 - **WHEN** el agente tiene `ruleset_version=10` almacenado y recibe un `baseline_update` con `ruleset_version=7`
 - **THEN** el comando es ignorado (log de debug) y el baseline local no cambia
-
----
 
 ### Requirement: Handler restore_file — restauración desde baseline con journal
 
@@ -93,8 +84,6 @@ El handler MUST reutilizar la misma lógica de restore ya implementada en `agent
 - **WHEN** el handler de restore recibe el comando
 - **THEN** el archivo de journal para esa acción existe en disco antes de que el archivo sea sobrescrito
 
----
-
 ### Requirement: Handler quarantine_file — cuarentena con journal
 
 El handler de `quarantine_file` SHALL: escribir journal pre-acción; mover el archivo de `path` a `/var/lib/fim-agent/quarantine/<filename>.<timestamp>`; cambiar permisos del archivo en cuarentena a `0400`; escribir journal post-acción; publicar `event_ack`.
@@ -112,8 +101,6 @@ El handler MUST reutilizar la lógica de quarantine ya implementada en `agent/ac
 - **WHEN** el agente recibe `quarantine_file` para un `path` que no existe en el filesystem
 - **THEN** se escribe journal con `status=error` y razón `file_not_found`
 - **AND** se publica `event_ack` con `status=error`
-
----
 
 ### Requirement: event_ack publicado tras ejecutar cada comando
 

@@ -1,10 +1,9 @@
 # Spec: backend-async-consumer
 
 ## Purpose
-
 Define los requisitos de comportamiento asíncrono correcto para los consumers de Valkey y las dependencias FastAPI del backend FIM. El event loop de asyncio NO debe bloquearse con operaciones de I/O síncronas.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Operaciones DB en consumers ejecutadas en threadpool
 

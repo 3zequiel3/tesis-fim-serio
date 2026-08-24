@@ -1,12 +1,9 @@
 # Spec: frontend-events
 
-Capability: Pantalla de gestión de eventos del frontend FIM — listado paginado con filtros sincronizados en URL, detalle con diff viewer seguro y timeline de cadena, aprobación/rechazo individual y masivo con optimistic locking, y feed de alertas en tiempo real vía SSE.
-
----
-
 ## Purpose
-
 Proveer al admin la pantalla central de operación: revisar eventos de integridad de archivos, inspeccionar el diff de cada cambio de forma segura, ver el contexto de proceso y la cadena de eventos, y aprobar o rechazar cambios (individual o masivamente) consumiendo los endpoints REST del backend (C11, C13) y el stream SSE de alertas (C16).
+
+## Requirements
 
 ### Requirement: Página de eventos paginada con filtros multi-select sincronizados en URL
 
@@ -48,8 +45,6 @@ El frontend SHALL proveer `frontend/src/pages/Events.tsx` que renderiza una tabl
 - **WHEN** el admin avanza a la página 2
 - **THEN** la URL contiene `page=2` y se hace `GET /events?page=2&page_size=50&...`
 
----
-
 ### Requirement: Tabla de eventos con selección múltiple
 
 El frontend SHALL proveer `frontend/src/components/ui/EventsTable.tsx` que renderiza las filas de eventos con un checkbox por fila y un checkbox "seleccionar todos en la página". La selección SHALL mantenerse en estado local efímero (no en la URL) como un conjunto de `event_id`. Cada fila SHALL mostrar al menos `path`, `status`, `detected_at` y permitir abrir el detalle del evento. Las filas de eventos `superseded` SHALL mostrar un indicador visual de cadena rota.
@@ -71,8 +66,6 @@ El frontend SHALL proveer `frontend/src/components/ui/EventsTable.tsx` que rende
 - **WHEN** el admin hace click en una fila (fuera del checkbox)
 - **THEN** se navega a `/events/:id` o se abre el drawer de detalle de ese evento
 
----
-
 ### Requirement: Detalle de evento con timestamps dobles, contexto de proceso y diff seguro
 
 El frontend SHALL proveer una vista de detalle de evento (`frontend/src/pages/EventDetail.tsx` o drawer) que consume `GET /events/{id}` y muestra: `path`, `hash_detected`, los timestamps dobles `detected_at` y `received_at` (RN-90), el contexto de proceso `process_pid`, `process_uid`, `process_exe` (RN-03), el `status`, el `resolved_at`/`resolved_by` cuando existan, y la cadena de eventos vía `parent_event_id`. El detalle SHALL incluir un `DiffViewer` seguro y un `EventTimeline`.
@@ -86,8 +79,6 @@ El frontend SHALL proveer una vista de detalle de evento (`frontend/src/pages/Ev
 #### Scenario: Evento inexistente muestra estado de no encontrado
 - **WHEN** se abre el detalle de un `id` que retorna `404`
 - **THEN** la vista muestra un mensaje de "evento no encontrado" sin romper la app
-
----
 
 ### Requirement: DiffViewer seguro sin dangerouslySetInnerHTML
 
@@ -107,8 +98,6 @@ El frontend SHALL proveer `frontend/src/components/ui/DiffViewer.tsx` que usa `r
 - **WHEN** se muestra el diff de un archivo de texto
 - **THEN** la vista por defecto es split (lado a lado)
 
----
-
 ### Requirement: Timeline de cadena de eventos por parent_event_id
 
 El frontend SHALL proveer `frontend/src/components/ui/EventTimeline.tsx` que visualiza la cadena de eventos enlazados por `parent_event_id` (RN-21–24). Los eventos `superseded` de la cadena SHALL marcarse como tales, y el evento accionable más reciente SHALL distinguirse visualmente.
@@ -121,8 +110,6 @@ El frontend SHALL proveer `frontend/src/components/ui/EventTimeline.tsx` que vis
 #### Scenario: Evento sin cadena muestra timeline trivial
 - **WHEN** un evento no tiene `parent_event_id`
 - **THEN** el timeline muestra solo ese evento como único nodo
-
----
 
 ### Requirement: Aprobar y rechazar un evento individual con manejo de 409
 
@@ -143,8 +130,6 @@ El frontend SHALL permitir aprobar (`POST /actions/approve` con `{event_id, vers
 - **THEN** el frontend solicita confirmación de archivo ausente
 - **AND** al confirmar reintenta `POST /actions/approve` con `confirm_absent:true`
 
----
-
 ### Requirement: RejectModal con branch baseline_absent
 
 El frontend SHALL proveer `frontend/src/components/ui/RejectModal.tsx` que, para un reject normal, ofrece elegir la acción `restore` o `quarantine` y llama `POST /actions/reject` con `{event_id, version, action}`. Cuando el evento tiene `hash_detected === null` (o el backend indica baseline ausente), el modal SHALL ocultar el selector restore/quarantine, mostrar el mensaje "El archivo no existe en el baseline — no hay nada que restaurar ni poner en cuarentena", y al confirmar SHALL llamar `POST /actions/reject` con `action:"restore"` (el backend hace no-op del comando y retorna `200`), transicionando el evento a `rejected` (RN-77, C10).
@@ -159,8 +144,6 @@ El frontend SHALL proveer `frontend/src/components/ui/RejectModal.tsx` que, para
 - **THEN** el modal oculta el selector restore/quarantine
 - **AND** muestra el mensaje de archivo ausente
 - **AND** al confirmar se hace `POST /actions/reject` con `action:"restore"` y el evento transiciona a `rejected`
-
----
 
 ### Requirement: Bulk approve y bulk reject con modal de confirmación y resultado parcial
 
@@ -184,8 +167,6 @@ El frontend SHALL proveer `frontend/src/components/ui/BulkActionBar.tsx` que apa
 - **WHEN** una acción masiva retorna `{succeeded:[...], failed:[...]}` con fallos
 - **THEN** se muestra un toast indicando cuántos tuvieron éxito y cuántos fallaron
 - **AND** se invalida la query de la lista para reflejar los cambios
-
----
 
 ### Requirement: Feed de alertas en tiempo real vía SSE
 

@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change n8n-contract-and-config. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Forma canónica del payload de notificación (D40/RN-134)
 
 El sistema SHALL emitir todas las notificaciones hacia el canal n8n con un **sobre plano**: los campos de metadatos del sobre (`schema_version`, `notification_id`, `type`) SHALL ser hermanos de los campos de datos y NO SHALL anidarse bajo una clave contenedora.
@@ -55,8 +57,6 @@ Ningún campo de esta tabla requiere captura nueva por parte del agente: el mode
 - **THEN** las tres claves están presentes en el payload con valor `null`
 - **AND** el payload no las omite
 
----
-
 ### Requirement: `notification_id` estable a lo largo de la escalera de reintentos
 
 El sistema SHALL generar un `notification_id` (uuid v4) por notificación y SHALL reutilizar el mismo valor en todos los reintentos de esa notificación. Dos notificaciones distintas SHALL tener `notification_id` distintos.
@@ -70,8 +70,6 @@ Este identificador existe para permitir deduplicación aguas abajo (D41/RN-135).
 #### Scenario: Notificaciones distintas no colisionan
 - **WHEN** se generan payloads para dos alertas distintas
 - **THEN** sus `notification_id` son distintos
-
----
 
 ### Requirement: `type` discrimina alerta de cambio de salud
 
@@ -87,8 +85,6 @@ Ambas formas comparten una única URL de webhook, por lo que sin este discrimina
 - **WHEN** el health checker detecta un cambio de estado de componente
 - **THEN** el payload emitido tiene `payload["type"] == "health_change"`
 - **AND** incluye `schema_version` y `notification_id`
-
----
 
 ### Requirement: Test de contrato entre los workflows de n8n y el payload emitido
 
@@ -108,4 +104,3 @@ El test SHALL fallar si un workflow lee un campo que el backend no emite. El tes
 - **WHEN** la extracción de referencias no encuentra ningún campo
 - **THEN** el test falla
 - **AND** el mensaje indica que el fixture no produjo referencias, en lugar de reportar éxito
-

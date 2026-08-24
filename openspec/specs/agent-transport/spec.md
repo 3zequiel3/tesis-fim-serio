@@ -1,8 +1,9 @@
 # Spec: agent-transport
 
-Capability: Capa de transporte del agente FIM — publisher de eventos firmados HMAC-SHA256, cola offline durable con escritura atómica, heartbeat periódico y confirmación bidireccional sobre Valkey Streams.
+## Purpose
+TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
 
----
+## Requirements
 
 ### Requirement: Cola offline atómica con límite y política drop-oldest
 
