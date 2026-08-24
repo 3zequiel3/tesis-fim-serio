@@ -1035,6 +1035,10 @@ Capacidades:
 
 Reglas: RN-78 (rotación de certificados a 90 días), RN-111 y D13 (la falla de renovación degrada, no interrumpe — ya implementado del lado del agente), RN-94 (auditoría).
 
+> **Diseño**: la identidad sale del **certificado cliente del handshake**, no del `agent_id` del cuerpo — tratarlo como identidad sería un IDOR: cualquier agente con certificado válido renovaría el de otro. Se emite sobre la **clave pública presentada**, no sobre un CSR, porque el agente verifica el certificado recibido contra su clave privada **existente**: emitir para otra clave haría que lo descarte. Y el saliente **no se revoca** — entre la respuesta y la escritura en disco hay E/S que puede fallar, y un agente sin certificado válido no tiene canal para pedir otro.
+
+> **Camino sin salida a resolver** (`tasks.md` 7.1): si el agente estuvo apagado y su certificado **ya venció**, el handshake mTLS falla y no puede autenticarse para renovar; y el `bootstrap_secret` es de un solo uso y ya se consumió. Es el escenario real de un agente apagado unas semanas.
+
 **Done**: un agente con certificado a menos de 15 días de vencer obtiene uno nuevo sin intervención y sigue publicando; el endpoint rechaza una solicitud que no presente un certificado mTLS válido; el `bootstrap_secret` no sirve para renovar; la renovación queda en `audit_log`; y el test de contrato falla si alguno de los dos lados cambia la forma del cuerpo o de la respuesta.
 
 ---
