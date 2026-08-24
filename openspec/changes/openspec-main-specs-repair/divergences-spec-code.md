@@ -1,4 +1,4 @@
-# Divergencias spec ↔ código — RESUELTAS
+# Divergencias spec ↔ código
 
 Los 48 requisitos se restituyeron con su texto histórico. Esa fidelidad revivió requisitos que
 describían comportamiento que el código abandonó después, sin que nadie hubiera escrito nunca un
@@ -6,8 +6,12 @@ bloque `## REMOVED Requirements`.
 
 Este documento registra el barrido completo y la resolución de cada divergencia.
 
-**Estado: todas resueltas.** `scripts/check_spec_integrity.py` en verde, `openspec validate --specs`
-en 43/43, y ninguna prohibición técnica de las specs es violada por el código.
+**Estado**: barrido completo de los **244 requisitos** de las 43 specs. Tres divergencias de
+documentación **corregidas**, y **una funcional escalada** como change 50 — no se corrige editando
+texto porque falta código, no falta redacción.
+
+`scripts/check_spec_integrity.py` en verde, `openspec validate --specs` en 43/43, y ninguna
+prohibición técnica de las specs es violada por el código.
 
 ---
 
@@ -130,3 +134,64 @@ confianza merece cualquier herramienta parecida:
 Lo que sí funcionó fue extraer las **prohibiciones** (`MUST NOT` / `SHALL NOT`) y contrastar su
 polaridad contra el código. Esa técnica está ahora aplicada a las 14 prohibiciones de las specs del
 agente y es la que conviene repetir ante futuras recuperaciones.
+
+
+---
+
+# Segunda pasada — los 98 requisitos que estuvieron invisibles
+
+La primera pasada cubrió los 60 requisitos de las 9 capabilities del agente que **recuperaron
+contenido**. Quedaban 98 requisitos en 22 specs que estuvieron **truncados** por el daño estructural:
+nadie pudo contrastarlos contra el código durante meses porque el parser no los veía. Misma condición
+que produjo el caso fanotify, así que merecían el mismo barrido.
+
+| Clase de afirmación | Revisadas | Divergentes |
+|---|---:|---:|
+| Prohibiciones (`MUST NOT` / `SHALL NOT`) | 5 | 0 |
+| Endpoints HTTP citados | 33 | **1** |
+| Identificadores en backticks | 9 sospechosos | **2** |
+
+## Divergencia FUNCIONAL — escalada como change 50
+
+**`POST /agents/renew` no existe en el backend, y el agente lo llama.**
+
+`agent/__main__.py:82` arma un cliente mTLS y hace `POST {backend_url}/agents/renew` cuando el
+certificado vence en ≤ 15 días. El router de agents no expone esa ruta, y una búsqueda literal de
+`renew` en `backend/` no devuelve una sola ocurrencia real. El agente recibe 404, loguea
+`cert_renewal.backend_error` y sigue el loop: **los certificados nunca se renuevan.**
+
+No se resuelve editando la spec. **La spec tiene razón y falta el código** — implementarlo es emitir
+certificados mTLS contra la CA propia, que es trabajo sensible y merece su propia change con su
+propio diseño. Registrada como **change 50 `backend-agent-cert-renewal`**.
+
+## Divergencias de documentación — corregidas
+
+| Capability | Decía | Es |
+|---|---|---|
+| `backend-approve-reject` | `_upsert_baseline_entry` | `upsert_baseline_entry` — la función dejó de ser privada |
+| `backend-agents` | «sin actualizar `last_seen`» | el campo es `last_heartbeat` |
+
+## Falsos positivos verificados uno por uno
+
+Vale registrarlos, porque tres son **prohibiciones correctamente satisfechas** — la ausencia del
+identificador *es* el cumplimiento del requisito, y un escaneo ingenuo las reporta al revés:
+
+| Identificador | Por qué está ausente |
+|---|---|
+| `dangerouslySetInnerHTML` | El requisito es «DiffViewer seguro **sin** dangerouslySetInnerHTML» |
+| `localStorage`, `sessionStorage` | El requisito exige el token **en memoria**, no en storage |
+| `failed_notifications` | Tabla **eliminada** por D6/RN-107 en favor de `alerts` |
+| `NoSuchTableError` | El escenario afirma que `create_all()` **no** la lanza |
+| `stream_id` | Prosa genérica; el campo real, `last_stream_command_id`, existe con su default `"0-0"` |
+| `Dockerfile` | `frontend/Dockerfile` existe; mi corpus no incluía archivos sin extensión |
+| `GET /health/components` | Declarado con `@app.get` en `main.py:125`, no vía `@router` |
+| `POST /register` | Abreviatura en prosa de `/agents/register`, que existe |
+
+## Cobertura final
+
+| Conjunto | Requisitos | Estado |
+|---|---:|---|
+| Recuperados (9 capabilities del agente) | 60 | Barridos — 1 divergencia, resuelta |
+| Invisibles por truncamiento (22 specs) | 98 | Barridos — 3 divergencias, 2 resueltas + 1 escalada |
+| Visibles todo el tiempo | 86 | **No barridos** — riesgo menor: un `validate` los estuvo mirando |
+| **Total** | **244** | |

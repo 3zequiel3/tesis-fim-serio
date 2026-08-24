@@ -1016,6 +1016,29 @@ Capacidades:
 
 ---
 
+### Change 50 — `backend-agent-cert-renewal`
+
+**Capa**: backend · **Depende de**: 06 (`agent-mtls-bootstrap`) · **Origen**: barrido spec↔código del 2026-08-24, sobre los 98 requisitos que estuvieron invisibles por el daño de specs · **Decisiones**: ninguna nueva — RN-78 y la spec `agent-cert-renewal` ya definen el contrato
+
+> **Nota**: **`POST /agents/renew` no existe en el backend, y el agente lo llama.** No es un desalineamiento documental: es una funcionalidad que quedó implementada de un solo lado. `agent/__main__.py:40-100` corre `_cert_renewal_loop`, detecta que el certificado vence en ≤ 15 días, arma un cliente mTLS con el cert vigente y hace `POST {backend_url}/agents/renew`. Del otro lado no hay ruta: el router de agents expone `register`, `bootstrap`, `GET /agents`, `GET /agents/{id}`, `POST /agents/{id}/config` y `POST /agents/{id}/rescan`, y una búsqueda literal de `renew` en `backend/` no devuelve una sola ocurrencia real. El agente recibe 404, loguea `cert_renewal.backend_error` y continúa el loop. **Los certificados de los agentes nunca se renuevan.**
+
+Consecuencia operativa: pasada la vigencia del certificado (RN-78 fija rotación a 90 días), el agente pierde el canal mTLS con el backend y deja de poder publicar. El modo de falla es silencioso hasta ese momento — un warning periódico en el log del agente que nadie mira, y después un agente que se cae solo.
+
+**Por qué no se detectó antes**: `agent-cert-renewal` era una de las 29 specs truncadas. Sus 4 requisitos —incluido el que define este endpoint— eran **invisibles** para `validate`, `list` y `archive` desde que un archive defectuoso rompió el archivo. Nadie podía contrastarlos contra el código aunque hubiera querido. Apareció al recuperarlas y barrer los 98 requisitos que estaban en esa condición.
+
+Capacidades:
+- **`POST /agents/renew`** autenticado por **mTLS con el certificado vigente** del propio agente — nunca por `bootstrap_secret`, que es de un solo uso y ya fue consumido (prohibición explícita de la spec `agent-cert-renewal`). El cuerpo que el agente ya envía es `{"agent_id": "..."}`; la respuesta que ya espera es `{"cert_pem": "..."}`, y hay que respetar ese contrato o cambiar los dos lados a la vez.
+- **Emisión del nuevo certificado** contra la CA propia, con el mismo perfil que emite el bootstrap (C06) y período de validez de RN-78.
+- **El certificado anterior NO se revoca automáticamente**: el agente necesita seguir operando hasta escribir el nuevo en disco y recargarlo. Revocar antes crea una ventana en la que el agente no puede hablar con nadie.
+- **Auditoría** de cada renovación en `audit_log` (RN-94), con `agent_id`, huella del certificado saliente y del entrante.
+- **Test de contrato agente↔backend**: el cuerpo que emite `_cert_renewal_loop` y la forma que consume (`data["cert_pem"]`) verificados contra el schema real del endpoint. Es la misma lección de C46 y de la change 45 — un contrato con dos implementaciones y cero aserciones compartidas diverge, y acá directamente no llegó a existir de un lado.
+
+Reglas: RN-78 (rotación de certificados a 90 días), RN-111 y D13 (la falla de renovación degrada, no interrumpe — ya implementado del lado del agente), RN-94 (auditoría).
+
+**Done**: un agente con certificado a menos de 15 días de vencer obtiene uno nuevo sin intervención y sigue publicando; el endpoint rechaza una solicitud que no presente un certificado mTLS válido; el `bootstrap_secret` no sirve para renovar; la renovación queda en `audit_log`; y el test de contrato falla si alguno de los dos lados cambia la forma del cuerpo o de la respuesta.
+
+---
+
 ## Decisiones de implementación cerradas — Abril 2026
 
 Las 8 suposiciones que estaban abiertas en una versión anterior de este roadmap se cerraron el 2026-04-24 y se documentaron formalmente en los appendices "Decisiones de implementación — Abril 2026" de:

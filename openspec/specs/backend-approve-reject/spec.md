@@ -108,7 +108,7 @@ El sistema SHALL exponer `POST /actions/bulk-reject` (requiere JWT de admin) que
 
 Al aprobar exitosamente un evento, el sistema SHALL publicar en el stream `commands` de Valkey un mensaje con los campos: `type="baseline_update"`, `command_id` (UUID v4), `event_id`, `target_agent_id` (igual a `event.agent_id`), `path` (igual a `event.path`), `hash` (igual a `event.hash`, puede ser null), `baseline_status` ("present" | "absent"), `ruleset_version` (counter global incrementado, D5), `issued_at` (ISO8601 UTC), `signature` (HMAC-SHA256 hex del payload canónico con la clave `shared_secret` del agente). NO se publica ningún comando `get_file_hash` (D2, D8).
 
-La publicación en Valkey MUST ejecutarse DESPUÉS de `db.commit()` — la transacción de PostgreSQL MUST ser durable antes de que el agente reciba el comando. El orden en `_approve_single` SHALL ser: (1) verificar hash/confirm_absent; (2) UPDATE optimista; (3) flush + refresh; (4) `_increment_ruleset_version`; (5) `_upsert_baseline_entry`; (6) `_write_audit`; (7) `db.commit()`; (8) `db.refresh(event)`; (9) `publish_baseline_update` (FIX-02).
+La publicación en Valkey MUST ejecutarse DESPUÉS de `db.commit()` — la transacción de PostgreSQL MUST ser durable antes de que el agente reciba el comando. El orden en `_approve_single` SHALL ser: (1) verificar hash/confirm_absent; (2) UPDATE optimista; (3) flush + refresh; (4) `_increment_ruleset_version`; (5) `upsert_baseline_entry`; (6) `_write_audit`; (7) `db.commit()`; (8) `db.refresh(event)`; (9) `publish_baseline_update` (FIX-02).
 
 #### Scenario: Comando baseline_update contiene los campos requeridos
 - **WHEN** se aprueba un evento exitosamente

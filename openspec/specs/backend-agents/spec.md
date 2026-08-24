@@ -80,7 +80,7 @@ El consumer de eventos (`events/consumer.py`) MUST consultar el estado del agent
 
 #### Scenario: Heartbeat de agente revocado descartado
 - **WHEN** `agents/heartbeat_consumer.py` recibe un heartbeat de un agente cuyo `status == revoked`
-- **THEN** el heartbeat se descarta sin actualizar `last_seen` ni el estado del agente, y se emite un log INFO con el agent_id
+- **THEN** el heartbeat se descarta sin actualizar `last_heartbeat` ni el estado del agente, y se emite un log INFO con el agent_id
 
 #### Scenario: Agente con status online procesado normalmente
 - **WHEN** el consumer recibe un mensaje de un agente con `status == online`
