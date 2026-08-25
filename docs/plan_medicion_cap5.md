@@ -428,6 +428,93 @@ criterio de comparación del control (solo hash vs. hash + metadatos).
 
 ---
 
+## Batería 8 — Evasión por escritura mapeada en memoria → Tabla 17
+
+Caracteriza la limitación de `fanotify(7)` que el hallazgo C-3 de la auditoría pide declarar: las
+modificaciones aplicadas a través de un mapeo compartido (`mmap`/`msync`/`munmap`) no producen
+detección. La batería no se limita a declararla — la **mide**, que es lo que convierte una debilidad
+omitida en un resultado honesto y caracterizado.
+
+**Por qué el agente es ciego a esto.** La máscara es
+`FAN_CLOSE_WRITE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO | FAN_CREATE`
+(`agent/detector.py:294-298`). `FAN_MODIFY` está definido en `agent/_fanotify.py:55` pero **nunca se
+usa**. La detección de contenido se dispara al cerrar un descriptor abierto para escritura, y el
+hash se computa en ese instante.
+
+### Scripts
+
+- `scripts/bateria_mmap.py` — genera las mutaciones y emite `bateria8_cambios.jsonl` +
+  `bateria8_manifiesto.json`, con el mismo esquema de campos que `generador_carga.py`.
+- `scripts/analisis_mmap.py` — cruza el manifiesto contra la tabla `events` y emite las filas de la
+  Tabla 17.
+
+### Casos
+
+| Caso | Orden de operaciones | Eventos emitidos | Detección |
+|---|---|---|---|
+| A | `open → mmap → close(fd) → escribir → msync → munmap` | 1 (`CLOSE_WRITE`) | **ninguna** (evasión) |
+| B | `open → mmap → escribir → msync → munmap → close(fd)` | 1 | 1 |
+| C | `open/write/close` convencional, sin mapeo | 1 | 1 |
+
+**El caso B es lo que hace valer el resultado.** Aísla que lo que habilita la evasión no es `mmap`
+en sí, sino el orden entre el cierre del descriptor y las escrituras sobre el mapeo — condición que
+un adversario controla trivialmente. Sin B, el hallazgo sería "mmap no se detecta"; con B es un
+mecanismo caracterizado.
+
+> **Contar eventos no alcanza, y este es el punto fino.** En el caso A el agente **sí emite** un
+> evento —el `CLOSE_WRITE` del descriptor— pero con el hash del contenido todavía íntegro. Quien
+> cuente eventos a secas concluye "detectado" y se equivoca: el evento existe, la detección de la
+> modificación no. Por eso `analisis_mmap.py` exige que `hash_detected` coincida con `hash_despues`
+> y clasifica cada operación en `detectada` / `evento_sin_cambio` / `sin_evento`. La Tabla 17 lleva
+> las columnas "Eventos emitidos" y "Detección" **separadas**, justamente para mostrar esa aparente
+> contradicción.
+
+### Corte de validez
+
+**El caso C es el testigo.** Si no detecta 10/10, `analisis_mmap.py` devuelve código 1 y la corrida
+no vale. Un cero en el caso A no prueba evasión mientras el testigo no dé 100 %: prueba que el
+agente no estaba mirando el directorio. **No reportar la Tabla 17 si ese chequeo falla.**
+
+### Alcance de la afirmación
+
+Reportar **"consistente en las N repeticiones"**, nunca "determinística". El desenlace del caso A
+depende de una carrera entre la secuencia in-process (escribir sobre el mapeo → `msync` → `munmap`,
+sin syscalls de por medio) y el pipeline cross-thread del agente (hilo lector de fanotify →
+`call_soon_threadsafe` → `asyncio.Queue` → hash asincrónico, `agent/detector.py:265,400-406,769-778`).
+Esta batería no mide ese margen temporal, así que no puede sostener una afirmación de determinismo.
+
+### Salvedad — qué NO cubre
+
+Todos los casos hacen `msync` antes de `munmap`. No se ejercita la variante "escribir sobre el mapeo
+→ `munmap` sin `msync`" ni "escribir → salir del proceso sin `munmap`". No invalida el resultado
+—`read(2)` ve las escrituras `MAP_SHARED` por el page cache independientemente de `msync`, que solo
+afecta durabilidad en disco— pero **no se puede reportar que se cubrió esa variante**.
+
+### Procedimiento
+
+```bash
+# 1. Correr la batería contra el laboratorio, con el agente andando
+sudo ./scripts/bateria_mmap.py \
+    --dir /var/fim-lab --agent-prefix /var/fim-lab \
+    --repeticiones 10 --salida ./resultados/bateria8
+
+# 2. Esperar ~30 s a que drene la ingesta
+
+# 3. Cruzar contra la tabla events
+export DATABASE_URL='postgresql://fim:...@localhost:5432/fim'
+python3 scripts/analisis_mmap.py \
+    --jsonl resultados/bateria8/bateria8_cambios.jsonl \
+    --salida resultados/bateria8/bateria8_correlacion.csv
+```
+
+El paso 4 es copiar las filas que imprime al final directo a la Tabla 17.
+
+> **Los 7 falsos negativos NO se explican por esto.** `generador_carga.py:339-345` escribe con un
+> solo `open/write/close` y no hay `mmap` en ningún lado del repo. Ver `docs/dataset_cap5.md`,
+> sección "Salvedades", punto 1: los 7 siguen sin explicación verificada y así hay que reportarlos.
+
+---
+
 ## Metadatos de reproducibilidad → ítems 51-55
 
 | # | Dato | Método exacto |
@@ -487,6 +574,7 @@ strace -f -tt -p <pid_agente> -o resultados/bateria<N>.strace
 | 4 | Batería 7 (control, misma ventana que la 3) | 45, 47, 49, 50 | P2, P3, paso 3 |
 | 5 | Batería 4 (notificación ×3 escenarios) | 11-22 | P1, P6 |
 | 6 | Batería 5 (offline) | 36-43 | P1, P2, P7 |
+| 6b | Batería 8 (evasión por mmap) | Tabla 17 | P2, agente andando |
 | 7 | Corrida de verificación cruzada (pcap + strace) | 55 | pasos 3-6 |
 | — | Registrar `date -u` en cada paso | 52 | — |
 | — | Archivar logs del generador | 54 | P2 |

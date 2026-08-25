@@ -13,8 +13,14 @@ Ninguno requiere root ni dependencias externas: solo Python 3 de la stdlib
 | [`generador_carga.py`](generador_carga.py) | **P2** | 9, 37, 48, 54 + repetibilidad de las Baterías 3, 4, 5 y 7 |
 | [`control_hashing.py`](control_hashing.py) | **P3** | 45, 47, 49, 50 |
 | [`analisis_control.py`](analisis_control.py) | (cierre de P2 × P3) | 45, 47, 49, 50 |
+| [`bateria_mmap.py`](bateria_mmap.py) | agente andando sobre el directorio | Tabla 17 (Batería 8) |
+| [`analisis_mmap.py`](analisis_mmap.py) | (cierre de la Batería 8) | Tabla 17 (Batería 8) |
 | [`seed-reglas-lab.sh`](seed-reglas-lab.sh) | **P6** | 11-22 (sin esto la Batería 4 mide cero) |
 | [`setup-agent.sh`](setup-agent.sh) | — | registro del agente de test contra el backend |
+
+> `analisis_mmap.py` es la única excepción a lo de "solo stdlib": lee la tabla `events`
+> directamente y necesita `psycopg` (`pip install 'psycopg[binary]'`). Sin él sale con
+> código 2 y lo avisa.
 
 ---
 
@@ -65,11 +71,28 @@ python3 scripts/analisis_control.py \
   --control    resultados/bateria7_control.csv \
   --salida     resultados/bateria7_latencias.csv \
   --mediana-fim-ms <ítem 44> --p99-fim-ms <ítem 46>
+
+# Batería 8 — evasión por escritura mapeada (Tabla 17). Independiente de la
+# ventana de las Baterías 3/7: corre aparte, con el agente andando.
+date -u --iso-8601=seconds >> resultados/cronologia_utc.txt
+sudo ./scripts/bateria_mmap.py \
+  --dir /var/fim-lab --agent-prefix /var/fim-lab \
+  --repeticiones 10 --salida resultados/bateria8
+sleep 30                                            # drenar la ingesta
+python3 scripts/analisis_mmap.py \
+  --jsonl  resultados/bateria8/bateria8_cambios.jsonl \
+  --salida resultados/bateria8/bateria8_correlacion.csv
+date -u --iso-8601=seconds >> resultados/cronologia_utc.txt
 ```
 
 Las Baterías 3 y 7 **deben correr sobre la misma carga y la misma ventana
 temporal**. Si el control no ve exactamente los mismos cambios que la
 plataforma, la Tabla 15 no compara nada.
+
+La Batería 8 es la excepción: no comparte carga con ninguna otra, genera sus
+propios archivos y se correlaciona sola. Su corte de validez es interno (el caso
+C como testigo), así que **si `analisis_mmap.py` devuelve 1, la corrida se
+descarta y se repite** — no se reporta la Tabla 17 con un testigo caído.
 
 ---
 
@@ -236,6 +259,95 @@ trae una fila por latencia lista para `pd.read_csv(...)["latencia_ms"]`.
 
 ---
 
+## `bateria_mmap.py` + `analisis_mmap.py` — Batería 8
+
+Miden la limitación de `fanotify(7)` que el agente no puede cubrir: las escrituras
+aplicadas a través de un mapeo compartido (`mmap`/`msync`/`munmap`). La máscara del
+agente es `FAN_CLOSE_WRITE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO | FAN_CREATE`
+(`agent/detector.py:294-298`) — `FAN_MODIFY` está definido en `agent/_fanotify.py:55`
+pero nunca se usa. La detección de contenido se dispara al cerrar un descriptor
+abierto para escritura, y el hash se computa **en ese instante**.
+
+Tres casos, 10 repeticiones cada uno por defecto:
+
+| Caso | Orden de operaciones | Eventos emitidos | Detección |
+|---|---|---|---|
+| A | `open → mmap → close(fd) → escribir → msync → munmap` | 1 (`CLOSE_WRITE`) | **ninguna** |
+| B | `open → mmap → escribir → msync → munmap → close(fd)` | 1 | 1 |
+| C | `open/write/close` convencional, sin mapeo | 1 | 1 |
+
+**El caso B es lo que hace valer el resultado**: aísla que la evasión no la habilita
+`mmap` en sí, sino el orden entre el cierre del descriptor y las escrituras sobre el
+mapeo. Sin B el hallazgo sería "mmap no se detecta"; con B es un mecanismo
+caracterizado, que es lo que pide el bloque E de la auditoría.
+
+### Por qué contar eventos da un falso positivo de detección
+
+En el caso A el agente **sí emite** un evento — el `CLOSE_WRITE` del descriptor — pero
+con el hash del contenido todavía íntegro. Quien cuente eventos a secas concluye
+"detectado" y se equivoca: el evento existe, la detección de la modificación no.
+
+Por eso `analisis_mmap.py` no cuenta: exige que `hash_detected` del evento coincida con
+`hash_despues` del manifiesto, y clasifica cada operación en tres estados:
+
+- `detectada` — hay evento y el hash es el modificado.
+- `evento_sin_cambio` — **hay evento pero con el hash previo. Esta es la evasión.**
+- `sin_evento` — no hubo evento.
+
+La Tabla 17 lleva "Eventos emitidos" y "Detección" en columnas separadas justamente
+para mostrar esa aparente contradicción.
+
+### Corte de validez — no lo saltees
+
+**El caso C es el testigo.** Si no detecta 10/10, `analisis_mmap.py` devuelve código 1
+y avisa que la corrida no vale. Un cero en el caso A no prueba evasión mientras el
+testigo no dé 100 %: prueba que el agente no estaba mirando el directorio.
+**No reportar la Tabla 17 si ese chequeo falla.**
+
+### Uso
+
+```bash
+# 1. Batería contra el laboratorio, con el agente andando.
+sudo ./scripts/bateria_mmap.py \
+    --dir /var/fim-lab --agent-prefix /var/fim-lab \
+    --repeticiones 10 --salida ./resultados/bateria8
+
+# 2. Esperar ~30 s a que drene la ingesta.
+
+# 3. Cruce contra la tabla events.
+export DATABASE_URL='postgresql://fim:...@localhost:5432/fim'
+python3 scripts/analisis_mmap.py \
+    --jsonl resultados/bateria8/bateria8_cambios.jsonl \
+    --salida resultados/bateria8/bateria8_correlacion.csv
+
+# Inspeccionar el plan sin tocar el filesystem.
+./scripts/bateria_mmap.py --dir /var/fim-lab --dry-run
+```
+
+`--espera-baseline` (default 5 s) es el margen para que el agente incorpore el archivo
+recién creado a la baseline antes de mutarlo; `--espera-evento` (default 5 s) separa
+operaciones para que la correlación por ventana temporal no se solape.
+
+### Qué NO cubre
+
+Todos los casos hacen `msync` antes de `munmap`. **No** se ejercita "escribir sobre el
+mapeo → `munmap` sin `msync`" ni "escribir → salir del proceso sin `munmap`". No
+invalida el resultado —`read(2)` ve las escrituras `MAP_SHARED` por el page cache
+independientemente de `msync`, que solo afecta durabilidad en disco— pero no se puede
+reportar que se cubrió esa variante.
+
+### Cómo reportarlo
+
+**"Consistente en las N repeticiones"**, nunca "determinística". El desenlace del caso A
+depende de una carrera entre la secuencia in-process y el pipeline cross-thread del
+agente (`agent/detector.py:265,400-406,769-778`), y esta batería no mide ese margen.
+
+> **Los 7 falsos negativos del Cap. 5 no se explican por esto.**
+> `generador_carga.py:339-345` escribe con un solo `open/write/close` y no hay `mmap` en
+> ningún lado del repo. Ver `docs/dataset_cap5.md`, sección "Salvedades", punto 1.
+
+---
+
 ## `seed-reglas-lab.sh` — P6
 
 Solo los eventos de severidad `critical` y `high` generan una fila `Alert`
@@ -292,3 +404,25 @@ por causa. En una corrida de 500 eventos se verificó además que la mezcla sale
 exacta (100/350/50), que los 35 pares revertidos vuelven al hash previo byte a
 byte, que no hay modificaciones sobre archivos inexistentes y que dos corridas
 con la misma semilla producen planes y contenidos idénticos.
+
+### `bateria_mmap.py`
+
+Corrida de humo en directorio temporal, sin agente (solo valida la instrumentación
+del filesystem, no la detección):
+
+```
+bateria_mmap  2 repeticiones × 3 casos = 6 operaciones, 0 errores
+              A_mmap_close_previo        modificacion_efectiva 2/2
+              B_mmap_close_posterior     modificacion_efectiva 2/2
+              C_escritura_convencional   modificacion_efectiva 2/2
+```
+
+Lo que confirma es lo que hace falta confirmar antes de correr contra el agente:
+que la escritura sobre el mapeo **sí llega al archivo** aunque el descriptor ya
+esté cerrado (caso A: `hash_antes != hash_despues` en 2/2). Si esa mutación no
+ocurriera, un cero de detección en el caso A no probaría evasión — probaría que
+la batería no modificó nada.
+
+`analisis_mmap.py` sale con código 2 y un mensaje claro si falta `psycopg`, y con
+código 1 si el manifiesto no tiene operaciones correlacionables (JSONL vacío o
+truncado), antes de intentar escribir el CSV.

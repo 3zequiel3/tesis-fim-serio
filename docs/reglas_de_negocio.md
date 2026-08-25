@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-141 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-145 |
 
 ---
 
@@ -1555,6 +1555,172 @@ delta de origen. Sin ese mapa la guarda exigiría requisitos legítimamente reno
 **Nota sobre la causa raíz:** al menos un archive dañino (commit `5355465`) fue **escrito a mano**,
 sin invocar el CLI. Por eso la guarda vive fuera del CLI y se corre como paso de proceso: ningún
 arreglo de la herramienta habría prevenido ese caso.
+
+#### D49 / RN-143: `process_uid` nulo significa atribución no resuelta, nunca root
+
+**Descripción:** El campo `process_uid` de un evento SHALL valer `null` cuando el agente no pudo
+resolver el usuario del proceso causante. El valor `0` SHALL significar exclusivamente que el
+proceso causante corría como root. Lo mismo aplica a `process_pid` y `process_exe` en la ruta de
+rehidratación, donde el proceso original ya no existe por definición.
+
+**Motivo:** el agente lee el usuario de `/proc/<pid>/status`, y ese archivo desaparece en cuanto el
+proceso termina. Entre la detección y el armado del evento hay hasta 150 ms de reintentos de hash,
+así que un proceso corto —un editor que escribe y sale, un `install`, un paso de paquete— **ya no
+existe** cuando se lo consulta. Devolver `0` en ese caso no es un default conservador: es una
+**atribución falsa**, y la más grave posible, porque nombra a root. Un operador que filtra por
+`uid = 0` para buscar cambios privilegiados recibe una lista contaminada con todo cambio cuyo autor
+el sistema no supo identificar, sin ninguna marca que los distinga. La ruta de rehidratación es peor
+todavía: ahí el `0` era incondicional, de modo que **todo** evento recuperado del journal tras un
+reinicio se reportaba como hecho por root.
+
+La consecuencia documental es directa: sin esta regla, toda afirmación de la tesis sobre la
+fiabilidad de la atribución de procesos sería falsa, porque el sistema no distingue «fue root» de
+«no sé quién fue».
+
+**Condición:** Armado de todo evento que lleve contexto de proceso, tanto en la ruta de detección en
+vivo como en la rehidratación del journal.
+
+**Resultado:** El agente emite `process_uid: null`. El backend ya lo acepta —la columna es
+`int | None`— y la UI ya omite el contexto de proceso cuando los tres campos son nulos, sin
+renderizar guiones ni vacíos. No hace falta migración.
+
+**Excepciones:** Ninguna. No existe un valor de reemplazo aceptable: cualquier entero que se elija
+colisiona con un uid real.
+
+#### D50 / RN-144: Una brecha de detección del kernel se reporta como evento, no sólo como métrica
+
+**Descripción:** Cuando el kernel notifica desbordamiento de la cola de `fanotify`
+(`FAN_Q_OVERFLOW`), el agente SHALL emitir un evento sintético de tipo `detection_gap` por el mismo
+stream que los eventos normales, con `path` nulo y la causa en su metadato. El evento SHALL
+atravesar el pipeline completo —motor de decisión, backend, UI— de modo que un operador vea que
+hubo una ventana en la que el sistema **no puede garantizar cobertura**.
+
+**Motivo:** el desbordamiento de la cola del kernel es el único modo de falla del sistema que es
+silencioso por construcción. El kernel descarta eventos y sigue; el agente, que nunca los recibe, no
+tiene forma de inferir que faltaron. El contador `event_drops` que ya existe **no cubre esto**: mide
+la cola interna del agente, un punto de pérdida posterior, cuando el evento ya salió del kernel.
+
+Reportarlo sólo como métrica del heartbeat no alcanza. Una métrica se mira cuando alguien sospecha;
+un evento aparece en la bandeja de trabajo del operador y fuerza el triage. Y la asimetría importa:
+un `detection_gap` no dice «cambió un archivo», dice «entre estos dos instantes pude haber perdido
+cambios». Es una afirmación sobre la confianza en el resto de la evidencia, y por eso tiene que
+viajar por el mismo canal que la evidencia.
+
+**Condición:** Lectura de eventos de `fanotify` en el hilo lector del detector.
+
+**Resultado:** Se emite un evento con `event_type: "detection_gap"`, `path: null`, causa
+`fan_q_overflow` y contexto de proceso nulo —no hay proceso causante que atribuir—. El motor de
+reglas no puede restaurar ni poner en cuarentena algo sin ruta, de modo que la acción SHALL ser
+`alert_only` y el evento SHALL llegar a la UI en estado `alert_only`.
+
+**Deduplicación — por ventana, no por desbordamiento.** Bajo saturación sostenida el kernel emite
+`FAN_Q_OVERFLOW` repetidamente. El agente SHALL emitir a lo sumo **un** `detection_gap` por ventana
+de 60 segundos, contando los desbordamientos suprimidos y reportando esa cuenta en el evento. Sin
+este criterio, la respuesta del sistema a estar bajo presión sería inundar la tabla de eventos justo
+cuando menos capacidad hay para procesarla — el evento diagnóstico se volvería una segunda falla.
+
+**Excepciones:** En plataformas sin `fanotify` funcional el detector ya degrada y no emite eventos
+de ningún tipo; tampoco emite `detection_gap`.
+
+#### D51 / RN-145: `event_type` persistido, `path` opcional y severidad de eventos sin ruta
+
+**Descripción:** El modelo `Event` del backend SHALL persistir `event_type` con el vocabulario
+cerrado que el agente ya emite (`file_created`, `file_modified`, `file_deleted`, `file_absent`,
+`detection_gap`), en minúsculas snake_case conforme a RN-71, y SHALL exponerlo en la API y en el
+frontend. La columna `path` SHALL admitir nulo. Un evento sin ruta SHALL NOT participar de la
+supersesión por path.
+
+**Motivo — hay un campo que ya viaja y el backend lo tira.** El agente emite `event_type` en todo
+payload desde siempre; el backend nunca lo persistió y la UI nunca lo vio. No es un campo nuevo: es
+dejar de perder uno existente. Mientras todos los eventos hablaban de un archivo concreto, la ruta
+alcanzaba como discriminador y la pérdida no se notaba. Un `detection_gap` rompe esa suposición: sin
+`event_type` persistido, un evento sin ruta llega a la UI indistinguible de cualquier otro, y la
+decisión D50/RN-144 queda sin efecto observable.
+
+**El nulo no puede degradarse a cadena vacía.** La ingesta convertía un `path` ausente en `""`. Esa
+cadena vacía no es inerte: es la clave con la que el backend busca el evento `pending` anterior para
+supersedirlo. Con `""`, **todos** los `detection_gap` se supersederían entre sí como si fueran el
+mismo archivo, y cada nueva brecha borraría la anterior de la vista del operador — exactamente el
+dato que la decisión anterior existe para preservar. Por eso el nulo tiene que llegar nulo hasta la
+columna, y la supersesión por ruta tiene que excluir explícitamente a los eventos sin ruta.
+
+**Condición:** Ingesta de todo evento en el backend.
+
+**Resultado:** `Event.event_type` es `str` no nulo con default `file_modified` para filas previas a
+la migración; `Event.path` es `str | None`; la búsqueda de `pending` por ruta y la compactación de
+cadena se saltean cuando la ruta es nula, de modo que cada `detection_gap` sobrevive como registro
+independiente.
+
+**Severidad de un evento sin ruta — excepción acotada a D34/RN-128.** El backend sigue siendo la
+única autoridad sobre la severidad, y la sigue calculando al ingerir. Pero la lógica vigente la
+deriva de las reglas que matchean la ruta, y un evento sin ruta no matchea ninguna: caería en `low`,
+que es lo contrario de lo que significa. Un evento sin ruta SHALL recibir severidad `high` de forma
+fija, sin consultar el ruleset. La excepción es deliberadamente estrecha —se dispara por ausencia de
+ruta, no por tipo de evento— para que no haya que tocarla cada vez que aparezca un tipo nuevo, y
+sigue siendo el backend quien decide: el valor que el agente proponga se ignora, igual que hoy.
+
+`high` y no `critical`: una brecha de detección es una pérdida de garantía, no una violación de
+integridad confirmada. Reservar `critical` para lo confirmado mantiene informativa a la severidad
+máxima.
+
+**Excepciones:** Ninguna. El vocabulario de `event_type` se persiste sin validación contra enum, con
+el mismo criterio de tolerancia hacia adelante que `action` y `action_error` (D33, D36/RN-130): un
+valor desconocido emitido por un agente más nuevo se guarda tal cual en vez de rechazar el evento.
+
+#### D48 / RN-142: Ventana de gracia de 30 días para renovar un certificado vencido
+
+**Descripción:** `POST /agents/renew` acepta un certificado cliente **vencido**, siempre que sea por
+lo demás válido —firmado por la CA propia, con CN coincidente y **no revocado**— y que hayan pasado
+como máximo **30 días** desde su `not_valid_after`. Pasada la ventana, responde `403`.
+
+**Motivo — hoy un agente vencido no tiene camino de vuelta.** Verificado contra el código:
+
+| Camino | Resultado |
+|---|---|
+| Renovar | El handshake mTLS rechaza el certificado vencido antes de llegar a la aplicación |
+| Re-bootstrapear | `bootstrap_agent` destruye el secret al consumirlo (`agents/service.py:80`, `bootstrap_secret_hash = None`) → `401` |
+| Re-registrar | `register_agent` devuelve `409` si el agente ya existe (`agents/service.py:35-39`) |
+
+La única recuperación es escribir a mano en la base. Y el fondo es peor que la conectividad: el
+`master_secret` **no se persiste en el backend** —vive sólo en `AgentBootstrapResponse`, nunca en la
+tabla `Agent`, porque D1 hace al agente custodio único del contenido—, de modo que **el backend no
+puede devolver el anterior**. Cualquier re-bootstrap emite uno nuevo, y de ahí sale por HKDF-SHA256
+la clave AES-256-GCM del baseline: recuperar así un agente **le destruye la línea base y su historial
+de integridad**, obligando a un re-scan donde todo archivo aparece como nuevo.
+
+**Fundamento de seguridad.** Un certificado vencido sigue siendo **prueba de posesión de la clave
+privada**, que es exactamente lo que la autenticación necesita. El vencimiento expresa «esta
+credencial cumplió su plazo», no «quien la presenta no es quien dice ser». Lo que acota el riesgo no
+es la fecha sino la **verificación de revocación** (RN-141 y la spec `backend-cert-renewal`), que es
+donde vive la decisión real sobre si esa identidad sigue siendo legítima. Un agente revocado no
+renueva ni dentro ni fuera de la ventana.
+
+**Condición:** Cada solicitud a `POST /agents/renew`.
+
+**Resultado:** Un agente apagado hasta alrededor de mes y medio —30 días de gracia más los 15 del
+umbral de renovación anticipada— vuelve solo, conservando su `master_secret` y por lo tanto su
+baseline. Más allá de eso la recuperación es una acción administrativa deliberada, que para un agente
+ausente meses es lo correcto: conviene que un humano se entere.
+
+**Confinamiento de la relajación — la parte que no es opcional.** El puerto 8443 es **compartido**
+por todos los endpoints mTLS, así que relajarlo los relajaría a todos. La mitigación invierte el
+default en lugar de agregar excepciones:
+
+1. El listener opera en `CERT_OPTIONAL`: entrega el certificado a la aplicación en vez de rechazarlo
+   en el handshake.
+2. Una dependencia de validación **falla cerrada** —certificado presente, cadena válida, CN
+   coherente, **no vencido**, no revocado— y es el default de **todos** los endpoints mTLS.
+3. `POST /agents/renew` es la **única** excepción, y **sólo sobre el vencimiento**.
+
+Un endpoint mTLS que no declare su validación queda **protegido** por el default, nunca expuesto. El
+criterio de aceptación incluye un test de no-regresión que verifica que los demás endpoints siguen
+rechazando un certificado vencido; sin él, esta decisión degrada silenciosamente a una relajación
+general del puerto.
+
+**Excepciones:** La ventana no exime de ninguna otra verificación. Vencido **y** revocado es `403`.
+
+**Reglas afectadas:** complementa RN-78 (rotación de certificados) definiendo qué ocurre cuando la
+rotación no llegó a tiempo. No altera el período de validez.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

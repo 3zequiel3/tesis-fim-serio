@@ -2,7 +2,9 @@
 
 ### Requirement: POST /agents/renew emite un certificado nuevo autenticando por mTLS
 
-El backend SHALL exponer `POST /agents/renew` en el listener mTLS (puerto 8443, `CERT_REQUIRED`). La ruta SHALL NOT ser alcanzable por la API HTTP sin certificado cliente.
+El backend SHALL exponer `POST /agents/renew` en el listener mTLS (puerto 8443). La ruta SHALL NOT ser alcanzable por la API HTTP sin certificado cliente.
+
+El listener SHALL operar en `CERT_OPTIONAL` para entregar el certificado a la aplicación en lugar de rechazarlo en el handshake (ver el requisito de ventana de gracia). La exigencia de certificado válido SHALL recaer en una dependencia de validación que **falla cerrada**, no en el modo del socket.
 
 La identidad del solicitante SHALL derivarse del **certificado cliente presentado en el handshake**, no del cuerpo del pedido. El `agent_id` del cuerpo SHALL contrastarse contra el CN del certificado presentado; si difieren, el pedido SHALL rechazarse con `403`.
 
@@ -20,7 +22,7 @@ El contrato SHALL respetar lo que el agente ya implementa (`agent/__main__.py`):
 
 #### Scenario: Sin certificado cliente
 - **WHEN** se invoca el endpoint sin presentar certificado cliente
-- **THEN** el handshake TLS falla y no se emite ningún certificado
+- **THEN** la dependencia de validación rechaza la solicitud y no se emite ningún certificado
 
 #### Scenario: agent_id del cuerpo no coincide con el certificado
 - **WHEN** un agente presenta el certificado de `agent-a` y envía `{"agent_id": "agent-b"}`
@@ -124,3 +126,41 @@ Este endpoint es precisamente el caso de un contrato con **dos implementaciones 
 #### Scenario: Caso negativo — respuesta sin cert_pem
 - **WHEN** el endpoint devuelve un cuerpo sin la clave `cert_pem`
 - **THEN** el test de contrato falla
+
+
+---
+
+### Requirement: Ventana de gracia para certificados vencidos (D48/RN-142)
+
+`POST /agents/renew` SHALL aceptar un certificado cliente **vencido** siempre que sea por lo demás válido —firmado por la CA propia, CN coincidente con el `agent_id`, no revocado— y que hayan transcurrido **como máximo 30 días** desde su `not_valid_after`. Pasada la ventana, SHALL responder `403`.
+
+El fundamento es que un certificado vencido sigue siendo **prueba de posesión de la clave privada**, que es lo que la autenticación requiere. El vencimiento expresa que la credencial cumplió su plazo, no que quien la presenta sea otro. Lo que acota el riesgo es la verificación de revocación, no la fecha.
+
+Sin esta ventana, un agente apagado el tiempo suficiente queda **sin camino de vuelta**: no puede renovar (el handshake rechaza el vencido), no puede re-bootstrapear (el `bootstrap_secret` se destruye al consumirse) ni re-registrarse (`409`). Y forzar un re-bootstrap emitiría un `master_secret` nuevo, destruyendo el baseline cifrado del agente.
+
+**Confinamiento de la relajación.** El listener mTLS SHALL entregar el certificado a la aplicación en lugar de rechazarlo en el handshake, y una dependencia de validación SHALL **fallar cerrada**: exigir certificado presente, cadena válida, CN coherente, **no vencido** y no revocado, como default de **todos** los endpoints mTLS. `POST /agents/renew` SHALL ser la única excepción, y **sólo sobre el vencimiento**.
+
+Un endpoint mTLS que no declare su validación SHALL quedar protegido por el default, nunca expuesto.
+
+#### Scenario: Certificado vencido dentro de la ventana
+- **WHEN** un agente presenta un certificado vencido hace 20 días, firmado por la CA propia y no revocado
+- **THEN** la renovación procede y se emite un certificado nuevo sobre la misma clave
+- **AND** el `master_secret` del agente no se toca, de modo que su baseline sigue siendo descifrable
+
+#### Scenario: Certificado vencido fuera de la ventana
+- **WHEN** un agente presenta un certificado vencido hace 45 días
+- **THEN** la respuesta es `403` y no se emite certificado
+- **AND** el rechazo queda auditado con el motivo
+
+#### Scenario: Vencido y revocado
+- **WHEN** un agente revocado presenta un certificado vencido hace 10 días
+- **THEN** la respuesta es `403`: la ventana de gracia no exime de la verificación de revocación
+
+#### Scenario: Los demás endpoints mTLS siguen rechazando lo vencido
+- **WHEN** se invoca cualquier endpoint mTLS que no sea `/agents/renew` con un certificado vencido
+- **THEN** la solicitud es rechazada
+- **AND** la excepción de la ventana de gracia no se aplica fuera de la renovación
+
+#### Scenario: Endpoint sin validación declarada queda protegido
+- **WHEN** se agrega un endpoint al listener mTLS sin declarar explícitamente su dependencia de validación
+- **THEN** el default lo protege exigiendo certificado válido y no vencido

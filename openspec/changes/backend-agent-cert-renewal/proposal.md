@@ -14,14 +14,16 @@ El agente recibe 404, loguea `cert_renewal.backend_error` y continúa el loop. *
 
 ## What Changes
 
-- **`POST /agents/renew`**, autenticado por **mTLS con el certificado vigente** del propio agente. La prueba de identidad es el handshake: quien presenta un certificado válido emitido por la CA propia y no revocado, es el agente.
+- **`POST /agents/renew`**, autenticado por **mTLS con el certificado del propio agente** — vigente, o vencido dentro de una ventana de gracia de 30 días (D48/RN-142). La prueba de identidad es el handshake: quien presenta un certificado válido emitido por la CA propia y no revocado, es el agente.
 - **Emisión para la MISMA clave pública.** El agente **no envía CSR** — envía sólo `{"agent_id": ...}` — y después verifica el certificado recibido contra su **clave privada existente** (`bootstrap.verify_cert(..., private_key=agent_key)`). El backend SHALL tomar la clave pública del certificado cliente presentado en el handshake. Emitir para otra clave rompería esa verificación y el agente descartaría el certificado.
 - **`bootstrap_secret` NO sirve para renovar.** Es de un solo uso y ya fue consumido en el bootstrap (prohibición explícita de la spec `agent-cert-renewal`).
 - **El certificado anterior NO se revoca automáticamente.** El agente necesita seguir operando hasta escribir y recargar el nuevo. Revocar antes abre una ventana en la que el agente no puede hablar con nadie — y su único canal para pedir ayuda es justamente el que se acaba de cerrar.
 - **Auditoría** en `audit_log` (RN-94) con `agent_id` y los números de serie saliente y entrante.
 - **Test de contrato agente↔backend**: el cuerpo que emite `_cert_renewal_loop` y la forma que consume (`data["cert_pem"]`, `data.get("ca_cert_pem")`) verificados contra el schema real del endpoint, con caso negativo obligatorio.
 
-**Fuera de alcance**: cambiar el contrato que el agente ya implementa; rotación proactiva iniciada por el backend; revocación automática del certificado saliente; CRL o OCSP.
+- **Ventana de gracia de 30 días** sobre `not_valid_after` (D48/RN-142). Sin ella un agente apagado el tiempo suficiente queda **sin camino de vuelta**: no renueva (handshake), no re-bootstrapea (`bootstrap_secret_hash = None`, `401`), no se re-registra (`409`). Y forzar un re-bootstrap emitiría un `master_secret` nuevo — que el backend **no persiste**, por D1 — destruyendo el baseline cifrado del agente y su historial de integridad.
+
+**Fuera de alcance**: cambiar el contrato que el agente ya implementa; rotación proactiva iniciada por el backend; revocación automática del certificado saliente; CRL o OCSP; rotación de la clave privada del agente.
 
 ## Capabilities
 
@@ -41,6 +43,6 @@ Ninguna. `agent-cert-renewal` ya especifica el lado del agente y **no cambia**: 
 
 **Riesgo principal**: es un endpoint que **emite credenciales**. Un fallo de autenticación acá permite a un atacante con un certificado de agente comprometido renovarlo indefinidamente, incluso después de que el agente sea revocado. Por eso la verificación contra `revoked_certificates` es parte del criterio de aceptación, no un extra.
 
-**Riesgo secundario**: el mTLS del backend escucha en 8443 (`start_mtls_server`, `CERT_REQUIRED`), mientras la API HTTP está en 8000. La ruta SHALL quedar accesible por el listener mTLS y SHALL NOT ser alcanzable sin certificado cliente.
+**Riesgo secundario**: el listener baja de `CERT_REQUIRED` a `CERT_OPTIONAL` para poder aplicar la ventana de gracia (D-6), y ese puerto es **compartido** por todos los endpoints mTLS. Se mitiga invirtiendo el default: una dependencia de validación que **falla cerrada** pasa a ser obligatoria para todos, y `/agents/renew` es la única excepción, sólo sobre el vencimiento. **El criterio de aceptación incluye un test de no-regresión**: los demás endpoints mTLS siguen rechazando un certificado vencido.
 
 **Reglas cubiertas**: RN-78 (rotación de certificados), RN-111 y D13 (la falla de renovación degrada, no interrumpe — ya cumplido del lado del agente), RN-94 (auditoría).

@@ -29,6 +29,17 @@
 - [ ] 5.3 **Caso negativo obligatorio**: una respuesta sin `cert_pem` hace fallar el test. Sin él, vaciar el contrato lo deja en verde verificando nada.
 - [ ] 5.4 Verificar el test **en rojo**: cambiar temporalmente el nombre de la clave en la respuesta, confirmar que falla, revertir.
 
+## 5.5 Ventana de gracia (D-6 / D48/RN-142)
+
+- [ ] 5.5.1 Bajar el listener mTLS a `CERT_OPTIONAL` para que entregue el certificado a la aplicación en lugar de rechazarlo en el handshake.
+- [ ] 5.5.2 Dependencia de validación que **falla cerrada**: certificado presente, cadena válida contra la CA propia, CN coherente, **no vencido**, no revocado. Default de **todos** los endpoints mTLS.
+- [ ] 5.5.3 Aplicar la dependencia a todos los endpoints mTLS existentes **antes** de tocar el listener. Invertir el orden deja una ventana en la que el puerto acepta certificados vencidos sin defensa de aplicación.
+- [ ] 5.5.4 `POST /agents/renew` como única excepción, y **sólo sobre el vencimiento**: conserva cadena, CN y revocación, y agrega el chequeo de ventana de 30 días.
+- [ ] 5.5.5 Test: vencido hace 20 días renueva; vencido hace 45 días da `403`; vencido **y revocado** da `403` sin importar la ventana.
+- [ ] 5.5.6 **Test de no-regresión del confinamiento**: los demás endpoints mTLS siguen rechazando un certificado vencido. Es el test que impide que esta decisión se convierta en una relajación general del puerto 8443.
+- [ ] 5.5.7 Test: un endpoint mTLS que no declare validación queda protegido por el default, no expuesto.
+- [ ] 5.5.8 Verificar que la renovación por gracia **no toca el `master_secret`**, de modo que el baseline del agente sigue siendo descifrable.
+
 ## 6. Verificación end-to-end
 
 - [ ] 6.1 Un agente con certificado a menos de 15 días de vencer obtiene uno nuevo sin intervención y sigue publicando.
@@ -37,6 +48,6 @@
 
 ## 7. Preguntas abiertas del design — resolver antes de cerrar
 
-- [ ] 7.1 **Agente apagado meses, certificado ya vencido.** El handshake mTLS falla, así que no puede autenticarse para renovar; y el `bootstrap_secret` es de un solo uso y ya se consumió. **Es un camino sin salida.** Es el escenario real de un agente que estuvo apagado y merece resolverse antes de la defensa.
+- [x] 7.1 **Agente apagado, certificado vencido — RESUELTO por D-6 / D48/RN-142.** Verificado que el callejón estaba cerrado por los tres lados: renovar falla en el handshake, re-bootstrapear da `401` (`bootstrap_secret_hash = None` en `service.py:80`) y re-registrar da `409` (`service.py:35`). Y el fondo era peor: `master_secret` no se persiste en el backend —está sólo en `AgentBootstrapResponse`, nunca en la tabla `Agent`, por D1—, así que un re-bootstrap emite uno nuevo y **destruye el baseline cifrado**. Solución: ventana de gracia de 30 días, con la relajación confinada por una dependencia que falla cerrada.
 - [ ] 7.2 ¿La clave privada del agente debería rotar también? Hoy sólo rota el certificado. Cambiarlo exige CSR y toca el contrato de los dos lados.
 - [ ] 7.3 Confirmar contra RN-78 que el período de validez del renovado coincide con el del bootstrap.
