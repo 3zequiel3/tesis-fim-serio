@@ -81,6 +81,29 @@ Reglas del orquestador:
 - NO replica lógica de las skills.
 - NO bloquea por phase gates — OPSX es fluido.
 
+### Integridad de las specs (D47/RN-141) — MANDATORIO
+
+**Antes y después de cada `openspec archive`, correr:**
+
+```bash
+python3 scripts/check_spec_integrity.py
+```
+
+Sin dependencias, exit 1 si falla. Verifica **por archivo** —nunca sobre un total, donde una pérdida
+se cancelaría con una ganancia ajena— que ninguna main spec tenga encabezados de delta, que todas
+tengan título + `## Purpose` + `## Requirements`, y que ninguna tenga menos requisitos que los que
+sus deltas archivados aportaron.
+
+**Nunca escribir a mano un directorio bajo `openspec/changes/archive/`.** El archive lo produce el
+CLI, siempre. El daño histórico —48 requisitos borrados en 9 capabilities, dos de ellas sin main spec
+alguna— vino de archives que copiaron el delta verbatim sobre la main spec, y al menos uno
+(`5355465`) fue **escrito a mano** sin invocar el CLI. El CLI actual archiva correctamente; la regla
+existe porque ningún arreglo de la herramienta habría prevenido ese caso.
+
+Si la guarda reporta un requisito «perdido» que en realidad fue **renombrado** vía `MODIFIED` con el
+header cambiado —este proyecto nunca usó `## RENAMED Requirements`—, agregarlo a `CONFIRMED_RENAMES`
+dentro del script, con evidencia del delta de origen. No bajar el umbral ni relajar la verificación.
+
 ### Configuración del proyecto
 
 | Parámetro | Valor | Por qué |

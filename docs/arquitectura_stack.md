@@ -58,7 +58,7 @@ Definir una arquitectura profesional para un sistema FIM (File Integrity Monitor
 
 ### Notas sobre elecciones
 
-* **pyfanotify sobre watchdog/inotify**: `fanotify` (kernel Linux ≥ 5.1) es superior a `inotify` para el caso de uso FIM por tres razones: (1) provee contexto del proceso causante (PID, UID, path del ejecutable), no solo el evento sobre el archivo; (2) soporta marcado a nivel de sistema de archivos completo con `FAN_MARK_FILESYSTEM`, eliminando el race de tener que registrar watchers por cada subdirectorio nuevo; (3) opera en modo notificación pura o con contenido previo (puede bloquear la escritura para inspección antes de que se persista). El costo es que requiere la capability `CAP_SYS_ADMIN`, lo que motiva el despliegue nativo del agente (ver sección correspondiente). Se adopta el wrapper **pyfanotify 0.3.0** (licencia MIT, mantenido) y no el `python-fanotify` de Google porque ese repositorio está archivado.
+* **fanotify sobre watchdog/inotify**: `fanotify` (kernel Linux ≥ 5.1) es superior a `inotify` para el caso de uso FIM por tres razones: (1) provee contexto del proceso causante (PID, UID, path del ejecutable), no solo el evento sobre el archivo; (2) soporta marcado a nivel de sistema de archivos completo con `FAN_MARK_FILESYSTEM`, eliminando el race de tener que registrar watchers por cada subdirectorio nuevo; (3) opera en modo notificación pura o con contenido previo (puede bloquear la escritura para inspección antes de que se persista). El costo es que requiere la capability `CAP_SYS_ADMIN`, lo que motiva el despliegue nativo del agente (ver sección correspondiente). Se implementa un **backend propio** (`agent/_fanotify.py`, `ctypes` sobre syscalls crudas) en **modo FID**. Se descartó el wrapper `pyfanotify` (D46/RN-140): su modo fd no entrega `FAN_CREATE`/`FAN_DELETE`/`FAN_MOVED_*` sobre una marca de filesystem —el kernel responde `EINVAL`—, que son justamente las máscaras que RN-110 exige. Tampoco el `python-fanotify` de Google, cuyo repositorio está archivado.
 * **SQLModel** sobre SQLAlchemy puro: creado por el mismo autor de FastAPI (tiangolo), comparte modelos entre ORM y API schemas (Pydantic + SQLAlchemy en uno).
 * **psycopg3** (paquete `psycopg`) sobre `asyncpg`: compatible con SQLModel/SQLAlchemy, soporta sync y async, es el driver oficial recomendado para PostgreSQL moderno.
 * **python-jose** sobre PyJWT: soporta JWS, JWE, JWK — más completo para manejo de JWT.
@@ -83,7 +83,7 @@ Definir una arquitectura profesional para un sistema FIM (File Integrity Monitor
 │  └──────────────┬─────────────────────┘  │
 │                 │                        │
 │  ┌──────────────▼─────────────────────┐  │
-│  │ Agente FIM (Python + pyfanotify)   │  │
+│  │ Agente FIM (Python + fanotify FID) │  │
 │  │ · Servicio systemd nativo          │  │
 │  │ · Motor de decisión (4 niveles)    │  │
 │  │ · Baseline cifrada (AES-256-GCM)   │  │
@@ -151,8 +151,8 @@ services:
 
 | Componente | Tecnología | Detalle |
 |------------|-----------|---------|
-| Runtime | Python 3.12+ | Compatible con pyfanotify 0.3.0 |
-| Monitoreo FS | pyfanotify 0.3.0 sobre `fanotify` (kernel) | Detección reactiva con contexto de proceso |
+| Runtime | Python 3.13 | Igual que el backend; `agent/Dockerfile` fija `python:3.13-slim` |
+| Monitoreo FS | backend propio (`ctypes`, modo FID) sobre `fanotify` (kernel ≥ 5.1) | Detección reactiva con contexto de proceso (D46/RN-140) |
 | Hashing | hashlib (stdlib) | SHA-256 para integridad |
 | Cola offline | Archivos JSON en disco | Resiliencia sin DB embebida |
 | Conexión backend | Valkey Streams (via valkey-py) | Publicación async de eventos |
@@ -161,7 +161,7 @@ services:
 
 ### Por qué `fanotify` y no `inotify`
 
-| Criterio | `inotify` (vía watchdog) | `fanotify` (vía pyfanotify) |
+| Criterio | `inotify` (vía watchdog) | `fanotify` (backend propio, modo FID) |
 |----------|--------------------------|------------------------------|
 | Contexto de proceso | ❌ No informa qué proceso hizo el cambio | ✅ PID, UID, path del ejecutable causante |
 | Marcado a nivel de FS | ❌ Hay que registrar watcher por subdirectorio (race con `mkdir`) | ✅ `FAN_MARK_FILESYSTEM` monta el FS entero |
@@ -530,7 +530,7 @@ Resultado:
 ## Flujo completo del agente
 
 ```
-Evento detectado (fanotify vía pyfanotify)
+Evento detectado (fanotify, modo FID)
    ├── Contexto recibido: path, pid, uid, exe del proceso causante
    │
    ├── Calcular hash SHA-256 del archivo actual
@@ -1212,7 +1212,7 @@ El backend:
 # 🔁 Flujo Completo (Pipeline end-to-end)
 
 ```
-1. Agente detecta cambio (fanotify via pyfanotify)
+1. Agente detecta cambio (fanotify, modo FID)
    · Recibe: path, pid, uid, exe del proceso causante
 
 2. Calcula SHA-256 del archivo actual
@@ -1682,7 +1682,7 @@ Esta arquitectura define un sistema FIM completo con:
 
 El sistema implementa un **modelo híbrido de respuesta automatizada y validación humana**:
 
-* **Detección** — `fanotify` vía pyfanotify con contexto forense (PID/UID/exe), motor de decisión local
+* **Detección** — `fanotify` en modo FID con contexto forense (PID/UID/exe), motor de decisión local
 * **Respuesta** — 4 niveles: auto_restore, quarantine, manual_review, alert_only
 * **Control humano** — Aprobación/rechazo de cambios pendientes con cadena de eventos y optimistic locking
 * **Baseline inteligente** — Dinámico, cifrado AES-GCM, actualizado solo por decisión humana (approve) o re-scan explícito
@@ -1704,7 +1704,7 @@ El sistema implementa un **modelo híbrido de respuesta automatizada y validaci�
 | Valkey 9.0.3 | [GitHub](https://github.com/valkey-io/valkey/releases) / [valkey.io](https://valkey.io) | 23 Abr 2026 |
 | n8n 2.17.8 | [GitHub](https://github.com/n8n-io/n8n/releases) / [n8n.io](https://n8n.io) | 23 Abr 2026 |
 | PostgreSQL 18.3 | [postgresql.org](https://www.postgresql.org/) | 23 Abr 2026 |
-| pyfanotify 0.3.0 | [PyPI](https://pypi.org/project/pyfanotify/) | 23 Abr 2026 |
+| backend fanotify propio (`agent/_fanotify.py`) | [fanotify(7)](https://man7.org/linux/man-pages/man7/fanotify.7.html) | D46/RN-140 — reemplaza pyfanotify |
 | SQLModel | [sqlmodel.tiangolo.com](https://sqlmodel.tiangolo.com/) | 23 Abr 2026 |
 | React 19 | [react.dev](https://react.dev/) | 23 Abr 2026 |
 | Tailwind CSS 4.2.2 | [tailwindcss.com](https://tailwindcss.com/) / [GitHub](https://github.com/tailwindlabs/tailwindcss/releases) | 23 Abr 2026 |
@@ -2123,7 +2123,7 @@ Ningún caso requiere request/response síncrono.
 
 **Decisión**: El agente registra `FAN_CLOSE_WRITE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO | FAN_CREATE` en el mark del filesystem.
 
-Resolución de path: pyfanotify resuelve `ev.path` en el momento de captura para todos los tipos de evento. Si `ev.path` es `None`, el evento se descarta con log warning. No se usan flags adicionales de fanotify (`FAN_REPORT_DFID_NAME`, `FAN_REPORT_FID`) — pyfanotify maneja la resolución internamente.
+Resolución de path (D46/RN-140): el detector opera en **modo FID** con `FAN_REPORT_DFID_NAME` y reconstruye el path vía `open_by_handle_at(2)` sobre el handle del directorio padre más el nombre — lo que permite resolver el path de un archivo **ya borrado**. Si no puede resolverse, el evento se descarta con log warning. El modo fd clásico no admite `FAN_CREATE`/`FAN_DELETE`/`FAN_MOVED_*` sobre marca de filesystem (`EINVAL`), así que el reporte FID es obligatorio, no opcional.
 
 Procesamiento por tipo de evento:
 - `FAN_CLOSE_WRITE` → comportamiento actual (hash + compare + decide)
