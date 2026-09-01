@@ -55,7 +55,7 @@ except ImportError:
 
 
 CONSULTA = """
-SELECT event_id, path, event_type, hash_detected, detected_at, received_at
+SELECT event_id, path, status, hash_detected, detected_at, received_at
 FROM events
 WHERE path = %(path)s
   AND detected_at > %(desde)s

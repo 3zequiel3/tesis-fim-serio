@@ -495,7 +495,7 @@ afecta durabilidad en disco— pero **no se puede reportar que se cubrió esa va
 ```bash
 # 1. Correr la batería contra el laboratorio, con el agente andando
 sudo ./scripts/bateria_mmap.py \
-    --dir /var/fim-lab --agent-prefix /var/fim-lab \
+    --dir fim-watch --agent-prefix /watch \
     --repeticiones 10 --salida ./resultados/bateria8
 
 # 2. Esperar ~30 s a que drene la ingesta

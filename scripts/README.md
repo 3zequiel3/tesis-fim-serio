@@ -76,7 +76,7 @@ python3 scripts/analisis_control.py \
 # ventana de las Baterías 3/7: corre aparte, con el agente andando.
 date -u --iso-8601=seconds >> resultados/cronologia_utc.txt
 sudo ./scripts/bateria_mmap.py \
-  --dir /var/fim-lab --agent-prefix /var/fim-lab \
+  --dir fim-watch --agent-prefix /watch \
   --repeticiones 10 --salida resultados/bateria8
 sleep 30                                            # drenar la ingesta
 python3 scripts/analisis_mmap.py \
@@ -270,22 +270,46 @@ abierto para escritura, y el hash se computa **en ese instante**.
 
 Tres casos, 10 repeticiones cada uno por defecto:
 
-| Caso | Orden de operaciones | Eventos emitidos | Detección |
+| Caso | Orden de operaciones | Eventos emitidos | Detección (medida 2026-09-01) |
 |---|---|---|---|
-| A | `open → mmap → close(fd) → escribir → msync → munmap` | 1 (`CLOSE_WRITE`) | **ninguna** |
+| A | `open → mmap → close(fd) → escribir → msync → munmap` | 1 (`CLOSE_WRITE`) | **10/10 — la evasión NO se observó** |
 | B | `open → mmap → escribir → msync → munmap → close(fd)` | 1 | 1 |
 | C | `open/write/close` convencional, sin mapeo | 1 | 1 |
 
-**El caso B es lo que hace valer el resultado**: aísla que la evasión no la habilita
-`mmap` en sí, sino el orden entre el cierre del descriptor y las escrituras sobre el
-mapeo. Sin B el hallazgo sería "mmap no se detecta"; con B es un mecanismo
-caracterizado, que es lo que pide el bloque E de la auditoría.
+> **Resultado de la corrida del 2026-09-01: la evasión NO se observó.** El caso A fue
+> detectado 10/10, con `hash_detected` igual al contenido **posterior** a la modificación y
+> cero operaciones en `evento_sin_cambio`. Los números y la interpretación completa están en
+> [`resultados/RESULTADOS.md`](../resultados/RESULTADOS.md), sección «Batería 8».
+>
+> **El mecanismo no es el que la hipótesis suponía.** La premisa era correcta: el
+> `CLOSE_WRITE` se emite antes de la escritura sobre el mapeo, y el agente no tiene forma de
+> enterarse de esa escritura. Pero el agente **no hashea en el instante del evento**: el
+> `close(fd)` solo encola (`call_soon_threadsafe` → `asyncio.Queue`, `agent/detector.py:400`)
+> y el hash se computa después, en `_process_event`. Con una mediana de 9,5 ms entre la
+> operación y el evento persistido, la escritura in-process del caso A —sin syscalls de por
+> medio, microsegundos— ya está en la página cuando el agente abre el archivo. **El agente
+> detecta por hashear tarde, no por haber visto la escritura.**
+>
+> **Esto acota la limitación, no la cierra.** La ventana de evasión existe y es estrecha, del
+> orden de los 10 ms de la latencia de detección. Un adversario que introduzca una demora
+> mayor a esa latencia entre el `close(fd)` y la escritura sobre el mapeo debería seguir
+> evadiendo. **Esa variante no se midió.**
 
-### Por qué contar eventos da un falso positivo de detección
+**El caso B es lo que hace valer el resultado**: aísla que lo que está en juego es el orden
+entre el cierre del descriptor y las escrituras sobre el mapeo, no `mmap` en sí. Sin B el
+hallazgo sería "mmap no se detecta"; con B es un mecanismo caracterizado, que es lo que pide
+el bloque E de la auditoría.
 
-En el caso A el agente **sí emite** un evento — el `CLOSE_WRITE` del descriptor — pero
-con el hash del contenido todavía íntegro. Quien cuente eventos a secas concluye
-"detectado" y se equivoca: el evento existe, la detección de la modificación no.
+### Por qué contar eventos no alcanza
+
+La hipótesis previa a la corrida era que en el caso A el agente emitiría el `CLOSE_WRITE` con
+el hash **todavía íntegro**, y que contar eventos a secas daría un falso "detectado". La
+medición mostró que el hash llega modificado, así que ese falso positivo no se materializó.
+
+El criterio de comparación por hash **se mantiene igual de necesario**: es lo único que
+distingue "hubo evento" de "se detectó la modificación", y es lo que permitió afirmar que la
+detección fue real y no un artefacto de conteo. Si en una corrida futura —con la demora que
+esta batería no midió— apareciera el `evento_sin_cambio`, el correlacionador ya lo clasifica.
 
 Por eso `analisis_mmap.py` no cuenta: exige que `hash_detected` del evento coincida con
 `hash_despues` del manifiesto, y clasifica cada operación en tres estados:
@@ -308,20 +332,27 @@ testigo no dé 100 %: prueba que el agente no estaba mirando el directorio.
 
 ```bash
 # 1. Batería contra el laboratorio, con el agente andando.
-sudo ./scripts/bateria_mmap.py \
-    --dir /var/fim-lab --agent-prefix /var/fim-lab \
+#    No hace falta sudo: el script crea sus propios archivos en fim-watch/ y el
+#    agente los lee como root desde el contenedor.
+./scripts/bateria_mmap.py \
+    --dir fim-watch --agent-prefix /watch \
     --repeticiones 10 --salida ./resultados/bateria8
 
 # 2. Esperar ~30 s a que drene la ingesta.
 
 # 3. Cruce contra la tabla events.
-export DATABASE_URL='postgresql://fim:...@localhost:5432/fim'
+#    OJO: el servicio `db` del compose NO publica el puerto 5432 al host. Apuntar a
+#    localhost te conecta a cualquier otro Postgres que escuche ahí y falla la auth.
+#    Usar la IP del contenedor:
+#      DBIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' \
+#             tesis-fim-serio-db-1 | awk '{print $1}')
+export DATABASE_URL="postgresql://fim:${DB_PASSWORD}@${DBIP}:5432/fim"
 python3 scripts/analisis_mmap.py \
     --jsonl resultados/bateria8/bateria8_cambios.jsonl \
     --salida resultados/bateria8/bateria8_correlacion.csv
 
 # Inspeccionar el plan sin tocar el filesystem.
-./scripts/bateria_mmap.py --dir /var/fim-lab --dry-run
+./scripts/bateria_mmap.py --dir fim-watch --dry-run
 ```
 
 `--espera-baseline` (default 5 s) es el margen para que el agente incorpore el archivo
