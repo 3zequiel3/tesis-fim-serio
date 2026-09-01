@@ -58,7 +58,11 @@ Definir una arquitectura profesional para un sistema FIM (File Integrity Monitor
 
 ### Notas sobre elecciones
 
-* **fanotify sobre watchdog/inotify**: `fanotify` (kernel Linux ≥ 5.1) es superior a `inotify` para el caso de uso FIM por tres razones: (1) provee contexto del proceso causante (PID, UID, path del ejecutable), no solo el evento sobre el archivo; (2) soporta marcado a nivel de sistema de archivos completo con `FAN_MARK_FILESYSTEM`, eliminando el race de tener que registrar watchers por cada subdirectorio nuevo; (3) opera en modo notificación pura o con contenido previo (puede bloquear la escritura para inspección antes de que se persista). El costo es que requiere la capability `CAP_SYS_ADMIN`, lo que motiva el despliegue nativo del agente (ver sección correspondiente). Se implementa un **backend propio** (`agent/_fanotify.py`, `ctypes` sobre syscalls crudas) en **modo FID**. Se descartó el wrapper `pyfanotify` (D46/RN-140): su modo fd no entrega `FAN_CREATE`/`FAN_DELETE`/`FAN_MOVED_*` sobre una marca de filesystem —el kernel responde `EINVAL`—, que son justamente las máscaras que RN-110 exige. Tampoco el `python-fanotify` de Google, cuyo repositorio está archivado.
+* **fanotify sobre watchdog/inotify**: `fanotify` (kernel Linux ≥ 5.1) es superior a `inotify` para el caso de uso FIM por tres razones: (1) identifica al **proceso causante**, cosa que `inotify` no hace en absoluto; (2) soporta marcado a nivel de sistema de archivos completo con `FAN_MARK_FILESYSTEM`, eliminando el race de tener que registrar watchers por cada subdirectorio nuevo; (3) ofrece clases de permiso que permiten bloquear la operación para inspeccionarla antes de que se persista. El costo es que requiere la capability `CAP_SYS_ADMIN`, lo que motiva el despliegue nativo del agente (ver sección correspondiente).
+
+  **Precisión sobre (1) — qué entrega el kernel y qué resuelve el agente.** `struct fanotify_event_metadata` lleva **únicamente el `pid`** del proceso causante; **no** lleva UID ni ruta del ejecutable, en ningún modo de operación. El UID y el binario los resuelve el agente **fuera de banda**, leyendo `/proc/<pid>/status` y `/proc/<pid>/exe` (`agent/detector.py:91-106`, invocado desde el hilo lector en `:392-400`). Esa resolución es *best-effort* y puede fallar: `/proc/<pid>` desaparece en cuanto el proceso termina, y entre la notificación del kernel y el armado del evento hay hasta 150 ms de reintentos de hash, de modo que un proceso corto ya no existe cuando se lo consulta. Por eso **D49/RN-143** obliga a reportar `process_uid: null` —atribución no resuelta— y prohíbe el `0` como valor de relleno: `0` significa root y nada más.
+
+  **Precisión sobre (3) — este sistema no usa las clases de permiso.** El detector inicializa con `FAN_CLASS_NOTIF` **exclusivamente** (`agent/detector.py:282-284`); `agent/_fanotify.py` ni siquiera define `FAN_CLASS_CONTENT` / `FAN_CLASS_PRE_CONTENT`. La detección es, por lo tanto, **siempre posterior a la escritura y sin capacidad de bloqueo**. La inspección pre-write existe en fanotify pero se descartó para el MVP por su costo —cada operación del filesystem queda esperando el veredicto del agente, con el riesgo de colgar el host si el agente se traba— y se deriva a trabajo futuro (ver limitación 2 de «Limitaciones tecnológicas conocidas del stack»). Se implementa un **backend propio** (`agent/_fanotify.py`, `ctypes` sobre syscalls crudas) en **modo FID**. Se descartó el wrapper `pyfanotify` (D46/RN-140): su modo fd no entrega `FAN_CREATE`/`FAN_DELETE`/`FAN_MOVED_*` sobre una marca de filesystem —el kernel responde `EINVAL`—, que son justamente las máscaras que RN-110 exige. Tampoco el `python-fanotify` de Google, cuyo repositorio está archivado.
 * **SQLModel** sobre SQLAlchemy puro: creado por el mismo autor de FastAPI (tiangolo), comparte modelos entre ORM y API schemas (Pydantic + SQLAlchemy en uno).
 * **psycopg3** (paquete `psycopg`) sobre `asyncpg`: compatible con SQLModel/SQLAlchemy, soporta sync y async, es el driver oficial recomendado para PostgreSQL moderno.
 * **python-jose** sobre PyJWT: soporta JWS, JWE, JWK — más completo para manejo de JWT.
@@ -152,7 +156,7 @@ services:
 | Componente | Tecnología | Detalle |
 |------------|-----------|---------|
 | Runtime | Python 3.13 | Igual que el backend; `agent/Dockerfile` fija `python:3.13-slim` |
-| Monitoreo FS | backend propio (`ctypes`, modo FID) sobre `fanotify` (kernel ≥ 5.1) | Detección reactiva con contexto de proceso (D46/RN-140) |
+| Monitoreo FS | backend propio (`ctypes`, modo FID) sobre `fanotify` (kernel ≥ 5.1) | Detección reactiva (D46/RN-140). El kernel entrega el `pid`; UID y ejecutable se resuelven fuera de banda por `/proc` y pueden quedar sin resolver (D49/RN-143) |
 | Hashing | hashlib (stdlib) | SHA-256 para integridad |
 | Cola offline | Archivos JSON en disco | Resiliencia sin DB embebida |
 | Conexión backend | Valkey Streams (via valkey-py) | Publicación async de eventos |
@@ -163,9 +167,10 @@ services:
 
 | Criterio | `inotify` (vía watchdog) | `fanotify` (backend propio, modo FID) |
 |----------|--------------------------|------------------------------|
-| Contexto de proceso | ❌ No informa qué proceso hizo el cambio | ✅ PID, UID, path del ejecutable causante |
+| Contexto de proceso | ❌ No informa qué proceso hizo el cambio | ✅ El kernel entrega el **`pid`**; UID y ejecutable los deriva el agente de `/proc/<pid>` (best-effort, D49/RN-143) |
 | Marcado a nivel de FS | ❌ Hay que registrar watcher por subdirectorio (race con `mkdir`) | ✅ `FAN_MARK_FILESYSTEM` monta el FS entero |
-| Bloqueo pre-escritura | ❌ Solo notifica después del write | ✅ Modos de permisos permiten inspeccionar antes |
+| Bloqueo pre-escritura | ❌ Solo notifica después del write | ⚠️ Las clases de permiso lo permiten, pero **este sistema no las usa**: inicializa en `FAN_CLASS_NOTIF` (detección post-escritura, ver limitación 2) |
+| Visibilidad de pérdida | ❌ `IN_Q_OVERFLOW` (el consumidor debe chequearlo) | ✅ `FAN_Q_OVERFLOW` se reporta como evento `detection_gap` (D50/RN-144) |
 | Límite de watchers | `fs.inotify.max_user_watches` (agotable) | No aplica al marcado de FS |
 | Eventos sobre dispositivos de bloque | ❌ | Limitado (igual que inotify, pero con contexto) |
 | Madurez en kernels actuales | ≥ 2.6.13 | ≥ 5.1 con features modernas |
@@ -531,7 +536,15 @@ Resultado:
 
 ```
 Evento detectado (fanotify, modo FID)
-   ├── Contexto recibido: path, pid, uid, exe del proceso causante
+   ├── Del kernel: path (reconstruido del handle FID) + pid del proceso causante
+   ├── Resuelto fuera de banda por el agente: uid (/proc/<pid>/status), exe (/proc/<pid>/exe)
+   │      → si el proceso ya terminó, ambos quedan en null — atribución no resuelta,
+   │        NUNCA uid 0 (D49/RN-143)
+   │
+   ├── FAN_Q_OVERFLOW (el kernel descartó eventos por saturación de su cola)
+   │      → no hay path ni proceso que atribuir: se emite un evento sintético
+   │        event_type=detection_gap, path=null, action=alert_only,
+   │        a lo sumo uno por ventana de 60 s con la cuenta de supresiones (D50/RN-144)
    │
    ├── Calcular hash SHA-256 del archivo actual
    ├── Descifrar entrada de baseline (AES-GCM) y comparar hash
@@ -807,6 +820,15 @@ detected -> analyzed -> action
 
 La tabla de transiciones canónicas (in-edges / out-edges) está formalizada en C2 del appendix. Cualquier transición no listada es rechazada a nivel de service con HTTP 409.
 
+**El estado no dice de qué habla el evento.** Los 7 estados describen el ciclo de resolución, no la
+naturaleza del hecho detectado. Eso lo dice `event_type` (D51/RN-145), un campo que el agente emite
+desde siempre y que hasta esta decisión el backend descartaba en la ingesta: `file_created`,
+`file_modified`, `file_deleted`, `file_absent` y `detection_gap`. Mientras todo evento hablaba de un
+archivo concreto, el `path` alcanzaba como discriminador y la pérdida no se notaba; un
+`detection_gap` —que no tiene ruta— rompe esa suposición y llegaría a la UI indistinguible de
+cualquier otro evento. Un `detection_gap` entra siempre como `alert_only`: sin ruta no hay archivo
+que restaurar ni que poner en cuarentena.
+
 ## Flujo de aprobación (Admin)
 
 ### Caso 1: Admin APRUEBA (cambio legítimo)
@@ -965,14 +987,21 @@ Porque entre que el admin ve el evento y aprieta "Approve", el archivo podría h
 ```python
 class Event(SQLModel, table=True):
     id: int
-    path: str
+    event_type: str             # D51/RN-145: file_created | file_modified | file_deleted |
+                                # file_absent | detection_gap (snake_case, RN-71).
+                                # El agente lo emite desde siempre; hasta D51 el backend lo descartaba.
+    path: str | None            # D51/RN-145: NULL cuando el evento no habla de un archivo concreto
+                                # (detection_gap). NUNCA "" — la cadena vacía es una clave de
+                                # supersesión válida y colapsaría todas las brechas en una sola.
     hash_detected: str          # Hash al momento de detección
     status: EventStatus         # pending | approved | rejected | auto_restored | quarantined | alert_only | superseded
+    severity: RuleSeverity      # D34/RN-128: la calcula el backend al ingerir, nunca el agente.
+                                # D51/RN-145: un evento sin path recibe `high` fijo, sin consultar el ruleset.
     parent_event_id: int | None # Referencia al evento anterior en la cadena (None = primer evento)
     action_type: str            # auto_restore | quarantine | manual_review | alert_only
     version: int = 0            # Optimistic locking (C5)
-    process_pid: int | None     # Contexto fanotify: proceso causante
-    process_uid: int | None
+    process_pid: int | None     # Contexto del proceso causante. D49/RN-143: NULL = no resuelto.
+    process_uid: int | None     # 0 significa root y sólo root — nunca "no se pudo determinar".
     process_exe: str | None
     detected_at: datetime       # Timestamp del agente
     received_at: datetime       # Timestamp del backend (W13 anti-replay)
@@ -980,6 +1009,12 @@ class Event(SQLModel, table=True):
     resolved_at: datetime | None
     resolved_by: int | None     # User ID del admin que aprobó/rechazó
 ```
+
+**Supersesión y eventos sin ruta (D51/RN-145).** La cadena de la sección anterior se indexa por
+`path`: al ingerir, el backend busca el `pending` más reciente de ese path y lo marca `superseded`.
+Un evento con `path` nulo **no participa** de ese mecanismo — ni supersede ni es superseded, y la
+compactación de cadena no lo alcanza. Cada `detection_gap` sobrevive como registro independiente,
+que es exactamente el dato que D50/RN-144 existe para preservar.
 
 ### Estado "absent" en baseline
 
@@ -1506,7 +1541,7 @@ Alineadas con la sección 6.6 de la tesis v6. Cada limitación motivó una decis
 |---|------------|----------------------------------|
 | 1 | **`fanotify` requiere `CAP_SYS_ADMIN`** | Agente desplegado nativo fuera de Docker; hardening con systemd (`ProtectSystem=strict`, `NoNewPrivileges`, etc.). Se documenta como restricción de deployment. |
 | 2 | **`fanotify` detecta *después* del write** (aun con modo permisos, la inspección pre-write tiene costos que no asumimos en el MVP) | El diff se genera comparando contra el baseline; el archivo ya está modificado cuando se evalúa. Para protección pre-write se deriva a trabajo futuro (IMA, dm-verity). |
-| 3 | **Saturación del consumidor `fanotify`** (eventos pueden perderse silenciosamente si el agente no consume a tiempo) | El agente monitorea activamente el nivel de backpressure y lo reporta como anomalía en el heartbeat (`queue_pressure` flag). |
+| 3 | **Saturación de la cola de `fanotify` en el kernel** — si el agente no lee a tiempo, el kernel descarta eventos y sigue; el agente nunca los recibe y no puede inferir que faltaron | **Se reporta como evento, no sólo como métrica (D50/RN-144).** Al leer `FAN_Q_OVERFLOW` el agente emite un evento sintético `detection_gap` (`path` nulo, `alert_only`, a lo sumo uno por ventana de 60 s con la cuenta de supresiones) por el mismo stream que la evidencia, de modo que la ventana sin cobertura llegue a la bandeja del operador. **Los contadores existentes no cubren esto**: `event_drops` mide la `asyncio.Queue` interna del agente —un punto de pérdida posterior, cuando el evento ya salió del kernel— y `queue_pressure` mide la cola offline de 100 MB en disco (`agent/queue.py`), que no tiene relación con la saturación de `fanotify`. |
 | 4 | **Valkey con persistencia AOF periódica** — un crash puede perder los últimos ms de escrituras | Cola local del agente actúa como buffer antes de la confirmación `XACK + event_ack` del backend (C3), que es la que autoriza la eliminación local. |
 | 5 | **Backend en instancia única** (C4) — no se diseña HA multi-réplica en el MVP | Init-container para arranque rápido + cola local del agente que preserva eventos durante la ventana de reinicio. Documentado como consideración de producción futura. |
 | 6 | **n8n no ejecuta comandos nativos del SO** | Delimitado a enrutador de notificaciones externas; toda la lógica de decisión y acción sobre el FS vive en el backend propio + agente. |
