@@ -450,30 +450,54 @@ hash se computa en ese instante.
 
 ### Casos
 
-| Caso | Orden de operaciones | Eventos emitidos | Detección |
+| Caso | Orden de operaciones | Eventos emitidos | Detección — **medida 2026-09-01** |
 |---|---|---|---|
-| A | `open → mmap → close(fd) → escribir → msync → munmap` | 1 (`CLOSE_WRITE`) | **ninguna** (evasión) |
-| B | `open → mmap → escribir → msync → munmap → close(fd)` | 1 | 1 |
-| C | `open/write/close` convencional, sin mapeo | 1 | 1 |
+| A | `open → mmap → close(fd) → escribir → msync → munmap` | 1 (`CLOSE_WRITE`) | **10/10 — la evasión no se observó** |
+| B | `open → mmap → escribir → msync → munmap → close(fd)` | 1 | 10/10 |
+| C | `open/write/close` convencional, sin mapeo | 1 | 10/10 |
 
-**El caso B es lo que hace valer el resultado.** Aísla que lo que habilita la evasión no es `mmap`
-en sí, sino el orden entre el cierre del descriptor y las escrituras sobre el mapeo — condición que
-un adversario controla trivialmente. Sin B, el hallazgo sería "mmap no se detecta"; con B es un
-mecanismo caracterizado.
+> **La corrida contradijo la hipótesis, y el hallazgo es mejor que la hipótesis.** Se esperaba que
+> el caso A quedara en `evento_sin_cambio` 10/10 —evento emitido con el hash íntegro—. Se midió lo
+> contrario: detectado 10/10, con `hash_detected` igual al contenido posterior a la modificación y
+> cero `evento_sin_cambio`. Testigo válido (caso C, 10/10). Los números completos y su
+> interpretación están en `resultados/RESULTADOS.md`, sección «Batería 8».
+>
+> **La premisa era correcta; la conclusión, no.** El `CLOSE_WRITE` efectivamente se emite antes de
+> la escritura sobre el mapeo, y el agente no tiene forma de enterarse de esa escritura. Pero el
+> agente **no hashea en el instante del evento**: el `close(fd)` sólo encola
+> (`call_soon_threadsafe` → `asyncio.Queue`, `agent/detector.py:400`) y el hash se computa después,
+> en `_process_event`. Con una mediana de 9,5 ms entre la operación y el evento persistido, la
+> secuencia in-process del caso A —sin syscalls de por medio, microsegundos— ya modificó la página
+> cuando el agente abre el archivo. **El agente detecta por hashear tarde, no por haber visto la
+> escritura.**
+>
+> **Esto acota la limitación de `fanotify(7)`; no la cierra.** La ventana de evasión existe y es
+> estrecha, del orden de los 10 ms de la latencia de detección. Un adversario que introduzca una
+> demora mayor a esa latencia entre el `close(fd)` y la escritura sobre el mapeo debería seguir
+> evadiendo, porque el agente ya habría hasheado contenido íntegro. **Esta batería no midió ese
+> caso**, y así hay que reportarlo en el Cap. 5.
 
-> **Contar eventos no alcanza, y este es el punto fino.** En el caso A el agente **sí emite** un
-> evento —el `CLOSE_WRITE` del descriptor— pero con el hash del contenido todavía íntegro. Quien
-> cuente eventos a secas concluye "detectado" y se equivoca: el evento existe, la detección de la
-> modificación no. Por eso `analisis_mmap.py` exige que `hash_detected` coincida con `hash_despues`
-> y clasifica cada operación en `detectada` / `evento_sin_cambio` / `sin_evento`. La Tabla 17 lleva
-> las columnas "Eventos emitidos" y "Detección" **separadas**, justamente para mostrar esa aparente
-> contradicción.
+**El caso B es lo que hace valer el resultado.** Aísla que lo que está en juego es el orden entre el
+cierre del descriptor y las escrituras sobre el mapeo, no `mmap` en sí. Sin B, el hallazgo sería
+"mmap no se detecta"; con B es un mecanismo caracterizado.
+
+> **El criterio de comparación por hash sigue siendo indispensable.** Antes de la corrida servía
+> para evitar un falso "detectado" por conteo de eventos; ese falso positivo no se materializó,
+> porque el hash llegó modificado. Pero es lo único que distingue "hubo evento" de "se detectó la
+> modificación", y es lo que permite afirmar que la detección del caso A fue real y no un artefacto.
+> Por eso `analisis_mmap.py` exige que `hash_detected` coincida con `hash_despues` y clasifica cada
+> operación en `detectada` / `evento_sin_cambio` / `sin_evento`. La Tabla 17 mantiene las columnas
+> "Eventos emitidos" y "Detección" separadas: si en una corrida futura —con la demora que esta
+> batería no midió— apareciera el `evento_sin_cambio`, la tabla ya está preparada para mostrarlo.
 
 ### Corte de validez
 
 **El caso C es el testigo.** Si no detecta 10/10, `analisis_mmap.py` devuelve código 1 y la corrida
 no vale. Un cero en el caso A no prueba evasión mientras el testigo no dé 100 %: prueba que el
 agente no estaba mirando el directorio. **No reportar la Tabla 17 si ese chequeo falla.**
+
+En la corrida del 2026-09-01 el testigo dio 10/10, así que el resultado del caso A —detección, no
+evasión— es un dato del sistema y no un artefacto de instrumentación.
 
 ### Alcance de la afirmación
 

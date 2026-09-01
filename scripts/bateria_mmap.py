@@ -29,9 +29,20 @@ cierre del descriptor y las escrituras sobre el mapeo:
                      ESPERADO: evento con el hash modificado.
 
 La comparación A vs. B es lo que convierte la limitación en un resultado
-caracterizado: no es que "mmap no se detecta", sino que la evasión ocurre cuando el
-descriptor se cierra antes de escribir sobre el mapeo, condición que un adversario
-controla trivialmente.
+caracterizado: no es que "mmap no se detecta", sino que lo que está en juego es el
+orden entre el cierre del descriptor y las escrituras sobre el mapeo.
+
+RESULTADO MEDIDO (corrida 2026-09-01, testigo válido 10/10): el caso A fue
+DETECTADO 10/10, con hash_detected igual al contenido posterior. La evasión no se
+observó. El motivo es que el agente no hashea en el instante del evento: el
+close(fd) sólo encola (agent/detector.py:400) y el hash se computa después, con una
+mediana de 9,5 ms; para entonces la escritura in-process ya está en la página. El
+agente detecta por hashear tarde, no por haber visto la escritura.
+
+Esto acota la limitación, no la cierra: la ventana de evasión existe y es del orden
+de esos 10 ms. Un adversario que demore la escritura sobre el mapeo más que la
+latencia de detección debería seguir evadiendo. ESA VARIANTE NO SE MIDIÓ.
+Ver resultados/RESULTADOS.md, sección «Batería 8».
 
 Alcance de la afirmación: el resultado es empírico, no una prueba de determinismo.
 El desenlace del caso A depende de una carrera entre la secuencia in-process

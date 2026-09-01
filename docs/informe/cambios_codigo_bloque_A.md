@@ -230,17 +230,31 @@ Ejercita tres casos, 10 repeticiones cada uno por defecto:
 
 | Caso | Orden de operaciones | Eventos emitidos | Detección |
 |------|----------------------|------------------|-----------|
-| A | `open → mmap → close(fd) → escribir → msync → munmap` | 1 (`CLOSE_WRITE`) | **ninguna** (evasión) |
+| A | `open → mmap → close(fd) → escribir → msync → munmap` | 1 (`CLOSE_WRITE`) | **10/10 detectada** — ver nota |
 | B | `open → mmap → escribir → msync → munmap → close(fd)` | 1 | 1 |
 | C | `open/write/close` convencional, sin mapeo | 1 | 1 |
 
-> **Las dos columnas van separadas a propósito.** En el caso A el agente **sí
-> emite** un evento —el `CLOSE_WRITE` del descriptor— pero con el hash del
-> contenido todavía íntegro. Contar eventos a secas da "detectado" y es falso: el
-> evento existe, la detección de la modificación no. Por eso `analisis_mmap.py`
-> exige que `hash_detected` coincida con `hash_despues` y clasifica en tres
-> estados: `detectada`, `evento_sin_cambio` (esta es la evasión, y es el hallazgo
-> fino) y `sin_evento`.
+> **Nota — la corrida del 2026-09-01 contradijo esta hipótesis.** Se esperaba que el
+> caso A quedara en `evento_sin_cambio` 10/10. Se midió detección 10/10, con
+> `hash_detected` igual al contenido posterior a la modificación y testigo válido.
+> El motivo: el agente **no hashea en el instante del evento**. El `close(fd)` sólo
+> encola (`agent/detector.py:400`) y el hash se computa después, con una mediana de
+> 9,5 ms; para entonces la escritura in-process del caso A —microsegundos, sin
+> syscalls— ya está en la página. **El agente detecta por hashear tarde, no por
+> haber visto la escritura.**
+>
+> Esto **acota** la limitación de `fanotify(7)`, no la cierra: la ventana de evasión
+> existe y es del orden de esos 10 ms. Un adversario que demore la escritura sobre
+> el mapeo más que la latencia de detección debería seguir evadiendo, y **esa
+> variante no se midió**. Números e interpretación completa en
+> `resultados/RESULTADOS.md`, sección «Batería 8».
+>
+> **Las dos columnas siguen separadas a propósito.** El criterio por hash es lo único
+> que distingue "hubo evento" de "se detectó la modificación", y es lo que permitió
+> afirmar que la detección fue real y no un artefacto de conteo. `analisis_mmap.py`
+> exige que `hash_detected` coincida con `hash_despues` y clasifica en `detectada`,
+> `evento_sin_cambio` y `sin_evento`; si la variante con demora llega a medirse, la
+> clasificación ya está lista.
 
 Emite `bateria8_cambios.jsonl` y `bateria8_manifiesto.json` con el mismo
 esquema de campos que `generador_carga.py`, para reutilizar el correlacionador
