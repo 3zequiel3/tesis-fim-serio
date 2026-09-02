@@ -75,7 +75,7 @@ python3 scripts/analisis_control.py \
 # Batería 8 — evasión por escritura mapeada (Tabla 17). Independiente de la
 # ventana de las Baterías 3/7: corre aparte, con el agente andando.
 date -u --iso-8601=seconds >> resultados/cronologia_utc.txt
-sudo ./scripts/bateria_mmap.py \
+./scripts/bateria_mmap.py \
   --dir fim-watch --agent-prefix /watch \
   --repeticiones 10 --salida resultados/bateria8
 sleep 30                                            # drenar la ingesta
@@ -279,7 +279,8 @@ Tres casos, 10 repeticiones cada uno por defecto:
 > **Resultado de la corrida del 2026-09-01: la evasión NO se observó.** El caso A fue
 > detectado 10/10, con `hash_detected` igual al contenido **posterior** a la modificación y
 > cero operaciones en `evento_sin_cambio`. Los números y la interpretación completa están en
-> [`resultados/RESULTADOS.md`](../resultados/RESULTADOS.md), sección «Batería 8».
+> [`docs/informe/Tabla 17-datos.md`](../docs/informe/Tabla%2017-datos.md).
+> (Los artefactos crudos quedan en `resultados/bateria8/`, que está en `.gitignore`.)
 >
 > **El mecanismo no es el que la hipótesis suponía.** La premisa era correcta: el
 > `CLOSE_WRITE` se emite antes de la escritura sobre el mapeo, y el agente no tiene forma de

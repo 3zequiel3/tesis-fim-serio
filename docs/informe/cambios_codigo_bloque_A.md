@@ -247,7 +247,8 @@ Ejercita tres casos, 10 repeticiones cada uno por defecto:
 > existe y es del orden de esos 10 ms. Un adversario que demore la escritura sobre
 > el mapeo más que la latencia de detección debería seguir evadiendo, y **esa
 > variante no se midió**. Números e interpretación completa en
-> `resultados/RESULTADOS.md`, sección «Batería 8».
+> [`docs/informe/Tabla 17-datos.md`](Tabla%2017-datos.md). Los artefactos crudos quedan
+> en `resultados/bateria8/`, que está en `.gitignore`.
 >
 > **Las dos columnas siguen separadas a propósito.** El criterio por hash es lo único
 > que distingue "hubo evento" de "se detectó la modificación", y es lo que permitió
@@ -268,16 +269,19 @@ Uso:
 
 ```bash
 # 1. Correr la batería contra el laboratorio, con el agente andando
-sudo ./scripts/bateria_mmap.py \
-    --dir /var/fim-lab \
-    --agent-prefix /var/fim-lab \
+./scripts/bateria_mmap.py \
+    --dir fim-watch \
+    --agent-prefix /watch \
     --repeticiones 10 \
     --salida ./resultados/bateria8
 
 # 2. Esperar ~30 s a que drene la ingesta
 
 # 3. Cruzar contra la tabla events
-export DATABASE_URL='postgresql://fim:...@localhost:5432/fim'
+# El servicio `db` del compose NO publica el 5432 al host: usar la IP del contenedor.
+DBIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' \
+       tesis-fim-serio-db-1 | awk '{print $1}')
+export DATABASE_URL="postgresql://fim:${DB_PASSWORD}@${DBIP}:5432/fim"
 python3 scripts/analisis_mmap.py \
     --jsonl resultados/bateria8/bateria8_cambios.jsonl \
     --salida resultados/bateria8/bateria8_correlacion.csv

@@ -439,7 +439,9 @@ omitida en un resultado honesto y caracterizado.
 `FAN_CLOSE_WRITE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO | FAN_CREATE`
 (`agent/detector.py:294-298`). `FAN_MODIFY` está definido en `agent/_fanotify.py:55` pero **nunca se
 usa**. La detección de contenido se dispara al cerrar un descriptor abierto para escritura, y el
-hash se computa en ese instante.
+hash se computa **después**, de forma asincrónica — la hipótesis original asumía que se
+computaba en ese mismo instante, y la corrida del 2026-09-01 mostró que no. Ver el
+resultado medido más abajo.
 
 ### Scripts
 
@@ -460,7 +462,8 @@ hash se computa en ese instante.
 > el caso A quedara en `evento_sin_cambio` 10/10 —evento emitido con el hash íntegro—. Se midió lo
 > contrario: detectado 10/10, con `hash_detected` igual al contenido posterior a la modificación y
 > cero `evento_sin_cambio`. Testigo válido (caso C, 10/10). Los números completos y su
-> interpretación están en `resultados/RESULTADOS.md`, sección «Batería 8».
+> interpretación están en [`docs/informe/Tabla 17-datos.md`](informe/Tabla%2017-datos.md).
+> Los artefactos crudos quedan en `resultados/bateria8/`, que está en `.gitignore`.
 >
 > **La premisa era correcta; la conclusión, no.** El `CLOSE_WRITE` efectivamente se emite antes de
 > la escritura sobre el mapeo, y el agente no tiene forma de enterarse de esa escritura. Pero el
@@ -518,14 +521,18 @@ afecta durabilidad en disco— pero **no se puede reportar que se cubrió esa va
 
 ```bash
 # 1. Correr la batería contra el laboratorio, con el agente andando
-sudo ./scripts/bateria_mmap.py \
+./scripts/bateria_mmap.py \
     --dir fim-watch --agent-prefix /watch \
     --repeticiones 10 --salida ./resultados/bateria8
 
 # 2. Esperar ~30 s a que drene la ingesta
 
 # 3. Cruzar contra la tabla events
-export DATABASE_URL='postgresql://fim:...@localhost:5432/fim'
+# OJO: el servicio `db` del compose NO publica el 5432 al host; apuntar a localhost
+# conecta a otro Postgres y falla la autenticación. Usar la IP del contenedor.
+DBIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' \
+       tesis-fim-serio-db-1 | awk '{print $1}')
+export DATABASE_URL="postgresql://fim:${DB_PASSWORD}@${DBIP}:5432/fim"
 python3 scripts/analisis_mmap.py \
     --jsonl resultados/bateria8/bateria8_cambios.jsonl \
     --salida resultados/bateria8/bateria8_correlacion.csv

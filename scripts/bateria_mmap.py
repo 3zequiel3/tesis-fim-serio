@@ -8,9 +8,10 @@ través de un mapeo compartido (mmap/msync/munmap) no generan eventos del subsis
 El agente de esta plataforma no se suscribe a FAN_MODIFY: su máscara es
 FAN_CLOSE_WRITE | FAN_DELETE | FAN_MOVED_FROM | FAN_MOVED_TO | FAN_CREATE
 (agent/detector.py::_mark_paths). La detección de modificación de contenido se
-dispara, por lo tanto, al cierre de un descriptor abierto para escritura, y el hash
-se computa en ese instante. De ahí que el resultado dependa del ORDEN entre el
-cierre del descriptor y las escrituras sobre el mapeo:
+dispara, por lo tanto, al cierre de un descriptor abierto para escritura. La hipótesis
+de esta batería asumía además que el hash se computaba en ese mismo instante — la
+corrida mostró que NO es así (ver RESULTADO MEDIDO más abajo). De ahí que el resultado
+dependa del ORDEN entre el cierre del descriptor y las escrituras sobre el mapeo:
 
   Caso A (evasión)   open → mmap → close(fd) → escribir → msync → munmap
                      El CLOSE_WRITE se emite ANTES de la modificación: el agente SÍ
@@ -42,7 +43,8 @@ agente detecta por hashear tarde, no por haber visto la escritura.
 Esto acota la limitación, no la cierra: la ventana de evasión existe y es del orden
 de esos 10 ms. Un adversario que demore la escritura sobre el mapeo más que la
 latencia de detección debería seguir evadiendo. ESA VARIANTE NO SE MIDIÓ.
-Ver resultados/RESULTADOS.md, sección «Batería 8».
+Ver docs/informe/Tabla 17-datos.md (los artefactos crudos quedan en
+resultados/bateria8/, que está en .gitignore).
 
 Alcance de la afirmación: el resultado es empírico, no una prueba de determinismo.
 El desenlace del caso A depende de una carrera entre la secuencia in-process
@@ -52,8 +54,8 @@ cross-thread del agente (hilo lector de fanotify → call_soon_threadsafe → as
 "consistente en las N repeticiones", nunca "determinística".
 
 Uso:
-    sudo ./bateria_mmap.py --dir /var/fim-lab --repeticiones 10 \
-         --salida ./results/bateria8 --agent-prefix /var/fim-lab
+    ./bateria_mmap.py --dir fim-watch --repeticiones 10 \
+         --salida ./resultados/bateria8 --agent-prefix /watch
 
 Produce  <salida>/bateria8_cambios.jsonl  y  <salida>/bateria8_manifiesto.json
 con el mismo esquema de campos que generador_carga.py, para que el análisis

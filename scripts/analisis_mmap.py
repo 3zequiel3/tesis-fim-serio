@@ -30,7 +30,9 @@ Por eso el reporte desglosa tres estados por operación:
 
 USO
 ---
-    export DATABASE_URL='postgresql://fim:...@localhost:5432/fim'
+    # El servicio `db` del compose no publica el 5432 al host: usar la IP del
+    # contenedor (docker inspect tesis-fim-serio-db-1), no localhost.
+    export DATABASE_URL='postgresql://fim:...@<ip-del-contenedor>:5432/fim'
     python3 scripts/analisis_mmap.py \
         --jsonl  results/bateria8/bateria8_cambios.jsonl \
         --salida results/bateria8/bateria8_correlacion.csv \
