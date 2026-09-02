@@ -546,6 +546,76 @@ El paso 4 es copiar las filas que imprime al final directo a la Tabla 17.
 
 ---
 
+## Batería 9 — Reversión vs. repetición de hash → cierra el ítem 9
+
+Dirime la indeterminación de los **7 cambios sin evento** de la Batería 3. La Batería 8 ya
+descartó `mmap` como explicación; ésta ataca la hipótesis de la reversión.
+
+### La conjetura, y por qué el código la desmiente
+
+La nota del ítem 9 conjetura que "una reversión al contenido vigente no es una violación de
+integridad y el agente correctamente no reporta". **La Batería 5 ya la contradecía**: 210 cambios
+repiten un hash previo y sólo 12 quedaron sin evento.
+
+El código resuelve la ambigüedad. `agent/detector.py:460` toma `previous_hash` de la **baseline**
+(`entry.hash`), no de un histórico, y suprime en `:640` sólo si el hash actual coincide con ése. Y
+tras emitir un evento de modificación el agente **actualiza la baseline** (`agent/detector.py:611-613`)
+aunque nadie haya aprobado nada: **la baseline se mueve sola**.
+
+Por lo tanto revertir un archivo a su contenido original **sí se detecta** — para cuando se
+revierte, la baseline ya es el contenido intermedio. La conjetura, tal como está redactada en el
+ítem 9, es falsa. Esta batería lo verifica empíricamente en vez de asentarlo por lectura de código.
+
+### Casos
+
+| Caso | Secuencia | Detección esperada |
+|---|---|---|
+| A | escribir los **mismos bytes** que ya tiene la baseline | **ninguna** (supresión) |
+| B | `C0` (baseline) → `C1`, esperar → volver a `C0` | 1 — la baseline ya es `C1` |
+| C | `C0` → contenido nuevo, nunca visto (testigo) | 1 |
+
+**El caso B es el que carga el resultado.** Sin él, un cero en A no distingue entre las dos
+hipótesis: las dos predicen que A no genera evento. Es B quien separa "coincide con la baseline
+vigente" de "repite cualquier hash anterior".
+
+### Lectura del resultado
+
+- **A sin evento + B detectado** → la supresión es por coincidencia con la baseline vigente. La
+  conjetura del ítem 9 queda refutada, y los 7 sin evento hay que explicarlos por otra vía. La
+  candidata natural: que sean el **segundo** evento de un par que aterrizó el mismo contenido
+  final, porque el primero ya movió la baseline. Eso es consistente con el patrón `colapsado` del
+  generador y con los 12 de la Batería 5.
+- **A sin evento + B sin evento** → la regla sería "cualquier hash anterior". Contradice al código
+  y a la Batería 5: revisar las tres cosas antes de escribir nada en el capítulo.
+
+### Corte de validez
+
+El caso C es el testigo, igual que en la Batería 8. El correlacionador es `analisis_mmap.py`
+**sin modificar** —el testigo se llama `C_escritura_convencional` a propósito—, así que el código
+de salida 1 ante testigo caído sigue vigente. **No reportar el ítem 9 si ese chequeo falla.**
+
+### Procedimiento
+
+```bash
+./scripts/bateria_reversion.py \
+    --dir fim-watch --agent-prefix /watch \
+    --repeticiones 10 --salida ./resultados/bateria9
+
+sleep 30    # drenar la ingesta
+
+# El servicio `db` del compose no publica el 5432 al host: usar la IP del contenedor.
+python3 scripts/analisis_mmap.py \
+    --jsonl  resultados/bateria9/bateria9_cambios.jsonl \
+    --salida resultados/bateria9/bateria9_correlacion.csv
+```
+
+`--espera-evento` (default 5 s) debe superar holgadamente la latencia de detección para que la
+baseline ya se haya actualizado antes de la operación siguiente. La Batería 8 midió una mediana de
+9,5 ms. El script rechaza valores por debajo de 1 s: por ahí abajo el caso B mide una carrera, no
+la regla de supresión.
+
+---
+
 ## Metadatos de reproducibilidad → ítems 51-55
 
 | # | Dato | Método exacto |
@@ -606,6 +676,7 @@ strace -f -tt -p <pid_agente> -o resultados/bateria<N>.strace
 | 5 | Batería 4 (notificación ×3 escenarios) | 11-22 | P1, P6 |
 | 6 | Batería 5 (offline) | 36-43 | P1, P2, P7 |
 | 6b | Batería 8 (evasión por mmap) | Tabla 17 | P2, agente andando |
+| 6c | Batería 9 (reversión vs. repetición de hash) | cierre del ítem 9 | agente andando |
 | 7 | Corrida de verificación cruzada (pcap + strace) | 55 | pasos 3-6 |
 | — | Registrar `date -u` en cada paso | 52 | — |
 | — | Archivar logs del generador | 54 | P2 |

@@ -14,7 +14,8 @@ Ninguno requiere root ni dependencias externas: solo Python 3 de la stdlib
 | [`control_hashing.py`](control_hashing.py) | **P3** | 45, 47, 49, 50 |
 | [`analisis_control.py`](analisis_control.py) | (cierre de P2 × P3) | 45, 47, 49, 50 |
 | [`bateria_mmap.py`](bateria_mmap.py) | agente andando sobre el directorio | Tabla 17 (Batería 8) |
-| [`analisis_mmap.py`](analisis_mmap.py) | (cierre de la Batería 8) | Tabla 17 (Batería 8) |
+| [`bateria_reversion.py`](bateria_reversion.py) | agente andando sobre el directorio | ítem 9 — dirime los 7 sin evento (Batería 9) |
+| [`analisis_mmap.py`](analisis_mmap.py) | (cierre de las Baterías 8 y 9) | Tabla 17 · ítem 9 |
 | [`seed-reglas-lab.sh`](seed-reglas-lab.sh) | **P6** | 11-22 (sin esto la Batería 4 mide cero) |
 | [`setup-agent.sh`](setup-agent.sh) | — | registro del agente de test contra el backend |
 
@@ -377,6 +378,85 @@ agente (`agent/detector.py:265,400-406,769-778`), y esta batería no mide ese ma
 > **Los 7 falsos negativos del Cap. 5 no se explican por esto.**
 > `generador_carga.py:339-345` escribe con un solo `open/write/close` y no hay `mmap` en
 > ningún lado del repo. Ver `docs/dataset_cap5.md`, sección "Salvedades", punto 1.
+
+---
+
+## `bateria_reversion.py` — Batería 9, el ítem 9
+
+Dirime la indeterminación que quedó abierta sobre los **7 cambios sin evento** de la
+Batería 3. La Batería 8 ya descartó `mmap` como explicación —`generador_carga.py`
+escribe con un solo `open/write/close` y no hay `mmap` en el repo—; ésta ataca la
+otra hipótesis, la de la reversión.
+
+### La conjetura y por qué no se sostiene
+
+La nota del ítem 9 dice que "una reversión al contenido vigente no es una violación de
+integridad y el agente correctamente no reporta". La Batería 5 ya la contradecía: 210
+cambios repiten un hash previo y sólo 12 quedaron sin evento. Si repetir cualquier hash
+anterior bastara para suprimir, esos 210 habrían quedado todos sin evento.
+
+**El código dice cuál es la regla real.** `agent/detector.py:460` toma `previous_hash`
+de la **baseline** (`entry.hash`), no de un histórico, y suprime en `:640` sólo si el
+hash actual coincide con ése. Y hay un detalle decisivo que cambia la lectura entera:
+tras emitir un evento de modificación el agente **actualiza la baseline**
+(`agent/detector.py:611-613`), aunque nadie haya aprobado nada. **La baseline se mueve
+sola.**
+
+Consecuencia: revertir un archivo a su contenido original **sí se detecta**, porque para
+cuando se revierte la baseline ya no es el original — es el contenido intermedio. La
+conjetura del ítem 9, tal como está redactada, es falsa.
+
+### Los casos
+
+| Caso | Secuencia | Detección esperada |
+|---|---|---|
+| A | escribir los **mismos bytes** que ya tiene la baseline | **ninguna** (supresión) |
+| B | `C0` (baseline) → `C1`, esperar → volver a `C0` | 1 — la baseline ya es `C1` |
+| C | `C0` → contenido nuevo, nunca visto (testigo) | 1 |
+
+**El caso B es el que carga el resultado.** Sin él, un cero en A no distingue entre las
+dos hipótesis: las dos predicen que A no genera evento. Es B quien separa "coincide con
+la baseline vigente" de "repite cualquier hash anterior".
+
+### Cómo se lee
+
+- **A sin evento + B detectado** → la regla es coincidencia con la baseline vigente. La
+  conjetura del ítem 9 queda refutada y los 7 sin evento hay que explicarlos por otra
+  vía; la candidata natural es que sean el **segundo** evento de un par que aterrizó el
+  mismo contenido final, ya que el primero movió la baseline.
+- **A sin evento + B sin evento** → la regla sería "cualquier hash anterior". Contradice
+  al código y a la Batería 5: revisar las tres cosas antes de escribir nada en el
+  capítulo.
+
+### Uso
+
+```bash
+./scripts/bateria_reversion.py \
+    --dir fim-watch --agent-prefix /watch \
+    --repeticiones 10 --salida ./resultados/bateria9
+
+sleep 30    # drenar la ingesta
+
+# El servicio `db` del compose no publica el 5432 al host: usar la IP del contenedor.
+python3 scripts/analisis_mmap.py \
+    --jsonl  resultados/bateria9/bateria9_cambios.jsonl \
+    --salida resultados/bateria9/bateria9_correlacion.csv
+```
+
+No hace falta `sudo`: el script crea sus propios archivos en el directorio vigilado.
+
+**El correlacionador es `analisis_mmap.py` sin modificar.** El caso testigo se llama
+`C_escritura_convencional` a propósito, que es el nombre que su corte de validez espera,
+así que la clasificación `detectada` / `evento_sin_cambio` / `sin_evento` y el código de
+salida 1 ante testigo caído funcionan igual.
+
+### El tiempo entre operaciones no es cosmético
+
+`--espera-evento` (default 5 s) tiene que superar holgadamente la latencia de detección
+para que la baseline ya se haya actualizado antes de la operación siguiente. La Batería 8
+midió una mediana de **9,5 ms**, así que 5 s sobra. El script **rechaza** valores por
+debajo de 1 s: por ahí abajo el caso B mide una carrera contra el pipeline del agente, no
+la regla de supresión.
 
 ---
 
