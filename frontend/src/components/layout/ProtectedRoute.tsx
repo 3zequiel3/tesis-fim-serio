@@ -21,9 +21,7 @@ export function ProtectedRoute() {
   useEffect(() => {
     if (!accessToken) {
       refreshToken()
-        .catch(() => {
-          navigate('/login', { state: { from: location }, replace: true })
-        })
+        .catch(() => undefined)
         .finally(() => {
           setChecked(true)
         })
@@ -33,6 +31,15 @@ export function ProtectedRoute() {
     // Solo ejecutar al montar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // También cubre la pérdida de sesión DESPUÉS del montaje (por ejemplo, un
+  // refresh anticipado o reactivo rechazado). El guard navega; el store sólo
+  // administra credenciales y no necesita conocer el router.
+  useEffect(() => {
+    if (checked && !isLoading && !accessToken) {
+      navigate('/login', { state: { from: location }, replace: true })
+    }
+  }, [accessToken, checked, isLoading, location, navigate])
 
   // Verificación de scope password_change_only (RN-100, D-FE-6)
   useEffect(() => {
