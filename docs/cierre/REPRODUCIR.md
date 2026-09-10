@@ -138,6 +138,57 @@ de **32 pruebas dirigidas PASS**. Para una nueva evaluación, ejecutar los tests
 desde un snapshot limpio del commit correspondiente y conservar su JUnit; no
 sumar ese conteo a Run 3 ni atribuirlo a una suite consolidada de HEAD.
 
+### Reproducir la verificación de cuarentena
+
+U1 y U2 se verificaron por separado para distinguir cifrado/durabilidad de
+retención/migración. Los siguientes comandos usan snapshots limpios y el entorno
+virtual del repositorio anfitrión:
+
+```bash
+git worktree add --detach /tmp/fim-quarantine-u1-verify b060e5f
+PYTHONPATH=/tmp/fim-quarantine-u1-verify \
+  backend/.venv/bin/python -m py_compile \
+  /tmp/fim-quarantine-u1-verify/agent/quarantine.py \
+  /tmp/fim-quarantine-u1-verify/agent/decision.py \
+  /tmp/fim-quarantine-u1-verify/agent/commands.py \
+  /tmp/fim-quarantine-u1-verify/agent/publisher.py \
+  /tmp/fim-quarantine-u1-verify/agent/__main__.py
+PYTHONPATH=/tmp/fim-quarantine-u1-verify \
+  backend/.venv/bin/pytest -q \
+  /tmp/fim-quarantine-u1-verify/agent/tests/test_quarantine.py \
+  /tmp/fim-quarantine-u1-verify/agent/tests/test_decision.py \
+  /tmp/fim-quarantine-u1-verify/agent/tests/test_commands.py \
+  /tmp/fim-quarantine-u1-verify/agent/tests/test_publisher_dispatch_integration.py
+git worktree remove /tmp/fim-quarantine-u1-verify
+
+git worktree add --detach /tmp/fim-quarantine-u2-verify 947edb6
+PYTHONPATH=/tmp/fim-quarantine-u2-verify \
+  backend/.venv/bin/python -m py_compile \
+  /tmp/fim-quarantine-u2-verify/agent/quarantine.py \
+  /tmp/fim-quarantine-u2-verify/agent/config.py \
+  /tmp/fim-quarantine-u2-verify/agent/__main__.py \
+  /tmp/fim-quarantine-u2-verify/agent/tests/test_quarantine_maintenance.py
+PYTHONPATH=/tmp/fim-quarantine-u2-verify \
+  backend/.venv/bin/pytest -q \
+  /tmp/fim-quarantine-u2-verify/agent/tests/test_quarantine_maintenance.py \
+  /tmp/fim-quarantine-u2-verify/agent/tests/test_quarantine.py \
+  /tmp/fim-quarantine-u2-verify/agent/tests/test_agent_config.py
+git worktree remove /tmp/fim-quarantine-u2-verify
+```
+
+Resultados de referencia: U1 py_compile PASS y 76/76 dirigidas; U2 py_compile
+PASS y 50/50 dirigidas. Las suites completas registraron respectivamente
+486 PASS/1 SKIP/2 FAIL y 505 PASS/1 SKIP/2 FAIL; los mismos dos fallos se
+reprodujeron en la base, por lo que no deben ocultarse ni atribuirse a cuarentena.
+
+Verificar además, sobre filesystem temporal real: artefacto 0400 y opaco,
+readback autenticado antes de unlink, reintento idempotente, ruta recreada no
+borrada, symlink capturado como objeto, hardlink fail-closed, retención en el
+límite, corrupto preservado/degradado y migración legacy reanudable. El default
+es 30 días y el rango válido 1..365; el mantenimiento corre al inicio y cada
+24 h. Esta prueba no acredita protección frente a root ni borrado seguro del
+soporte.
+
 ## 8. Reproducir US-09 sobre snapshot limpio
 
 Los commits funcionales son `8039624` y `f08626a`. En un worktree temporal creado desde `f08626a`:

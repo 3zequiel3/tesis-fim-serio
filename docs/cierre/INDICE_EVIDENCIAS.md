@@ -17,6 +17,8 @@
 | Baseline aprobada | Candidato local cifrado ligado a `source_event_id`; validación exacta antes de promoción | `8d37075` |
 | Backend de ingesta | 8→5 sentencias SQL/evento; 32 pruebas dirigidas PASS | `965dcac`; `backend/tests/test_drain_backend_unit1.py` |
 | Drenaje Run 4 | 3.000/3.000 en **29,146335596 s** = **102,928891 eventos/s**; 0 rechazos/duplicados; cadena completa y cola final 0 | evidencia `864b672`; [`RESULTADO.md`](evidencia/drenaje-20260910-run4-unit1/RESULTADO.md) |
+| Cuarentena cifrada | AES-256-GCM streaming, HKDF `quarantine-v1`, metadata cifrada, nombres opacos y eliminación durable/idempotente | `b060e5f`; 76/76 dirigidas PASS |
+| Retención de cuarentena | Default 30 días configurable 1..365; cleanup inicio/24 h; migración legacy atómica/idempotente | `947edb6`; 50/50 dirigidas PASS |
 
 ## Resultados que deben preservarse por separado
 
@@ -34,7 +36,7 @@
 
 | Límite | Estado |
 |---|---|
-| Cuarentena | **NO CUMPLE / PENDIENTE**: contenido en claro y sin política de retención/cleanup acreditada. |
+| Cuarentena | Implementada y verificada con límites: no protege root/host vivo/adquisición con secreto; corruptos/desconocidos se preservan; legacy perdió el directorio original y usa `ctime` aproximado cuando no hay timestamp. |
 | Dos anfitriones con red real y TLS | No ejecutado. |
 | SMTP controlado | No acreditado; el fallback ejecutado fue webhook. |
 | Suite final única | Falta agente/backend/frontend sobre un mismo commit congelado. |

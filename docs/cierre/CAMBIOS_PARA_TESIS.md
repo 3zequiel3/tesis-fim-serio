@@ -26,7 +26,7 @@
 | Baseline servidor/local | Copia completa genérica | Local conserva contenido cifrado; servidor conserva metadatos/hashes y cambios aprobados, no una copia autónoma completa acreditada | Separar ambas representaciones | `agent/baseline.py`, `agent/decision.py` |
 | Aprobación/restauración de baseline | Aprobar el hash vigente bastaba para restaurar esa versión | `8d37075` liga un candidato local cifrado al `source_event_id`; sólo promueve identidad/ruta/estado/hash/bytes coincidentes y falla cerrado si cambió o falta | Explicar que la versión restaurable procede del candidato capturado al detectar el evento, no de una lectura tardía ni del servidor | commit `8d37075`; pruebas de baseline/comandos/acciones |
 | Cifrado baseline | Protege ante adquisición total | Secreto maestro y ciphertext residen en el mismo host | Limitar protección a copia aislada; no afirmar resistencia a adquisición completa o `root` | `docs/operations.md` |
-| Cuarentena / minimización | Cuarentena protegida y retenida | Contenido en claro y sin cleanup/retención; la retención backend no aplica | Declarar **NO CUMPLE** y definir política antes de afirmar minimización | comandos/decisión del agente |
+| Cuarentena / minimización | Cuarentena protegida y retenida | Histórico: contenido/nombres en claro y sin cleanup. Estado final: `b060e5f` cifra contenido+metadata y `947edb6` aplica retención default 30 días configurable 1..365, mantenimiento periódico y migración legacy fail-closed | Separar el defecto histórico de la corrección actual. Limitar la protección a copia aislada sin `master_secret`; no afirmar protección frente a root/host vivo. Aclarar `original_path_known:false`, `ctime` aproximado y que borrar la entrada no prueba borrado seguro del soporte | commits `b060e5f`, `947edb6`; tests de cuarentena |
 | Topología | Validación multianfitrión | Todas las evaluaciones disponibles son de anfitrión único | Retirar la afirmación o ejecutar dos hosts con red real y TLS | cronología/topología de ensayos |
 | Kernel mínimo | Linux 5.1 o 5.9 inferido sólo del código | El código usa `FAN_REPORT_DFID_NAME`, pero no fecha su disponibilidad | Citar Linux man-pages/documentación del kernel antes de fijar el mínimo | `agent/_fanotify.py`; fuente externa pendiente |
 | `mmap` | Ausencia de evasión | 30/30 en laboratorio, con carrera no caracterizada | Informar consistencia observada, no determinismo ni ausencia de ventana evasiva | Batería 8 |
@@ -46,9 +46,10 @@
 - Run 4 drenó 3.000/3.000 sin rechazos ni duplicados en 29,146335596 s (102,928891 eventos/s) y cumple `<30 s` sólo bajo las condiciones controladas; 32,358 s era sólo una proyección.
 - D49–D51 hacen explícita la atribución no resuelta y las brechas `FAN_Q_OVERFLOW`, y conservan eventos sin ruta de punta a punta; no recuperan eventos perdidos por el kernel.
 - La baseline aprobada queda ligada al evento y a un candidato local cifrado; no equivale a una copia central completa ni protege frente a compromiso de root.
+- La cuarentena actual cifra contenido y metadata, usa nombres opacos y aplica retención configurable; esa afirmación no se extiende a root, host vivo ni adquisición conjunta con `master_secret`.
 
 ## Afirmaciones que deben retirarse o limitarse
 
-- 31/31 historias completas; cero pérdidas históricas; validación multianfitrión; TLS habilitado en la corrida histórica; entrega SMTP real; exactamente una vez extremo a extremo; cuarentena cifrada/retenida; aptitud productiva. El `<30 s` sólo puede afirmarse para Run 4 y sus condiciones, no como garantía productiva.
+- 31/31 historias completas; cero pérdidas históricas; validación multianfitrión; TLS habilitado en la corrida histórica; entrega SMTP real; exactamente una vez extremo a extremo; cuarentena resistente a root/adquisición con secreto o con borrado seguro garantizado; aptitud productiva. El `<30 s` sólo puede afirmarse para Run 4 y sus condiciones, no como garantía productiva.
 
 La ejecución ampliada de 62 pruebas no debe presentarse como aprobada: 55 pasaron y 7 fallaron por el harness mTLS preexistente. La evidencia focal n8n es de 9 pruebas aprobadas y los escenarios runtime registrados.

@@ -28,6 +28,8 @@
 | Baseline aprobada ligada al evento | `8d370758b26d2bd6fdb3b10b81cafc5a490c9ea0` | El agente conserva un candidato local cifrado por `source_event_id` y sólo promueve bytes/hash coincidentes; rechaza candidato ausente, obsoleto o inconsistente. |
 | Optimización de drenaje | Cola/ACK `7c5afa5f429139ed6bffbf4d7bc0a7bc21d841ba`; backend Unidad 1 `965dcacc5c189f4a9808b063e32085d89e636803` | Run 3 conserva el resultado intermedio; Run 4 evalúa Unidad 1 desde copia limpia del segundo commit y registra los intentos inválidos por separado. |
 | Evidencia de drenaje Run 4 | `864b67242ab30672e222fa10a75b05bd2cac4c1d` | Paquete durable con corrida válida, fuentes, métricas y dos intentos inválidos preservados. |
+| Cuarentena cifrada | `b060e5fb7b5301b2de51c80e116bd703c088c07f` | AES-256-GCM streaming, clave HKDF `quarantine-v1`, metadata cifrada, nombres opacos y eliminación del origen sólo después de fsync/readback. |
+| Retención y migración de cuarentena | `947edb6d5d76b3c04afcaf18dd84f5ff55d691c2` | Retención configurable 1..365 días (default 30), mantenimiento al inicio/cada 24 h y migración legacy fail-closed. |
 | Coverage backend Run 3 | manifiesto y artefactos en `docs/cierre/evidencia/20260909-coverage-run3/` | Snapshot mixto identificado por manifiesto, anterior a los commits US-09/mTLS/n8n; no representa HEAD actual. |
 
 ### Entorno histórico conocido
@@ -66,6 +68,8 @@
 | Backend descartaba `event_type` y convertía path nulo en cadena vacía | `event_type` persiste; path puede ser nulo; esos eventos no se compactan por ruta y reciben severidad `high` | Pruebas de persistencia, filtros, detalle y frontend incluidas en D51. |
 | Aprobación podía asociar hash nuevo con bytes viejos | Candidato cifrado local ligado a `source_event_id`; validación de identidad, ruta, estado, hash y contenido antes de promover baseline | Regresiones de aprobación exacta, idempotencia y rechazo de candidato ausente/obsoleto en `8d37075`. |
 | Ingesta ejecutaba 8 sentencias SQL por evento | Snapshot de credenciales/revocación y severidad persistida reducen el trayecto a 5 sentencias SQL por evento | **32 pruebas dirigidas PASS** en `965dcac`; Run 4 confirma el trayecto completo. |
+| Cuarentena almacenaba contenido y nombres en claro | Store único para cuarentena automática/comando con AES-256-GCM streaming, metadata cifrada, nombres opacos, modo 0400 y barreras durables antes de borrar el origen | Snapshot limpio `b060e5f`: py_compile PASS y 76/76 pruebas dirigidas. |
+| Cuarentena no tenía retención ni migración | Default 30 días configurable 1..365; cleanup al arranque y cada 24 h; legacy reconocido se migra de forma atómica/idempotente | Snapshot limpio `947edb6`: py_compile PASS y 50/50 pruebas dirigidas. |
 
 ## 5. Pruebas y coverage
 
@@ -84,6 +88,12 @@
 - Artefactos durables: `docs/cierre/evidencia/20260909-coverage-run3/`. El JUnit fue sanitizado reemplazando ruta absoluta y hostname; su hash difiere del original temporal.
 
 Esta evaluación no debe atribuirse a HEAD `3bec584`: su manifiesto identifica un snapshot anterior y con cambios locales.
+
+### Verificación de cuarentena
+
+- U1 `b060e5f`: **76/76 dirigidas PASS**; suite agente 489 recolectadas, 486 PASS, 1 SKIP y 2 FAIL reproducidos también en la base.
+- U2 `947edb6`: **50/50 dirigidas PASS**; suite agente 508 recolectadas, 505 PASS, 1 SKIP y los mismos 2 FAIL de base.
+- Los dos fallos preexistentes no se contabilizan como defectos introducidos por cuarentena; tampoco se presenta ninguna de esas suites completas como aprobada.
 
 ## 6. Resultados experimentales
 
@@ -121,7 +131,9 @@ Run 3 redujo el drenaje desde 153 s históricos a 51,773 s y delimitó la ingest
 - Se conserva una entrada activa por ruta y hasta tres snapshots previos. El servidor conserva metadatos/hashes y cambios aprobados; no está acreditado como copia autónoma completa de todos los contenidos.
 - Desde `8d37075`, el agente conserva un candidato local cifrado ligado a `source_event_id`, ruta, estado y hash. La aprobación sólo promueve ese contenido si coincide exactamente; si el archivo cambió, el candidato falta o corresponde a otro evento, falla cerrado. La restauración usa la baseline activa resultante, no una lectura tardía del archivo observado.
 - Guardar secreto y ciphertext en el mismo host protege frente a copia aislada del soporte cifrado, no frente a adquisición completa ni frente a `root`.
-- La cuarentena mueve contenido en claro a `/var/lib/fim-agent/quarantine/` y no tiene retención/cleanup. La retención del backend no se aplica a esos archivos. **NO CUMPLE** el principio declarado de minimización.
+- Desde `b060e5f`, la cuarentena automática y por comando usa un store común AES-256-GCM streaming con clave HKDF de dominio `quarantine-v1`, metadata cifrada, nombres opacos y artefactos 0400. Sólo elimina el origen después de escritura, fsync y readback autenticado; reintentos son idempotentes, una ruta recreada no se borra, symlinks se capturan como objeto y hardlinks fallan cerrado.
+- Desde `947edb6`, la retención es configurable entre 1 y 365 días, con default 30; el mantenimiento corre al inicio y cada 24 h. Artefactos corruptos/desconocidos se preservan y degradan el estado en lugar de borrarse. La migración legacy es atómica/idempotente; como el formato viejo perdió el directorio original registra `original_path_known:false`, y el formato automático usa `ctime` como aproximación temporal.
+- Esta protección cubre una copia aislada sin `master_secret`. No protege frente a `root`, host vivo comprometido, memoria de proceso ni adquisición que incluya el secreto. La retención elimina la entrada del directorio; no acredita borrado seguro del soporte.
 - La reconciliación central compara estado reportado; no es atestación remota y no detecta necesariamente a un agente comprometido que miente.
 
 ## 9. Bloqueos que permanecen
@@ -130,13 +142,12 @@ Run 3 redujo el drenaje desde 153 s históricos a 51,773 s y delimitó la ingest
 2. Repetir Run 4 si se necesita caracterizar variabilidad; la corrida válida actual cumple, pero una única repetición no establece un SLA.
 3. Ejecutar una corrida consolidada de agente, backend y frontend sobre un commit final congelado.
 4. Ejecutar una prueba reducida de dos anfitriones con red real y TLS habilitado; no se realizó.
-5. Definir e implementar retención/cifrado o una justificación explícita para cuarentena.
-6. Acreditar SMTP con receptor controlado si se mantiene como canal del alcance; la evaluación durable comprobó el fallback webhook, no SMTP.
-7. Regenerar la figura editable de NotificationDispatcher.
-8. Identificar el código deontológico aplicable o retirar su invocación. La Res. AAIP 47/2018 no prescribe retención ilimitada.
+5. Acreditar SMTP con receptor controlado si se mantiene como canal del alcance; la evaluación durable comprobó el fallback webhook, no SMTP.
+6. Regenerar la figura editable de NotificationDispatcher.
+7. Identificar el código deontológico aplicable o retirar su invocación. La Res. AAIP 47/2018 no prescribe retención ilimitada.
 
 ## 10. Conclusión
 
-Puede sostenerse que US-09, el límite mTLS agente/backend y los flujos n8n controlado y durable fueron implementados y verificados en evaluaciones nuevas y acotadas. También quedaron corregidos la atribución falsa a root, la invisibilidad de `FAN_Q_OVERFLOW`, el recorrido de eventos sin ruta y la promoción de baseline ligada al evento. Puede sostenerse la cobertura Run 3 con su denominador, la reagregación correcta de latencia y el cumplimiento de drenaje Run 4 sólo para el laboratorio documentado.
+Puede sostenerse que US-09, el límite mTLS agente/backend y los flujos n8n controlado y durable fueron implementados y verificados en evaluaciones nuevas y acotadas. También quedaron corregidos la atribución falsa a root, la invisibilidad de `FAN_Q_OVERFLOW`, el recorrido de eventos sin ruta, la promoción de baseline ligada al evento y el almacenamiento/retención de cuarentena. Puede sostenerse la cobertura Run 3 con su denominador, la reagregación correcta de latencia y el cumplimiento de drenaje Run 4 sólo para el laboratorio documentado.
 
 No puede sostenerse validación integral: aunque el drenaje Run 4 cumple 30 s bajo condiciones controladas, la causalidad runtime de los 19 históricos no puede reconstruirse, falta la evaluación en dos anfitriones y SMTP real no fue acreditado. El estado correcto es **cierre parcial**, no aptitud productiva.
