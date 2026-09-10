@@ -1,0 +1,27 @@
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"SMTP_SSL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"SMTP_PORT\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"SMTP_STARTTLS\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:12:08-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+ Container tesis-fim-serio-backend-1 Recreate 
+ Container tesis-fim-serio-backend-1 Recreated 
+ Container tesis-fim-serio-backend-1 Starting 
+ Container tesis-fim-serio-backend-1 Started 
+time="2026-09-10T02:13:08-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:13:08-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:13:08-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:13:08-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:13:08-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:13:08-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:13:08-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:13:08-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+ Container tesis-fim-serio-backend-1 Recreate 
+ Container tesis-fim-serio-backend-1 Recreated 
+ Container tesis-fim-serio-backend-1 Starting 
+ Container tesis-fim-serio-backend-1 Started 

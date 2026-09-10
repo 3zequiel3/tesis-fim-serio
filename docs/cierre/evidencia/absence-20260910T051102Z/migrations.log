@@ -1,0 +1,46 @@
+APPLY 012_add_event_type_and_nullable_path.sql
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_SSL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_PORT\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_STARTTLS\" variable is not set. Defaulting to a blank string."
+NOTICE:  column "event_type" of relation "events" already exists, skipping
+ALTER TABLE
+ALTER TABLE
+APPLY 013_add_event_diff_metadata.sql
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_STARTTLS\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_PORT\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_SSL\" variable is not set. Defaulting to a blank string."
+ALTER TABLE
+ALTER TABLE
+APPLY 014_add_alert_delivery_state.sql
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_STARTTLS\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_SSL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_PORT\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:11:18-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX

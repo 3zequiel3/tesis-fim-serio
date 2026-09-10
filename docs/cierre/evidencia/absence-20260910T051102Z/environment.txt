@@ -1,0 +1,24 @@
+run_id=absence-20260910T051102Z
+captured_utc=2026-09-10T05:11:02,569969583+00:00
+head_commit=711551193e7135e8535cdff838c001f31d369069
+worktree_clean=false
+kernel=Linux 7.0.0-31-generic x86_64 GNU/Linux
+filesystem=/dev/nvme0n1p2 ext4 rw,relatime
+filesystem_magic=ef53
+docker_client=29.7.2
+docker_server=29.7.2
+host_clock=clock_gettime CLOCK_REALTIME and CLOCK_MONOTONIC; generator and agent share host kernel clock
+topology=single host; generator on host; agent/backend/db/valkey in Docker bridge network
+security_scope=Valkey transport plaintext in controlled local Docker network; no notification recipient configured; this run validates causal event pipeline, not TLS/notification delivery
+fanotify=containerized native Linux fanotify with SYS_ADMIN and DAC_READ_SEARCH capabilities
+planned_operations=60 (10 repetitions x [C1,C2,return-to-approved-C0,create,delete,ephemeral])
+baseline_wait_s=3
+event_wait_s=3
+correlation_tolerance_s=20
+raw_content_retained=false
+Initial backend start failed because Compose interpolated unset typed notification values as empty strings (SMTP_PORT, SMTP_STARTTLS, SMTP_SSL); controlled retry used 25,false,false while SMTP_HOST/SMTP_TO remained unset, so no external delivery was possible.
+Shared backend stopped after safe fail-closed rejection of its legacy CA; experiment moved to isolated Compose project with fresh volumes and controlled ports 18000/18443.
+project=fimabsbc7cb3243a
+agent_registered=true; forced test-admin password rotated ephemerally and not persisted in evidence
+preflight_incident=first isolated agent start wrote its trace on the same fanotify-marked ext4 filesystem while tracing out-of-scope kernel events, causing self-amplification before any planned operation; agent stopped; lossless raw trace preserved compressed as failed-preflight-self-amplifying-trace.jsonl.gz; fixed by tracing kernel_received only after scope acceptance, with directed regression.
+preflight_incident=first isolated agent start wrote its trace on the same fanotify-marked ext4 filesystem while tracing out-of-scope kernel events, causing self-amplification before any planned operation; agent stopped; lossless raw trace preserved compressed as failed-preflight-self-amplifying-trace.jsonl.gz; fixed by tracing kernel_received only after scope acceptance, with directed regression.

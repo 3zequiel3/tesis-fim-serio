@@ -1,0 +1,18 @@
+APPLY 012_add_event_type_and_nullable_path.sql
+NOTICE:  column "event_type" of relation "events" already exists, skipping
+ALTER TABLE
+ALTER TABLE
+APPLY 013_add_event_diff_metadata.sql
+NOTICE:  column "hash_expected" of relation "events" already exists, skipping
+ALTER TABLE
+NOTICE:  column "diff_text" of relation "events" already exists, skipping
+ALTER TABLE
+APPLY 014_add_alert_delivery_state.sql
+NOTICE:  column "notification_id" of relation "alerts" already exists, skipping
+ALTER TABLE
+NOTICE:  column "attempt_count" of relation "alerts" already exists, skipping
+ALTER TABLE
+NOTICE:  column "next_retry_at" of relation "alerts" already exists, skipping
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX

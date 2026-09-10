@@ -1,0 +1,28 @@
+time="2026-09-10T02:14:48-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:14:48-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:14:48-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:14:48-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:14:48-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:14:48-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:14:48-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:14:48-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+ Network fimabsbc7cb3243a_fim_internal Creating 
+ Network fimabsbc7cb3243a_fim_internal Creating 
+ Volume fimabsbc7cb3243a_valkey_data Creating 
+ Volume fimabsbc7cb3243a_valkey_data Creating 
+ Volume fimabsbc7cb3243a_pg_data Creating 
+ Volume fimabsbc7cb3243a_pg_data Creating 
+ Volume fimabsbc7cb3243a_pg_data Created 
+ Volume fimabsbc7cb3243a_pg_data Created 
+ Volume fimabsbc7cb3243a_valkey_data Created 
+ Volume fimabsbc7cb3243a_valkey_data Created 
+ Network fimabsbc7cb3243a_fim_internal Created 
+ Network fimabsbc7cb3243a_fim_internal Created 
+ Container fimabsbc7cb3243a-valkey-1 Creating 
+ Container fimabsbc7cb3243a-db-1 Creating 
+ Container fimabsbc7cb3243a-valkey-1 Created 
+ Container fimabsbc7cb3243a-db-1 Created 
+ Container fimabsbc7cb3243a-valkey-1 Starting 
+ Container fimabsbc7cb3243a-db-1 Starting 
+ Container fimabsbc7cb3243a-db-1 Started 
+ Container fimabsbc7cb3243a-valkey-1 Started 

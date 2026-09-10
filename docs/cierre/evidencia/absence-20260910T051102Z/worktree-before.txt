@@ -1,0 +1,46 @@
+ M CHANGES.md
+ M agent/_fanotify.py
+ M agent/baseline.py
+ M agent/commands.py
+ M agent/decision.py
+ M agent/detector.py
+ M agent/publisher.py
+ M agent/tests/test_agent_config.py
+ M agent/tests/test_baseline.py
+ M agent/tests/test_commands.py
+ M agent/tests/test_decision.py
+ M agent/tests/test_detector_context.py
+ M agent/tests/test_detector_diff.py
+ M agent/tests/test_detector_multi_event.py
+ M agent/tests/test_scope_filter.py
+ M agent/tests/test_symlink_hardening.py
+ M backend/app/modules/actions/streams.py
+ M backend/app/modules/alerts/service.py
+ M backend/app/modules/events/models.py
+ M backend/app/modules/events/router.py
+ M backend/app/modules/events/service.py
+ M backend/db/migrations/013_add_event_diff_metadata.sql
+ M backend/tests/test_actions.py
+ M backend/tests/test_event_listing_contract.py
+ M backend/tests/test_event_service.py
+ M backend/tests/test_notifications.py
+ M docker-compose.yml
+ M frontend/src/api/events.ts
+ M frontend/src/components/ui/BulkActionBar.test.tsx
+ M frontend/src/components/ui/EventsTable.test.tsx
+ M frontend/src/components/ui/EventsTable.tsx
+ M frontend/src/pages/EventDetail.test.tsx
+ M frontend/src/pages/EventDetail.tsx
+ M openspec/changes/agent-attribution-and-detection-gap/tasks.md
+ M scripts/bateria_reversion.py
+?? agent/experiment_trace.py
+?? agent/tests/test_detection_gap.py
+?? agent/tests/test_experiment_trace.py
+?? agent/tests/test_experiment_trace_publisher.py
+?? backend/db/migrations/012_add_event_type_and_nullable_path.sql
+?? docs/cierre/evidencia/absence-20260910T051102Z/
+?? docs/cierre/evidencia/drenaje-20260910-run1/
+?? docs/cierre/evidencia/drenaje-20260910-run2/
+?? frontend/src/utils/eventType.ts
+?? scripts/analisis_ausencias.py
+?? scripts/tests/
