@@ -4,6 +4,12 @@ This harness proves the bounded path `backend notifier -> n8n -> controlled
 receiver` without commercial providers or real recipients. It does not replace
 the production compose file and stores only synthetic test records.
 
+Apply the durable delivery migration before starting an upgraded backend:
+
+```bash
+psql "$DATABASE_URL" -f backend/db/migrations/014_add_alert_delivery_state.sql
+```
+
 ## Run
 
 ```bash
@@ -32,9 +38,13 @@ Each record separates these clocks:
 
 Set `RECEIVER_STATUS_CODE=503` before starting the stack to exercise receiver
 failure. Stop the `n8n` service to exercise orchestrator unavailability. The
-backend fallback cascade and durable alert retry state remain a separate work
-unit; this harness does not claim those paths as end-to-end validated.
+backend persists `notification_id`, `attempt_count`, and `next_retry_at` in
+`alerts`. Startup recovery resumes non-terminal rows. n8n receives its initial
+attempt plus delays of 5, 30, and 120 seconds before SMTP and the direct webhook
+fallback are tried once. Terminal DLQ rows require the explicit retry API.
 
 The raw summary of the new controlled run is stored in
 `evidence/20260909-run.json`. It includes the initially detected false-success
-defect and clearly excludes the durable fallback work unit.
+defect. Durable fallback and process-restart evidence is stored separately in
+`evidence/20260910-durable-fallback.json`; that run reduced delays to zero in the
+test process and therefore proves ordering and recovery, not elapsed timing.

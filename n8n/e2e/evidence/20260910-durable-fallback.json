@@ -1,0 +1,48 @@
+{
+  "evaluation": "new durable notification recovery evaluation",
+  "date": "2026-09-10",
+  "database": "isolated PostgreSQL 18.3 on 127.0.0.1:55441",
+  "receiver": "controlled SQLite receiver from n8n/docker-compose.e2e.yml",
+  "scenarios": [
+    {
+      "name": "n8n unavailable then real webhook fallback",
+      "notification_id": "snapshot-fallback-ae5c24c9-b46c-4784-82c9-4ed0d8ed771a",
+      "n8n_attempts": 4,
+      "channel": "webhook_fallback",
+      "delivered": true,
+      "failed": false,
+      "next_retry_at": null,
+      "receiver_received_at": "2026-09-10T03:08:03.490001+00:00"
+    },
+    {
+      "name": "all configured delivery channels unavailable",
+      "notification_id": "snapshot-total-failure-49e6c57c-3e54-4397-a552-b73b3d10b747",
+      "n8n_attempts": 4,
+      "delivered": false,
+      "failed": true,
+      "next_retry_at": null,
+      "last_error": "All configured notification channels failed"
+    },
+    {
+      "name": "new process recovers persisted post-n8n state",
+      "notification_id": "snapshot-restart-45ecbbfc-76f5-4da0-8022-a5617dd3c20b",
+      "persisted_attempt_count_before_restart": 4,
+      "channel_after_recovery": "webhook_fallback",
+      "delivered": true,
+      "failed": false,
+      "receiver_received_at": "2026-09-10T03:08:33.702888+00:00"
+    }
+  ],
+  "verification": {
+    "focused_tests": "9 passed",
+    "migration_applied_twice": true,
+    "runtime_retry_delays_seconds": [0, 0, 0],
+    "production_retry_delays_seconds": [5, 30, 120]
+  },
+  "limits": [
+    "Runtime delays were reduced to zero only in the test process; this run proves ordering and state transitions, not the 155-second wall-clock schedule.",
+    "SMTP was not used because no controlled SMTP server was configured; the real fallback receiver was an HTTP webhook.",
+    "Delivery is at-least-once across a crash after external acceptance and before the local success commit. Controlled receivers deduplicate by stable notification_id.",
+    "Single backend instance is assumed; distributed worker claiming is outside the approved architecture."
+  ]
+}
