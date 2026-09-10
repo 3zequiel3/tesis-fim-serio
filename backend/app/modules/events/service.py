@@ -7,6 +7,7 @@ Reutilizable por el consumer Valkey y el HTTP handler de approve/reject (C13).
 
 from __future__ import annotations
 
+import re
 import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -20,6 +21,55 @@ from app.modules.audit.models import AuditLog
 from app.modules.events.models import Event, EventStatus
 from app.modules.rules.service import determine_severity_for_path
 
+
+_MAX_DIFF_TEXT_BYTES = 1024 * 1024
+_DIFF_TRUNCATION_MARKER = "\n... [diff truncated by backend]\n"
+_UNIFIED_HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@(?: .*)?$", re.MULTILINE)
+
+
+def _is_safe_text(value: str) -> bool:
+    if "\x00" in value or "\ufffd" in value:
+        return False
+    return all(
+        char in "\t\n\r\f" or not (ord(char) < 32 or 127 <= ord(char) < 160)
+        for char in value
+    )
+
+
+def _is_unified_diff(value: str) -> bool:
+    lines = value.splitlines()
+    if len(lines) < 4 or not lines[0].startswith("--- ") or not lines[1].startswith("+++ "):
+        return False
+
+    in_hunk = False
+    has_change = False
+    for line in lines[2:]:
+        if _UNIFIED_HUNK.fullmatch(line):
+            in_hunk = True
+            continue
+        if not in_hunk or not line.startswith((" ", "+", "-", "\\ No newline at end of file")):
+            return False
+        has_change = has_change or line.startswith(("+", "-"))
+    return in_hunk and has_change
+
+
+def _bounded_diff_text(value: Any) -> str | None:
+    """Return a UTF-8-safe, bounded textual diff without logging its content."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or not _is_safe_text(value)
+        or not _is_unified_diff(value)
+    ):
+        return None
+
+    encoded = value.encode("utf-8")
+    if len(encoded) <= _MAX_DIFF_TEXT_BYTES:
+        return value
+
+    marker = _DIFF_TRUNCATION_MARKER.encode("utf-8")
+    prefix = encoded[: _MAX_DIFF_TEXT_BYTES - len(marker)].decode("utf-8", errors="ignore")
+    return prefix + _DIFF_TRUNCATION_MARKER
 log = structlog.get_logger()
 
 TERMINAL_STATUSES: frozenset[EventStatus] = frozenset(
@@ -180,6 +230,13 @@ def ingest_event(
         action_error = action_error[:64]
     else:
         action_error = None
+    hash_expected = event_data.get("hash_expected")
+    if isinstance(hash_expected, str):
+        hash_expected = hash_expected[:64]
+    else:
+        hash_expected = None
+    diff_text = _bounded_diff_text(event_data.get("diff_text"))
+
 
     with Session(engine) as session:
         pending = get_pending_event_for_path(session, path)
@@ -217,6 +274,8 @@ def ingest_event(
             event_id=event_data.get("event_id", ""),
             agent_id=event_data.get("agent_id", ""),
             path=path,
+            hash_expected=hash_expected,
+            diff_text=diff_text,
             hash_detected=event_data.get("hash_detected") or "",
             status=status,
             # D34/RN-128 (C38): severidad persistida, calculada con la misma

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useEvent } from '@/hooks/useEvent'
 import { useEventActions } from '@/hooks/useEventActions'
+import { DiffViewer } from '@/components/ui/DiffViewer'
 import { EventTimeline } from '@/components/ui/EventTimeline'
 import { RejectModal } from '@/components/ui/RejectModal'
 import type { RejectAction } from '@/api/actions'
@@ -222,11 +223,16 @@ export function EventDetail() {
         </section>
       )}
 
-      {/* Diff de contenido: OCULTO a propósito. El agente no transmite contenido de
-          archivo (solo el hash SHA-256, por minimización de datos — RN), así que el panel
-          solo podía mostrar placeholders "(contenido no disponible)" que el DiffViewer
-          renderizaba como un diff carácter-a-carácter sin sentido. Reintroducir solo si se
-          agrega un preview de contenido opt-in por path (decisión de diseño pendiente). */}
+      <section className="bg-gray-800 border border-gray-700 rounded p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-gray-300">Diff de contenido</h2>
+        {event.diff_text ? (
+          <DiffViewer diffText={event.diff_text} />
+        ) : (
+          <p className="text-sm text-gray-500 italic">
+            Diff textual no disponible para este evento.
+          </p>
+        )}
+      </section>
 
       {/* Timeline */}
       <section className="bg-gray-800 border border-gray-700 rounded p-4">

@@ -1,47 +1,33 @@
 import { describe, it, expect } from 'vitest'
-import { isBinaryContent, toHexDump } from './DiffViewer'
+import { render, screen } from '@testing-library/react'
+import { createElement } from 'react'
+import { DiffViewer } from './DiffViewer'
 
-describe('isBinaryContent', () => {
-  it('retorna false para texto normal', () => {
-    expect(isBinaryContent('hello world')).toBe(false)
-    expect(isBinaryContent('')).toBe(false)
-    expect(isBinaryContent('/etc/passwd contenido\nroot:x:0:0')).toBe(false)
+describe('DiffViewer', () => {
+  it('preserva encabezados y offsets de múltiples hunks sin crear continuidad falsa', () => {
+    const diff = [
+      '--- a/etc/hosts',
+      '+++ b/etc/hosts',
+      '@@ -1 +1 @@',
+      '-old first',
+      '+new first',
+      '@@ -100 +100 @@',
+      '-old distant',
+      '+new distant',
+    ].join('\n')
+
+    render(createElement(DiffViewer, { diffText: diff }))
+
+    expect(screen.getByLabelText('Patch unificado')).toHaveTextContent('--- a/etc/hosts')
+    expect(screen.getByLabelText('Patch unificado')).toHaveTextContent('@@ -1 +1 @@')
+    expect(screen.getByLabelText('Patch unificado')).toHaveTextContent('@@ -100 +100 @@')
   })
 
-  it('retorna true para strings con byte nulo', () => {
-    expect(isBinaryContent('data\0binary')).toBe(true)
-    expect(isBinaryContent('\0')).toBe(true)
-    expect(isBinaryContent('prefix\0suffix')).toBe(true)
-  })
+  it('hace visible que el backend truncó el patch', () => {
+    render(createElement(DiffViewer, {
+      diffText: '@@ -1 +1 @@\n-old\n+new\n... [diff truncated by backend]\n',
+    }))
 
-  it('retorna true para ELF header (binario real)', () => {
-    // Simula un ELF header: 0x7f + "ELF" + null bytes
-    const elfLike = '\x7fELF\0\0\0\0'
-    expect(isBinaryContent(elfLike)).toBe(true)
-  })
-})
-
-describe('toHexDump', () => {
-  it('convierte texto ASCII a hex', () => {
-    const result = toHexDump('AB')
-    expect(result).toBe('41 42')
-  })
-
-  it('trunca a maxBytes', () => {
-    const long = 'a'.repeat(300)
-    const result = toHexDump(long, 4)
-    // 4 bytes = "61 61 61 61"
-    expect(result).toBe('61 61 61 61')
-  })
-
-  it('trunca al default de 256 bytes', () => {
-    const long = 'x'.repeat(300)
-    const result = toHexDump(long)
-    const parts = result.split(' ')
-    expect(parts).toHaveLength(256)
-  })
-
-  it('maneja string vacío', () => {
-    expect(toHexDump('')).toBe('')
+    expect(screen.getByRole('status')).toHaveTextContent('Diff truncado')
   })
 })

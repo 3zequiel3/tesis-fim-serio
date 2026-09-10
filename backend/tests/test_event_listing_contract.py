@@ -77,12 +77,16 @@ def _new_event(
     status: EventStatus = EventStatus.pending,
     path: str | None = None,
     created_at: datetime | None = None,
+    hash_expected: str | None = None,
+    diff_text: str | None = None,
     severity: RuleSeverity = RuleSeverity.low,
 ) -> Event:
     return Event(
         event_id=f"evt-listing-{uuid.uuid4().hex[:12]}",
         agent_id=agent.agent_id,
         path=path if path is not None else f"/etc/{uuid.uuid4().hex[:6]}",
+        hash_expected=hash_expected,
+        diff_text=diff_text,
         hash_detected="deadbeef",
         status=status,
         severity=severity,
@@ -335,4 +339,26 @@ async def test_get_event_by_id_returns_full_detail(client, session, agent) -> No
 async def test_get_event_by_id_unknown_returns_404(client, session, agent) -> None:
     """Un id inexistente devuelve 404, no 200 con un cuerpo vacío."""
     resp = await client.get("/events/987654", headers=_auth_headers())
+
+
+async def test_get_event_by_id_returns_textual_diff_metadata(client, session, agent) -> None:
+    diff = "--- a/etc/hosts\n+++ b/etc/hosts\n@@ -1 +1 @@\n-old\n+new\n"
+    event = _new_event(agent, hash_expected="e" * 64, diff_text=diff)
+    _persist(session, event)
+
+    resp = await client.get(f"/events/{event.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["hash_expected"] == "e" * 64
+    assert resp.json()["diff_text"] == diff
+
+
+async def test_list_events_does_not_expose_textual_diff(client, session, agent) -> None:
+    event = _new_event(agent, diff_text="sensitive patch")
+    _persist(session, event)
+
+    resp = await client.get("/events", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert "diff_text" not in resp.json()["items"][0]
     assert resp.status_code == 404

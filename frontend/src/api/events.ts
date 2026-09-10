@@ -59,8 +59,11 @@ export interface EventListItem {
   action_error?: string | null
 }
 
-// El detalle del evento tiene los mismos campos que el listado
-export type EventDetail = EventListItem
+// US-09: the bounded unified diff is available only from the detail endpoint.
+export type EventDetail = EventListItem & {
+  hash_expected: string | null
+  diff_text: string | null
+}
 
 export interface EventListResponse {
   total: number

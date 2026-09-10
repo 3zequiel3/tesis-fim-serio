@@ -40,6 +40,18 @@ def test_generate_diff_returns_none_for_binary(tmp_path: Path) -> None:
     result = _generate_diff("previous", str(f))
     assert result is None
 
+def test_generate_diff_returns_none_for_invalid_utf8(tmp_path: Path) -> None:
+    f = tmp_path / "invalid-utf8.bin"
+    f.write_bytes(b"plain-prefix\xff\xfeplain-suffix")
+    assert _generate_diff("previous", str(f)) is None
+
+
+def test_generate_diff_returns_none_for_binary_without_nul(tmp_path: Path) -> None:
+    f = tmp_path / "control-bytes.bin"
+    f.write_bytes(bytes(range(1, 9)) * 32)
+    assert _generate_diff("previous", str(f)) is None
+
+
 
 def test_generate_diff_returns_none_when_previous_none(tmp_path: Path) -> None:
     f = tmp_path / "new.txt"

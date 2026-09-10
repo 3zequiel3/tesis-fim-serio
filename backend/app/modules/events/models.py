@@ -29,6 +29,9 @@ class Event(SQLModel, table=True):
     event_id: str = Field(unique=True, index=True)  # UUID v4 del agente (dedup RN-73)
     agent_id: str = Field(foreign_key="agents.agent_id", index=True)
     path: str = Field(index=True)
+    # US-09: baseline hash plus bounded unified diff; complete file versions are not stored.
+    hash_expected: str | None = Field(default=None, max_length=64)
+    diff_text: str | None = Field(default=None, sa_column=sa.Column(sa.Text, nullable=True))
     hash_detected: str
     status: EventStatus = Field(index=True)
     # D34/RN-128 (C38): severidad calculada al ingerir con la lógica compartida

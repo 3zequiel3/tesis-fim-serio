@@ -182,7 +182,7 @@ def test_ingest_event_from_real_agent_payload_persists_hash_detected(mem_engine)
         operation_type="file_modified",
         hash_expected="e" * 64,
         hash_detected=detected_hash,
-        diff_text=None,
+        diff_text="--- a/etc/nginx/nginx.conf\n+++ b/etc/nginx/nginx.conf\n@@ -1 +1 @@\n-old\n+new\n",
         process_pid=42,
         process_uid=0,
         process_exe="/usr/bin/vim",
@@ -202,11 +202,85 @@ def test_ingest_event_from_real_agent_payload_persists_hash_detected(mem_engine)
 
     assert event is not None
     assert event.hash_detected == detected_hash
+    assert event.hash_expected == "e" * 64
+    assert event.diff_text is not None
+    assert "-old" in event.diff_text
+    assert "+new" in event.diff_text
     assert event.hash_detected != ""
     # action=quarantine sin fallo deriva un estado terminal (D35/RN-129), NO pending.
     assert event.status == EventStatus.quarantined
     assert event.action_failed is False
     assert event.resolved_at is not None
+
+
+def test_ingest_event_bounds_diff_on_utf8_boundary(mem_engine) -> None:
+    now = _now()
+    large_diff = (
+        "--- a/etc/large.conf\n+++ b/etc/large.conf\n@@ -1 +1 @@\n-previous\n+"
+        + "á" * (1024 * 1024)
+        + "\n"
+    )
+    payload = {
+        "event_id": "evt-large-diff",
+        "agent_id": "agent-test",
+        "path": "/etc/large.conf",
+        "hash_detected": "d" * 64,
+        "hash_expected": "e" * 64,
+        "diff_text": large_diff,
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.diff_text is not None
+    assert len(event.diff_text.encode("utf-8")) <= 1024 * 1024
+    assert event.diff_text.endswith("\n... [diff truncated by backend]\n")
+
+
+def test_ingest_event_ignores_non_text_diff_metadata(mem_engine) -> None:
+    now = _now()
+    payload = {
+        "event_id": "evt-invalid-diff",
+        "agent_id": "agent-test",
+        "path": "/etc/hosts",
+        "hash_detected": "d" * 64,
+        "hash_expected": {"unexpected": "shape"},
+        "diff_text": b"binary payload",
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.hash_expected is None
+    assert event.diff_text is None
+
+
+@pytest.mark.parametrize(
+    "diff_text",
+    [
+        "--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new\x00\n",
+        "--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new\ufffd\n",
+        "--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new\x01\x02\n",
+        "not a unified patch",
+    ],
+)
+def test_ingest_event_rejects_unsafe_or_non_patch_diff(mem_engine, diff_text: str) -> None:
+    now = _now()
+    payload = {
+        "event_id": f"evt-rejected-diff-{abs(hash(diff_text))}",
+        "agent_id": "agent-test",
+        "path": "/etc/hosts",
+        "hash_detected": "d" * 64,
+        "diff_text": diff_text,
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.diff_text is None
     assert event.resolved_by is None
 
 

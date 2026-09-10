@@ -56,6 +56,13 @@ class EventOut(BaseModel):
     # explicativa — ver Event.action_error. Aditivo, sin filtro nuevo.
     action_error: str | None = None
 
+
+
+class EventDetailOut(EventOut):
+    """Detail response with bounded textual evidence; listings exclude the diff."""
+
+    hash_expected: str | None = None
+    diff_text: str | None = None
     model_config = {"from_attributes": True}
 
 
@@ -122,17 +129,17 @@ async def list_events(
     )
 
 
-@router.get("/{event_id}", response_model=EventOut)
+@router.get("/{event_id}", response_model=EventDetailOut)
 async def get_event(
     event_id: int,
     session: Session = Depends(get_session),
     _user: User = Depends(require_full_access),
-) -> EventOut:
+) -> EventDetailOut:
     event = session.exec(select(Event).where(Event.id == event_id)).first()
     if event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     ack_map = _get_ack_status_map(session, [event.id] if event.id is not None else [])
-    return _to_event_out(event, ack_map)
+    return _to_event_detail_out(event, ack_map)
 
 
 # ── Helpers — filtros de fecha (D39/RN-133) ──────────────────────────────────
@@ -179,4 +186,10 @@ def _get_ack_status_map(session: Session, event_ids: list[int]) -> dict[int, str
 def _to_event_out(event: Event, ack_map: dict[int, str]) -> EventOut:
     out = EventOut.model_validate(event)
     out.ack_status = ack_map.get(event.id) if event.id is not None else None
+
+
+def _to_event_detail_out(event: Event, ack_map: dict[int, str]) -> EventDetailOut:
+    out = EventDetailOut.model_validate(event)
+    out.ack_status = ack_map.get(event.id) if event.id is not None else None
+    return out
     return out

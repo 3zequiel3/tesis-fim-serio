@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 _LINUX = platform.system() == "Linux"
-_TEXT_PROBE_BYTES = 8192
 _MAX_DIFF_BYTES = 1024 * 1024  # 1 MB
 _AGENT_WORK_DIR = "/var/lib/fim-agent"
 _DRAIN_TIMEOUT_S = 30.0
@@ -149,8 +148,21 @@ async def _hash_file_async(
 def _is_text(path: str) -> bool:
     try:
         with open(path, "rb") as f:
-            return b"\x00" not in f.read(_TEXT_PROBE_BYTES)
+            content = f.read(_MAX_DIFF_BYTES + 1)
     except OSError:
+    return len(content) <= _MAX_DIFF_BYTES and _is_text_bytes(content)
+
+
+def _is_text_bytes(value: bytes) -> bool:
+    """Require valid UTF-8 and reject binary control bytes, not only NUL."""
+    try:
+        text = value.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return all(
+        char in "\t\n\r\f" or not (ord(char) < 32 or 127 <= ord(char) < 160)
+        for char in text
+    )
         return False
 
 
@@ -164,9 +176,11 @@ def _generate_diff(previous_content: str, current_path: str) -> str | None:
     if not _is_text(current_path):
         return None
     try:
-        with open(current_path, encoding="utf-8", errors="replace") as f:
+        with open(current_path, encoding="utf-8", errors="strict") as f:
             current_lines = f.readlines()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
+        return None
+    if not _is_text_bytes(previous_content.encode("utf-8")):
         return None
     prev_lines = previous_content.splitlines(keepends=True)
     diff = list(difflib.unified_diff(
@@ -175,7 +189,10 @@ def _generate_diff(previous_content: str, current_path: str) -> str | None:
         fromfile=f"a{current_path}",
         tofile=f"b{current_path}",
     ))
-    return "".join(diff) if diff else None
+    result = "".join(diff) if diff else None
+    if result is not None and len(result.encode("utf-8")) > _MAX_DIFF_BYTES:
+        return None
+    return result
 
 
 # ── Helpers de scope (RN-04, D31/RN-125, refinado por D33/RN-127) ────────────
@@ -660,8 +677,10 @@ class FanotifyDetector:
             if entry and entry.content_b64 and not entry.oversize:
                 try:
                     raw = base64.b64decode(entry.content_b64)
-                    previous_content = raw.decode("utf-8", errors="replace")
-                except Exception:
+                    previous_content = raw.decode("utf-8", errors="strict")
+                    if not _is_text_bytes(raw):
+                        previous_content = None
+                except (ValueError, UnicodeDecodeError):
                     previous_content = None
             diff_text = (
                 _generate_diff(previous_content, path)
