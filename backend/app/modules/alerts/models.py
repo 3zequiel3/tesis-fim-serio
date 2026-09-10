@@ -33,4 +33,9 @@ class Alert(SQLModel, table=True):
     failed_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     last_error: str | None = Field(default=None)
     retry_count: int = Field(default=0)
+    # Durable notification state. notification_id is minted before the first
+    # network attempt and remains stable across automatic and manual retries.
+    notification_id: str | None = Field(default=None, index=True, unique=True)
+    attempt_count: int = Field(default=0)
+    next_retry_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=_TZ_AWARE)

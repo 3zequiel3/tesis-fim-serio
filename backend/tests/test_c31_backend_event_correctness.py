@@ -161,7 +161,7 @@ def _make_superseded_event(
 async def test_fix01_primary_fails_dlq_activated(session):
     """8.1 — Canal primario configurado (n8n) pero siempre falla → notify_event
     agota todos los reintentos, failed_at poblado, delivered_at IS NULL,
-    log_only fue llamado en cada intento (RN-54)."""
+    log_only fue llamado una vez al terminar la escalera n8n (RN-54)."""
     from app.modules.alerts.service import notify_event, RETRY_DELAYS
     from app.modules.alerts.models import Alert, AlertSeverity
 
@@ -193,11 +193,8 @@ async def test_fix01_primary_fails_dlq_activated(session):
     # DLQ activada: failed_at poblado, delivered_at nulo
     assert alert.failed_at is not None, "failed_at debe estar poblado cuando todos los canales fallan"
     assert alert.delivered_at is None, "delivered_at debe ser None"
-    # log_only llamado en cada uno de los 4 intentos (1 inicial + 3 reintentos)
-    assert len(log_only_calls) == len(RETRY_DELAYS) + 1, (
-        f"log_only debe llamarse {len(RETRY_DELAYS) + 1} veces (piso RN-54), "
-        f"fue llamado {len(log_only_calls)}"
-    )
+    # Las alternativas no se intercalan con los reintentos del canal principal.
+    assert len(log_only_calls) == 1
 
 
 @pytest.mark.asyncio

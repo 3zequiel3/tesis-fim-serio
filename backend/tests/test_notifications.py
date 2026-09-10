@@ -412,8 +412,124 @@ async def test_log_only_no_entrega_si_hay_primarios_configurados(session, agent)
     assert alert.delivered_at is None
     assert alert.channel != AlertChannel.log_only
     assert alert.failed_at is not None
-    # El piso de logueo igual corrió en cada uno de los 4 intentos (RN-54).
-    assert len(log_only_calls) == len(RETRY_DELAYS) + 1
+    # Las alternativas se ejecutan una sola vez DESPUÉS de agotar n8n.
+    assert len(log_only_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_n8n_retry_ladder_finishes_before_real_fallback(session, agent):
+    """n8n gets all four attempts before SMTP is attempted once."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id)
+    calls: list[str] = []
+
+    async def n8n_fails(*_args, **_kwargs):
+        calls.append("n8n")
+        return False
+
+    async def smtp_succeeds(*_args, **_kwargs):
+        calls.append("smtp")
+        return True
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.send_n8n", side_effect=n8n_fails), \
+         patch("app.modules.alerts.service.send_smtp", side_effect=smtp_succeeds), \
+         patch("app.modules.alerts.service.send_webhook_fallback", new_callable=AsyncMock) as webhook, \
+         patch("app.modules.alerts.service.send_log_only", new_callable=AsyncMock) as log_only, \
+         patch("app.modules.alerts.service.settings") as mock_settings, \
+         patch("asyncio.sleep", new_callable=AsyncMock):
+        mock_settings.n8n_webhook_url = "http://n8n.local/webhook/fim-alert"
+        mock_settings.smtp_host = "smtp.test"
+        mock_settings.webhook_fallback_url = "http://fallback.test"
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        await notify_event(alert, event)
+
+    session.refresh(alert)
+    assert calls == ["n8n", "n8n", "n8n", "n8n", "smtp"]
+    webhook.assert_not_awaited()
+    log_only.assert_not_awaited()
+    assert alert.channel == AlertChannel.smtp_fallback
+    assert alert.delivered_at is not None
+    assert alert.attempt_count == 4
+
+
+@pytest.mark.asyncio
+async def test_persisted_retry_recovers_after_interrupted_task(session, agent):
+    """A new task resumes the persisted next attempt with the same identity."""
+    import app.modules.alerts.service as alerts_service
+
+    event = _make_event(session)
+    alert = _make_alert(session, event.id)
+    alert_id = alert.id
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.send_n8n", new_callable=AsyncMock, return_value=False), \
+         patch("app.modules.alerts.service.settings") as mock_settings, \
+         patch("asyncio.sleep", new_callable=AsyncMock, side_effect=asyncio.CancelledError):
+        mock_settings.n8n_webhook_url = "http://n8n.local/webhook/fim-alert"
+        mock_settings.smtp_host = ""
+        mock_settings.webhook_fallback_url = ""
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        with pytest.raises(asyncio.CancelledError):
+            await notify_event(alert, event)
+
+    session.refresh(alert)
+    persisted_id = alert.notification_id
+    assert persisted_id
+    assert alert.attempt_count == 1
+    assert alert.next_retry_at is not None
+    assert alert.delivered_at is None
+    assert alert.failed_at is None
+
+    captured_payloads: list[dict] = []
+
+    async def recovered_delivery(payload, *_args, **_kwargs):
+        captured_payloads.append(payload)
+        return True
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.send_n8n", side_effect=recovered_delivery), \
+         patch("app.modules.alerts.service.settings") as mock_settings, \
+         patch("asyncio.sleep", new_callable=AsyncMock):
+        mock_settings.n8n_webhook_url = "http://n8n.local/webhook/fim-alert"
+        mock_settings.smtp_host = ""
+        mock_settings.webhook_fallback_url = ""
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        await alerts_service.recover_pending_notifications()
+
+    persisted = session.get(Alert, alert_id)
+    assert persisted is not None
+    assert persisted.delivered_at is not None
+    assert persisted.attempt_count == 2
+    assert persisted.next_retry_at is None
+    assert captured_payloads[0]["notification_id"] == persisted_id
+
+
+@pytest.mark.asyncio
+async def test_terminal_dlq_entry_is_not_retried_on_restart(session, agent):
+    """Startup recovery resumes interrupted work, not terminal DLQ rows."""
+    import app.modules.alerts.service as alerts_service
+
+    event = _make_event(session)
+    alert = _make_alert(session, event.id, failed=True)
+    alert.notification_id = "terminal-dlq-id"
+    alert.attempt_count = len(RETRY_DELAYS) + 1
+    session.add(alert)
+    session.commit()
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.send_n8n", new_callable=AsyncMock) as send:
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+        await alerts_service.recover_pending_notifications()
+
+    send.assert_not_awaited()
 
 
 # ── 7.2 Tests de endpoints ────────────────────────────────────────────────────
@@ -504,6 +620,10 @@ async def test_retry_alert_resets_dlq_state_and_reschedules(session, agent):
 
     event = _make_event(session)
     alert = _make_alert(session, event.id, failed=True)
+    alert.notification_id = "stable-manual-retry-id"
+    session.add(alert)
+    session.commit()
+    session.refresh(alert)
     assert alert.failed_at is not None and alert.retry_count == 3  # precondición: está en la DLQ
 
     preexisting = set(alerts_service._background_tasks)
@@ -521,6 +641,9 @@ async def test_retry_alert_resets_dlq_state_and_reschedules(session, agent):
     assert persisted.failed_at is None
     assert persisted.last_error is None
     assert persisted.retry_count == 0
+    assert persisted.attempt_count == 0
+    assert persisted.next_retry_at is None
+    assert persisted.notification_id == "stable-manual-retry-id"
     assert persisted.delivered_at is None
     assert returned.id == alert.id
 

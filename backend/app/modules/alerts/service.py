@@ -4,7 +4,7 @@ Servicio de notificaciones de alertas para FIM Platform (C15 — backend-notific
 Responsabilidades:
   - _determine_severity: lookup fnmatch en rules para obtener severidad máxima (D-C15-01)
   - notify_if_applicable: punto de entrada desde el consumer — crea Alert y dispara notificación
-  - notify_event: retry loop 3x con cascada de canales (D-C15-03, D-C15-04)
+  - notify_event: retry durable de n8n seguido por fallbacks (D-C15-03, D-C15-04)
   - list_failed_alerts, retry_alert, delete_alert: gestión de la DLQ
 """
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
@@ -53,6 +53,13 @@ def _fire_and_forget(coro) -> None:
 RETRY_DELAYS: list[int] = [5, 30, 120]
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Normalize database timestamps; SQLite drops timezone information."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 # ── Determinación de severidad ────────────────────────────────────────────────
 
 def _determine_severity(event: Event, session: Session) -> RuleSeverity:
@@ -88,7 +95,11 @@ async def notify_if_applicable(event: Event) -> None:
 
     # Crear fila Alert
     alert_severity = AlertSeverity(severity.value)
-    alert = Alert(event_id=event.id, severity=alert_severity)
+    alert = Alert(
+        event_id=event.id,
+        severity=alert_severity,
+        notification_id=str(uuid.uuid4()),
+    )
     with Session(engine) as session:
         session.add(alert)
         session.commit()
@@ -132,7 +143,7 @@ def _build_payload(alert: Alert, event: Event) -> dict[str, Any]:
     return {
         # Sobre
         "schema_version": SCHEMA_VERSION,
-        "notification_id": str(uuid.uuid4()),
+        "notification_id": alert.notification_id or str(uuid.uuid4()),
         "type": NOTIFICATION_TYPE_ALERT,
         # Datos
         "alert_id": alert.id,
@@ -155,8 +166,9 @@ def _build_payload(alert: Alert, event: Event) -> dict[str, Any]:
 
 async def notify_event(alert: Alert, event: Event) -> None:
     """
-    Retry loop con RETRY_DELAYS y cascada n8n → SMTP → webhook_fallback → log_only.
-    Actualiza la fila alerts tras cada intento.
+    Retry durable con orden n8n inicial + 3 reintentos, seguido una sola vez por
+    SMTP → webhook_fallback → log_only. Actualiza ``alerts`` antes de cada
+    espera para que un reinicio pueda continuar desde el próximo intento.
 
     INVARIANTE (D40/RN-134): `_build_payload` se invoca UNA sola vez, fuera del
     bucle. Eso es lo que hace que `notification_id` sea estable a lo largo de
@@ -165,55 +177,116 @@ async def notify_event(alert: Alert, event: Event) -> None:
     id por intento y volvería indistinguible un reintento de una notificación
     nueva, que es exactamente la ambigüedad que el campo existe para resolver.
 
-    ALCANCE CONOCIDO: la estabilidad cubre el ciclo de vida de esta llamada. Un
-    reintento manual desde la DLQ (`retry_alert`) vuelve a entrar por acá y
-    produce un `notification_id` nuevo, porque hoy no hay dónde persistirlo. El
-    change 48 agrega `next_retry_at`/`attempt` a la fila `alerts` y es el
-    momento de persistir también este id. Mientras tanto la defensa contra
-    duplicados en ticketing no depende de esto: deduplica por `event_id`
-    (D41/RN-135), que sí es estable siempre.
+    La estabilidad cubre también recuperación y reintento manual: el id vive en
+    la fila Alert, no en la tarea asyncio. La entrega es al-menos-una-vez ante
+    una caída después de que un receptor acepta pero antes del commit local;
+    receptores que necesiten efecto único deben deduplicar notification_id.
     """
-    payload = _build_payload(alert, event)
+    if alert.id is None:
+        raise ValueError("alert_not_persisted")
+
+    # Mint and commit the identity before any external effect. Legacy rows from
+    # before migration 014 receive one on first retry/recovery.
+    with Session(engine) as session:
+        db_alert = session.get(Alert, alert.id)
+        if db_alert is None:
+            raise ValueError("alert_not_found")
+        if db_alert.delivered_at is not None:
+            return
+        if not db_alert.notification_id:
+            db_alert.notification_id = str(uuid.uuid4())
+            session.add(db_alert)
+            session.commit()
+            session.refresh(db_alert)
+        db_event = session.get(Event, db_alert.event_id)
+        if db_event is None:
+            raise ValueError("event_not_found")
+        payload = _build_payload(db_alert, db_event)
+        starting_attempt = min(max(db_alert.attempt_count, 0), len(RETRY_DELAYS) + 1)
+        persisted_next_retry = db_alert.next_retry_at
+
     attempts = len(RETRY_DELAYS) + 1  # 4 intentos totales (1 inicial + 3 reintentos)
 
-    for attempt in range(attempts):
-        if attempt > 0:
-            delay = RETRY_DELAYS[attempt - 1]
-            log.info("notify.retry_wait", alert_id=alert.id, attempt=attempt, delay_s=delay)
-            await asyncio.sleep(delay)
+    if settings.n8n_webhook_url:
+        for attempt in range(starting_attempt, attempts):
+            if attempt > 0:
+                if attempt == starting_attempt and persisted_next_retry is not None:
+                    delay = max(
+                        0.0,
+                        (_as_utc(persisted_next_retry) - datetime.now(timezone.utc)).total_seconds(),
+                    )
+                else:
+                    delay = float(RETRY_DELAYS[attempt - 1])
+                log.info("notify.retry_wait", alert_id=alert.id, attempt=attempt, delay_s=delay)
+                await asyncio.sleep(delay)
 
-        success, channel = await _try_cascade(payload)
+            if await send_n8n(payload, settings.n8n_webhook_url):
+                _mark_delivered(alert.id, AlertChannel.n8n, attempt, attempt + 1)
+                log.info("notify.delivered", alert_id=alert.id, channel=AlertChannel.n8n, attempt=attempt)
+                return
 
-        if success:
+            next_retry_at = (
+                datetime.now(timezone.utc) + timedelta(seconds=RETRY_DELAYS[attempt])
+                if attempt < len(RETRY_DELAYS)
+                else None
+            )
             with Session(engine) as session:
                 db_alert = session.get(Alert, alert.id)
                 if db_alert:
-                    db_alert.delivered_at = datetime.now(timezone.utc)
-                    db_alert.channel = channel
+                    db_alert.attempt_count = attempt + 1
                     db_alert.retry_count = attempt
+                    db_alert.next_retry_at = next_retry_at
                     db_alert.failed_at = None
-                    db_alert.last_error = None
-                    session.add(db_alert)
-                    session.commit()
-            log.info("notify.delivered", alert_id=alert.id, channel=channel, attempt=attempt)
-            return
-        else:
-            # Actualizar estado fallido en DB tras cada intento
-            with Session(engine) as session:
-                db_alert = session.get(Alert, alert.id)
-                if db_alert:
-                    db_alert.failed_at = datetime.now(timezone.utc)
-                    db_alert.last_error = f"All channels failed on attempt {attempt}"
-                    db_alert.retry_count = attempt
+                    db_alert.last_error = f"n8n failed on attempt {attempt + 1} of {attempts}"
                     session.add(db_alert)
                     session.commit()
 
-    log.error("notify.all_attempts_failed", alert_id=alert.id, retry_count=attempts - 1)
+    success, channel = await _try_fallbacks(payload)
+    if success:
+        _mark_delivered(
+            alert.id,
+            channel,
+            max(attempts - 1, 0) if settings.n8n_webhook_url else 0,
+            attempts if settings.n8n_webhook_url else 0,
+        )
+        log.info("notify.delivered", alert_id=alert.id, channel=channel)
+        return
+
+    with Session(engine) as session:
+        db_alert = session.get(Alert, alert.id)
+        if db_alert:
+            db_alert.failed_at = datetime.now(timezone.utc)
+            db_alert.next_retry_at = None
+            db_alert.last_error = "All configured notification channels failed"
+            session.add(db_alert)
+            session.commit()
+    log.error("notify.all_attempts_failed", alert_id=alert.id)
 
 
-async def _try_cascade(payload: dict[str, Any]) -> tuple[bool, AlertChannel | None]:
+def _mark_delivered(
+    alert_id: int,
+    channel: AlertChannel | None,
+    retry_count: int,
+    attempt_count: int,
+) -> None:
+    """Persist success only after a channel has confirmed acceptance."""
+    with Session(engine) as session:
+        db_alert = session.get(Alert, alert_id)
+        if db_alert:
+            db_alert.delivered_at = datetime.now(timezone.utc)
+            db_alert.channel = channel
+            db_alert.retry_count = retry_count
+            db_alert.attempt_count = attempt_count
+            db_alert.next_retry_at = None
+            db_alert.failed_at = None
+            db_alert.last_error = None
+            session.add(db_alert)
+            session.commit()
+
+
+async def _try_fallbacks(payload: dict[str, Any]) -> tuple[bool, AlertChannel | None]:
     """
-    Intenta los canales en orden: n8n → SMTP → webhook_fallback → log_only.
+    Intenta las alternativas una vez, después de agotar n8n.
 
     Tres casos de retorno (D23, RN-120):
     - Canal primario tiene éxito → (True, canal).
@@ -222,32 +295,81 @@ async def _try_cascade(payload: dict[str, Any]) -> tuple[bool, AlertChannel | No
     - Sin canales primarios configurados → log_only es el canal intencional
       → (True, AlertChannel.log_only).
     """
-    any_primary_configured = bool(
+    any_delivery_channel_configured = bool(
         settings.n8n_webhook_url or settings.smtp_host or settings.webhook_fallback_url
     )
 
-    # 1. n8n
-    if settings.n8n_webhook_url:
-        if await send_n8n(payload, settings.n8n_webhook_url):
-            return True, AlertChannel.n8n
-
-    # 2. SMTP
+    # 1. SMTP
     if settings.smtp_host:
         if await send_smtp(payload, settings):
             return True, AlertChannel.smtp_fallback
 
-    # 3. webhook_fallback
+    # 2. webhook_fallback
     if settings.webhook_fallback_url:
         if await send_webhook_fallback(payload, settings.webhook_fallback_url):
             return True, AlertChannel.webhook_fallback
 
-    # 4. log_only — siempre como piso (RN-54)
+    # 3. log_only — siempre como piso (RN-54)
     await send_log_only(payload)
-    if any_primary_configured:
-        # Canales primarios configurados pero todos fallaron → activar DLQ
+    if any_delivery_channel_configured:
         return False, None
-    # Sin canales primarios → log_only es el canal intencional
     return True, AlertChannel.log_only
+
+
+async def recover_pending_notifications() -> None:
+    """Resume every persisted undelivered alert after backend startup."""
+    pending_ids: list[int] = []
+    with Session(engine) as session:
+        alerts = list(
+            session.exec(
+                select(Alert)
+                .where(Alert.delivered_at.is_(None))  # type: ignore[union-attr]
+                .where(Alert.failed_at.is_(None))  # type: ignore[union-attr]
+                .where(Alert.notification_id.is_not(None))  # type: ignore[union-attr]
+                .order_by(Alert.id.asc())  # type: ignore[union-attr]
+            ).all()
+        )
+        for alert in alerts:
+            event = session.get(Event, alert.event_id)
+            if event is None:
+                alert.failed_at = datetime.now(timezone.utc)
+                alert.next_retry_at = None
+                alert.last_error = "Associated event not found during notification recovery"
+                session.add(alert)
+                continue
+            if alert.id is not None:
+                pending_ids.append(alert.id)
+        session.commit()
+
+    # Reload after the commit above: SQLAlchemy expires ORM instances at commit,
+    # and passing those objects outside the session would make restart recovery
+    # fail with DetachedInstanceError before the first network attempt.
+    pending: list[tuple[Alert, Event]] = []
+    with Session(engine) as session:
+        for alert_id in pending_ids:
+            alert = session.get(Alert, alert_id)
+            if alert is None:
+                continue
+            event = session.get(Event, alert.event_id)
+            if event is None:
+                continue
+            session.expunge(alert)
+            session.expunge(event)
+            pending.append((alert, event))
+
+    if pending:
+        log.info("notify.recovery_started", count=len(pending))
+        results = await asyncio.gather(
+            *(notify_event(alert, event) for alert, event in pending),
+            return_exceptions=True,
+        )
+        for (alert, _event), result in zip(pending, results, strict=True):
+            if isinstance(result, Exception):
+                log.error(
+                    "notify.recovery_failed",
+                    alert_id=alert.id,
+                    error=str(result),
+                )
 
 
 # ── Listado completo de alertas ───────────────────────────────────────────────
@@ -311,6 +433,10 @@ async def retry_alert(alert_id: int, session: Session) -> Alert:
     alert.failed_at = None
     alert.last_error = None
     alert.retry_count = 0
+    alert.attempt_count = 0
+    alert.next_retry_at = None
+    if not alert.notification_id:
+        alert.notification_id = str(uuid.uuid4())
     session.add(alert)
     session.commit()
     session.refresh(alert)
