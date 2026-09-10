@@ -147,8 +147,16 @@ class DecisionEngine:
                 # modelo Event del backend; nunca emitir None (evita IntegrityError + poison loop).
                 "hash_detected": "",
                 "diff_text": None,
-                "process_pid": 0,
-                "process_uid": 0,
+                # D49/RN-143: los tres campos de proceso van en None. En esta ruta
+                # el proceso causante ya no existe POR DEFINICIÓN — la rehidratación
+                # corre tras un reinicio del agente —, así que el contexto es
+                # irrecuperable. `0` en process_uid significa root; escribirlo acá
+                # haría que TODO evento recuperado del journal se reportara como
+                # hecho por root. Por la misma razón, `0` en process_pid tampoco es
+                # dato: es el pid del scheduler del kernel, no el de un proceso de
+                # usuario.
+                "process_pid": None,
+                "process_uid": None,
                 "process_exe": None,
                 "detected_at": entry.created_at,
                 "parent_event_id": None,

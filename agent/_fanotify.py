@@ -63,6 +63,10 @@ FAN_DELETE = 0x00000200
 FAN_DELETE_SELF = 0x00000400
 FAN_MOVE_SELF = 0x00000800
 FAN_ONDIR = 0x40000000
+# D50/RN-144: el kernel desbordó su cola de eventos fanotify y descartó eventos.
+# Es el único modo de falla del sistema silencioso por construcción: el agente
+# nunca recibe los eventos perdidos, solo esta señal de que la ventana existió.
+FAN_Q_OVERFLOW = 0x00004000
 
 FAN_NOFD = -1
 FANOTIFY_METADATA_VERSION = 3

@@ -28,7 +28,13 @@ class EventOut(BaseModel):
     id: int
     event_id: str
     agent_id: str
-    path: str
+    # D51/RN-145: vocabulario canónico que el agente ya emite (RN-71), sin
+    # validación contra enum — mismo criterio que action/action_error.
+    event_type: str
+    # D51/RN-145: nulo para eventos que no hablan de ningún archivo concreto,
+    # como detection_gap (D50/RN-144). path_prefix no matchea un NULL, así
+    # que un evento sin ruta queda fuera de una búsqueda por prefijo.
+    path: str | None
     hash_detected: str
     status: EventStatus
     # D34/RN-128 (C38): severidad persistida al ingerir (snapshot, D-C15-01).

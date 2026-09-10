@@ -19,7 +19,7 @@ Cubre la matriz de edge cases del diseño (engram obs #238 §3, tasks.md 5.1-5.6
 - auto_restore sobre un symlink degrada limpiamente (sin contenido restaurable).
 - hardlink_suspected: contador detective opcional, sin cambio de comportamiento.
 
-pyfanotify no está disponible en este entorno: `_classify_event` se parchea
+El backend fanotify interno no está disponible en este entorno: `_classify_event` se parchea
 para simular las máscaras FAN_CREATE/FAN_DELETE (mismo patrón que
 test_detector_multi_event.py); la rama "sin clasificar" (FAN_CLOSE_WRITE /
 mask=0) se ejercita sin parchear, ya que `_HAS_FAN=False` hace que

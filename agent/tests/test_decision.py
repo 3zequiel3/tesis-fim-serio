@@ -234,6 +234,10 @@ async def test_rehydrate_action_error_propagates(tmp_path: Path) -> None:
     payload = publisher.publish.call_args[0][0]
     assert payload["action_failed"] is True
     assert payload["action_error"] == "no_restorable_content"
+    # D49/RN-143 (5.3): la rehidratación no atribuye contexto de proceso — el
+    # proceso original ya no existe por definición en esta ruta.
+    assert payload["process_uid"] is None
+    assert payload["process_pid"] is None
 
 
 # ── funciones puras: parse_baseline_mode (D36/RN-130 D-6) ────────────────────
@@ -392,6 +396,9 @@ async def test_rehydrate_auto_restore_pending(tmp_path: Path) -> None:
     assert payload["event_type"] == "file_modified"
     assert payload["action"] == "auto_restore"
     assert payload.get("action_failed") is not True
+    # D49/RN-143 (5.3): la rehidratación no atribuye contexto de proceso.
+    assert payload["process_uid"] is None
+    assert payload["process_pid"] is None
     assert not (tmp_path / "journal" / "evt-rehy-001.json").exists()  # eliminado
 
 
@@ -438,6 +445,9 @@ async def test_rehydrate_manual_review_pending(tmp_path: Path) -> None:
     publisher.publish.assert_called_once()
     payload = publisher.publish.call_args[0][0]
     assert payload["action"] == "alert_only"  # re-publicado como alert_only
+    # D49/RN-143 (5.3): la rehidratación no atribuye contexto de proceso.
+    assert payload["process_uid"] is None
+    assert payload["process_pid"] is None
 
     data = json.loads((tmp_path / "journal" / "evt-rehy-002.json").read_text())
     assert data["state"] == "failed"

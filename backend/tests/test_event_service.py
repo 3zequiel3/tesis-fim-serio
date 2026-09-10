@@ -473,3 +473,136 @@ def test_get_pending_returns_none_when_no_pending(mem_engine) -> None:
         _make_event(session, "/app/db.yml", EventStatus.approved)
         result = get_pending_event_for_path(session, "/app/db.yml")
     assert result is None
+
+
+# ── D51/RN-145: eventos sin ruta (detection_gap y afines) — tasks 10.1-10.5 ──
+
+
+def _detection_gap_payload(event_id: str = "gap-001") -> dict:
+    now = _now().isoformat()
+    return {
+        "event_id": event_id,
+        "agent_id": "agent-test",
+        "event_type": "detection_gap",
+        "path": None,
+        "hash_detected": "",
+        "process_pid": None,
+        "process_uid": None,
+        "process_exe": None,
+        "detected_at": now,
+        "action": "alert_only",
+    }
+
+
+def test_ingest_pathless_event_persists_path_null_not_empty_string(mem_engine) -> None:
+    """10.1: sin path en el payload -> path IS NULL, explícitamente NO path=''."""
+    now = _now()
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(_detection_gap_payload(), now, now)
+
+    assert event is not None
+    assert event.path is None
+    assert event.path != ""
+
+
+def test_ingest_two_detection_gap_events_do_not_supersede_each_other(mem_engine) -> None:
+    """10.2: dos detection_gap consecutivos coexisten, ninguno superseded, sin parent_event_id."""
+    now = _now()
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        first = ingest_event(_detection_gap_payload("gap-001"), now, now)
+        second = ingest_event(_detection_gap_payload("gap-002"), now, now)
+
+    assert first is not None and second is not None
+    assert first.parent_event_id is None
+    assert second.parent_event_id is None
+
+    with Session(mem_engine) as session:
+        rows = session.exec(select(Event).where(Event.event_type == "detection_gap")).all()
+    assert len(rows) == 2
+    assert all(r.status != EventStatus.superseded for r in rows)
+
+
+def test_ingest_pathless_event_skips_severity_ruleset_lookup(mem_engine) -> None:
+    """10.3: un evento sin path NO invoca determine_severity_for_path y recibe severity=high."""
+    now = _now()
+    import app.modules.events.service as svc
+    with (
+        patch.object(svc, "engine", mem_engine),
+        patch.object(svc, "determine_severity_for_path") as mock_determine,
+    ):
+        event = ingest_event(_detection_gap_payload(), now, now)
+
+    assert event is not None
+    assert event.severity.value == "high"
+    mock_determine.assert_not_called()
+
+
+def test_ingest_pathless_alert_only_event_resolves_without_operator(mem_engine) -> None:
+    """10.4: evento sin path con action=alert_only ingresa alert_only, resuelto sin operador."""
+    now = _now()
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(_detection_gap_payload(), now, now)
+
+    assert event is not None
+    assert event.status == EventStatus.alert_only
+    # SQLite in-memory (mem_engine de este archivo) no preserva tzinfo en el
+    # roundtrip; se compara naive-a-naive, mismo patrón que el resto del
+    # archivo para no acoplar el test a esa limitación del motor de test.
+    assert event.resolved_at.replace(tzinfo=None) == now.replace(tzinfo=None)
+    assert event.resolved_by is None
+
+
+def test_ingest_event_type_from_payload_reaches_column(mem_engine) -> None:
+    """10.5a: event_type del payload se persiste literal."""
+    now = _now()
+    payload = {
+        "event_id": "evt-type-001",
+        "agent_id": "agent-test",
+        "event_type": "file_deleted",
+        "path": "/etc/passwd",
+        "hash_detected": "",
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.event_type == "file_deleted"
+
+
+def test_ingest_unknown_event_type_persists_literal_without_rejection(mem_engine) -> None:
+    """10.5b: event_type desconocido (agente adelantado) se persiste tal cual, sin rechazo."""
+    now = _now()
+    payload = {
+        "event_id": "evt-type-002",
+        "agent_id": "agent-test",
+        "event_type": "some_future_type",
+        "path": "/etc/passwd",
+        "hash_detected": "",
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.event_type == "some_future_type"
+
+
+def test_ingest_without_event_type_key_uses_model_default(mem_engine) -> None:
+    """10.5c: payload sin la clave event_type (agente anterior a esta change) -> default."""
+    now = _now()
+    payload = {
+        "event_id": "evt-type-003",
+        "agent_id": "agent-test",
+        "path": "/etc/passwd",
+        "hash_detected": "",
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.event_type == "file_modified"

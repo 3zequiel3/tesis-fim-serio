@@ -109,11 +109,11 @@ def admin_user(session) -> User:
 def _make_event(
     session: Session,
     agent_id: str = "agent-001",
-    path: str = "/etc/passwd",
+    path: str | None = "/etc/passwd",
     status: EventStatus = EventStatus.pending,
 ) -> Event:
     event = Event(
-        event_id=f"evt-{id(session)}-{path[:5]}",
+        event_id=f"evt-{id(session)}-{path[:5] if path else 'nopath'}",
         agent_id=agent_id,
         path=path,
         hash_detected="abc123",
@@ -260,6 +260,22 @@ def test_determine_severity_no_rules(session, agent):
     event = _make_event(session, path="/etc/passwd")
     sev = _determine_severity(event, session)
     assert sev == RuleSeverity.low
+
+
+def test_determine_severity_high_fixed_for_path_none(session, agent):
+    """D51/RN-145 (hallazgo task 9.4): evento sin ruta recibe high fijo, SIN
+    consultar el ruleset — ni siquiera una regla critical que matchea todo
+    puede subir ni bajar esta severidad, y determine_severity_for_path no se
+    invoca (evita el TypeError de fnmatch.fnmatch(None, ...) y mantiene
+    consistencia con la severidad que events/service.py ya persiste)."""
+    _make_rule(session, pattern="*", severity=RuleSeverity.critical)
+    event = _make_event(session, path=None, status=EventStatus.alert_only)
+    with patch(
+        "app.modules.alerts.service.determine_severity_for_path"
+    ) as mock_determine:
+        sev = _determine_severity(event, session)
+    assert sev == RuleSeverity.high
+    mock_determine.assert_not_called()
 
 
 # ── 7.1 Tests de notify skip ─────────────────────────────────────────────────

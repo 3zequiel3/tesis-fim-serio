@@ -24,7 +24,14 @@ export type EventSeverity = 'critical' | 'high' | 'medium' | 'low'
 
 export interface EventListItem {
   id: number
-  path: string
+  // D51/RN-145: vocabulario canonico que el agente ya emite (file_created,
+  // file_modified, file_deleted, file_absent, detection_gap), snake_case
+  // (RN-71). Discriminador que la tabla y el detalle usan para renderizar un
+  // evento sin ruta — no el nulo de `path` (D-10 del design).
+  event_type: string
+  // D51/RN-145: nulo para eventos que no hablan de ningun archivo concreto,
+  // como detection_gap (D50/RN-144, brecha de cobertura del kernel).
+  path: string | null
   // Contrato C11/C38: EventOut.hash_detected es str no-nullable — el backend
   // nunca envía null (a lo sumo cadena vacía para eventos sin hash). El flujo
   // de archivo ausente (confirm_absent/baseline_absent) va por el 422 del

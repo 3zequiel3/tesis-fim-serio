@@ -19,6 +19,7 @@ vi.mock('@/api/client', () => ({
 function makeItem(id: number): EventListItem {
   return {
     id,
+    event_type: 'file_modified',
     path: `/etc/file-${id}`,
     hash_detected: 'deadbeef',
     status: 'pending',

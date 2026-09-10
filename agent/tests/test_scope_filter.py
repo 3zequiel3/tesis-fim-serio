@@ -11,9 +11,10 @@ Cubre:
   (`_path_location_in_scope`) + contador `out_of_scope_drops`.
 - Exposición de `out_of_scope_drops` en el payload del heartbeat.
 
-pyfanotify no está disponible en este entorno (requiere kernel Linux + CAP_SYS_ADMIN),
-por lo que el filtro se ejercita con paths reales/temporales + os.path.realpath/
-is_relative_to, sin depender de fanotify real (ver `_HAS_FAN` en agent/detector.py).
+El backend fanotify interno no está disponible en este entorno (requiere kernel
+Linux + CAP_SYS_ADMIN), por lo que el filtro se ejercita con paths reales/temporales
++ os.path.realpath/is_relative_to, sin depender de fanotify real (ver `_HAS_FAN`
+en agent/detector.py).
 
 La matriz de edge cases de symlinks (D33/RN-127: create/delete/modify de symlink,
 dirs intermedios simbólicos, `hardlink_suspected`, degradación de auto_restore)
@@ -192,7 +193,7 @@ def test_reload_paths_recomputes_watch_paths_real(tmp_path: Path) -> None:
 
 
 def test_reload_watch_paths_noop_no_fan_recomputes_cache(tmp_path: Path) -> None:
-    """Rama noop_no_fan (plataformas/tests sin pyfanotify) también recomputa el cache."""
+    """Rama noop_no_fan (plataformas/tests sin backend fanotify) también recomputa el cache."""
     watch_b = tmp_path / "b"
     watch_b.mkdir()
     detector = _make_detector_with_mock_fan(tmp_path)

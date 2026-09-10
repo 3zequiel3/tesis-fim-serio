@@ -69,7 +69,18 @@ def _determine_severity(event: Event, session: Session) -> RuleSeverity:
 
     Delega en el helper compartido de rules/service.py — la misma lógica que
     persiste Event.severity al ingerir (D34/RN-128).
+
+    D51/RN-145 (hallazgo de la task 9.4, no anticipado por el design): un
+    evento sin ruta (p. ej. detection_gap, D50/RN-144) recibe `high` fijo,
+    SIN consultar el ruleset — determine_severity_for_path(None, ...) tanto
+    rompería con TypeError en fnmatch.fnmatch como, si hubiera devuelto algo,
+    caería en `low` sin matches, contradiciendo la severidad `high` que
+    events/service.py ya persiste para el mismo evento (D-7 del design). La
+    excepción se dispara por AUSENCIA DE RUTA, mismo criterio que en la
+    ingesta — no específico de detection_gap.
     """
+    if event.path is None:
+        return RuleSeverity.high
     return determine_severity_for_path(event.path, session)
 
 

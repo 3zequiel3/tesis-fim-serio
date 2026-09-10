@@ -1,6 +1,7 @@
 """
-Detector reactivo de cambios en el filesystem usando pyfanotify (C09, RN-01/02/03/04/93).
-Solo activo en Linux con CAP_SYS_ADMIN.
+Detector reactivo de cambios en el filesystem usando el backend fanotify interno de
+`agent/_fanotify.py` (ctypes sobre syscalls crudas, modo FID; D46/RN-140) (C09, RN-01/02/03/04/93).
+Solo activo en Linux con CAP_SYS_ADMIN y CAP_DAC_READ_SEARCH.
 """
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ import hashlib
 import os
 import platform
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,6 +35,10 @@ _MAX_DIFF_BYTES = 1024 * 1024  # 1 MB
 _AGENT_WORK_DIR = "/var/lib/fim-agent"
 _DRAIN_TIMEOUT_S = 30.0
 _AT_FDCWD = -100  # Linux AT_FDCWD
+# D50/RN-144: a lo sumo un detection_gap por ventana. Bajo saturación sostenida
+# el kernel emite FAN_Q_OVERFLOW repetidamente; deduplicar por desbordamiento
+# inundaría la tabla justo cuando menos capacidad hay para procesarla.
+_DETECTION_GAP_WINDOW_S = 60.0
 
 if _LINUX:
     try:
@@ -50,10 +56,12 @@ else:
 
 @dataclasses.dataclass
 class FanotifyEvent:
-    """Evento raw recibido de pyfanotify (interno al detector)."""
+    """Evento raw recibido del backend fanotify interno (agent/_fanotify.py)."""
     path: str
     pid: int
-    uid: int
+    # D49/RN-143: None = atribución no resuelta (el proceso ya no existe cuando se
+    # consulta /proc/<pid>/status). 0 significa EXCLUSIVAMENTE root. Ver _get_uid.
+    uid: int | None
     exe: str | None
     timestamp: str
     mask: int = 0
@@ -64,13 +72,14 @@ class DetectedChange:
     """Payload de cambio detectado — se envía al publisher."""
     event_id: str
     path: str
-    event_type: str          # "file_modified" | "file_absent" | "file_deleted" | "file_created"
+    event_type: str          # "file_modified" | "file_absent" | "file_deleted" | "file_created" | "detection_gap"
     operation_type: str      # léxico canónico RN-71: mismos valores que event_type
     hash_expected: str | None
     hash_detected: str | None
     diff_text: str | None
     process_pid: int
-    process_uid: int
+    # D49/RN-143: None = atribución no resuelta. 0 = root, y solo root.
+    process_uid: int | None
     process_exe: str | None
     detected_at: str
     parent_event_id: str | None
@@ -96,7 +105,19 @@ def _get_exe(pid: int) -> str | None:
         return None
 
 
-def _get_uid(pid: int) -> int:
+def _get_uid(pid: int) -> int | None:
+    """Resuelve el uid del proceso causante desde /proc/<pid>/status (best-effort).
+
+    D49/RN-143: retorna `None` si `/proc/<pid>/status` no es accesible — el proceso
+    ya terminó, lo que es rutinario y no excepcional: entre la notificación del
+    kernel y el armado del evento hay hasta 150 ms de reintentos de hash
+    (`_hash_file_async`), y cualquier proceso corto (un editor, `install`, un paso
+    de gestor de paquetes) ya no existe cuando se lo consulta. `0` significa
+    EXCLUSIVAMENTE que el proceso corría como root — nunca se usa como relleno
+    para una atribución que no se pudo resolver, porque contaminaría toda
+    búsqueda de cambios privilegiados con los cambios de autor desconocido.
+    Alineado con `_get_exe`, que ya devuelve `None` en el mismo caso.
+    """
     try:
         with open(f"/proc/{pid}/status") as f:
             for line in f:
@@ -104,7 +125,7 @@ def _get_uid(pid: int) -> int:
                     return int(line.split()[1])
     except OSError:
         pass
-    return 0
+    return None
 
 
 # ── Helpers de contenido ──────────────────────────────────────────────────────
@@ -258,8 +279,8 @@ class FanotifyDetector:
     """
     Detector reactivo de cambios en el filesystem.
 
-    Corre un hilo daemon que lee eventos pyfanotify (bloqueante) y los
-    entrega al loop asyncio vía queue para su procesamiento.
+    Corre un hilo daemon que lee eventos del backend fanotify interno
+    (bloqueante) y los entrega al loop asyncio vía queue para su procesamiento.
     """
 
     def __init__(
@@ -292,6 +313,15 @@ class FanotifyDetector:
         self._event_to_path: dict[str, str] = {}    # event_id → path (índice inverso para ack O(1))
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
+        # D50/RN-144: estado de la ventana de deduplicación de detection_gap.
+        # Escritos y leídos SOLO desde el hilo lector (_read_loop) — no necesita
+        # lock. time.monotonic() y no datetime.now(): un ajuste de reloj del
+        # host no debe suprimir ni disparar emisiones. En memoria, no persiste:
+        # tras un reinicio del agente el primer desbordamiento emite siempre
+        # (D-4 del design) — es el comportamiento correcto, la ventana anterior
+        # ya no es comparable.
+        self._last_detection_gap_at: float | None = None
+        self._suppressed_overflow_count: int = 0
 
     def _trace_record(self, stage: str, **fields: Any) -> None:
         """Write best-effort experimental evidence without changing the pipeline."""
@@ -335,7 +365,8 @@ class FanotifyDetector:
     def _init_fan(self) -> None:
         if not _HAS_FAN:
             raise RuntimeError(
-                "pyfanotify no disponible — requiere Linux con CAP_SYS_ADMIN"
+                "backend fanotify no disponible — se requiere Linux >= 5.1 con "
+                "CAP_SYS_ADMIN y CAP_DAC_READ_SEARCH"
             )
         try:
             self._fan = _fan_mod.init(
@@ -419,7 +450,7 @@ class FanotifyDetector:
         )
 
     def _read_fan_events(self) -> list[Any]:
-        """Lee eventos de pyfanotify (bloqueante). Retorna lista de eventos."""
+        """Lee eventos del backend fanotify interno (bloqueante). Retorna lista de eventos."""
         return _fan_mod.read(self._fan)
 
     # ── Hilo de lectura ────────────────────────────────────────────────────────
@@ -437,6 +468,15 @@ class FanotifyDetector:
             for ev in raw_events:
                 if self._stop_event.is_set():
                     break
+                # D50/RN-144: el chequeo del bit de desbordamiento va ANTES del
+                # descarte por path nulo. Un FAN_Q_OVERFLOW no tiene path por
+                # construcción (no habla de ningún archivo) — si este chequeo
+                # fuera después, el aviso de la brecha de cobertura caería en
+                # el descarte genérico y se perdería exactamente lo que existe
+                # para no perderse.
+                if getattr(ev, "mask", 0) & _fan_mod.FAN_Q_OVERFLOW:
+                    self._handle_overflow()
+                    continue
                 if ev.path is None:
                     self._trace_record("kernel_dropped", operation="kernel", reason="null_path", outcome="dropped")
                     log.warning("detector.event_null_path", pid=ev.pid)
@@ -480,6 +520,89 @@ class FanotifyDetector:
                 "detector.event_dropped",
                 path=fan_event.path,
                 total_drops=self._event_drops,
+            )
+
+    def _handle_overflow(self) -> None:
+        """Deduplica FAN_Q_OVERFLOW por ventana de 60 s y emite detection_gap (D50/RN-144).
+
+        Corre en el hilo lector. Si no hubo emisión previa o transcurrieron
+        ≥ _DETECTION_GAP_WINDOW_S desde la última, emite con la cuenta de
+        supresiones acumulada y la reinicia; si no, solo incrementa el
+        contador y no publica nada — evita inundar la tabla de eventos bajo
+        saturación sostenida, que es cuando menos capacidad hay para
+        procesarla.
+        """
+        now = time.monotonic()
+        if (
+            self._last_detection_gap_at is None
+            or (now - self._last_detection_gap_at) >= _DETECTION_GAP_WINDOW_S
+        ):
+            suppressed = self._suppressed_overflow_count
+            self._suppressed_overflow_count = 0
+            self._last_detection_gap_at = now
+            self._emit_detection_gap(suppressed)
+        else:
+            self._suppressed_overflow_count += 1
+
+    def _emit_detection_gap(self, suppressed_count: int) -> None:
+        """Arma y publica el evento sintético detection_gap (D50/RN-144).
+
+        Sin ruta, sin contexto de proceso: el kernel descartó eventos y el
+        agente nunca los recibió, así que no hay nada de eso que reportar.
+        NO invoca DecisionEngine.evaluate_and_act ni escribe journal (D-5 del
+        design): el motor evalúa reglas contra la ruta y sus acciones físicas
+        operan sobre el filesystem — un evento sin ruta no tiene nada que
+        matchear ni nada sobre qué actuar. NO toca el baseline: el evento no
+        habla de ningún archivo.
+        """
+        event_id = str(uuid.uuid4())
+        payload: dict[str, Any] = {
+            "event_id": event_id,
+            "path": None,
+            "event_type": "detection_gap",
+            "operation_type": "detection_gap",
+            "hash_expected": None,
+            # D-C13-04: hash_detected es str NOT NULL en el modelo Event del
+            # backend; nunca emitir None.
+            "hash_detected": "",
+            "diff_text": None,
+            "process_pid": None,
+            "process_uid": None,
+            "process_exe": None,
+            "detected_at": datetime.now(timezone.utc).isoformat(),
+            "parent_event_id": None,
+            "cause": "fan_q_overflow",
+            "action": "alert_only",
+            "suppressed_count": suppressed_count,
+        }
+        log.warning(
+            "detector.detection_gap",
+            suppressed_count=suppressed_count,
+            event_id=event_id,
+        )
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(self._schedule_detection_gap_publish, payload)
+
+    def _schedule_detection_gap_publish(self, payload: dict[str, Any]) -> None:
+        """Envoltorio sync que agenda la corrutina de publish (llamado vía call_soon_threadsafe).
+
+        NO pasa por self._raw_queue: bajo saturación esa cola es justamente lo
+        que está lleno, y perder el aviso de pérdida por QueueFull anularía el
+        propósito de la regla (D-3 del design). Corre ya en el hilo del event
+        loop (call_soon_threadsafe lo garantiza), así que agendar la tarea acá
+        es seguro sin run_coroutine_threadsafe.
+        """
+        assert self._loop is not None
+        self._loop.create_task(self._publish_detection_gap(payload))
+
+    async def _publish_detection_gap(self, payload: dict[str, Any]) -> None:
+        try:
+            await self._publisher.publish(payload)
+        except Exception as exc:
+            log.warning(
+                "detector.detection_gap.publish_failed",
+                event_id=payload.get("event_id"),
+                error=str(exc),
             )
 
     @property

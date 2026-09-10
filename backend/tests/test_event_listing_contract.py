@@ -96,6 +96,32 @@ def _new_event(
     )
 
 
+def _new_pathless_event(
+    agent: Agent,
+    *,
+    status: EventStatus = EventStatus.alert_only,
+    event_type: str = "detection_gap",
+    severity: RuleSeverity = RuleSeverity.high,
+    created_at: datetime | None = None,
+) -> Event:
+    """D51/RN-145: evento SIN ruta real (no el sentinel de _new_event) — el
+    path va NULL de punta a punta, como un detection_gap real (D50/RN-144)."""
+    when = created_at or _NOW
+    return Event(
+        event_id=f"evt-listing-gap-{uuid.uuid4().hex[:12]}",
+        agent_id=agent.agent_id,
+        event_type=event_type,
+        path=None,
+        hash_detected="",
+        status=status,
+        severity=severity,
+        detected_at=when,
+        received_at=when,
+        created_at=when,
+        resolved_at=when if status == EventStatus.alert_only else None,
+    )
+
+
 def _persist(session: Session, *events: Event) -> None:
     for event in events:
         session.add(event)
@@ -246,6 +272,80 @@ async def test_pagination_total_respects_path_prefix_filter(client, session, age
     assert body["items"][0]["path"].startswith("/etc/ssh")
 
 
+# ── D51/RN-145: event_type y eventos sin ruta (tasks 9.2, 9.3, 10.7) ─────────
+
+
+async def test_list_events_includes_event_type_field(client, session, agent) -> None:
+    """9.1/10.7: cada ítem del listado trae event_type."""
+    event = _new_event(agent, path="/etc/hosts")
+    _persist(session, event)
+
+    resp = await client.get("/events", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["event_type"] == "file_modified"
+
+
+async def test_pathless_event_appears_without_path_prefix_filter(client, session, agent) -> None:
+    """10.7: un evento sin ruta aparece en el listado con path: null cuando no hay path_prefix."""
+    gap = _new_pathless_event(agent)
+    _persist(session, gap)
+
+    resp = await client.get("/events", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    matching = [item for item in body["items"] if item["id"] == gap.id]
+    assert len(matching) == 1
+    assert matching[0]["path"] is None
+    assert matching[0]["event_type"] == "detection_gap"
+
+
+async def test_pathless_event_excluded_by_path_prefix_filter(client, session, agent) -> None:
+    """9.2: un NULL no matchea ningún path_prefix — el evento queda fuera del filtro
+    por ruta, comportamiento correcto porque no tiene ruta que buscar."""
+    gap = _new_pathless_event(agent)
+    with_path = _new_event(agent, path="/etc/passwd")
+    _persist(session, gap, with_path)
+
+    resp = await client.get("/events?path_prefix=/etc", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    ids = {item["id"] for item in resp.json()["items"]}
+    assert with_path.id in ids
+    assert gap.id not in ids
+
+
+async def test_pathless_event_matches_severity_and_status_filters(client, session, agent) -> None:
+    """9.3: los filtros de status/severity siguen alcanzando a un evento con path nulo."""
+    gap = _new_pathless_event(agent, status=EventStatus.alert_only, severity=RuleSeverity.high)
+    _persist(session, gap)
+
+    resp = await client.get("/events?severity=high&status=alert_only", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    ids = {item["id"] for item in resp.json()["items"]}
+    assert gap.id in ids
+
+
+async def test_pathless_event_matches_date_range_filter(client, session, agent) -> None:
+    """9.3: el rango de fechas también sigue alcanzando a un evento con path nulo."""
+    gap = _new_pathless_event(agent, created_at=_NOW - timedelta(hours=1))
+    _persist(session, gap)
+
+    date_from = quote((_NOW - timedelta(hours=2)).isoformat())
+    date_to = quote((_NOW + timedelta(hours=1)).isoformat())
+    resp = await client.get(
+        f"/events?date_from={date_from}&date_to={date_to}", headers=_auth_headers()
+    )
+
+    assert resp.status_code == 200
+    ids = {item["id"] for item in resp.json()["items"]}
+    assert gap.id in ids
+
+
 async def test_pagination_total_respects_date_range_filter(client, session, agent) -> None:
     """`total` cuenta sólo los eventos dentro de [date_from, date_to]."""
     inside = [
@@ -362,3 +462,19 @@ async def test_list_events_does_not_expose_textual_diff(client, session, agent) 
 
     assert resp.status_code == 200
     assert "diff_text" not in resp.json()["items"][0]
+
+
+async def test_get_event_by_id_pathless_event_returns_null_path(client, session, agent) -> None:
+    """10.7: GET /events/{id} sobre un evento sin ruta responde 200 con path:
+    null y event_type discriminante, sin fallar la serialización (D51/RN-145)."""
+    gap = _new_pathless_event(agent)
+    _persist(session, gap)
+
+    resp = await client.get(f"/events/{gap.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["path"] is None
+    assert body["event_type"] == "detection_gap"
+    assert body["severity"] == "high"
+    assert body["status"] == "alert_only"

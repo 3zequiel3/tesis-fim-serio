@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useEvent } from '@/hooks/useEvent'
 import { useEventActions } from '@/hooks/useEventActions'
-import { DiffViewer } from '@/components/ui/DiffViewer'
 import { EventTimeline } from '@/components/ui/EventTimeline'
+import { DiffViewer } from '@/components/ui/DiffViewer'
 import { RejectModal } from '@/components/ui/RejectModal'
 import type { RejectAction } from '@/api/actions'
 import { getAckStatusMeta } from '@/utils/ackStatus'
 import { getActionFailedMeta } from '@/utils/actionFailed'
 import { getActionErrorMeta } from '@/utils/actionError'
+import { getEventTypeGapMeta } from '@/utils/eventType'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import type { CommandAckStatus } from '@/api/events'
 
@@ -86,9 +87,24 @@ export function EventDetail() {
             <span className="text-gray-600">/</span>
             <span className="text-gray-300 text-sm">#{event.id}</span>
           </div>
-          <h1 className="text-lg font-semibold text-white break-all">
-            {event.path}
-          </h1>
+          {/* D51/RN-145 (D-10 del design): cuando path es nulo se sustituye
+              la fila de ruta por el tipo de evento y su causa — sin guiones
+              ni celdas vacías. Ramifica sobre path === null, ya resuelto por
+              event_type dentro de getEventTypeGapMeta. */}
+          {event.path !== null ? (
+            <h1 className="text-lg font-semibold text-white break-all">
+              {event.path}
+            </h1>
+          ) : (
+            <div>
+              <h1 className="text-lg font-semibold text-amber-300">
+                {getEventTypeGapMeta(event.event_type).label}
+              </h1>
+              <p className="text-sm text-gray-400 mt-1">
+                {getEventTypeGapMeta(event.event_type).cause}
+              </p>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <SymlinkBadge isSymlink={event.is_symlink} />

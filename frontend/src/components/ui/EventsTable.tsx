@@ -4,6 +4,7 @@ import { getAckStatusMeta } from '@/utils/ackStatus'
 import { getActionFailedMeta } from '@/utils/actionFailed'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import { getSeverityMeta } from '@/utils/severity'
+import { getEventTypeGapMeta } from '@/utils/eventType'
 
 interface EventsTableProps {
   items: EventListItem[]
@@ -127,12 +128,31 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Link
-                      to={`/events/${item.id}`}
-                      className="font-mono text-xs text-blue-400 hover:text-blue-300 break-all"
-                    >
-                      {item.path}
-                    </Link>
+                    {/* D51/RN-145 (D-10 del design): la fila sigue siendo
+                        navegable aunque no haya ruta — el Link se mantiene y
+                        sólo cambia lo que se muestra dentro. Ramifica sobre
+                        event_type, nunca sobre path === null directamente. */}
+                    {item.path !== null ? (
+                      <Link
+                        to={`/events/${item.id}`}
+                        className="font-mono text-xs text-blue-400 hover:text-blue-300 break-all"
+                      >
+                        {item.path}
+                      </Link>
+                    ) : (
+                      (() => {
+                        const gapMeta = getEventTypeGapMeta(item.event_type)
+                        return (
+                          <Link
+                            to={`/events/${item.id}`}
+                            title={gapMeta.cause}
+                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase hover:opacity-80 shrink-0 ${gapMeta.className}`}
+                          >
+                            {gapMeta.label}
+                          </Link>
+                        )
+                      })()
+                    )}
                     {item.is_symlink && (
                       <span
                         title={`Symlink -> ${item.symlink_target ?? '?'}`}

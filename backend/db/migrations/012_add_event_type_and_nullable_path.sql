@@ -1,0 +1,49 @@
+-- Migration 012: event_type persistido y path opcional en events (D51/RN-145).
+--
+-- El backend nunca persistió event_type: el agente lo emite en todo payload
+-- desde siempre (DetectedChange.event_type, agent/detector.py:66), pero
+-- ingest_event lo descartaba. Se agrega la columna con el vocabulario que el
+-- agente ya usa, en minúsculas snake_case (RN-71): file_created,
+-- file_modified, file_deleted, file_absent, detection_gap.
+--
+-- El default 'file_modified' para las filas preexistentes es IRRECUPERABLE,
+-- NO ADIVINADO: hasta esta change el backend nunca guardó event_type, así
+-- que el valor real de los eventos históricos no existe en ningún lado.
+-- file_modified es el caso mayoritario (FAN_CLOSE_WRITE con hash distinto) y
+-- el valor que D51/RN-145 fija como default — no una reconstrucción.
+--
+-- path pasa a nullable: un evento puede no hablar de ningún archivo concreto,
+-- como el detection_gap que reporta una brecha de cobertura del kernel
+-- cuando el fanotify del kernel desborda su cola (FAN_Q_OVERFLOW, D50/RN-144).
+-- El índice sobre path se mantiene — sigue sirviendo al filtro path_prefix y
+-- a la búsqueda de pending por ruta; un NULL simplemente no matchea ninguna
+-- de las dos, que es el comportamiento correcto.
+--
+-- SIN índice sobre event_type: no hay endpoint ni filtro que consulte por ese
+-- campo en el alcance de esta change, e indexar una columna de baja
+-- cardinalidad sin consulta que lo justifique no aporta nada — mismo
+-- criterio que la migración 008 con action_error.
+--
+-- SIN CHECK ni tipo enum de PostgreSQL sobre event_type: tolerancia hacia
+-- adelante explícita en D51/RN-145, mismo criterio que action y action_error
+-- (D33, D36/RN-130). Un enum a nivel de base convertiría "el agente va
+-- adelantado del backend" en pérdida de eventos de integridad.
+--
+-- Idempotente: la sentencia 1 usa ADD COLUMN IF EXISTS. La sentencia 2
+-- (ALTER COLUMN path DROP NOT NULL) no admite IF EXISTS por sintaxis, pero es
+-- un no-op sin error sobre una columna ya nullable — idempotente por efecto,
+-- no por cláusula.
+--
+-- Esta migración viaja en la misma change que el código que la requiere
+-- (D51/RN-145, D-9 del design): el modelo SQLModel declara event_type y
+-- create_all no altera tablas existentes, así que un backend desplegado sin
+-- esta migración fallaría en la primera ingesta con UndefinedColumn. Orden
+-- de despliegue: 1) esta migración, 2) backend, 3) agente (ver Migration Plan
+-- del design de agent-attribution-and-detection-gap).
+--
+-- Aplicar manualmente contra la base de datos de producción o test (D3, sin Alembic):
+--   psql $DATABASE_URL -f 012_add_event_type_and_nullable_path.sql
+
+ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type VARCHAR(32) NOT NULL DEFAULT 'file_modified';
+
+ALTER TABLE events ALTER COLUMN path DROP NOT NULL;

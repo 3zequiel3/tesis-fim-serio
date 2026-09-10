@@ -28,11 +28,28 @@ class Event(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     event_id: str = Field(unique=True, index=True)  # UUID v4 del agente (dedup RN-73)
     agent_id: str = Field(foreign_key="agents.agent_id", index=True)
-    path: str = Field(index=True)
-    # US-09: baseline hash plus bounded unified diff; complete file versions are not stored.
-    hash_expected: str | None = Field(default=None, max_length=64)
-    diff_text: str | None = Field(default=None, sa_column=sa.Column(sa.Text, nullable=True))
+    # D51/RN-145: vocabulario que el agente ya emite (file_created, file_modified,
+    # file_deleted, file_absent, detection_gap), minúsculas snake_case (RN-71).
+    # Sin validación contra enum ni CHECK en la base — mismo criterio de
+    # tolerancia hacia adelante que action_error (D33, D36/RN-130): un valor
+    # desconocido de un agente más nuevo se persiste tal cual en vez de
+    # rechazar el evento. Default 'file_modified' para compatibilidad con
+    # agentes anteriores a esta change que no envían la clave.
+    event_type: str = Field(default="file_modified")
+    # D51/RN-145: nullable — un evento puede no hablar de ningún archivo
+    # concreto, como el detection_gap que reporta una brecha de cobertura del
+    # kernel (D50/RN-144). El índice se mantiene: sigue sirviendo al filtro
+    # path_prefix y a la búsqueda de pending por ruta (un NULL no matchea
+    # ninguno de los dos, comportamiento correcto).
+    path: str | None = Field(default=None, index=True)
     hash_detected: str
+    # US-09: hash de la baseline vigente al detectar el cambio. Es metadata,
+    # no una sustitucion del diff de contenido.
+    hash_expected: str | None = Field(default=None, max_length=64)
+    # US-09: diff unificado ya generado por el agente. No se persisten las
+    # versiones completas del archivo; el backend aplica ademas un limite
+    # defensivo antes de llegar a esta columna.
+    diff_text: str | None = Field(default=None, sa_column=sa.Column(sa.Text, nullable=True))
     status: EventStatus = Field(index=True)
     # D34/RN-128 (C38): severidad calculada al ingerir con la lógica compartida
     # de D-C15-01 (rules/service.py::determine_severity_for_path). Snapshot al

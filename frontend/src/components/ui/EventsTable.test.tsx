@@ -13,6 +13,7 @@ import type { EventListItem } from '@/api/events'
 function makeItem(overrides: Partial<EventListItem> = {}): EventListItem {
   return {
     id: 1,
+    event_type: 'file_modified',
     path: '/etc/passwd',
     hash_detected: 'deadbeef',
     status: 'pending',
@@ -98,5 +99,37 @@ describe('EventsTable — proceso causante (8.3)', () => {
     expect(container.textContent).not.toMatch(/null/i)
     // Sólo debe existir la fila de path, sin una segunda línea de proceso.
     expect(screen.queryByText(/pid/)).not.toBeInTheDocument()
+  })
+})
+
+// D51/RN-145 (D-10 del design, task 11.6): una fila sin ruta discrimina por
+// event_type, no por path === null directamente, y sigue enlazando al detalle.
+describe('EventsTable — evento sin ruta (D51/RN-145)', () => {
+  it('una fila con path: null y event_type: "detection_gap" muestra la etiqueta y enlaza al detalle', () => {
+    const items = [makeItem({ id: 7, path: null, event_type: 'detection_gap' })]
+    renderWithProviders(<EventsTable items={items} selected={new Set()} onSelectionChange={noop} />)
+
+    const label = screen.getByText('Brecha de detección')
+    expect(label).toBeInTheDocument()
+    expect(label.closest('a')).toHaveAttribute('href', '/events/7')
+  })
+
+  it('una fila sin ruta no muestra un guion, una cadena vacía ni el literal "null"', () => {
+    const items = [makeItem({ id: 8, path: null, event_type: 'detection_gap' })]
+    const { container } = renderWithProviders(
+      <EventsTable items={items} selected={new Set()} onSelectionChange={noop} />
+    )
+
+    expect(container.textContent).not.toMatch(/null/i)
+    expect(screen.queryByText('—')).not.toBeInTheDocument()
+  })
+
+  it('una fila con ruta renderiza igual que antes (no regresión)', () => {
+    const items = [makeItem({ id: 9, path: '/etc/hosts', event_type: 'file_modified' })]
+    renderWithProviders(<EventsTable items={items} selected={new Set()} onSelectionChange={noop} />)
+
+    const link = screen.getByText('/etc/hosts')
+    expect(link.closest('a')).toHaveAttribute('href', '/events/9')
+    expect(screen.queryByText('Brecha de detección')).not.toBeInTheDocument()
   })
 })

@@ -14,7 +14,7 @@ Cubre:
   13.10 test_dispatch_routes_update_config
   13.11 test_dispatch_routes_rescan_baseline
 
-Los tests que requieren pyfanotify se mockean completamente.
+Los tests que requieren el backend fanotify interno se mockean completamente.
 Los tests que requieren chmod/operaciones Unix de bajo nivel se saltan en Windows.
 """
 

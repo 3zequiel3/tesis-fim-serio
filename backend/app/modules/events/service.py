@@ -19,8 +19,10 @@ from sqlmodel import Session, select
 from app.core.database import engine
 from app.modules.audit.models import AuditLog
 from app.modules.events.models import Event, EventStatus
+from app.modules.rules.models import RuleSeverity
 from app.modules.rules.service import determine_severity_for_path
 
+log = structlog.get_logger()
 
 _MAX_DIFF_TEXT_BYTES = 1024 * 1024
 _DIFF_TRUNCATION_MARKER = "\n... [diff truncated by backend]\n"
@@ -211,7 +213,18 @@ def ingest_event(
     3. Crea el nuevo evento con parent_event_id si hubo superseded.
     4. Llama compact_chain en la misma transacción.
     """
-    path = event_data.get("path", "")
+    # D51/RN-145: sin default. El "" que había acá era la clave con la que
+    # get_pending_event_for_path buscaba el pending anterior para supersedirlo
+    # — con ella, TODOS los eventos sin ruta (p. ej. detection_gap) se
+    # supersederían entre sí bajo la misma clave, y cada brecha nueva
+    # borraría la anterior de la vista del operador. El nulo debe llegar
+    # nulo hasta la columna.
+    path = event_data.get("path")
+    # D51/RN-145: vocabulario que el agente ya emite, persistido sin
+    # validación contra enum (mismo criterio de tolerancia hacia adelante que
+    # action/action_error, D33/D36/RN-130). Ausente (clave faltante, agente
+    # anterior a esta change) -> default del modelo, 'file_modified'.
+    event_type = event_data.get("event_type", "file_modified")
     # D35/RN-129 (C40): el status NO se lee del payload — el backend es la
     # única autoridad sobre EventStatus. Se deriva de action/action_failed,
     # que son un vocabulario cerrado producido por el motor de reglas del
@@ -237,9 +250,11 @@ def ingest_event(
         hash_expected = None
     diff_text = _bounded_diff_text(event_data.get("diff_text"))
 
-
     with Session(engine) as session:
-        pending = get_pending_event_for_path(session, path)
+        # D51/RN-145 (D-6 del design): un evento sin ruta no participa de la
+        # supersesión por path — get_pending_event_for_path NUNCA se invoca
+        # con path=None, mantiene su firma `path: str`.
+        pending = get_pending_event_for_path(session, path) if path is not None else None
         parent_event_id: int | None = None
 
         if pending is not None and pending.id is not None:
@@ -270,17 +285,32 @@ def ingest_event(
             EventStatus.alert_only,
         )
 
+        # D51/RN-145 (D-7 del design): un evento sin ruta recibe severidad
+        # `high` fija, SIN consultar el ruleset — determine_severity_for_path
+        # no matchea ninguna regla sin path y caería en `low` (D-C15-01), que
+        # es lo contrario de lo que significa una pérdida de cobertura. La
+        # excepción se dispara por AUSENCIA DE RUTA, no por
+        # event_type == "detection_gap": un tipo de evento futuro sin ruta
+        # hereda el tratamiento correcto sin tocar este código. `high` y no
+        # `critical`: una brecha de detección es una pérdida de garantía, no
+        # una violación de integridad confirmada (D34/RN-128 sigue siendo la
+        # única autoridad — el valor que el agente proponga se ignora igual).
+        severity = (
+            RuleSeverity.high
+            if path is None
+            else determine_severity_for_path(path, session)
+        )
+
         event = Event(
             event_id=event_data.get("event_id", ""),
             agent_id=event_data.get("agent_id", ""),
+            event_type=event_type,
             path=path,
+            hash_detected=event_data.get("hash_detected") or "",
             hash_expected=hash_expected,
             diff_text=diff_text,
-            hash_detected=event_data.get("hash_detected") or "",
             status=status,
-            # D34/RN-128 (C38): severidad persistida, calculada con la misma
-            # lógica que el pipeline de alertas (D-C15-01).
-            severity=determine_severity_for_path(path, session),
+            severity=severity,
             action_failed=action_failed,
             action_error=action_error,
             parent_event_id=parent_event_id,
@@ -299,7 +329,14 @@ def ingest_event(
         session.add(event)
         session.flush()
 
-        if parent_event_id is not None:
+        # D51/RN-145 (D-6 del design): la condición `parent_event_id is not
+        # None` ya implica `path is not None` por construcción — sólo hay
+        # parent_event_id cuando hubo supersesión, y un evento sin ruta nunca
+        # supersede (ver la guarda de arriba). Se declara la guarda explícita
+        # igual, para que un refactor futuro no la pierda: un compact_chain
+        # sobre ruta nula borraría eventos de brecha de detección al llegar
+        # al umbral de 10.
+        if parent_event_id is not None and path is not None:
             compact_chain(session, path)
 
         session.commit()

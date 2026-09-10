@@ -36,7 +36,7 @@ def test_classify_event_no_fanotify_returns_file_modified() -> None:
     """Sin fanotify disponible, _classify_event siempre devuelve file_modified."""
     from agent.detector import _HAS_FAN
     if _HAS_FAN:
-        pytest.skip("test only applies when pyfanotify is not available")
+        pytest.skip("test only applies when the internal fanotify backend is not available")
 
     detector = FanotifyDetector(
         agent_id="a",
@@ -224,6 +224,11 @@ def test_fanotify_null_path_dropped() -> None:
     null_ev = MagicMock()
     null_ev.path = None
     null_ev.pid = 999
+    # D50/RN-144: mask=0 explícito — sin esto un MagicMock sin `.mask` seteado
+    # resuelve `mask & FAN_Q_OVERFLOW` como otro MagicMock (truthy) y el evento
+    # caería erróneamente en la rama de desbordamiento, no en la de path nulo
+    # que este test ejercita.
+    null_ev.mask = 0
 
     loop = asyncio.new_event_loop()
     detector._loop = loop
