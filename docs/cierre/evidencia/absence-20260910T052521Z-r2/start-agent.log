@@ -1,0 +1,12 @@
+time="2026-09-10T02:25:56-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:25:56-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:25:56-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:25:56-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:25:56-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:25:56-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:25:56-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:25:56-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+ Container fimabsbc7cb3243a-agent-1 Recreate 
+ Container fimabsbc7cb3243a-agent-1 Recreated 
+ Container fimabsbc7cb3243a-agent-1 Starting 
+ Container fimabsbc7cb3243a-agent-1 Started 

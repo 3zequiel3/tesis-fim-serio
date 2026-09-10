@@ -1,0 +1,108 @@
+{
+  "completed": false,
+  "controls_active": {
+    "audit_note": "No rejection or operator action occurred; rejection/operator audit rows are not applicable to this success path.",
+    "hmac_signing_and_validation": true,
+    "notification_check": true,
+    "postgresql_persistence": true,
+    "signed_event_ack_and_local_queue_removal": true,
+    "valkey_consumer_group_xack": true
+  },
+  "evaluation": "drenaje-20260910-run1",
+  "historical": {
+    "events": 2988,
+    "seconds": 153,
+    "throughput_events_s": 19.529411764705884
+  },
+  "new_evaluation_not_historical_reinterpretation": true,
+  "persisted_events": 1808,
+  "planned_events": 3000,
+  "queue_build_seconds_excluded_from_drain": 31.339278374,
+  "queue_remaining": 1192,
+  "queued_events": 3000,
+  "rate_limit": {
+    "experimental_events": 100000,
+    "experimental_window_seconds": 60.0,
+    "production_default_events": 100,
+    "production_default_window_seconds": 60.0
+  },
+  "reconnect_to_last_agent_ack_seconds": 300.021943365,
+  "reconnect_to_last_commit_seconds": 300.011158148,
+  "reconnect_to_last_xack_seconds": 300.011618365,
+  "reconnect_to_last_xadd_seconds": 298.525947493,
+  "reconnect_to_queue_empty_seconds": 300.024884864,
+  "rejected_events": 0,
+  "stage_latency": {
+    "ack_publish_to_agent_apply": {
+      "max_ms": 113961.129742,
+      "mean_ms": 27191.6526392052,
+      "n": 1808,
+      "p50_ms": -0.325476,
+      "p95_ms": 103009.47477404997,
+      "p99_ms": 111731.20116355001
+    },
+    "commit_to_xack": {
+      "max_ms": 3998.891217,
+      "mean_ms": 32.82269142146018,
+      "n": 1808,
+      "p50_ms": 26.948907,
+      "p95_ms": 62.79052634999998,
+      "p99_ms": 86.89721367000001
+    },
+    "consumer_before_persist": {
+      "max_ms": 15648.049416,
+      "mean_ms": 3981.0027667228983,
+      "n": 1808,
+      "p50_ms": 3758.0294135,
+      "p95_ms": 8171.498769949998,
+      "p99_ms": 11990.338018250015
+    },
+    "persistence": {
+      "max_ms": 41.4063,
+      "mean_ms": 14.088030470685842,
+      "n": 1808,
+      "p50_ms": 15.4221985,
+      "p95_ms": 16.72714005,
+      "p99_ms": 17.87758197
+    },
+    "valkey_to_consumer": {
+      "max_ms": 69527.236244,
+      "mean_ms": -60301.116634587815,
+      "n": 1822,
+      "p50_ms": 4374.9345725,
+      "p95_ms": 63359.738241399995,
+      "p99_ms": 68813.18984984
+    },
+    "xack_to_ack_publish": {
+      "max_ms": 1373.32209,
+      "mean_ms": 36.068144956858404,
+      "n": 1808,
+      "p50_ms": 29.247534,
+      "p95_ms": 73.56414384999997,
+      "p99_ms": 105.01378377000003
+    },
+    "xadd": {
+      "max_ms": 110.964833,
+      "mean_ms": 14.614512181333334,
+      "n": 3000,
+      "p50_ms": 14.704322,
+      "p95_ms": 42.26552845,
+      "p99_ms": 77.82980254999973
+    },
+    "xadd_to_agent_apply": {
+      "max_ms": 114099.70455,
+      "mean_ms": -30023.43176238717,
+      "n": 1808,
+      "p50_ms": 15056.831275,
+      "p95_ms": 113346.35749355001,
+      "p99_ms": 113952.2524796
+    }
+  },
+  "started_at_utc": "2026-09-10T05:06:41.903204+00:00",
+  "threshold": {
+    "events": 2988,
+    "minimum_events_s": 99.6,
+    "seconds_strictly_less_than": 30
+  },
+  "throughput_events_s": 9.999170573333899
+}

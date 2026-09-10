@@ -7,8 +7,8 @@
 | Dimensión | Estado | Fundamento |
 |---|---|---|
 | Cierre de implementación | **PARCIAL** | US-09 y mTLS quedaron implementados y committeados. Las unidades n8n A y B también quedaron committeadas con evidencia controlada. Persisten criterios parciales en las historias y defectos fuera de esos lotes. |
-| Cierre de validación | **BLOQUEADO** | Las 19 operaciones históricas sin evento no tienen una cadena causal completa. Tampoco existe una corrida consolidada sobre un único snapshot final ni un ensayo distribuido de dos anfitriones. |
-| Cumplimiento experimental | **PARCIAL** | La latencia reagregada cumple; el drenaje de 153 s incumple; detección y desconexión conservan 7 y 12 ausencias no explicadas individualmente. |
+| Cierre de validación | **PARCIAL** | La nueva corrida causal no produjo ausencias inexplicadas y la nueva corrida de drenaje fue íntegra, pero los 19 casos históricos no admiten reconstrucción causal completa. Tampoco existe una corrida consolidada sobre un único commit final ni un ensayo distribuido de dos anfitriones. |
+| Cumplimiento experimental | **PARCIAL** | La latencia reagregada cumple. La corrida causal actual clasificó 50 eventos y 10 descartes legítimos sin ausencias nuevas. El drenaje mejoró a 51,773 s, pero todavía incumple el umbral original de 30 s. |
 | Aptitud productiva | **NO EVALUABLE** | Las evaluaciones fueron de laboratorio y anfitrión único; no prueban operación multianfitrión, alta disponibilidad ni canales comerciales. |
 
 **Estado global para entrega:** **cierre parcial**. No corresponde declarar el proyecto cerrado integralmente.
@@ -23,6 +23,8 @@
 | mTLS | `28f87fe3d8183f506404aa1b4d166fabcbc64527` | Listener dedicado, identidad de certificado, renovación previa al vencimiento, perfil de CA estricto y recuperación administrativa para CA legacy. |
 | n8n, unidad controlada A | `f0a2907f2b2d282ea39ff255290f9625744c4bbf` | Backend notifier → n8n 2.17.8 → receptor SQLite controlado. |
 | n8n, unidad durable B | `e2519ebee40a149fc2cfaabf8b67c2407eac4da9` + evidencia `3bec5841e92181047e4282453d085b7d944971c2` | Estado de entrega persistido, recuperación tras reinicio y cascada posterior a cuatro intentos n8n. |
+| Instrumentación causal actual | `aae55e4aa0d79e2e053a3dc74b6a69560ae550b9` | La implementación está committeada; el paquete de evidencia en `docs/cierre/evidencia/absence-20260910T052521Z-r2/` permanece en el working tree pendiente de su commit documental. |
+| Optimización de drenaje Run 3 | `7c5afa5f429139ed6bffbf4d7bc0a7bc21d841ba` | La implementación está committeada; el paquete de evidencia en `docs/cierre/evidencia/drenaje-20260910-run3/` permanece en el working tree pendiente de su commit documental. |
 | Coverage backend Run 3 | manifiesto y artefactos en `docs/cierre/evidencia/20260909-coverage-run3/` | Snapshot mixto identificado por manifiesto, anterior a los commits US-09/mTLS/n8n; no representa HEAD actual. |
 
 ### Entorno histórico conocido
@@ -80,14 +82,18 @@ Esta evaluación no debe atribuirse a HEAD `3bec584`: su manifiesto identifica u
 | Indicador | Resultado | Estado |
 |---|---|---|
 | Latencia según intervalo de Tabla 1 | Reagregación histórica `received_at - marca post-operación`: n=493, media 11,316 ms, P50 12,639, P95 16,798, P99 **17,745 ms** | **CUMPLE** <1.000 ms; no es una corrida nueva y la marca no prueba el instante físico exacto. |
-| Detección B3 | 493/500; faltan secuencias 193, 196, 209, 270, 323, 364 y 369 | **PARCIAL**: fueron operaciones efectivas, pero falta cadena kernel/baseline/decisión/cola. |
-| Desconexión B5 | 2.988/3.000; 12 ausencias identificadas | **PARCIAL**: sin explicación causal individual. |
-| Drenaje B5 | 153 s; 19,529 eventos/s. Para 30 s se requerían 99,6 eventos/s | **NO CUMPLE**, aproximadamente 5,1 veces más lento que el umbral. |
+| Detección B3 histórica | 493/500; faltan secuencias 193, 196, 209, 270, 323, 364 y 369 | **PARCIAL**: manifiestos compatibles con retorno a baseline, pero sin cadena runtime contemporánea. |
+| Desconexión B5 histórica | 2.988/3.000; 12 ausencias identificadas | **PARCIAL** por el mismo límite retrospectivo. |
+| Corrida causal actual | 60 operaciones: 50 eventos totalmente correlacionados/persistidos + 10 retornos a baseline aprobada descartados como `matches_active_baseline` | **CUMPLE** el contrato bajo estas condiciones; 0 ausencias nuevas inexplicadas. No reconstruye los 19 históricos. |
+| Drenaje histórico | 2.988 eventos en 153 s = 19,529 eventos/s | **NO CUMPLE** <30 s. |
+| Drenaje Run 3 actual | 3.000/3.000; 0 rechazos; 0 duplicados; 3.000 XADD; cola final 0; 51,773 s = 57,945 eventos/s | **NO CUMPLE** <30 s: excede 21,773 s y requiere más de 100 eventos/s para cumplir estrictamente. |
 | Notificaciones históricas B4 | 329 muestras de 360 operaciones (60/60, 99/100, 170/200) | No fueron 1.000 ni atravesaron n8n. |
 | Tasas B4 | 1/50/100 operaciones/s | No fueron concurrencias simultáneas 1/10/100. |
 | `mmap` | 30/30 en tres casos | Consistencia de laboratorio; no descarta ventana evasiva. |
 
-Las 19 ausencias son segundas operaciones de pares revertidos y tienen `error: null` con hash previo distinto del posterior. Eso hace plausible un descarte relacionado con baseline, pero **no prueba la causa interna**. Una repetición instrumentada puede caracterizar el sistema actual, no reconstruir retroactivamente la corrida histórica.
+Las 19 ausencias históricas son segundas operaciones de pares revertidos y sus manifiestos son compatibles con el retorno al hash de la baseline aprobada. La corrida causal válida actual preservó operación, hash, baseline, evento kernel, decisión, cola, XADD, ACK y persistencia: 50 operaciones reportables completaron toda la cadena y los 10 retornos C2→C0 fueron suprimidos legítimamente antes de encolar. Esto sustenta el mecanismo actual, pero **no demuestra retrospectivamente** que los 19 casos históricos recorrieran esas mismas etapas, porque sus trazas no existen.
+
+Run 3 redujo el drenaje desde 153 s históricos a 51,773 s aun procesando 12 eventos más. La publicación finalizó a 6,602 s y el último commit backend a 51,556 s. El índice O(1) de cola y el listener ACK concurrente eliminaron reenvíos excedentes; el cuello remanente observado es la ingesta backend serial, evento por evento dentro de batches de 50. La optimización quedó fijada en `7c5afa5`; su evidencia cruda continúa en el working tree, identificada por `source-manifest.sha256`.
 
 ## 7. Seguridad, notificaciones y durabilidad
 
@@ -111,8 +117,8 @@ Las 19 ausencias son segundas operaciones de pares revertidos y tienen `error: n
 
 ## 9. Bloqueos que permanecen
 
-1. Explicar causalmente o repetir con instrumentación las 19 operaciones sin evento; el histórico seguirá marcado como indeterminado.
-2. Reducir o reformular con fundamento el drenaje de 153 s; el umbral original está incumplido.
+1. Mantener los 19 casos históricos como explicación fuertemente sustentada pero no demostrable retrospectivamente; no presentarlos como causalidad probada.
+2. Mejorar el drenaje desde 51,773 s hasta menos de 30 s o conservar el incumplimiento; no redefinir el umbral.
 3. Ejecutar una corrida consolidada de agente, backend y frontend sobre un commit final congelado.
 4. Ejecutar una prueba reducida de dos anfitriones con red real y TLS habilitado; no se realizó.
 5. Definir e implementar retención/cifrado o una justificación explícita para cuarentena.
@@ -124,4 +130,4 @@ Las 19 ausencias son segundas operaciones de pares revertidos y tienen `error: n
 
 Puede sostenerse que US-09, el límite mTLS agente/backend y los flujos n8n controlado y durable fueron implementados y verificados en evaluaciones nuevas y acotadas. También puede sostenerse la cobertura Run 3 con su denominador y la reagregación correcta de latencia.
 
-No puede sostenerse validación integral: persisten 19 ausencias históricas sin causa completa, el drenaje incumple 30 s, falta la evaluación en dos anfitriones y SMTP real no fue acreditado. El estado correcto es **cierre parcial**, no aptitud productiva.
+No puede sostenerse validación integral: la causalidad runtime de los 19 históricos no puede reconstruirse, el drenaje Run 3 todavía incumple 30 s, falta la evaluación en dos anfitriones y SMTP real no fue acreditado. El estado correcto es **cierre parcial**, no aptitud productiva.

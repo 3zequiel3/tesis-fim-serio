@@ -1,0 +1,27 @@
+{
+  "agent_ack_apply_span_seconds": 248.40893069,
+  "between_sequential_first_xadds": {
+    "mean_ms": 29.696209498166056,
+    "median_ms": 26.9474,
+    "p95_ms_nearest_rank": 66.281941
+  },
+  "consumer_deliveries_observed_before_stop": 3034,
+  "excess_publications": 5682,
+  "first_commit_span_seconds": 361.922335781,
+  "first_consumer_read_span_seconds": 361.734432908,
+  "first_publication_span_seconds": 113.60268985,
+  "interpretation_limits": [
+    "Stage intervals overlap because publisher and consumer run concurrently; they must not be summed.",
+    "A small negative ack-publication-to-agent-observation interval is possible because XREAD can wake before the producer coroutine records return from XADD.",
+    "The harness stopped once all unique events were persisted and the local queue was empty; excess duplicate stream entries remained outside the completion contract."
+  ],
+  "publication_count_distribution": {
+    "1": 200,
+    "2": 603,
+    "3": 1512,
+    "4": 685
+  },
+  "stream_publications": 8682,
+  "unique_events": 3000,
+  "xacks_observed_before_stop": 3009
+}

@@ -1,0 +1,22 @@
+run_id=absence-20260910T052521Z-r2
+captured_utc=2026-09-10T05:25:21,047499694+00:00
+head_commit=711551193e7135e8535cdff838c001f31d369069
+worktree_clean=false
+kernel=Linux 7.0.0-31-generic x86_64 GNU/Linux
+filesystem=/dev/nvme0n1p2 ext4 rw,relatime
+filesystem_magic=ef53
+docker_client=29.7.2
+docker_server=29.7.2
+host_clock=clock_gettime CLOCK_REALTIME and CLOCK_MONOTONIC; generator and agent share host kernel clock
+topology=single host; generator on host; isolated agent/backend/db/valkey in Docker project fimabsbc7cb3243a
+security_scope=Valkey plaintext only in isolated Docker network; mTLS agent-to-backend enabled; no notification recipient configured
+fanotify=containerized native Linux fanotify with SYS_ADMIN and DAC_READ_SEARCH
+planned_operations=60
+baseline_wait_s=3
+event_wait_s=3
+correlation_tolerance_s=20
+raw_content_retained=false
+baseline_setup=precreated C0 paths followed by signed rescan_baseline command; runtime baseline_read must prove approved status/hash before counted operations
+isolated admin credential reset only to issue signed rescan; generated secret not retained
+finalized_utc=2026-09-10T05:31:00,908290276+00:00
+cleanup=isolated Compose project and volumes removed after exports; shared db/valkey untouched; shared backend returned to stopped state (it was exited at task start)

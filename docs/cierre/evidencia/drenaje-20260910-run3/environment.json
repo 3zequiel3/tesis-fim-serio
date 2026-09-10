@@ -1,0 +1,16 @@
+{
+  "captured_at_utc": "2026-09-10T05:37:24.268518+00:00",
+  "clock": "time.perf_counter_ns (monotonic, same host/process)",
+  "clock_resolution_seconds": 1e-09,
+  "cpu_count": 12,
+  "git_commit": "711551193e7135e8535cdff838c001f31d369069",
+  "git_worktree_clean": false,
+  "hostname": "SANITIZED",
+  "kernel": "7.0.0-31-generic",
+  "machine": "x86_64",
+  "platform": "Linux-7.0.0-31-generic-x86_64-desconocido-with-glibc2.43",
+  "postgres_image": "postgres:18.3",
+  "python": "3.13.14",
+  "topology": "single physical host; isolated PostgreSQL and Valkey containers; Python agent/backend pipeline on host",
+  "valkey_image": "valkey/valkey:9.0.3"
+}

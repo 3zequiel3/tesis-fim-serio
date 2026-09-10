@@ -1,0 +1,19 @@
+{
+  "clock": "time.perf_counter_ns",
+  "controls": "same process, filesystem, payload list and operation order",
+  "evaluation": "drenaje-20260910-queue-index-comparison",
+  "events_per_variant": 3000,
+  "head_commit": "711551193e7135e8535cdff838c001f31d369069",
+  "head_implementation": {
+    "bump_attempts_seconds": 38.074822561,
+    "enqueue_seconds": 29.458133592,
+    "remaining_events": 0,
+    "remove_seconds": 17.697447917
+  },
+  "indexed_worktree_implementation": {
+    "bump_attempts_seconds": 0.220333548,
+    "enqueue_seconds": 0.165694581,
+    "remaining_events": 0,
+    "remove_seconds": 0.036316056
+  }
+}

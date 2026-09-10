@@ -1,0 +1,2 @@
+backend_image=sha256:9228e128c7251d89fb78ce2557a96578dacbec02e84a6a7a83f3fb49672537d8 status=running started=2026-09-10T05:14:55.248884096Z
+agent_image=sha256:8e419feaf1d2780ef122d30582dffa726d5c092fb82a7a29b862f03f1b0d2d3e status=running started=2026-09-10T05:25:56.61187114Z caps=["CAP_DAC_READ_SEARCH","CAP_SYS_ADMIN"]

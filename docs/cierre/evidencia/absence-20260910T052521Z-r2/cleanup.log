@@ -1,0 +1,22 @@
+time="2026-09-10T02:34:28-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:34:28-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:34:28-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:34:28-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:34:28-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:34:28-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:34:28-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-10T02:34:28-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+ Container fimabsbc7cb3243a-valkey-1 Stopping 
+ Container fimabsbc7cb3243a-db-1 Stopping 
+ Container fimabsbc7cb3243a-db-1 Stopped 
+ Container fimabsbc7cb3243a-db-1 Removing 
+ Container fimabsbc7cb3243a-db-1 Removed 
+ Container fimabsbc7cb3243a-valkey-1 Stopped 
+ Container fimabsbc7cb3243a-valkey-1 Removing 
+ Container fimabsbc7cb3243a-valkey-1 Removed 
+ Volume fimabsbc7cb3243a_valkey_data Removing 
+ Volume fimabsbc7cb3243a_pg_data Removing 
+ Network fimabsbc7cb3243a_fim_internal Removing 
+ Volume fimabsbc7cb3243a_valkey_data Removed 
+ Network fimabsbc7cb3243a_fim_internal Resource is still in use 
+ Volume fimabsbc7cb3243a_pg_data Removed 

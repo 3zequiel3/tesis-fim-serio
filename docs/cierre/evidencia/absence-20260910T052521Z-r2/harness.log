@@ -1,0 +1,4 @@
+run_id=absence-20260910T052521Z-r2; plan=60 operaciones (3 sucesivas + create/delete + efímera por repetición)
+Operations: docs/cierre/evidencia/absence-20260910T052521Z-r2/bateria9_operaciones.jsonl
+Manifest: docs/cierre/evidencia/absence-20260910T052521Z-r2/bateria9_manifiesto_65d6f374c819208b.json
+Correlate: python3 scripts/analisis_ausencias.py --operaciones docs/cierre/evidencia/absence-20260910T052521Z-r2/bateria9_operaciones.jsonl --traza docs/cierre/evidencia/absence-20260910T052521Z-r2/agent_trace.jsonl --database-url "$DATABASE_URL"

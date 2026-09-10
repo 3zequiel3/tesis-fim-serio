@@ -178,7 +178,7 @@ docker compose -f docker-compose.yml -f docker-compose.tls.yml config \
 docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d
 ```
 
-## 10. Reproducir n8n unidad A controlada
+## 10. Reproducir n8n controlada y estado durable
 
 Este Compose usa únicamente datos sintéticos y un receptor SQLite controlado:
 
@@ -220,21 +220,132 @@ El driver runtime ad hoc no quedó persistido como script. Por eso el JSON es ev
 
 ## 11. Repetir operaciones sin evento con instrumentación
 
-Crear una salida nueva e incluir por operación:
+La corrida válida de referencia está en
+`docs/cierre/evidencia/absence-20260910T052521Z-r2/`: 60 operaciones,
+50 eventos totalmente correlacionados y persistidos, 10 retornos a la baseline
+aprobada descartados legítimamente y 0 ausencias nuevas inexplicadas. Es una
+nueva evaluación del comportamiento actual; **no** reconstruye la causalidad
+runtime de las 19 ausencias históricas de B3/B5.
+
+Crear siempre un `RUN_ID` nuevo. Precrear C0 con el agente detenido; después
+iniciar el agente, promover C0 mediante `rescan_baseline` y recién entonces
+ejecutar las operaciones contadas. `ADMIN_TOKEN` y `AGENT_ID` deben pertenecer
+al laboratorio aislado y no deben guardarse en la evidencia.
+
+```bash
+RUN_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+EVIDENCE_DIR="docs/cierre/evidencia/$RUN_ID"
+mkdir -p "$EVIDENCE_DIR"
+
+# El agente debe estar detenido mientras se precrean las diez baseline C0.
+docker compose --profile app stop agent
+python3 - "$RUN_ID" <<'PY'
+import sys
+from pathlib import Path
+from scripts.bateria_reversion import C0, safe_run_slug, scoped_run_path, write_bytes
+
+root = Path("fim-watch")
+slug = safe_run_slug(sys.argv[1])
+for repetition in range(1, 11):
+    write_bytes(scoped_run_path(root, "baseline", slug, repetition), C0)
+PY
+
+FIM_EXPERIMENT_RUN_ID="$RUN_ID" \
+FIM_EXPERIMENT_TRACE_FILE="/evidence/$RUN_ID/agent_trace.jsonl" \
+  docker compose --profile app up -d agent
+
+curl -fsS -X POST "http://127.0.0.1:8000/agents/$AGENT_ID/rescan" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"force":false}' \
+  > "$EVIDENCE_DIR/rescan-request.json"
+
+# Esperar el command_ack satisfactorio y verificar en el log del agente que
+# commands.rescan_baseline.done ocurrió antes de continuar.
+
+python3 scripts/bateria_reversion.py \
+  --dir fim-watch \
+  --agent-prefix /watch \
+  --run-id "$RUN_ID" \
+  --salida "$EVIDENCE_DIR"
+
+python3 scripts/analisis_ausencias.py \
+  --operaciones "$EVIDENCE_DIR/bateria9_operaciones.jsonl" \
+  --traza "$EVIDENCE_DIR/agent_trace.jsonl" \
+  --salida "$EVIDENCE_DIR/bateria9_correlacion.csv" \
+  --database-url "$DATABASE_URL"
+```
+
+`DATABASE_URL` debe apuntar a la base aislada de esa corrida y mantenerse fuera
+de logs. Si no se proporciona, el analizador deja la persistencia backend como
+`unknown`; no equivale a una validación completa. No contar operaciones hasta
+comprobar en la traza que `baseline_read` informa `present` y el hash C0. La
+salida debe incluir por operación:
 
 `operation_id → path sanitizado → hash anterior → baseline vigente → hash posterior → evento kernel → decisión agente → queue ID → stream ID → event ID backend`.
 
-Ejecutar cambios sucesivos, retorno a baseline, creación, eliminación y modificación efímera. No sobrescribir B3/B5 históricos. Una nueva corrida caracteriza el sistema actual y no prueba retroactivamente la causa de las 19 ausencias.
+El harness ejecuta diez repeticiones de cambios sucesivos, retorno a baseline,
+creación, eliminación y modificación efímera. No sobrescribir B3/B5 históricos
+ni sumar los intentos inválidos conservados en
+`docs/cierre/evidencia/absence-20260910T051102Z/`.
 
 ## 12. Repetir drenaje y deduplicación
 
-Registrar volumen planificado/real, tasa de generación, corte/reconexión y timestamps por etapa: cola local, XADD, lectura, validación, commit, XACK y ACK del agente. Para 2.988 eventos:
+La referencia actual es
+`docs/cierre/evidencia/drenaje-20260910-run3/`: 3.000/3.000 eventos,
+0 rechazos, 0 duplicados, 3.000 `XADD`, cola final 0 y 51,773 s
+(57,945 eventos/s). Mejora los 153 s históricos, pero el umbral original
+`<30 s` permanece **NO CUMPLE**: excede en 21,773 s. Para 3.000 eventos se
+requieren más de 100 eventos/s, porque 100 eventos/s produce exactamente 30 s.
 
-- umbral original: menos de 30 s;
-- caudal mínimo derivado: 99,6 eventos/s;
-- línea base histórica: 153 s y 19,529 eventos/s.
+Repetir la evaluación con contenedores locales y credenciales exclusivas del
+laboratorio:
 
-No desactivar firma, auditoría, persistencia ni confirmaciones.
+```bash
+docker run -d --rm --name fim-drain-postgres \
+  -e POSTGRES_DB=fim_drain -e POSTGRES_USER=fim -e POSTGRES_PASSWORD=controlled \
+  -p 127.0.0.1:55441:5432 postgres:18.3
+docker run -d --rm --name fim-drain-valkey \
+  -p 127.0.0.1:56380:6379 valkey/valkey:9.0.3
+
+until docker exec fim-drain-postgres pg_isready -U fim -d fim_drain; do sleep 1; done
+until docker exec fim-drain-valkey valkey-cli ping | grep -q PONG; do sleep 1; done
+
+env PYTHONPATH=backend:. \
+  DATABASE_URL=postgresql+psycopg://fim:controlled@127.0.0.1:55441/fim_drain \
+  VALKEY_URL=valkey://127.0.0.1:56380/0 \
+  JWT_SECRET_CURRENT=controlled-not-a-production-secret \
+  RATE_LIMIT_INGEST_EVENTS=100000 \
+  RATE_LIMIT_INGEST_WINDOW_SECONDS=60 \
+  backend/.venv/bin/python \
+    docs/cierre/evidencia/drenaje-20260910-run3/run_profile.py \
+  | tee docs/cierre/evidencia/drenaje-20260910-run3/stdout.log
+
+docker stop fim-drain-postgres fim-drain-valkey
+```
+
+El rate limit `100000/60 s` pertenece sólo al ensayo; el valor predeterminado de
+producción es `100/60 s`. Registrar volumen planificado/real, tasa de generación,
+corte/reconexión y timestamps por etapa: cola local, `XADD`, lectura, validación,
+commit, `XACK` y ACK del agente. La construcción de la cola se excluye; el tiempo
+principal comienza antes del flush de comandos y termina con 3.000 filas
+persistidas y cola local vacía.
+
+Conservar HMAC, persistencia PostgreSQL, auditoría, confirmaciones, `XACK` y
+borrado durable activos. El candidato de Run 3 elimina la tormenta de reintentos
+y el costo O(n²) de la cola; su cuello remanente es la ingesta serial del backend.
+La optimización está fijada en `7c5afa5`; identificar además cada corrida mediante
+`environment.json` y `source-manifest.sha256`, porque la evidencia todavía no
+está incluida en ese commit.
+
+Contraste histórico, sin reemplazar los datos originales:
+
+- B5: 2.988 eventos en 153 s, 19,529 eventos/s;
+- Run 3: 3.000 eventos en 51,773 s, 57,945 eventos/s;
+- criterio original para Run 3: `<30 s`, es decir, más de 100 eventos/s.
+
+Una repetición crea una evaluación nueva: no sobrescribir `stdout.log`,
+`metrics.jsonl`, `summary.json` ni sus manifiestos de la corrida de referencia.
 
 ## 13. Ensayo reducido de dos anfitriones
 
@@ -247,6 +358,9 @@ find "$EVIDENCE_DIR" -type f -print0 | sort -z | xargs -0 sha256sum \
   > "$EVIDENCE_DIR/SHA256SUMS"
 git rev-parse HEAD >> "$EVIDENCE_DIR/identidad.txt"
 git status --short >> "$EVIDENCE_DIR/identidad.txt"
+
+(cd docs/cierre/evidencia/absence-20260910T052521Z-r2 && sha256sum -c SHA256SUMS)
+(cd docs/cierre/evidencia/drenaje-20260910-run3 && sha256sum -c SHA256SUMS)
 ```
 
 Antes de publicar, sanitizar hostnames, rutas absolutas, payloads, destinatarios, certificados y secretos. Una copia sanitizada recibe nombre y hash nuevos; nunca se reemplaza silenciosamente el original.
