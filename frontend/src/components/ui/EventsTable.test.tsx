@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
 import { EventsTable } from './EventsTable'
 import type { EventListItem } from '@/api/events'
@@ -131,5 +132,45 @@ describe('EventsTable — evento sin ruta (D51/RN-145)', () => {
     const link = screen.getByText('/etc/hosts')
     expect(link.closest('a')).toHaveAttribute('href', '/events/9')
     expect(screen.queryByText('Brecha de detección')).not.toBeInTheDocument()
+  })
+})
+
+describe('EventsTable — US-25 selección en lote', () => {
+  it('permite seleccionar una fila individual sin seleccionar las demás', async () => {
+    const user = userEvent.setup()
+    const onSelectionChange = vi.fn()
+    const items = [makeItem({ id: 1 }), makeItem({ id: 2, path: '/etc/hosts' })]
+    renderWithProviders(
+      <EventsTable items={items} selected={new Set()} onSelectionChange={onSelectionChange} />
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar evento #2' }))
+
+    expect(onSelectionChange).toHaveBeenCalledTimes(1)
+    expect([...onSelectionChange.mock.calls[0][0]]).toEqual([2])
+  })
+
+  it('seleccionar todo agrega exclusivamente los eventos de la página visible', async () => {
+    const user = userEvent.setup()
+    const onSelectionChange = vi.fn()
+    const items = [makeItem({ id: 10 }), makeItem({ id: 11, path: '/var/log/auth.log' })]
+    renderWithProviders(
+      <EventsTable items={items} selected={new Set([99])} onSelectionChange={onSelectionChange} />
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar todos en la página' }))
+
+    expect([...onSelectionChange.mock.calls[0][0]].sort((a, b) => a - b)).toEqual([10, 11, 99])
+  })
+})
+
+describe('EventsTable — US-31 vínculo de cadena superseded', () => {
+  it('un superseded con parent_event_id muestra el indicador y enlaza al evento padre', () => {
+    const items = [makeItem({ id: 22, status: 'superseded', parent_event_id: 17 })]
+    renderWithProviders(<EventsTable items={items} selected={new Set()} onSelectionChange={noop} />)
+
+    const indicator = screen.getByLabelText('Evento superseded, ver cadena')
+    expect(indicator.closest('a')).toHaveAttribute('href', '/events/17')
+    expect(indicator.closest('a')).toHaveAttribute('title', 'Ver evento padre #17')
   })
 })

@@ -185,15 +185,13 @@ export function Events() {
         </label>
       </div>
 
-      {/* BulkActionBar (se muestra solo si hay selección) */}
-      {selected.size > 0 && (
-        <BulkActionBar
-          selected={selected}
-          items={data?.items ?? []}
-          filters={filters}
-          onClearSelection={() => setSelected(new Set())}
-        />
-      )}
+      {/* Permanece montada después de la acción para conservar su resumen. */}
+      <BulkActionBar
+        selected={selected}
+        items={data?.items ?? []}
+        filters={filters}
+        onSelectionChange={setSelected}
+      />
 
       {/* Tabla de eventos */}
       {isLoading ? (
