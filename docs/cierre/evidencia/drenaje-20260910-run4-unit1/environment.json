@@ -1,0 +1,23 @@
+{
+  "captured_at_utc": "2026-09-10T17:40:42.161517+00:00",
+  "clock": "time.perf_counter_ns (monotonic, same host/process)",
+  "clock_resolution_seconds": 1e-09,
+  "cpu_count": 12,
+  "cpu_model": "AMD Ryzen 5 5500U with Radeon Graphics",
+  "filesystem_queue_workdir": "tmpfs",
+  "filesystem_snapshot": "tmpfs",
+  "git_commit": "965dcacc5c189f4a9808b063e32085d89e636803",
+  "git_worktree_clean": false,
+  "hostname": "SANITIZED",
+  "kernel": "7.0.0-31-generic",
+  "machine": "x86_64",
+  "memory_total_kib": 15173292,
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.43",
+  "postgres_image": "postgres:18.3",
+  "python": "3.13.14",
+  "source_snapshot_head": "965dcacc5c189f4a9808b063e32085d89e636803",
+  "source_snapshot_method": "local git clone followed by checkout of exact commit",
+  "topology": "single physical host; isolated PostgreSQL and Valkey containers; Python agent/backend pipeline on host",
+  "tracked_runtime_source_clean": true,
+  "valkey_image": "valkey/valkey:9.0.3"
+}

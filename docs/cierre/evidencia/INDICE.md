@@ -43,6 +43,7 @@ Los archivos bajo `resultados/` están ignorados por Git y deben conservarse sin
 | `docs/cierre/evidencia/drenaje-20260910-run2/SHA256SUMS` | Drenaje completo antes de optimizar | `12c3b9737afaadf74eaca1bbba215cb6f972bbdd43db4cee583aaf21686eb0a4` | 3.000/3.000 en 362,834 s; 5.682 publicaciones excedentes. Un host. |
 | `docs/cierre/evidencia/drenaje-20260910-queue-index-profile/SHA256SUMS` | Comparación dirigida del índice de cola | `ac026d7d8a75ff15f18baba3f017026c9ee6fd7d0d838b3385542c9b81f7ad25` | Mismo proceso, filesystem y 3.000 payloads; excluye Valkey/PostgreSQL. |
 | `docs/cierre/evidencia/drenaje-20260910-run3/SHA256SUMS` | Drenaje después de índice O(1) y ACK concurrente | `7058e7b7d7ba3166a86e000bbc69eed2ff2d60f3dd90aff3f4e2c40f0da3d635` | 3.000/3.000 en 51,773 s; 0 rechazos y 0 duplicados; **NO CUMPLE** `<30 s`. Un host. |
+| `docs/cierre/evidencia/drenaje-20260910-run4-unit1/SHA256SUMS` | Drenaje después de backend Unidad 1 | `e77050a081c0ae8404a977fc3e0eee5ecce7d6aa3f604e9c5db6e89837130984` | 3.000/3.000 en 29,146 s (102,929 eventos/s); cadena completa, 0 rechazos/duplicados; **CUMPLE** `<30 s`. Un host; dos intentos inválidos preservados y excluidos. |
 
 ### Commits que fijan las nuevas implementaciones
 
@@ -55,6 +56,7 @@ Los archivos bajo `resultados/` están ignorados por Git y deben conservarse sin
 | Evidencia n8n B | `3bec5841e92181047e4282453d085b7d944971c2` |
 | Instrumentación causal B9 | `aae55e4aa0d79e2e053a3dc74b6a69560ae550b9` |
 | Optimización de drenaje | `7c5afa5f429139ed6bffbf4d7bc0a7bc21d841ba` |
+| Optimización backend de drenaje Unidad 1 | `965dcacc5c189f4a9808b063e32085d89e636803` |
 
 ## Operaciones históricas sin evento
 
@@ -68,7 +70,7 @@ Los manifiestos prueban que fueron operaciones efectivas sin evento correlaciona
 | Marcador | Falta |
 |---|---|
 | 19 ausencias históricas | La corrida B9 validó el mecanismo actual de supresión al retornar a la baseline aprobada. Los 19 históricos son compatibles y están fuertemente sustentados por manifiestos/código, pero su causalidad runtime retrospectiva no puede probarse porque faltan trazas por etapa. |
-| Drenaje | Nueva medición instrumentada: 51,773 s y 57,945 eventos/s tras optimización; el umbral `<30 s` permanece **NO CUMPLE**. El cuello remanente es la ingesta serial del backend. |
+| Drenaje | Run 4 midió 29,146 s y 102,929 eventos/s: **CUMPLE** `<30 s` bajo las condiciones documentadas. Una sola corrida no establece un SLA; 32,358 s era proyección, no medición. |
 | Dos hosts | Manifiestos de ambos hosts, red real y TLS habilitado. |
 | Cuarentena | Política y prueba de retención/cifrado o justificación de alcance. |
 | Suites finales | JUnit agente/backend/frontend y coverage sobre un único commit congelado. |
@@ -86,4 +88,5 @@ sha256sum n8n/e2e/evidence/20260909-run.json
 sha256sum n8n/e2e/evidence/20260910-durable-fallback.json
 (cd docs/cierre/evidencia/absence-20260910T052521Z-r2 && sha256sum -c SHA256SUMS)
 (cd docs/cierre/evidencia/drenaje-20260910-run3 && sha256sum -c SHA256SUMS)
+(cd docs/cierre/evidencia/drenaje-20260910-run4-unit1 && sha256sum -c SHA256SUMS)
 ```

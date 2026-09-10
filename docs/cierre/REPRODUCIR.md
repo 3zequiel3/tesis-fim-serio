@@ -291,25 +291,25 @@ ni sumar los intentos inválidos conservados en
 
 ## 12. Repetir drenaje y deduplicación
 
-La referencia actual es
-`docs/cierre/evidencia/drenaje-20260910-run3/`: 3.000/3.000 eventos,
-0 rechazos, 0 duplicados, 3.000 `XADD`, cola final 0 y 51,773 s
-(57,945 eventos/s). Mejora los 153 s históricos, pero el umbral original
-`<30 s` permanece **NO CUMPLE**: excede en 21,773 s. Para 3.000 eventos se
-requieren más de 100 eventos/s, porque 100 eventos/s produce exactamente 30 s.
+La referencia final es
+`docs/cierre/evidencia/drenaje-20260910-run4-unit1/`: 3.000/3.000 eventos,
+0 rechazos, 0 duplicados, 3.000 `XADD`/lecturas/HMAC/commits/`XACK`/`event_ack`,
+cola final 0 y **29,146 s (102,929 eventos/s)**. **CUMPLE** el umbral original
+`<30 s` bajo estas condiciones. Run 3 (51,773 s) se conserva como resultado
+intermedio y 32,358 s se identifica como proyección previa, nunca medición.
 
 Repetir la evaluación con contenedores locales y credenciales exclusivas del
 laboratorio:
 
 ```bash
-docker run -d --rm --name fim-drain-postgres \
+docker run -d --rm --name fim-drain-run4-postgres \
   -e POSTGRES_DB=fim_drain -e POSTGRES_USER=fim -e POSTGRES_PASSWORD=controlled \
   -p 127.0.0.1:55441:5432 postgres:18.3
-docker run -d --rm --name fim-drain-valkey \
+docker run -d --rm --name fim-drain-run4-valkey \
   -p 127.0.0.1:56380:6379 valkey/valkey:9.0.3
 
-until docker exec fim-drain-postgres pg_isready -U fim -d fim_drain; do sleep 1; done
-until docker exec fim-drain-valkey valkey-cli ping | grep -q PONG; do sleep 1; done
+until docker exec fim-drain-run4-postgres pg_isready -U fim -d fim_drain; do sleep 1; done
+until docker exec fim-drain-run4-valkey valkey-cli ping | grep -q PONG; do sleep 1; done
 
 env PYTHONPATH=backend:. \
   DATABASE_URL=postgresql+psycopg://fim:controlled@127.0.0.1:55441/fim_drain \
@@ -318,10 +318,10 @@ env PYTHONPATH=backend:. \
   RATE_LIMIT_INGEST_EVENTS=100000 \
   RATE_LIMIT_INGEST_WINDOW_SECONDS=60 \
   backend/.venv/bin/python \
-    docs/cierre/evidencia/drenaje-20260910-run3/run_profile.py \
-  | tee docs/cierre/evidencia/drenaje-20260910-run3/stdout.log
+    docs/cierre/evidencia/drenaje-20260910-run4-unit1/run_profile.py \
+  | tee docs/cierre/evidencia/drenaje-20260910-run4-unit1/stdout.log
 
-docker stop fim-drain-postgres fim-drain-valkey
+docker stop fim-drain-run4-postgres fim-drain-run4-valkey
 ```
 
 El rate limit `100000/60 s` pertenece sólo al ensayo; el valor predeterminado de
@@ -332,17 +332,17 @@ principal comienza antes del flush de comandos y termina con 3.000 filas
 persistidas y cola local vacía.
 
 Conservar HMAC, persistencia PostgreSQL, auditoría, confirmaciones, `XACK` y
-borrado durable activos. El candidato de Run 3 elimina la tormenta de reintentos
-y el costo O(n²) de la cola; su cuello remanente es la ingesta serial del backend.
-La optimización está fijada en `7c5afa5`; identificar además cada corrida mediante
-`environment.json` y `source-manifest.sha256`, porque la evidencia todavía no
-está incluida en ese commit.
+borrado durable activos. La cola/ACK está fijada en `7c5afa5` y backend Unidad 1
+en `965dcac`. Identificar cada corrida mediante `environment.json` y
+`source-manifest.sha256`; conservar cualquier intento inválido por separado y
+excluirlo explícitamente de resultados y denominadores.
 
 Contraste histórico, sin reemplazar los datos originales:
 
 - B5: 2.988 eventos en 153 s, 19,529 eventos/s;
-- Run 3: 3.000 eventos en 51,773 s, 57,945 eventos/s;
-- criterio original para Run 3: `<30 s`, es decir, más de 100 eventos/s.
+- Run 3: 3.000 eventos en 51,773 s, 57,945 eventos/s (**NO CUMPLE**);
+- Run 4: 3.000 eventos en 29,146 s, 102,929 eventos/s (**CUMPLE**);
+- criterio original: `<30 s`; para 3.000 exige más de 100 eventos/s.
 
 Una repetición crea una evaluación nueva: no sobrescribir `stdout.log`,
 `metrics.jsonl`, `summary.json` ni sus manifiestos de la corrida de referencia.
@@ -361,6 +361,7 @@ git status --short >> "$EVIDENCE_DIR/identidad.txt"
 
 (cd docs/cierre/evidencia/absence-20260910T052521Z-r2 && sha256sum -c SHA256SUMS)
 (cd docs/cierre/evidencia/drenaje-20260910-run3 && sha256sum -c SHA256SUMS)
+(cd docs/cierre/evidencia/drenaje-20260910-run4-unit1 && sha256sum -c SHA256SUMS)
 ```
 
 Antes de publicar, sanitizar hostnames, rutas absolutas, payloads, destinatarios, certificados y secretos. Una copia sanitizada recibe nombre y hash nuevos; nunca se reemplaza silenciosamente el original.

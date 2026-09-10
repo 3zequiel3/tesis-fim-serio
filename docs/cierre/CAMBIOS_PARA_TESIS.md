@@ -11,7 +11,7 @@
 | Tabla 1 / latencia | P99 17,274 ms como extremo a extremo | Ese valor usa `received_at-detected_at`. La reagregación desde la marca post-operación da P99 17,745 ms (n=493) | Usar 17,745 ms para la definición declarada y aclarar que la marca no prueba el instante físico exacto; conservar 17,274 ms como tramo interno histórico | manifiesto/latencias B3; generador líneas 579–619 |
 | Detección B3 | 500/500 | Histórico: 493/500. Nueva corrida causal: 50 eventos completos + 10 retornos a baseline aprobada descartados legítimamente, sin ausencias nuevas | Mantener 493/500 como histórico; agregar que el mecanismo actual quedó demostrado, pero que no reconstruye causalidad runtime de los siete casos antiguos | `resultados/bateria3_manifiesto.jsonl`; `docs/cierre/evidencia/absence-20260910T052521Z-r2/` |
 | Desconexión B5 | 3.000/3.000 | Histórico: 2.988/3.000. Los doce son compatibles con retorno a baseline según manifiestos; la nueva corrida demuestra ese descarte sólo para sus propios diez casos | Informar 2.988 y separar “explicación fuertemente sustentada” de “causalidad retrospectiva no demostrable” | `resultados/bateria5_manifiesto.jsonl`; evidencia causal actual |
-| Drenaje | Recuperación <30 s | Histórico: 153 s/2.988. Run 3: 51,773 s/3.000 = 57,945 eventos/s, 0 rechazos/duplicados, 3.000 XADD y cola final 0; excede 21,773 s | Declarar mejora sin redefinir el umbral y mantener **NO CUMPLE**. El perfil actual ubica el remanente en ingesta backend serial; implementación fijada en `7c5afa5`, evidencia aún en working tree | `docs/cierre/evidencia/drenaje-20260910-run3/` |
+| Drenaje | Recuperación <30 s | Histórico: 153 s/2.988. Run 3: 51,773 s/3.000 (**NO CUMPLE**). Run 4 sobre `965dcac`: 29,146 s/3.000 = 102,929 eventos/s, 0 rechazos/duplicados y cadena completa observada | Informar Run 4 como nueva evaluación controlada que **CUMPLE** sin redefinir el umbral. Aclarar que 32,358 s era una proyección, no una medición; conservar histórico y Run 3 | `docs/cierre/evidencia/drenaje-20260910-run3/`; `docs/cierre/evidencia/drenaje-20260910-run4-unit1/` |
 | Notificaciones B4 | 1.000 operaciones, niveles 1/10/100 | 360 operaciones, 329 muestras; tasas 1/50/100 ops/s; receptor HTTP local | Describir la carga real y denominar tasas, no concurrencias simultáneas | manifiestos y CSV B4 |
 | n8n histórico | B4 acredita n8n/canal final | B4 no atravesó n8n | Mantener B4 como recepción webhook local | receptor y evidencia B4 |
 | n8n, nueva evaluación | No existía E2E ejecutado | `f0a2907` acredita backend notifier → n8n 2.17.8 → receptor controlado: 202; receptor caído 502; n8n caído error; recuperación 202 | Agregarlo como **nueva evaluación controlada**, no como repetición de B4 ni proveedor comercial | `n8n/e2e/evidence/20260909-run.json` |
@@ -39,10 +39,10 @@
 - Run 3 midió 89,35 % de statements con denominador 2780.
 - La latencia reagregada según Tabla 1 tuvo P99 17,745 ms.
 - En la corrida causal actual hubo 50 eventos completamente correlacionados/persistidos y 10 retornos a baseline suprimidos legítimamente, sin ausencias nuevas inexplicadas.
-- Run 3 drenó 3.000/3.000 sin rechazos ni duplicados en 51,773 s; es una mejora, pero no cumple 30 s.
+- Run 4 drenó 3.000/3.000 sin rechazos ni duplicados en 29,146 s (102,929 eventos/s) y cumple `<30 s` bajo las condiciones controladas; 32,358 s era sólo una proyección.
 
 ## Afirmaciones que deben retirarse o limitarse
 
-- 31/31 historias completas; cero pérdidas; drenaje <30 s; validación multianfitrión; TLS habilitado en la corrida histórica; entrega SMTP real; exactamente una vez extremo a extremo; cuarentena cifrada/retenida; aptitud productiva.
+- 31/31 historias completas; cero pérdidas históricas; validación multianfitrión; TLS habilitado en la corrida histórica; entrega SMTP real; exactamente una vez extremo a extremo; cuarentena cifrada/retenida; aptitud productiva. El `<30 s` sólo puede afirmarse para Run 4 y sus condiciones, no como garantía productiva.
 
 La ejecución ampliada de 62 pruebas no debe presentarse como aprobada: 55 pasaron y 7 fallaron por el harness mTLS preexistente. La evidencia focal n8n es de 9 pruebas aprobadas y los escenarios runtime registrados.

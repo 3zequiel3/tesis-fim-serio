@@ -47,8 +47,8 @@ La línea base histórica era 3/27/1/0. US-09 pasa de “sin cobertura funcional
 ### Evidencia experimental nueva que no altera el conteo de historias
 
 - La corrida causal válida ejecutó 60 operaciones: 50 generaron eventos completamente correlacionados y persistidos; 10 retornaron a la baseline aprobada y fueron descartadas legítimamente como `matches_active_baseline`; no hubo ausencias nuevas inexplicadas. Esto verifica el contrato actual de detección, pero no reconstruye la causalidad de los 19 casos históricos.
-- Drenaje Run 3 procesó 3.000/3.000, con 0 rechazos, 0 duplicados, 3.000 XADD y cola final 0, en 51,773 s (57,945 eventos/s). Mejoró frente a 153 s, pero continúa **NO CUMPLE** respecto de <30 s.
-- La instrumentación causal quedó fijada en `aae55e4` y la optimización de drenaje en `7c5afa5`. Los paquetes de evidencia permanecen en el working tree pendientes de su commit documental y están identificados por sus manifiestos; estos resultados no reclasifican historias.
+- Run 3 conserva el resultado intermedio de 51,773 s (**NO CUMPLE**). Run 4 sobre backend Unidad 1 procesó 3.000/3.000, con 0 rechazos, 0 duplicados, 3.000 XADD/XREAD/XACK/event_ack y cola final 0, en 29,146 s (102,929 eventos/s): **CUMPLE** `<30 s` bajo las condiciones documentadas.
+- La instrumentación causal quedó fijada en `aae55e4`; la cola/ACK en `7c5afa5` y backend Unidad 1 en `965dcac`. Los paquetes están identificados por manifiestos; 32,358 s fue una proyección, no una medición. Estos resultados no reclasifican historias.
 
 ### Criterios de lectura
 
