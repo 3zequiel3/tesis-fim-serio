@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from agent.publisher import Publisher
 from agent.queue import EventQueue, _MAX_BYTES
 
 
@@ -108,6 +109,8 @@ def test_drop_oldest_on_limit(queue: EventQueue) -> None:
         ids = {e["event_id"] for e in q.iter_fifo()}
         assert "newer" in ids
         assert "oldest" not in ids
+        assert q.contains("newer") is True
+        assert q.evicted_events == 1
     finally:
         qmod._MAX_BYTES = original
 
@@ -121,6 +124,44 @@ def test_queue_pressure_zero_when_empty(queue: EventQueue) -> None:
 def test_queue_pressure_positive_after_enqueue(queue: EventQueue) -> None:
     queue.enqueue(_make_event("p1"))
     assert 0.0 < queue.queue_pressure <= 1.0
+
+
+def test_evicted_events_starts_at_zero(queue: EventQueue) -> None:
+    assert queue.evicted_events == 0
+
+
+def test_publisher_discarded_events_includes_queue_evictions(
+    queue: EventQueue,
+) -> None:
+    """The existing heartbeat-facing signal includes capacity loss."""
+    publisher = object.__new__(Publisher)
+    publisher._queue = queue
+    publisher._discarded_events = 2
+    queue._evicted_events = 3
+
+    assert publisher.discarded_events == 5
+
+
+def test_drop_oldest_counter_tracks_multiple_evictions(queue: EventQueue) -> None:
+    import agent.queue as qmod
+
+    original = qmod._MAX_BYTES
+    try:
+        qmod._MAX_BYTES = 500
+        q = EventQueue(queue._dir)
+        q.enqueue(_make_event("old-1", "2026-01-01T00:00:00+00:00"))
+        q.enqueue(_make_event("old-2", "2026-01-02T00:00:00+00:00"))
+        before = q.evicted_events
+        q.enqueue(
+            {
+                **_make_event("large-new", "2026-01-03T00:00:00+00:00"),
+                "padding": "x" * 300,
+            }
+        )
+        assert q.evicted_events > before
+        assert q.iter_fifo()[-1]["event_id"] == "large-new"
+    finally:
+        qmod._MAX_BYTES = original
 
 
 # ── barrido de .tmp huérfanos ─────────────────────────────────────────────────

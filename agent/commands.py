@@ -209,6 +209,19 @@ def _load_shared_secret(config: "AgentConfig") -> bytes | None:
         return None
 
 
+def _path_is_within_watch_paths(path: str, watch_paths: list[str]) -> bool:
+    """Return whether ``path`` resolves inside a configured watch root.
+
+    Both sides are canonicalized before component-aware containment.  A string
+    prefix check is insufficient here: ``/srv/watch-escape`` starts with
+    ``/srv/watch`` but is a sibling, not a child.  Resolving the candidate also
+    prevents ``..`` and symlink traversal from escaping the authorized roots.
+    """
+    candidate = Path(os.path.realpath(path))
+    roots = (Path(os.path.realpath(root)) for root in watch_paths)
+    return any(candidate.is_relative_to(root) for root in roots)
+
+
 # ── Handler: baseline_update ──────────────────────────────────────────────────
 
 
@@ -305,8 +318,7 @@ async def handle_restore_file(
             ok=False, error="no_watch_paths_configured",
         )
         return
-    real = os.path.realpath(path)
-    if not any(real.startswith(str(w)) for w in config.watch_paths):
+    if not _path_is_within_watch_paths(path, config.watch_paths):
         log.warning("commands.path_outside_watch", path=path)
         await _publish_ack(
             valkey_client, command_id, "restore_file", event_id, config,
@@ -428,8 +440,7 @@ async def handle_quarantine_file(
             ok=False, error="no_watch_paths_configured",
         )
         return
-    real = os.path.realpath(path)
-    if not any(real.startswith(str(w)) for w in config.watch_paths):
+    if not _path_is_within_watch_paths(path, config.watch_paths):
         log.warning("commands.path_outside_watch", path=path)
         await _publish_ack(
             valkey_client, command_id, "quarantine_file", event_id, config,

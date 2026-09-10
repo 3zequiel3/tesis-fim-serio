@@ -163,6 +163,44 @@ def test_retry_republishes_after_timeout(publisher: Publisher) -> None:
     assert publisher._client.xadd.call_count == 2
 
 
+@pytest.mark.asyncio
+async def test_drop_oldest_event_is_removed_from_pending_and_never_retried(
+    publisher: Publisher,
+    queue: EventQueue,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A capacity eviction must retire the matching in-memory retry entry."""
+    import agent.publisher as publisher_module
+    import agent.queue as queue_module
+
+    await publisher.publish({"path": "/same", "hash_detected": "same"})
+    evicted_id = next(iter(publisher._pending))
+    first_size = queue._total_bytes()
+
+    # Each event fits independently, but the pair does not.
+    monkeypatch.setattr(queue_module, "_MAX_BYTES", first_size + 1)
+    await publisher.publish({"path": "/same", "hash_detected": "same"})
+
+    assert queue.contains(evicted_id) is False
+    assert evicted_id not in publisher._pending
+
+    publisher._client.xadd.reset_mock()
+    monkeypatch.setattr(publisher_module, "_ACK_TIMEOUT_S", 0)
+    stop_event = asyncio.Event()
+
+    async def stop_after_sleep(_delay: float) -> None:
+        stop_event.set()
+
+    monkeypatch.setattr(publisher_module.asyncio, "sleep", stop_after_sleep)
+    await publisher._retry_loop(stop_event)
+
+    retransmitted_ids = {
+        json.loads(call.args[1]["data"])["event_id"]
+        for call in publisher._client.xadd.call_args_list
+    }
+    assert evicted_id not in retransmitted_ids
+
+
 # ── C2: HMAC verification en _verify_and_parse ───────────────────────────────
 
 def _make_signed_msg(secret: bytes, payload: dict) -> dict[str, str]:

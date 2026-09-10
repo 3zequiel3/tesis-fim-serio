@@ -32,7 +32,11 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+import structlog
+
+log = structlog.get_logger()
 
 _MAX_BYTES: int = 100 * 1024 * 1024  # 100 MB
 _DEFAULT_MAX_DISCARD_FILES: int = 1000
@@ -87,6 +91,9 @@ class EventQueue:
         self._dir.mkdir(parents=True, exist_ok=True)
         self._discard_dir = Path(discard_dir) if discard_dir else self._dir.parent / "discarded"
         self._max_discard_files = max_discard_files
+        # Acumulativo durante la vida de esta instancia, igual que los otros
+        # contadores operativos que el agente expone por heartbeat.
+        self._evicted_events = 0
         self._sweep_orphaned_tmp()
 
     # ── internals ────────────────────────────────────────────────────────────
@@ -156,7 +163,12 @@ class EventQueue:
 
     # ── public API ───────────────────────────────────────────────────────────
 
-    def enqueue(self, payload: dict[str, Any]) -> Path:
+    def enqueue(
+        self,
+        payload: dict[str, Any],
+        *,
+        on_evict: Callable[[str], None] | None = None,
+    ) -> Path:
         """Encola un evento de forma atómica, envuelto en un sobre con attempts=0.
 
         El payload MUST tener 'event_id' y 'detected_at' (ISO 8601), y NO debe
@@ -180,7 +192,19 @@ class EventQueue:
             if not files:
                 break
             try:
-                files[0].unlink()
+                evicted = files[0]
+                parts = evicted.stem.split("_", 1)
+                evicted_event_id = parts[1] if len(parts) == 2 else None
+                evicted.unlink()
+                self._evicted_events += 1
+                log.warning(
+                    "queue.drop_oldest",
+                    event_id=evicted_event_id,
+                    total_evicted=self._evicted_events,
+                    reason="queue_capacity",
+                )
+                if evicted_event_id is not None and on_evict is not None:
+                    on_evict(evicted_event_id)
             except OSError:
                 break
 
@@ -287,6 +311,11 @@ class EventQueue:
     def queue_size(self) -> int:
         """Cantidad de eventos en cola."""
         return len(self._json_files())
+
+    @property
+    def evicted_events(self) -> int:
+        """Eventos eliminados por la política drop-oldest desde este arranque."""
+        return self._evicted_events
 
     @property
     def queue_pressure(self) -> float:

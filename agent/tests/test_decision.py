@@ -396,6 +396,35 @@ async def test_rehydrate_auto_restore_pending(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_rehydrate_keeps_journal_pending_when_durable_enqueue_fails(
+    tmp_path: Path,
+) -> None:
+    """A recovered action remains retryable until publish durably enqueues it."""
+    content = b"original content"
+    target = tmp_path / "recoverable"
+    target.write_bytes(b"tampered")
+
+    engine, journal, baseline = _make_engine(tmp_path, action="auto_restore")
+    entry_mock = MagicMock()
+    entry_mock.content_b64 = base64.b64encode(content).decode()
+    entry_mock.hash = hashlib.sha256(content).hexdigest()
+    _metadata(entry_mock)
+    baseline.read_entry.return_value = entry_mock
+    journal.write_pending("evt-enqueue-failure", str(target), "auto_restore")
+
+    publisher = MagicMock()
+    publisher.publish = AsyncMock(side_effect=OSError("queue unavailable"))
+
+    await engine.rehydrate(publisher)
+
+    journal_data = json.loads(
+        (tmp_path / "journal" / "evt-enqueue-failure.json").read_text()
+    )
+    assert journal_data["state"] == "pending"
+    assert target.read_bytes() == content
+
+
+@pytest.mark.asyncio
 async def test_rehydrate_manual_review_pending(tmp_path: Path) -> None:
     engine, journal, baseline = _make_engine(tmp_path, action="manual_review")
 

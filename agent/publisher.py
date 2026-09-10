@@ -116,7 +116,7 @@ class Publisher:
         (D-6 del design): la detección no se suspende, solo la transmisión.
         """
         payload = self._build_payload(event_data)
-        self._queue.enqueue(payload)
+        self._queue.enqueue(payload, on_evict=self._forget_evicted_event)
         # Register in _pending BEFORE xadd so _retry_loop can pick it up if xadd fails.
         self._pending[payload["event_id"]] = (
             asyncio.get_running_loop().time(),
@@ -131,6 +131,10 @@ class Publisher:
             except Exception:
                 pass  # event stays in _pending; _retry_loop will retry
         log.info("publisher.event_published", event_id=payload["event_id"])
+
+    def _forget_evicted_event(self, event_id: str) -> None:
+        """Retire an event synchronously when queue capacity evicts it."""
+        self._pending.pop(event_id, None)
 
     def register_callbacks(
         self,
@@ -174,8 +178,13 @@ class Publisher:
 
     @property
     def discarded_events(self) -> int:
-        """Contador acumulativo de eventos descartados desde el arranque (D-8)."""
-        return self._discarded_events
+        """Contador acumulativo de eventos descartados desde el arranque (D-8).
+
+        Incluye los descartes terminales del publicador y las expulsiones por
+        capacidad de la cola. Antes, drop-oldest eliminaba eventos sin que el
+        heartbeat pudiera hacer visible esa pérdida.
+        """
+        return self._discarded_events + self._queue.evicted_events
 
     def _is_paused(self) -> bool:
         """True si el publisher está en backpressure (D-6). Nunca lanza fuera

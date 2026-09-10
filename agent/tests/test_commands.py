@@ -140,6 +140,78 @@ def _make_command(
     return payload
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("handler_name", ["restore", "quarantine"])
+@pytest.mark.parametrize("escape_kind", ["sibling", "dotdot", "symlink"])
+async def test_filesystem_commands_reject_canonical_scope_escapes(
+    handler_name,
+    escape_kind,
+    agent_config,
+    shared_secret,
+    baseline_engine,
+    mock_valkey,
+    journal,
+    tmp_path,
+):
+    """Sibling prefixes, ``..`` and symlinks must not escape a watch root."""
+    from agent import commands
+
+    watch_root = tmp_path / "watched"
+    outside_root = tmp_path / "outside"
+    sibling_root = tmp_path / "watched-sibling"
+    watch_root.mkdir()
+    outside_root.mkdir()
+    sibling_root.mkdir()
+
+    if escape_kind == "sibling":
+        target = sibling_root / "victim"
+    elif escape_kind == "dotdot":
+        target = watch_root / ".." / "outside" / "victim"
+    else:
+        outside_target = outside_root / "victim"
+        outside_target.write_bytes(b"outside")
+        target = watch_root / "link"
+        target.symlink_to(outside_target)
+
+    if escape_kind != "symlink":
+        Path(target).write_bytes(b"outside")
+
+    scoped_config = agent_config.model_copy(
+        update={"watch_paths": [str(watch_root)]}
+    )
+    command = {
+        "type": f"{handler_name}_file",
+        "command_id": f"cmd-{handler_name}-{escape_kind}",
+        "event_id": 99,
+        "target_agent_id": scoped_config.agent_id,
+        "path": str(target),
+        "issued_at": "2026-01-01T00:00:00+00:00",
+    }
+    command["signature"] = sign_payload(shared_secret, command)
+
+    if handler_name == "restore":
+        await commands.handle_restore_file(
+            command=command,
+            baseline_engine=baseline_engine,
+            journal=journal,
+            valkey_client=mock_valkey,
+            config=scoped_config,
+        )
+    else:
+        await commands.handle_quarantine_file(
+            command=command,
+            journal=journal,
+            valkey_client=mock_valkey,
+            config=scoped_config,
+            quarantine_dir=str(tmp_path / "quarantine-escapes"),
+        )
+
+    ack = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert ack["status"] == "error"
+    assert ack["error"] == "path_outside_watch_paths"
+    assert Path(target).exists()
+
+
 # ── 13.1 test_dispatch_routes_baseline_update ────────────────────────────────
 
 

@@ -160,10 +160,7 @@ class DecisionEngine:
                         self._auto_restore(entry.event_id, entry.path, payload)
                     else:
                         self._quarantine(entry.event_id, entry.path, payload)
-                    self._journal.mark_completed(entry.event_id)
-                    self._journal.delete(entry.event_id)
                 except _ActionFailed as exc:
-                    self._journal.mark_failed(entry.event_id, exc.error)
                     payload["action_failed"] = True
                     payload["action_error"] = exc.error
                 except Exception as exc:
@@ -174,8 +171,7 @@ class DecisionEngine:
                     )
                     continue
             else:
-                # manual_review o alert_only: fallan sin acción, se re-publican como alert_only
-                self._journal.mark_failed(entry.event_id, "rehydrated_without_action")
+                # manual_review o alert_only: sin acción, se re-publican como alert_only
                 payload["action"] = "alert_only"
 
             try:
@@ -186,6 +182,22 @@ class DecisionEngine:
                     event_id=entry.event_id,
                     error=str(pub_exc),
                 )
+                # El journal sigue pending: publish() solo retorna cuando el
+                # evento quedó encolado durablemente. Si ni siquiera se pudo
+                # encolar, terminalizar acá perdería la única evidencia apta
+                # para reintentar en el próximo arranque.
+                continue
+
+            if payload.get("action_failed"):
+                self._journal.mark_failed(
+                    entry.event_id,
+                    str(payload.get("action_error", "rehydrated_action_failed")),
+                )
+            elif entry.action in ("auto_restore", "quarantine"):
+                self._journal.mark_completed(entry.event_id)
+                self._journal.delete(entry.event_id)
+            else:
+                self._journal.mark_failed(entry.event_id, "rehydrated_without_action")
             log.info(
                 "decision.rehydrate.entry",
                 event_id=entry.event_id,
