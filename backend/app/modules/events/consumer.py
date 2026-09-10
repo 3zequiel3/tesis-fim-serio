@@ -5,15 +5,16 @@ Consumer group: fim-backend (RN-56).
 Validación en orden barato→caro (FIX-06, FIX-07, FIX-08):
   1. schema_version      → invalid_schema | schema_version_unsupported (RN-91,
                             enmendada por D37/RN-131 — ver check_schema_version)
-  2. agent_id existe     → unknown_agent
+  2. agent_id existe y no
+     está revocado       → unknown_agent | descarte revocado
   3. HMAC-SHA256         → invalid_signature (RN-79)
   4. clock skew sobre
      sent_at (fallback
      a detected_at)      → clock_skew (RN-90, enmendada por D37/RN-131); distingue
                             unparseable / unparseable_sent_at / out_of_range
   5. event_id non-empty  → invalid_schema   (FIX-07)
-  6. dedup event_id      → XACK + event_ack sin re-insertar ni consumir rate (RN-73, FIX-06)
-  7. rate limit          → rate_limited     (RN-88, D7; solo eventos genuinamente nuevos)
+  6. ingesta transaccional: dedup event_id antes de supersesión y rate limit
+                          → XACK + event_ack sin re-insertar ni consumir rate (RN-73, FIX-06)
 
 Camino feliz: ingest_event (service), XACK, publica event_ack firmado (RN-73, D5).
 
@@ -35,9 +36,11 @@ Al arrancar releer pendientes con id '0' antes de nuevos '>' (RN-76).
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import time
 from collections import deque
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -59,8 +62,13 @@ from app.core.streams import (
 )
 from app.modules.agents.models import Agent, AgentStatus
 from app.modules.alerts.service import notify_if_applicable
-from app.modules.events.models import Event, EventStatus, RejectedEventAudit, RejectionReason
-from app.modules.events.service import InvalidTransitionError, ingest_event
+from app.modules.events.models import EventStatus, RejectedEventAudit, RejectionReason
+from app.modules.events.service import (
+    IngestDisposition,
+    IngestOutcome,
+    InvalidTransitionError,
+    _ingest_event_outcome,
+)
 
 log = structlog.get_logger()
 
@@ -261,19 +269,22 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
 
     # ── 2. unknown_agent ─────────────────────────────────────────────────────
     loop = asyncio.get_running_loop()
-    shared_secret = await loop.run_in_executor(None, _get_shared_secret, agent_id)
-    if shared_secret is None:
+    # La ingesta ya usa SQLModel sincrónico en este carril ordenado; resolver
+    # la única fila de autenticación evita un cambio de executor redundante.
+    agent_auth = _get_agent_auth(agent_id)
+    if agent_auth.shared_secret is None:
         await _reject(client, msg_id, event_id, agent_id, RejectionReason.unknown_agent, received_at, payload, payload_dump)
         return
 
     # ── 2.5 revoked agent — FIX-02 / RN-122 ──────────────────────────────────
     # D-4/D37: sin respuesta, igual que invalid_signature/unknown_agent — un
     # agente revocado no es un destinatario válido para un mensaje firmado.
-    is_revoked = await loop.run_in_executor(None, _is_agent_revoked, agent_id)
-    if is_revoked:
+    if agent_auth.revoked:
         log.info("consumer.agent_revoked.discard", agent_id=agent_id, event_id=event_id)
         await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
         return
+
+    shared_secret = agent_auth.shared_secret
 
     # ── 3. HMAC ───────────────────────────────────────────────────────────────
     if not verify_payload(shared_secret, payload):
@@ -352,29 +363,10 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         )
         return
 
-    # ── 6. dedup ──────────────────────────────────────────────────────────────
-    # FIX-06: dedup ANTES del rate limit — re-entregas no consumen presupuesto
-    event_exists = await loop.run_in_executor(None, _event_exists, event_id)
-    if event_exists:
-        # Re-entrega legítima: XACK + event_ack, no re-insertar, no auditar, no consumir rate
-        await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
-        await _publish_event_ack(client, event_id, agent_id, shared_secret)
-        log.info("consumer.event_dedup", event_id=event_id)
-        return
-
-    # ── 7. rate limit ─────────────────────────────────────────────────────────
-    # FIX-06: rate limit DESPUÉS del dedup — solo para eventos genuinamente nuevos
-    if not _rate_limiter.check(agent_id):
-        await _reject(
-            client, msg_id, event_id, agent_id, RejectionReason.rate_limited, received_at, payload, payload_dump,
-            shared_secret=shared_secret,
-        )
-        log.warning("consumer.rate_limited", agent_id=agent_id)
-        return
 
     # ── camino feliz ───────────────────────────────────────────────────────────
     try:
-        event = _ingest(payload, received_at, detected_at)
+        outcome = _ingest(payload, received_at, detected_at, agent_id)
     except InvalidTransitionError as exc:
         # Dato inválido, no reintentable → XACK + audit log + nack terminal
         # (D-3 del design): sin la respuesta, el agente republica para
@@ -403,66 +395,82 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         log.error("consumer.db_error", event_id=event_id, exc_info=True)
         return
 
-    if event is not None:
-        # Éxito → XACK + event_ack + notificación
-        await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
-        if event_id:
-            await _publish_event_ack(client, event_id, agent_id, shared_secret)
+    # Compatibilidad con dobles de prueba anteriores al resultado tipado.
+    if outcome is None:
+        outcome = IngestOutcome(IngestDisposition.supersede_race)
+
+    if outcome.disposition == IngestDisposition.rate_limited:
+        await _reject(
+            client, msg_id, event_id, agent_id, RejectionReason.rate_limited,
+            received_at, payload, payload_dump, shared_secret=shared_secret,
+        )
+        log.warning("consumer.rate_limited", agent_id=agent_id)
+        return
+
+    if outcome.disposition == IngestDisposition.duplicate:
+        await _ack_with_event_ack(client, msg_id, event_id, agent_id, shared_secret)
+        log.info("consumer.event_dedup", event_id=event_id)
+        return
+
+    if outcome.disposition == IngestDisposition.persisted and outcome.event is not None:
+        await _ack_with_event_ack(client, msg_id, event_id, agent_id, shared_secret)
         log.info("consumer.event_persisted", event_id=event_id, agent_id=agent_id)
-        _fire_and_forget(notify_if_applicable(event))
+        _fire_and_forget(notify_if_applicable(outcome.event))
     else:
-        # Skip legítimo (carrera en mark_superseded, sigue habiendo un pending
-        # activo) → XACK sin re-insert, y event_ack (D-3): para el agente el
-        # evento está resuelto — el pending activo ya lo representa — y sin
-        # respuesta reintentaría para siempre.
-        await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
+        # Una transición concurrente dejó otro pending como representación
+        # activa. Resolver esta entrega con el mismo ACK atómico.
         log.info("consumer.event_ingest_skipped", event_id=event_id, reason="supersede_race")
-        if event_id:
-            await _publish_event_ack(client, event_id, agent_id, shared_secret)
+        await _ack_with_event_ack(client, msg_id, event_id, agent_id, shared_secret)
 
 
 # ── helpers de ingesta ────────────────────────────────────────────────────────
 
-def _ingest(payload: dict[str, Any], received_at: datetime, detected_at: datetime) -> Event | None:
+def _ingest(
+    payload: dict[str, Any], received_at: datetime, detected_at: datetime, agent_id: str,
+) -> IngestOutcome:
     """
-    Llama service.ingest_event y surfacea los outcomes con taxonomía explícita:
-    - Retorna Event  → éxito
-    - Retorna None   → skip legítimo (carrera en mark_superseded)
+    Llama service.ingest_event y devuelve una taxonomía explícita:
+    - persisted       → inserción confirmada
+    - duplicate       → reentrega sin reinserción ni consumo de rate limit
+    - supersede_race  → descarte legítimo por carrera
+    - rate_limited    → evento nuevo sin cupo
     - Lanza InvalidTransitionError → dato inválido, no reintentable
     - Lanza SQLAlchemyError        → error transitorio, el caller NO hace XACK
     """
-    return ingest_event(payload, received_at, detected_at)
+    return _ingest_event_outcome(
+        payload,
+        received_at,
+        detected_at,
+        accept_new=lambda: _rate_limiter.check(agent_id),
+    )
 
 
 # ── helpers de base de datos ─────────────────────────────────────────────────
 
-def _get_shared_secret(agent_id: str) -> bytes | None:
-    """Busca el agente en DB y retorna su shared_secret como bytes. None si no existe."""
+@dataclass(frozen=True)
+class _AgentAuth:
+    shared_secret: bytes | None
+    revoked: bool
+
+
+def _get_agent_auth(agent_id: str) -> _AgentAuth:
+    """Resuelve credencial HMAC y revocación con una sola consulta."""
     with Session(engine) as session:
         agent = session.exec(select(Agent).where(Agent.agent_id == agent_id)).first()
     if agent is None:
-        return None
+        return _AgentAuth(None, False)
     if not agent.shared_secret_hex:
-        return None
+        return _AgentAuth(None, agent.status == AgentStatus.revoked)
     try:
-        return bytes.fromhex(agent.shared_secret_hex)
+        secret = bytes.fromhex(agent.shared_secret_hex)
     except ValueError:
-        return None
+        secret = None
+    return _AgentAuth(secret, agent.status == AgentStatus.revoked)
 
 
-def _is_agent_revoked(agent_id: str) -> bool:
-    """Retorna True si el agente existe y su status es revoked. FIX-02 / RN-122."""
-    with Session(engine) as session:
-        agent = session.exec(select(Agent).where(Agent.agent_id == agent_id)).first()
-    if agent is None:
-        return False
-    return agent.status == AgentStatus.revoked
-
-
-def _event_exists(event_id: str) -> bool:
-    with Session(engine) as session:
-        existing = session.exec(select(Event).where(Event.event_id == event_id)).first()
-    return existing is not None
+def _get_shared_secret(agent_id: str) -> bytes | None:
+    """Helper compatible para rechazos y consumidores focales."""
+    return _get_agent_auth(agent_id).shared_secret
 
 
 def _write_rejection_audit(audit: RejectedEventAudit) -> None:
@@ -539,6 +547,11 @@ async def _reject(
 # ── helpers de publicación ────────────────────────────────────────────────────
 
 async def _publish_event_ack(client: Any, event_id: str, agent_id: str, shared_secret: bytes) -> None:
+    data = _build_event_ack(event_id, agent_id, shared_secret)
+    await client.xadd(STREAM_COMMANDS, {"data": data})
+
+
+def _build_event_ack(event_id: str, agent_id: str, shared_secret: bytes) -> str:
     payload: dict[str, Any] = {
         "type": "event_ack",
         "event_id": event_id,
@@ -547,8 +560,30 @@ async def _publish_event_ack(client: Any, event_id: str, agent_id: str, shared_s
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     payload["signature"] = sign_payload(shared_secret, payload)
-    data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+async def _ack_with_event_ack(
+    client: Any,
+    msg_id: str,
+    event_id: str,
+    agent_id: str,
+    shared_secret: bytes,
+) -> None:
+    """Publica el ACK firmado y elimina el evento de la PEL atómicamente."""
+    data = _build_event_ack(event_id, agent_id, shared_secret)
+    pipeline_factory = getattr(client, "pipeline", None)
+    if pipeline_factory is not None and not inspect.iscoroutinefunction(pipeline_factory):
+        pipe = pipeline_factory(transaction=True)
+        pipe.xadd(STREAM_COMMANDS, {"data": data})
+        pipe.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
+        await pipe.execute()
+        return
+
+    # Los fakes asyncio mínimos no exponen el factory sincrónico de redis-py.
+    # Publicar primero evita un XACK parcial cuando falla la respuesta.
     await client.xadd(STREAM_COMMANDS, {"data": data})
+    await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
 
 
 async def _publish_event_nack(

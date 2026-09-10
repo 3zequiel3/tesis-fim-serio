@@ -96,8 +96,9 @@ async def notify_if_applicable(event: Event) -> None:
         log.debug("notify.skipped_superseded", event_id=event.event_id)
         return
 
-    with Session(engine) as session:
-        severity = _determine_severity(event, session)
+    # Reutilizar el snapshot de severidad de la ingesta. Reevaluar las reglas
+    # agrega una consulta y puede contradecir la política que clasificó el evento.
+    severity = RuleSeverity(event.severity)
 
     # RN-52: solo critical y high notifican
     if severity not in (RuleSeverity.critical, RuleSeverity.high):

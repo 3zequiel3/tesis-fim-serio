@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from enum import Enum
+from typing import Any, Callable
 
 import structlog
 from sqlalchemy import update as sa_update
@@ -104,6 +106,21 @@ class InvalidTransitionError(Exception):
         self.from_status = from_status
         self.to_status = to_status
         super().__init__(f"Invalid transition: {from_status} → {to_status}")
+
+
+class IngestDisposition(str, Enum):
+    """Resultado materializado de un intento transaccional de ingesta."""
+
+    persisted = "persisted"
+    duplicate = "duplicate"
+    supersede_race = "supersede_race"
+    rate_limited = "rate_limited"
+
+
+@dataclass(frozen=True)
+class IngestOutcome:
+    disposition: IngestDisposition
+    event: Event | None = None
 
 
 def validate_transition(from_status: EventStatus, to_status: EventStatus) -> None:
@@ -200,11 +217,13 @@ def compact_chain(session: Session, path: str) -> None:
             deleted += 1
 
 
-def ingest_event(
+def _ingest_event_outcome(
     event_data: dict[str, Any],
     received_at: datetime,
     detected_at: datetime,
-) -> Event | None:
+    *,
+    accept_new: Callable[[], bool] | None = None,
+) -> IngestOutcome:
     """
     Ingesta un evento válido:
     1. Busca pending para el mismo path.
@@ -251,6 +270,17 @@ def ingest_event(
     diff_text = _bounded_diff_text(event_data.get("diff_text"))
 
     with Session(engine) as session:
+        duplicate = session.exec(
+            select(Event).where(Event.event_id == event_data.get("event_id", ""))
+        ).first()
+        if duplicate is not None:
+            session.expunge(duplicate)
+            return IngestOutcome(IngestDisposition.duplicate, duplicate)
+
+        # Reservar capacidad solo después de deduplicar en la transacción.
+        if accept_new is not None and not accept_new():
+            return IngestOutcome(IngestDisposition.rate_limited)
+
         # D51/RN-145 (D-6 del design): un evento sin ruta no participa de la
         # supersesión por path — get_pending_event_for_path NUNCA se invoca
         # con path=None, mantiene su firma `path: str`.
@@ -268,7 +298,7 @@ def ingest_event(
                 if still_pending is not None:
                     # Todavía hay un pending activo → skip legítimo
                     log.warning("service.superseded_race.still_pending", path=path)
-                    return None
+                    return IngestOutcome(IngestDisposition.supersede_race)
                 # No hay pending → continuar inserción como evento independiente
                 log.info("service.superseded_race.insert_independent", path=path)
                 # parent_event_id ya es None; el flujo continúa normalmente
@@ -339,9 +369,20 @@ def ingest_event(
         if parent_event_id is not None and path is not None:
             compact_chain(session, path)
 
+        # Separar la fila ya materializada antes del commit evita que el
+        # despacho dispare un SELECT por expiración del objeto.
+        session.expunge(event)
         session.commit()
-        session.refresh(event)
-        return event
+        return IngestOutcome(IngestDisposition.persisted, event)
+
+
+def ingest_event(
+    event_data: dict[str, Any],
+    received_at: datetime,
+    detected_at: datetime,
+) -> Event | None:
+    """API de dominio compatible; el consumer usa el resultado tipado interno."""
+    return _ingest_event_outcome(event_data, received_at, detected_at).event
 
 
 async def retention_task() -> None:
