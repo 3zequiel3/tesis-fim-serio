@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import structlog
 
+from agent.experiment_trace import ExperimentTrace
 from agent.queue import EventQueue
 from agent.state import save_state
 from agent.streams import SCHEMA_VERSION, load_shared_secret, sign_payload, verify_payload
@@ -73,10 +74,14 @@ class Publisher:
         config: "AgentConfig",
         queue: EventQueue,
         client: "avalkey.Valkey",
+        experiment_trace: ExperimentTrace | None = None,
     ) -> None:
         self._config = config
         self._queue = queue
         self._client = client
+        # Opt-in evidence only. Publisher owns transmission and ACK facts.
+        self._experiment_trace = experiment_trace or ExperimentTrace.from_environment()
+        self._trace_events: dict[str, dict[str, Any]] = {}
         self._shared_secret = load_shared_secret(config.storage.secrets_dir)
         # event_id → (loop_time_published, payload)
         self._pending: dict[str, tuple[float, dict[str, Any]]] = {}
@@ -98,6 +103,46 @@ class Publisher:
         self._detector: "FanotifyDetector | None" = None
         self._preflight_registry: "PreflightRegistry | None" = None
 
+    @staticmethod
+    def _trace_reason(reason: Any) -> str:
+        """Keep trace reasons in a closed vocabulary, never arbitrary command text."""
+        allowed = {
+            "rate_limited", "schema_version_unsupported", "invalid_schema", "clock_skew",
+            "max_attempts_exceeded", "queue_capacity", "queue_absent", "backpressure",
+        }
+        return str(reason) if reason in allowed else "other"
+
+    def _trace_record(self, stage: str, payload: dict[str, Any] | None = None, **fields: Any) -> None:
+        """Record only publisher-observed facts; never affect transport control flow."""
+        payload = payload or {}
+        try:
+            self._experiment_trace.record(
+                stage,
+                event_id=payload.get("event_id"),
+                path=payload.get("path"),
+                operation=payload.get("operation_type") or payload.get("event_type") or "publish",
+                hash_before=payload.get("hash_expected"),
+                hash_after=payload.get("hash_detected"),
+                **fields,
+            )
+        except Exception:
+            return
+
+    async def _xadd_with_trace(self, payload: dict[str, Any], *, source: str) -> None:
+        """Trace each actual Valkey attempt, including failures swallowed by callers."""
+        attempt = self._queue.get_attempts(payload["event_id"]) + 1
+        try:
+            await self._xadd(payload)
+        except Exception as exc:
+            self._trace_record(
+                "xadd_failed", payload, source=source, attempt=attempt,
+                reason=type(exc).__name__, outcome="failed",
+            )
+            raise
+        self._trace_record(
+            "xadd_succeeded", payload, source=source, attempt=attempt, outcome="published",
+        )
+
     # ── public ───────────────────────────────────────────────────────────────
 
     async def run(self, stop_event: asyncio.Event) -> None:
@@ -116,17 +161,24 @@ class Publisher:
         (D-6 del design): la detección no se suspende, solo la transmisión.
         """
         payload = self._build_payload(event_data)
-        self._queue.enqueue(payload, on_evict=self._forget_evicted_event)
+        try:
+            self._queue.enqueue(payload, on_evict=self._forget_evicted_event)
+        except Exception as exc:
+            self._trace_record("queue_enqueue_failed", payload, reason=type(exc).__name__, outcome="failed")
+            raise
+        self._trace_events[payload["event_id"]] = payload
+        self._trace_record("queue_enqueue_persisted", payload, outcome="enqueued")
         # Register in _pending BEFORE xadd so _retry_loop can pick it up if xadd fails.
         self._pending[payload["event_id"]] = (
             asyncio.get_running_loop().time(),
             payload,
         )
         if self._is_paused():
+            self._trace_record("xadd_deferred", payload, source="initial", reason="backpressure", outcome="deferred")
             log.debug("publisher.publish_paused", event_id=payload["event_id"])
         else:
             try:
-                await self._xadd(payload)
+                await self._xadd_with_trace(payload, source="initial")
                 self._queue.bump_attempts(payload["event_id"])
             except Exception:
                 pass  # event stays in _pending; _retry_loop will retry
@@ -134,7 +186,9 @@ class Publisher:
 
     def _forget_evicted_event(self, event_id: str) -> None:
         """Retire an event synchronously when queue capacity evicts it."""
+        payload = self._trace_events.pop(event_id, None)
         self._pending.pop(event_id, None)
+        self._trace_record("queue_evicted", payload or {"event_id": event_id}, reason="queue_capacity", outcome="dropped")
 
     def register_callbacks(
         self,
@@ -264,12 +318,14 @@ class Publisher:
             event_id = payload.get("event_id")
             if not event_id or event_id in self._pending:
                 continue
+            self._trace_events[event_id] = payload
             self._pending[event_id] = (asyncio.get_running_loop().time(), payload)
             if self._is_paused():
+                self._trace_record("xadd_deferred", payload, source="drain", reason="backpressure", outcome="deferred")
                 log.debug("publisher.drain_paused", event_id=event_id)
                 continue
             try:
-                await self._xadd(payload)
+                await self._xadd_with_trace(payload, source="drain")
                 self._queue.bump_attempts(event_id)
                 log.info("publisher.queue_drained", event_id=event_id)
             except Exception as exc:
@@ -426,11 +482,15 @@ class Publisher:
                 return
             # D-4: ignorar respuestas para event_id que no están en la cola
             # local — contención ante un nack/ack inducido por un tercero.
+            event_payload = self._trace_events.get(event_id, {"event_id": event_id})
             if not self._queue.contains(event_id):
+                self._trace_record("ack_valid_ignored", event_payload, source="command", reason="queue_absent", outcome="ignored")
                 log.info("publisher.ack_unknown_event_id", event_id=event_id)
                 return
+            self._trace_record("ack_valid", event_payload, source="command", outcome="acknowledged")
             self._queue.remove(event_id)
             self._pending.pop(event_id, None)
+            self._trace_events.pop(event_id, None)
             if self._on_ack_cb is not None:
                 self._on_ack_cb(event_id)
             log.info("publisher.event_acked", event_id=event_id)
@@ -441,7 +501,9 @@ class Publisher:
             reason = payload.get("reason", "")
             retry_after = payload.get("retry_after")
             # D-4: misma contención que event_ack.
+            event_payload = self._trace_events.get(event_id, {"event_id": event_id})
             if not self._queue.contains(event_id):
+                self._trace_record("nack_valid_ignored", event_payload, source="command", reason="queue_absent", outcome="ignored")
                 log.info(
                     "publisher.nack_unknown_event_id", event_id=event_id, reason=reason
                 )
@@ -452,6 +514,7 @@ class Publisher:
                 # la presencia de retry_after es lo que decide, no el motivo
                 # literal). NO cuenta el intento, NO se borra de la cola.
                 effective = self._apply_backpressure(retry_after)
+                self._trace_record("nack_valid_retainable", event_payload, source="command", reason=self._trace_reason(reason), outcome="retained")
                 log.info(
                     "publisher.event_nack_retainable",
                     event_id=event_id,
@@ -462,6 +525,8 @@ class Publisher:
                 # Terminal (invalid_schema de payload ilegible, clock_skew).
                 self._queue.discard(event_id, reason)
                 self._pending.pop(event_id, None)
+                self._trace_record("nack_valid_terminal", event_payload, source="command", reason=self._trace_reason(reason), outcome="dropped")
+                self._trace_events.pop(event_id, None)
                 self._discarded_events += 1
                 log.warning(
                     "publisher.event_nack_terminal", event_id=event_id, reason=reason
@@ -525,6 +590,7 @@ class Publisher:
                 if attempts >= self._config.publisher.max_publish_attempts:
                     self._queue.discard(event_id, "max_attempts_exceeded")
                     self._pending.pop(event_id, None)
+                    self._trace_record("queue_discarded", self._trace_events.pop(event_id, payload), source="retry", attempt=attempts, reason="max_attempts_exceeded", outcome="dropped")
                     self._discarded_events += 1
                     log.warning(
                         "publisher.event_discarded",
@@ -534,7 +600,7 @@ class Publisher:
                     )
                     continue
                 try:
-                    await self._xadd(payload)
+                    await self._xadd_with_trace(payload, source="retry")
                     self._queue.bump_attempts(event_id)
                     self._pending[event_id] = (now, payload)
                     log.info("publisher.event_retried", event_id=event_id)

@@ -1,86 +1,26 @@
 #!/usr/bin/env python3
-"""
-bateria_reversion.py — Batería 9: qué significa exactamente "no hubo cambio real".
+"""Controlled B3/B5 experiment: approved-baseline suppression and short-lived paths.
 
-Dirime la indeterminación del ítem 9 (los 7 cambios sin evento de la Batería 3).
+D14/RN-112 keeps the active baseline at the last approved version. ``add_snapshot``
+only preserves audit history; it does not promote observed bytes. Consequently,
+C0 -> C1 -> C2 -> C0 must emit for C1/C2 and suppress the return to C0.
 
-EL PROBLEMA QUE RESUELVE
-------------------------
-La nota del ítem 9 conjetura que "una reversión al contenido vigente no es una
-violación de integridad y el agente correctamente no reporta". La Batería 5 la
-contradice: 210 cambios repiten un hash previo y sólo 12 quedaron sin evento. Si
-repetir cualquier hash anterior bastara para suprimir, esos 210 habrían quedado
-todos sin evento.
+The JSONL manifest contains hashes and paths only—never file contents or secrets.
+Start the agent with the same run id and append-only trace destination:
 
-La distinción real —y la que esta batería mide— es entre:
+    RUN_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+    FIM_EXPERIMENT_RUN_ID="$RUN_ID" \\
+    FIM_EXPERIMENT_TRACE_FILE="/evidence/$RUN_ID/agent_trace.jsonl" \\
+      docker compose --profile app up agent
+    python3 scripts/bateria_reversion.py --dir fim-watch --run-id "$RUN_ID" \\
+      --salida "docs/cierre/evidencia/$RUN_ID"
 
-  (a) "el contenido repite CUALQUIER hash anterior del archivo", y
-  (b) "el contenido coincide con el hash que el agente tiene HOY en su baseline".
+The compose mount maps ``./docs/cierre/evidencia`` to ``/evidence``. The trace
+path is therefore valid inside the container and the host writes operations in the
+same controlled, unique run directory.
 
-El código dice (b). `agent/detector.py:460` toma `previous_hash` de la baseline
-(`entry.hash`), no de un histórico, y suprime en `:640` sólo si el hash actual
-coincide con ése. Y hay un detalle decisivo: tras emitir un evento de modificación
-el agente **actualiza la baseline** (`agent/detector.py:611-613`), aunque nadie
-haya aprobado nada. La baseline se mueve sola.
-
-Consecuencia, que es lo que esta batería verifica empíricamente: revertir un
-archivo a su contenido ORIGINAL **sí se detecta**, porque para cuando se revierte
-la baseline ya no es el original — es el contenido intermedio.
-
-LOS CASOS
----------
-  Caso A (supresión)   escribir los MISMOS bytes que ya tiene la baseline.
-                       El agente hashea y encuentra el hash vigente.
-                       ESPERADO: ningún evento. El `CLOSE_WRITE` se emite, pero
-                       `_process_event` descarta por `discard_no_real_change`.
-
-  Caso B (reversión)   C0 (baseline) → C1, esperar → volver a C0.
-                       Cuando se revierte, la baseline ya es C1, así que C0 es
-                       una divergencia.
-                       ESPERADO: evento con el hash de C0.
-                       Este caso es el que refuta la conjetura del ítem 9.
-
-  Caso C (testigo)     C0 (baseline) → contenido nuevo, nunca visto.
-                       ESPERADO: evento. Es el corte de validez de la corrida.
-
-CÓMO SE LEE EL RESULTADO
-------------------------
-  A sin evento  +  B detectado  → la regla es (b): coincidencia con la baseline
-                                  vigente. La conjetura del ítem 9 es FALSA tal
-                                  como está redactada, y los 7 sin evento hay que
-                                  explicarlos por otra vía (p. ej. dos eventos
-                                  para un mismo contenido final).
-  A sin evento  +  B sin evento → la regla sería (a). Contradiría al código y a
-                                  la Batería 5; habría que revisar las tres cosas
-                                  antes de escribir nada en el capítulo.
-
-El caso B es el que carga el resultado. Sin él, un cero en A no distingue entre
-las dos hipótesis: las dos predicen que A no genera evento.
-
-TIEMPOS
--------
-`--espera-evento` (default 5 s) tiene que ser holgadamente mayor que la latencia
-de detección para que la baseline ya se haya actualizado antes de la operación
-siguiente. La Batería 8 midió una mediana de 9,5 ms, así que 5 s es de sobra;
-bajarlo por debajo de ~1 s vuelve el resultado una carrera y no una medición.
-
-Uso:
-    ./bateria_reversion.py --dir fim-watch --agent-prefix /watch \
-         --repeticiones 10 --salida ./resultados/bateria9
-
-Produce  <salida>/bateria9_cambios.jsonl  y  <salida>/bateria9_manifiesto.json
-con el mismo esquema de campos que generador_carga.py.
-
-El cruce contra la tabla `events` lo hace `analisis_mmap.py` sin modificaciones:
-el caso testigo se llama `C_escritura_convencional` a propósito, que es el nombre
-que su corte de validez espera.
-
-    # El servicio `db` del compose no publica el 5432 al host: usar la IP del
-    # contenedor (docker inspect tesis-fim-serio-db-1), no localhost.
-    export DATABASE_URL='postgresql://fim:...@<ip-del-contenedor>:5432/fim'
-    python3 scripts/analisis_mmap.py \
-        --jsonl  resultados/bateria9/bateria9_cambios.jsonl \
-        --salida resultados/bateria9/bateria9_correlacion.csv
+Then correlate local stages, ACKs, and backend persistence with
+``scripts/analisis_ausencias.py``. This tool does not start Docker or the agent.
 """
 from __future__ import annotations
 
@@ -88,16 +28,18 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 RELLENO = b"\x00" * 4076
-
-CONTENIDO_BASE = b"integridad-original-" + RELLENO  # C0 — el que va a baseline
-CONTENIDO_INTERMEDIO = b"integridad-intermedia" + RELLENO[:-1]  # C1
-CONTENIDO_NUEVO = b"integridad-nueva-xyz" + RELLENO  # C2 — nunca visto
+C0 = b"integridad-aprobada-" + RELLENO
+C1 = b"integridad-observada-uno-" + RELLENO[:-4]
+C2 = b"integridad-observada-dos-" + RELLENO[:-4]
+EPHEMERAL = b"integridad-efimera-" + RELLENO
 
 
 def iso_utc(epoch: float) -> str:
@@ -105,204 +47,249 @@ def iso_utc(epoch: float) -> str:
 
 
 def sha256_file(path: Path) -> str | None:
-    # OSError y no FileNotFoundError: un PermissionError o un EIO acá no debe
-    # abortar la corrida ni perder el manifiesto — se registra hash nulo y sigue.
     try:
-        h = hashlib.sha256()
-        with path.open("rb") as f:
-            while chunk := f.read(65536):
-                h.update(chunk)
-        return h.hexdigest()
+        digest = hashlib.sha256()
+        with path.open("rb") as fh:
+            for chunk in iter(lambda: fh.read(65536), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
     except OSError:
         return None
 
 
-def escribir(path: Path, datos: bytes) -> None:
-    """open/write/close convencional — una sola operación lógica, un CLOSE_WRITE."""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+def safe_run_slug(run_id: str) -> str:
+    """Validate the correlation id and derive a filesystem-safe opaque slug."""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", run_id):
+        raise ValueError("run_id must use only letters, numbers, underscores and hyphens")
+    return hashlib.sha256(run_id.encode("utf-8")).hexdigest()[:16]
+
+
+def scoped_run_path(directory: Path, kind: str, run_slug: str, repetition: int) -> Path:
+    """Construct one experiment path and prove it cannot escape --dir."""
+    root = directory.resolve()
+    candidate = (root / f"{kind}_{run_slug}_{repetition:03d}.bin").resolve()
+    if not candidate.is_relative_to(root):
+        raise ValueError("experiment path escapes --dir")
+    return candidate
+
+
+def write_bytes(path: Path, content: bytes) -> None:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
-        os.write(fd, datos)
+        os.write(fd, content)
     finally:
         os.close(fd)
 
 
-def caso_a_reescritura_identica(path: Path, espera: float) -> None:
-    """Reescribe el contenido que la baseline ya tiene. No hay divergencia."""
-    escribir(path, CONTENIDO_BASE)
+def append_record(
+    sink: Any,
+    records: list[dict[str, Any]],
+    *,
+    run_id: str,
+    seq: int,
+    case: str,
+    operation: str,
+    host_path: Path,
+    agent_path: str,
+    before_hash: str | None,
+    after_hash: str | None,
+    expected: bool | None,
+    content_size: int | None,
+    started_epoch: float,
+    started_monotonic_ns: int,
+    completed_epoch: float,
+    completed_monotonic_ns: int,
+    error: str | None = None,
+) -> None:
+    record = {
+        "schema_version": 2,
+        "run_id": run_id,
+        "seq": seq,
+        "operation_id": f"{run_id}:{seq}",
+        "case": case,
+        "operation": operation,
+        "ruta_host": str(host_path),
+        "ruta_agente": agent_path,
+        # Compatibility aliases point at the start boundary, never after the mutation.
+        "ts_utc": iso_utc(started_epoch),
+        "ts_epoch": started_epoch,
+        "started_epoch": started_epoch,
+        "started_monotonic_ns": started_monotonic_ns,
+        "completed_epoch": completed_epoch,
+        "completed_monotonic_ns": completed_monotonic_ns,
+        "hash_antes": before_hash,
+        "hash_despues": after_hash,
+        "bytes": content_size,
+        # None means the ephemeral observation is intentionally experimental;
+        # it is not silently counted as a successful or failed assertion.
+        "deteccion_agente_esperada": expected,
+        "error": error,
+    }
+    records.append(record)
+    sink.write(json.dumps(record, ensure_ascii=False) + "\n")
+    sink.flush()
 
 
-def caso_b_revierte_al_original(path: Path, espera: float) -> None:
-    """C0 → C1 (la baseline pasa a C1) → C0. La vuelta es una divergencia."""
-    escribir(path, CONTENIDO_INTERMEDIO)
-    time.sleep(espera)  # que el agente detecte C1 y mueva la baseline a C1
-    escribir(path, CONTENIDO_BASE)
+def wait(seconds: float) -> None:
+    if seconds:
+        time.sleep(seconds)
 
 
-def caso_c_escritura_convencional(path: Path, espera: float) -> None:
-    """Contenido nuevo, nunca visto. Testigo de validez."""
-    escribir(path, CONTENIDO_NUEVO)
+def _operation_started() -> tuple[float, int]:
+    return time.time(), time.monotonic_ns()
 
 
-# El valor es (función, detección esperada del ÚLTIMO cambio de la secuencia).
-CASOS = {
-    "A_reescritura_identica": (caso_a_reescritura_identica, False),
-    "B_revierte_al_original": (caso_b_revierte_al_original, True),
-    "C_escritura_convencional": (caso_c_escritura_convencional, True),
-}
+def _operation_completed() -> tuple[float, int]:
+    return time.time(), time.monotonic_ns()
 
-# Contenido final de cada caso — el que el evento debería reportar si detecta.
-CONTENIDO_FINAL = {
-    "A_reescritura_identica": CONTENIDO_BASE,
-    "B_revierte_al_original": CONTENIDO_BASE,
-    "C_escritura_convencional": CONTENIDO_NUEVO,
-}
 
+def run_approved_sequence(
+    path: Path, agent_path: str, sink: Any, records: list[dict[str, Any]],
+    *, run_id: str, seq: int, baseline_wait: float, event_wait: float,
+) -> int:
+    """C0 baseline -> C1 -> C2 -> C0; only the last operation is suppressed."""
+    write_bytes(path, C0)
+    wait(baseline_wait)
+    previous = sha256_file(path)
+    for content, name, expected in (
+        (C1, "B_sucesivo_c1", True),
+        (C2, "B_sucesivo_c2", True),
+        (C0, "B_retorno_baseline_aprobada", False),
+    ):
+        started_epoch, started_monotonic_ns = _operation_started()
+        try:
+            write_bytes(path, content)
+            error = None
+        except OSError as exc:
+            error = type(exc).__name__
+        completed_epoch, completed_monotonic_ns = _operation_completed()
+        after = sha256_file(path)
+        append_record(sink, records, run_id=run_id, seq=seq, case=name, operation="modify",
+                      host_path=path, agent_path=agent_path, before_hash=previous, after_hash=after,
+                      expected=expected, content_size=len(content), started_epoch=started_epoch,
+                      started_monotonic_ns=started_monotonic_ns, completed_epoch=completed_epoch,
+                      completed_monotonic_ns=completed_monotonic_ns, error=error)
+        seq += 1
+        previous = after
+        wait(event_wait)
+    return seq
+
+
+def run_create_delete(
+    path: Path, agent_path: str, sink: Any, records: list[dict[str, Any]],
+    *, run_id: str, seq: int, event_wait: float,
+) -> int:
+    started_epoch, started_monotonic_ns = _operation_started()
+    write_bytes(path, C1)
+    completed_epoch, completed_monotonic_ns = _operation_completed()
+    append_record(sink, records, run_id=run_id, seq=seq, case="C_create", operation="create",
+                  host_path=path, agent_path=agent_path, before_hash=None, after_hash=sha256_file(path),
+                  expected=True, content_size=len(C1), started_epoch=started_epoch,
+                  started_monotonic_ns=started_monotonic_ns, completed_epoch=completed_epoch,
+                  completed_monotonic_ns=completed_monotonic_ns)
+    seq += 1
+    wait(event_wait)
+    before = sha256_file(path)
+    started_epoch, started_monotonic_ns = _operation_started()
+    path.unlink()
+    completed_epoch, completed_monotonic_ns = _operation_completed()
+    append_record(sink, records, run_id=run_id, seq=seq, case="C_delete", operation="delete",
+                  host_path=path, agent_path=agent_path, before_hash=before, after_hash=None,
+                  expected=True, content_size=None, started_epoch=started_epoch,
+                  started_monotonic_ns=started_monotonic_ns, completed_epoch=completed_epoch,
+                  completed_monotonic_ns=completed_monotonic_ns)
+    return seq + 1
+
+
+def run_ephemeral(
+    path: Path, agent_path: str, sink: Any, records: list[dict[str, Any]],
+    *, run_id: str, seq: int,
+) -> int:
+    """Create/write/delete without wait; its full stage sequence stays in one slot."""
+    started_epoch, started_monotonic_ns = _operation_started()
+    write_bytes(path, EPHEMERAL)
+    before_delete = sha256_file(path)
+    path.unlink()
+    completed_epoch, completed_monotonic_ns = _operation_completed()
+    append_record(sink, records, run_id=run_id, seq=seq, case="D_ephemeral", operation="ephemeral",
+                  host_path=path, agent_path=agent_path, before_hash=None, after_hash=None,
+                  expected=None, content_size=len(EPHEMERAL), started_epoch=started_epoch,
+                  started_monotonic_ns=started_monotonic_ns, completed_epoch=completed_epoch,
+                  completed_monotonic_ns=completed_monotonic_ns,
+                  error=None if before_delete else "write_unreadable")
+    return seq + 1
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dir", required=True, type=Path, help="Directorio monitoreado por el agente")
-    ap.add_argument("--repeticiones", type=int, default=10, help="Repeticiones por caso (default 10)")
-    ap.add_argument("--espera-baseline", type=float, default=5.0,
-                    help="Segundos tras crear el archivo, para que el agente lo incorpore")
-    ap.add_argument("--espera-evento", type=float, default=5.0,
-                    help="Segundos entre cambios y tras cada operación. Debe superar holgadamente "
-                         "la latencia de detección (Batería 8: mediana 9,5 ms)")
-    ap.add_argument("--salida", type=Path, default=Path("./resultados/bateria9"))
-    ap.add_argument("--agent-prefix", default=None,
-                    help="Prefijo de ruta tal como lo ve el agente (default: --dir)")
-    ap.add_argument("--dry-run", action="store_true")
-    args = ap.parse_args(argv)
-
-    if not args.dir.is_dir():
-        print(f"ERROR: {args.dir} no existe o no es un directorio")
-        return 2
-    if args.espera_evento < 1.0:
-        print(f"ERROR: --espera-evento {args.espera_evento}s es demasiado corto. Por debajo de 1 s "
-              "el caso B mide una carrera contra el pipeline del agente, no la regla de supresión.")
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--dir", required=True, type=Path)
+    parser.add_argument("--repeticiones", type=int, default=10)
+    parser.add_argument("--espera-baseline", type=float, default=5.0)
+    parser.add_argument("--espera-evento", type=float, default=5.0)
+    parser.add_argument("--salida", type=Path, default=Path("resultados/bateria9"))
+    parser.add_argument("--agent-prefix", default=None)
+    parser.add_argument("--run-id", default=None, help="Must match FIM_EXPERIMENT_RUN_ID in the agent")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args(argv)
+    if not args.dir.is_dir() or args.repeticiones < 1 or min(args.espera_baseline, args.espera_evento) < 0:
+        print("ERROR: --dir must exist, --repeticiones must be positive, waits cannot be negative")
         return 2
 
-    prefijo = (args.agent_prefix or str(args.dir)).rstrip("/")
+    run_id = args.run_id or str(uuid.uuid4())
+    try:
+        run_slug = safe_run_slug(run_id)
+    except ValueError as exc:
+        print(f"ERROR: invalid --run-id: {exc}")
+        return 2
+    prefix = (args.agent_prefix or str(args.dir)).rstrip("/")
     args.salida.mkdir(parents=True, exist_ok=True)
-
-    plan = [(nombre, i + 1) for nombre in CASOS for i in range(args.repeticiones)]
-    print(f"Plan: {len(plan)} operaciones ({args.repeticiones} por caso, {len(CASOS)} casos)")
+    jsonl_path = args.salida / "bateria9_operaciones.jsonl"
+    manifest_path = args.salida / f"bateria9_manifiesto_{run_slug}.json"
+    if jsonl_path.exists():
+        existing_runs = {
+            json.loads(line).get("run_id") for line in jsonl_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        if run_id in existing_runs:
+            print(f"ERROR: run_id {run_id!r} already exists in {jsonl_path}; choose a new run id.")
+            return 2
+    if manifest_path.exists():
+        print(f"ERROR: manifest already exists for run_id {run_id!r}: {manifest_path}")
+        return 2
+    plan_count = args.repeticiones * 6
+    print(f"run_id={run_id}; plan={plan_count} operaciones (3 sucesivas + create/delete + efímera por repetición)")
     if args.dry_run:
-        for nombre, rep in plan[:12]:
-            print(f"  {nombre} #{rep}")
-        print("--dry-run: no se tocó el filesystem.")
+        print("--dry-run: no filesystem mutation. Export this run id before starting the agent.")
         return 0
 
-    inicio = time.time()
-    cambios: list[dict[str, Any]] = []
-    jsonl_path = args.salida / "bateria9_cambios.jsonl"
+    started = time.time()
+    records: list[dict[str, Any]] = []
+    seq = 1
+    # Append only: each run is retained in the shared operations evidence file.
+    with jsonl_path.open("a", encoding="utf-8") as sink:
+        for rep in range(1, args.repeticiones + 1):
+            baseline_path = scoped_run_path(args.dir, "baseline", run_slug, rep)
+            lifecycle_path = scoped_run_path(args.dir, "lifecycle", run_slug, rep)
+            ephemeral_path = scoped_run_path(args.dir, "ephemeral", run_slug, rep)
+            seq = run_approved_sequence(baseline_path, f"{prefix}/{baseline_path.name}", sink, records,
+                                        run_id=run_id, seq=seq, baseline_wait=args.espera_baseline, event_wait=args.espera_evento)
+            seq = run_create_delete(lifecycle_path, f"{prefix}/{lifecycle_path.name}", sink, records,
+                                    run_id=run_id, seq=seq, event_wait=args.espera_evento)
+            seq = run_ephemeral(ephemeral_path, f"{prefix}/{ephemeral_path.name}", sink, records,
+                                run_id=run_id, seq=seq)
+            wait(args.espera_evento)
 
-    # `with`: si algo escapa del bucle, el JSONL queda cerrado y el manifiesto
-    # agregado se escribe igual con lo que se alcanzó a medir.
-    with jsonl_path.open("w", encoding="utf-8") as jsonl:
-        for seq, (nombre_caso, rep) in enumerate(plan, start=1):
-            fn, deteccion_esperada = CASOS[nombre_caso]
-            rel = f"rev_{nombre_caso}_{rep:03d}.bin"
-            path = args.dir / rel
-
-            escribir(path, CONTENIDO_BASE)
-            hash_baseline = sha256_file(path)
-            time.sleep(args.espera_baseline)  # el agente incorpora el archivo a la baseline
-
-            ts = time.time()
-            error: str | None = None
-            try:
-                fn(path, args.espera_evento)
-            except Exception as exc:  # noqa: BLE001
-                error = f"{type(exc).__name__}: {exc}"
-
-            hash_despues = sha256_file(path)
-            esperado = hashlib.sha256(CONTENIDO_FINAL[nombre_caso]).hexdigest()
-
-            registro = {
-                "seq": seq,
-                "operacion": "modify",
-                "patron": nombre_caso,
-                "grupo": nombre_caso,
-                "ruta_host": str(path),
-                "ruta_relativa": rel,
-                "ruta_agente": f"{prefijo}/{rel}",
-                "ts_utc": iso_utc(ts),
-                "ts_epoch": ts,
-                "hash_antes": hash_baseline,
-                "hash_despues": hash_despues,
-                "bytes": len(CONTENIDO_FINAL[nombre_caso]),
-                # En A y B el contenido final ES el de la baseline inicial, así que
-                # `modificacion_efectiva` es False respecto del arranque. Eso es
-                # correcto y no invalida nada: lo que se mide es si el agente
-                # reporta el ÚLTIMO cambio, no si el archivo terminó distinto.
-                "modificacion_efectiva": hash_baseline != hash_despues,
-                "contenido_final_esperado": esperado,
-                "coincide_contenido_esperado": hash_despues == esperado,
-                "deteccion_agente_esperada": deteccion_esperada,
-                "error": error,
-            }
-            cambios.append(registro)
-            jsonl.write(json.dumps(registro, ensure_ascii=False) + "\n")
-            jsonl.flush()
-
-            marca = "!" if error or not registro["coincide_contenido_esperado"] else " "
-            print(f"{marca}[{seq:04d}/{len(plan)}] {nombre_caso:26} {rel} "
-                  f"contenido_ok={registro['coincide_contenido_esperado']} "
-                  f"esperado={deteccion_esperada}")
-
-            time.sleep(args.espera_evento)
-
-    fin = time.time()
-
-    por_caso: dict[str, dict[str, Any]] = {}
-    for c in cambios:
-        d = por_caso.setdefault(c["patron"], {"n": 0, "contenido_ok": 0, "errores": 0})
-        d["n"] += 1
-        d["contenido_ok"] += int(bool(c["coincide_contenido_esperado"]))
-        d["errores"] += int(bool(c["error"]))
-
-    manifiesto = {
-        "version_manifiesto": 1,
-        "bateria": 9,
-        "titulo": "Reversion al contenido vigente vs. repeticion de un hash anterior",
-        "config": {
-            "dir": str(args.dir),
-            "agent_prefix": prefijo,
-            "repeticiones": args.repeticiones,
-            "espera_baseline_s": args.espera_baseline,
-            "espera_evento_s": args.espera_evento,
-            "kernel": os.uname().release,
-        },
-        "inicio_utc": iso_utc(inicio),
-        "fin_utc": iso_utc(fin),
-        "resumen": {"cambios_registrados": len(cambios), "por_caso": por_caso},
-        "cambios": cambios,
+    manifest = {
+        "schema_version": 2, "bateria": 9, "run_id": run_id,
+        "title": "Baseline approved fixed: sequences, return, create/delete and ephemeral",
+        "started_utc": iso_utc(started), "finished_utc": iso_utc(time.time()),
+        "kernel": os.uname().release,
+        "baseline_revision": "not_available; active baseline identified by status+hash",
+        "operations": records,
     }
-    manifiesto_path = args.salida / "bateria9_manifiesto.json"
-    manifiesto_path.write_text(json.dumps(manifiesto, indent=2, ensure_ascii=False), encoding="utf-8")
-
-    print(f"\nJSONL:      {jsonl_path}")
-    print(f"Manifiesto: {manifiesto_path}")
-
-    incoherentes = [c for c in cambios if not c["coincide_contenido_esperado"]]
-    if incoherentes:
-        print(f"\nAVISO: {len(incoherentes)} operaciones no dejaron el contenido esperado. "
-              "La instrumentación falló; no correlacionar hasta entender por qué.")
-
-    print("\nCruzar con analisis_mmap.py (el testigo se llama C_escritura_convencional,")
-    print("que es el nombre que su corte de validez espera):")
-    print("  python3 scripts/analisis_mmap.py \\")
-    print(f"      --jsonl  {jsonl_path} \\")
-    print(f"      --salida {args.salida / 'bateria9_correlacion.csv'}")
-    print("\nLectura del resultado:")
-    print("  - Caso A sin evento + caso B detectado → la supresión es por coincidencia")
-    print("    con la baseline VIGENTE. La conjetura del ítem 9 queda refutada.")
-    print("  - Caso A sin evento + caso B sin evento → la supresión sería por repetir")
-    print("    cualquier hash anterior. Contradice al código y a la Batería 5: revisar")
-    print("    las tres cosas antes de escribir nada en el capítulo.")
-    print("\nSi el caso C no produce eventos, la corrida NO es válida: el agente no")
-    print("estaba monitoreando el directorio o no estaba corriendo.")
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"Operations: {jsonl_path}\nManifest: {manifest_path}")
+    print("Correlate: python3 scripts/analisis_ausencias.py --operaciones "
+          f"{jsonl_path} --traza {args.salida / 'agent_trace.jsonl'} --database-url \"$DATABASE_URL\"")
     return 0
 
 

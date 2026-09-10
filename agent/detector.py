@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from agent.experiment_trace import ExperimentTrace
+
 if TYPE_CHECKING:
     from agent.baseline import BaselineEngine
     from agent.decision import DecisionEngine
@@ -268,6 +270,7 @@ class FanotifyDetector:
         publisher: "Publisher",
         stop_event: asyncio.Event,
         decision_engine: "DecisionEngine | None" = None,
+        experiment_trace: ExperimentTrace | None = None,
     ) -> None:
         self._agent_id = agent_id
         self._watch_paths = list(watch_paths)
@@ -278,6 +281,8 @@ class FanotifyDetector:
         self._publisher = publisher
         self._stop_event = stop_event
         self._decision_engine = decision_engine
+        # Opt-in experimental evidence only; this object never influences detection.
+        self._experiment_trace = experiment_trace or ExperimentTrace.from_environment()
         self._fan: Any = None
         self._raw_queue: asyncio.Queue[FanotifyEvent | None] = asyncio.Queue(maxsize=1000)
         self._event_drops: int = 0
@@ -287,6 +292,43 @@ class FanotifyDetector:
         self._event_to_path: dict[str, str] = {}    # event_id → path (índice inverso para ack O(1))
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
+
+    def _trace_record(self, stage: str, **fields: Any) -> None:
+        """Write best-effort experimental evidence without changing the pipeline."""
+        try:
+            self._experiment_trace.record(stage, **fields)
+        except Exception:
+            # A malformed or unavailable experiment trace must never create a
+            # business outcome, a dropped event, or a failed publication.
+            return
+
+    def _trace_change_created(
+        self, change: DetectedChange, baseline_status: str | None
+    ) -> None:
+        self._trace_record(
+            "change_classified",
+            event_id=change.event_id,
+            path=change.path,
+            operation=change.operation_type,
+            hash_before=change.hash_expected,
+            hash_after=change.hash_detected,
+            baseline_status=baseline_status,
+            baseline_hash=change.hash_expected,
+            outcome="classified",
+        )
+
+    def _trace_decision(self, change: DetectedChange, payload: dict[str, Any]) -> None:
+        self._trace_record(
+            "decision_evaluated",
+            event_id=change.event_id,
+            path=change.path,
+            operation=change.operation_type,
+            hash_before=change.hash_expected,
+            hash_after=change.hash_detected,
+            decision=payload.get("action") or "alert_only",
+            reason=payload.get("action_error") or "rule_evaluated",
+            outcome="decision_complete",
+        )
 
     # ── Backend fanotify (métodos aislados para poder mockear en tests) ────────
 
@@ -396,6 +438,7 @@ class FanotifyDetector:
                 if self._stop_event.is_set():
                     break
                 if ev.path is None:
+                    self._trace_record("kernel_dropped", operation="kernel", reason="null_path", outcome="dropped")
                     log.warning("detector.event_null_path", pid=ev.pid)
                     continue
                 if not _path_location_in_scope(ev.path, self._watch_paths_real):
@@ -406,6 +449,16 @@ class FanotifyDetector:
                         total_drops=self._out_of_scope_drops,
                     )
                     continue
+                # Trace only in-scope kernel events. The fanotify mark covers the
+                # whole filesystem, so tracing an out-of-scope write to the trace
+                # file itself would create a self-amplifying event loop.
+                self._trace_record(
+                    "kernel_received",
+                    path=ev.path,
+                    operation="kernel",
+                    kernel_event=self._classify_event(getattr(ev, "mask", 0)) or "unclassified",
+                    outcome="received",
+                )
                 fan_event = FanotifyEvent(
                     path=ev.path,
                     pid=ev.pid,
@@ -422,6 +475,7 @@ class FanotifyDetector:
             self._raw_queue.put_nowait(fan_event)
         except asyncio.QueueFull:
             self._event_drops += 1
+            self._trace_record("kernel_dropped", path=fan_event.path, operation="kernel", reason="raw_queue_full", outcome="dropped", queue_size=self._raw_queue.qsize())
             log.warning(
                 "detector.event_dropped",
                 path=fan_event.path,
@@ -475,6 +529,15 @@ class FanotifyDetector:
             return  # suppress agent-internal atomic write tmp files (D19)
         entry = self._baseline.read_entry(path)
         previous_hash = entry.hash if entry else None
+        self._trace_record(
+            "baseline_read",
+            path=path,
+            operation="process",
+            baseline_status=entry.status if entry else "missing",
+            baseline_hash=previous_hash,
+            baseline_revision="unversioned_hash_status",
+            outcome="read",
+        )
         # D33/RN-127: una entry con symlink_target indica que el path YA ERA un
         # symlink en el baseline. Se usa en el borrado (donde el path ya no existe
         # y no se puede volver a hacer lstat/readlink).
@@ -508,6 +571,7 @@ class FanotifyDetector:
                 is_symlink=was_symlink,
                 symlink_target=previous_symlink_target,
             )
+            self._trace_change_created(change, entry.status if entry else "missing")
             # BUG-01 (D14): evaluate FIRST so auto_restore can read baseline content;
             # only mutate baseline AFTER the decision is made.
             if self._decision_engine is not None:
@@ -519,6 +583,7 @@ class FanotifyDetector:
                 commit_fn = None
                 action = None
                 action_failed = False
+            self._trace_decision(change, enriched_payload)
             if action == "auto_restore" and not action_failed:
                 # File was restored — re-record as present/known-good.
                 # D33/RN-127: auto_restore nunca tiene éxito sobre un symlink
@@ -610,6 +675,7 @@ class FanotifyDetector:
                 is_symlink=is_symlink,
                 symlink_target=symlink_target,
             )
+            self._trace_change_created(change, entry.status if entry else "missing")
             # BUG-02 (D14): evaluate FIRST so quarantine can act on the file before
             # the baseline records it as present.
             if self._decision_engine is not None:
@@ -621,6 +687,7 @@ class FanotifyDetector:
                 commit_fn = None
                 action = None
                 action_failed = False
+            self._trace_decision(change, enriched_payload)
             if action == "quarantine" and not action_failed:
                 # File was quarantined — record as absent (file was moved away)
                 self._baseline.mark_absent(path)
@@ -655,6 +722,18 @@ class FanotifyDetector:
 
         # Descartar si el contenido no cambió
         if current_hash is not None and current_hash == previous_hash:
+            self._trace_record(
+                "decision_suppressed",
+                path=path,
+                operation=event_class or "close_write",
+                baseline_status=entry.status if entry else "missing",
+                baseline_hash=previous_hash,
+                hash_before=previous_hash,
+                hash_after=current_hash,
+                decision="suppress",
+                reason="matches_active_baseline",
+                outcome="dropped",
+            )
             return
 
         if current_hash is None:
@@ -716,6 +795,7 @@ class FanotifyDetector:
             is_symlink=is_symlink,
             symlink_target=symlink_target,
         )
+        self._trace_change_created(change, entry.status if entry else "missing")
 
         # Motor de decisión evalúa y actúa ANTES de actualizar el baseline,
         # para que auto_restore pueda leer el content_b64 anterior (RN-30).
@@ -728,6 +808,7 @@ class FanotifyDetector:
             commit_fn = None
             action = None
             action_failed = False
+        self._trace_decision(change, enriched_payload)
 
         # Actualizar baseline según resultado de la acción
         if event_type == "file_absent":

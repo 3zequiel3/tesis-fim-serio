@@ -298,11 +298,16 @@ def test_event_outside_watch_path_is_dropped_and_counted(tmp_path: Path) -> None
     outside_dir = tmp_path / "outside"
     outside_dir.mkdir()
     detector = _make_scope_detector(watch_dir)
+    detector._experiment_trace = MagicMock()
 
     _run_read_loop_once(detector, [_make_raw_event(str(outside_dir / "file.txt"))])
 
     assert detector._raw_queue.qsize() == 0
     assert detector.out_of_scope_drops == 1
+    # An experiment trace commonly lives outside /watch on the same filesystem.
+    # Tracing that out-of-scope write would recursively generate more fanotify
+    # events and amplify forever.
+    detector._experiment_trace.record.assert_not_called()
 
 
 def test_in_scope_event_does_not_touch_counter(tmp_path: Path) -> None:

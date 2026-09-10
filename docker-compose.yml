@@ -210,6 +210,10 @@ services:
       # Secreto de un solo uso del bootstrap mTLS. Debe coincidir con el usado
       # al registrar el agente (scripts/setup-agent.sh).
       FIM_BOOTSTRAP_SECRET: ${FIM_BOOTSTRAP_SECRET:-docker-bootstrap-secret}
+      # Opt-in experimental trace. Both values must be set for tracing; the
+      # container path below is intentionally backed by controlled host evidence.
+      FIM_EXPERIMENT_RUN_ID: ${FIM_EXPERIMENT_RUN_ID:-}
+      FIM_EXPERIMENT_TRACE_FILE: ${FIM_EXPERIMENT_TRACE_FILE:-}
     volumes:
       # Directorio vigilado — editá archivos acá para disparar eventos.
       - ./fim-watch:/watch
@@ -219,5 +223,8 @@ services:
       - agent_state:/var/lib/fim-agent
       # Config del agente.
       - ./agent/deploy/config.yaml.docker:/etc/fim-agent/config.yaml:ro
+      # Opt-in experimental evidence. Use /evidence/<unique-run>/agent_trace.jsonl,
+      # never a host-only path, when FIM_EXPERIMENT_TRACE_FILE is enabled.
+      - ./docs/cierre/evidencia:/evidence
     networks:
       - fim_internal
