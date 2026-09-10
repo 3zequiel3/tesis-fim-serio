@@ -129,6 +129,15 @@ backend/.venv/bin/pytest agent/tests -q \
 
 El reporte debe indicar statements/branches, denominador, exclusiones, versión de coverage y commit. Las dos pruebas opt-in de rate limiting requieren un Valkey real accesible; cualquier omisión debe declararse.
 
+### Verificaciones dirigidas incorporadas después del coverage
+
+Los commits `b70934d` + `b8e9513` corrigen atribución y eventos sin ruta;
+`8d37075` liga la baseline aprobada al evento; y `965dcac` reduce de 8 a 5
+sentencias SQL por evento. La verificación registrada para la última unidad fue
+de **32 pruebas dirigidas PASS**. Para una nueva evaluación, ejecutar los tests
+desde un snapshot limpio del commit correspondiente y conservar su JUnit; no
+sumar ese conteo a Run 3 ni atribuirlo a una suite consolidada de HEAD.
+
 ## 8. Reproducir US-09 sobre snapshot limpio
 
 Los commits funcionales son `8039624` y `f08626a`. En un worktree temporal creado desde `f08626a`:
@@ -294,7 +303,7 @@ ni sumar los intentos inválidos conservados en
 La referencia final es
 `docs/cierre/evidencia/drenaje-20260910-run4-unit1/`: 3.000/3.000 eventos,
 0 rechazos, 0 duplicados, 3.000 `XADD`/lecturas/HMAC/commits/`XACK`/`event_ack`,
-cola final 0 y **29,146 s (102,929 eventos/s)**. **CUMPLE** el umbral original
+cola final 0 y **29,146335596 s (102,928891 eventos/s)**. **CUMPLE** el umbral original
 `<30 s` bajo estas condiciones. Run 3 (51,773 s) se conserva como resultado
 intermedio y 32,358 s se identifica como proyección previa, nunca medición.
 
@@ -308,6 +317,12 @@ docker run -d --rm --name fim-drain-run4-postgres \
 docker run -d --rm --name fim-drain-run4-valkey \
   -p 127.0.0.1:56380:6379 valkey/valkey:9.0.3
 
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-drain-run4-repeat"
+RUN4_DIR="docs/cierre/evidencia/$RUN_ID"
+mkdir -p "$RUN4_DIR"
+cp docs/cierre/evidencia/drenaje-20260910-run4-unit1/run_profile.py \
+  "$RUN4_DIR/run_profile.py"
+
 until docker exec fim-drain-run4-postgres pg_isready -U fim -d fim_drain; do sleep 1; done
 until docker exec fim-drain-run4-valkey valkey-cli ping | grep -q PONG; do sleep 1; done
 
@@ -317,9 +332,8 @@ env PYTHONPATH=backend:. \
   JWT_SECRET_CURRENT=controlled-not-a-production-secret \
   RATE_LIMIT_INGEST_EVENTS=100000 \
   RATE_LIMIT_INGEST_WINDOW_SECONDS=60 \
-  backend/.venv/bin/python \
-    docs/cierre/evidencia/drenaje-20260910-run4-unit1/run_profile.py \
-  | tee docs/cierre/evidencia/drenaje-20260910-run4-unit1/stdout.log
+  backend/.venv/bin/python "$RUN4_DIR/run_profile.py" \
+  | tee "$RUN4_DIR/stdout.log"
 
 docker stop fim-drain-run4-postgres fim-drain-run4-valkey
 ```
@@ -341,7 +355,7 @@ Contraste histórico, sin reemplazar los datos originales:
 
 - B5: 2.988 eventos en 153 s, 19,529 eventos/s;
 - Run 3: 3.000 eventos en 51,773 s, 57,945 eventos/s (**NO CUMPLE**);
-- Run 4: 3.000 eventos en 29,146 s, 102,929 eventos/s (**CUMPLE**);
+- Run 4: 3.000 eventos en 29,146335596 s, 102,928891 eventos/s (**CUMPLE**);
 - criterio original: `<30 s`; para 3.000 exige más de 100 eventos/s.
 
 Una repetición crea una evaluación nueva: no sobrescribir `stdout.log`,
