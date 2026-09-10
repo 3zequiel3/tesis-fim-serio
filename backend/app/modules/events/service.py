@@ -7,8 +7,8 @@ Reutilizable por el consumer Valkey y el HTTP handler de approve/reject (C13).
 
 from __future__ import annotations
 
-import re
 import asyncio
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -72,7 +72,6 @@ def _bounded_diff_text(value: Any) -> str | None:
     marker = _DIFF_TRUNCATION_MARKER.encode("utf-8")
     prefix = encoded[: _MAX_DIFF_TEXT_BYTES - len(marker)].decode("utf-8", errors="ignore")
     return prefix + _DIFF_TRUNCATION_MARKER
-log = structlog.get_logger()
 
 TERMINAL_STATUSES: frozenset[EventStatus] = frozenset(
     {
@@ -243,6 +242,7 @@ def ingest_event(
         action_error = action_error[:64]
     else:
         action_error = None
+
     hash_expected = event_data.get("hash_expected")
     if isinstance(hash_expected, str):
         hash_expected = hash_expected[:64]

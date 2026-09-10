@@ -19,6 +19,7 @@ vi.mock('@/api/client', () => ({
 function makeEvent(overrides: Partial<EventDetailData> = {}): EventDetailData {
   return {
     id: 42,
+    event_type: 'file_modified',
     path: '/etc/passwd',
     hash_detected: 'deadbeef',
     hash_expected: null,
