@@ -95,6 +95,21 @@ class EventQueue:
         # contadores operativos que el agente expone por heartbeat.
         self._evicted_events = 0
         self._sweep_orphaned_tmp()
+        # Hot-path index built once per process start.  The previous
+        # implementation globbed, parsed and sorted the complete directory in
+        # contains/get_attempts/bump_attempts/remove and queue_size.  Draining
+        # N entries therefore performed O(N²) directory work.
+        files = self._json_files()
+        self._files_by_event_id: dict[str, Path] = {}
+        self._size_bytes = 0
+        for path in files:
+            parts = path.stem.split("_", 1)
+            if len(parts) == 2:
+                self._files_by_event_id[parts[1]] = path
+            try:
+                self._size_bytes += path.stat().st_size
+            except OSError:
+                pass
 
     # ── internals ────────────────────────────────────────────────────────────
 
@@ -131,13 +146,7 @@ class EventQueue:
         )
 
     def _total_bytes(self) -> int:
-        total = 0
-        for f in self._json_files():
-            try:
-                total += f.stat().st_size
-            except OSError:
-                pass
-        return total
+        return self._size_bytes
 
     def _find_file(self, event_id: str) -> Path | None:
         """Ubica el archivo de cola de un event_id por nombre (no por contenido).
@@ -145,10 +154,11 @@ class EventQueue:
         El nombre de archivo tiene formato {ms}_{event_id}.json; separamos en
         el primer guion bajo porque el timestamp no contiene guiones bajos.
         """
-        for f in self._json_files():
-            parts = f.stem.split("_", 1)
-            if len(parts) == 2 and parts[1] == event_id:
-                return f
+        path = self._files_by_event_id.get(event_id)
+        if path is not None and path.exists():
+            return path
+        if path is not None:
+            self._files_by_event_id.pop(event_id, None)
         return None
 
     def _apply_discard_drop_oldest(self) -> None:
@@ -195,7 +205,11 @@ class EventQueue:
                 evicted = files[0]
                 parts = evicted.stem.split("_", 1)
                 evicted_event_id = parts[1] if len(parts) == 2 else None
+                evicted_size = evicted.stat().st_size
                 evicted.unlink()
+                self._size_bytes = max(0, self._size_bytes - evicted_size)
+                if evicted_event_id is not None:
+                    self._files_by_event_id.pop(evicted_event_id, None)
                 self._evicted_events += 1
                 log.warning(
                     "queue.drop_oldest",
@@ -210,6 +224,8 @@ class EventQueue:
 
         final = self._dir / f"{detected_at_ms:016d}_{event_id}.json"
         _atomic_write_json(final, envelope)
+        self._files_by_event_id[event_id] = final
+        self._size_bytes += final.stat().st_size
         return final
 
     def iter_entries(self) -> list[dict[str, Any]]:
@@ -265,7 +281,15 @@ class EventQueue:
         envelope["attempts"] = int(envelope.get("attempts", 0) or 0) + 1
         if not envelope.get("first_attempt_at"):
             envelope["first_attempt_at"] = datetime.now(timezone.utc).isoformat()
+        try:
+            previous_size = f.stat().st_size
+        except OSError:
+            previous_size = 0
         _atomic_write_json(f, envelope)
+        try:
+            self._size_bytes += f.stat().st_size - previous_size
+        except OSError:
+            pass
         return envelope["attempts"]
 
     def discard(self, event_id: str, reason: str) -> bool:
@@ -290,7 +314,10 @@ class EventQueue:
         dest = self._discard_dir / f.name
         _atomic_write_json(dest, envelope)
         try:
+            queued_size = f.stat().st_size
             f.unlink()
+            self._size_bytes = max(0, self._size_bytes - queued_size)
+            self._files_by_event_id.pop(event_id, None)
         except OSError:
             pass
         self._apply_discard_drop_oldest()
@@ -302,7 +329,10 @@ class EventQueue:
         if f is None:
             return False
         try:
+            queued_size = f.stat().st_size
             f.unlink()
+            self._size_bytes = max(0, self._size_bytes - queued_size)
+            self._files_by_event_id.pop(event_id, None)
             return True
         except OSError:
             return False
@@ -310,7 +340,7 @@ class EventQueue:
     @property
     def queue_size(self) -> int:
         """Cantidad de eventos en cola."""
-        return len(self._json_files())
+        return len(self._files_by_event_id)
 
     @property
     def evicted_events(self) -> int:

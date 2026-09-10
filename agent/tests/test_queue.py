@@ -84,6 +84,42 @@ def test_remove_nonexistent_returns_false(queue: EventQueue) -> None:
     assert queue.remove("ghost") is False
 
 
+def test_hot_path_operations_do_not_rescan_the_queue_directory(
+    queue: EventQueue, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ACK and publish bookkeeping must remain O(1) as the queue grows."""
+    queue.enqueue(_make_event("indexed-1"))
+
+    def fail_rescan() -> list[Path]:
+        raise AssertionError("hot path rescanned the complete queue directory")
+
+    monkeypatch.setattr(queue, "_json_files", fail_rescan)
+    queue.enqueue(_make_event("indexed-2"))
+    assert queue.contains("indexed-1")
+    assert queue.bump_attempts("indexed-1") == 1
+    assert queue.get_attempts("indexed-1") == 1
+    assert queue.queue_size == 2
+    assert queue.queue_pressure > 0
+    assert queue.remove("indexed-1")
+    assert queue.queue_size == 1
+
+
+def test_restart_rebuilds_file_and_size_indexes(tmp_path: Path) -> None:
+    queue_dir = tmp_path / "queue"
+    first = EventQueue(queue_dir)
+    first.enqueue(_make_event("survives-restart"))
+    expected_bytes = first._total_bytes()
+
+    restarted = EventQueue(queue_dir)
+
+    assert restarted.contains("survives-restart")
+    assert restarted.queue_size == 1
+    assert restarted._total_bytes() == expected_bytes
+    assert restarted.remove("survives-restart")
+    assert restarted.queue_size == 0
+    assert restarted._total_bytes() == 0
+
+
 # ── drop-oldest a 100 MB ───────────────────────────────────────────────────────
 
 def test_drop_oldest_on_limit(queue: EventQueue) -> None:

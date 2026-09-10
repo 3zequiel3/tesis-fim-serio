@@ -146,6 +146,45 @@ async def test_drain_runs_after_command_flush(
     )
 
 
+@pytest.mark.asyncio
+async def test_ack_listener_runs_concurrently_with_initial_drain(
+    publisher: Publisher,
+) -> None:
+    """A long initial drain must consume ACKs before retry becomes eligible."""
+    ack_started = asyncio.Event()
+    drain_observed_ack = asyncio.Event()
+    stop_event = asyncio.Event()
+    order: list[str] = []
+
+    async def flush_commands() -> None:
+        order.append("flush")
+
+    async def ack_listener(_stop: asyncio.Event) -> None:
+        order.append("ack_listener")
+        ack_started.set()
+        await _stop.wait()
+
+    async def drain_queue() -> None:
+        order.append("drain")
+        await asyncio.wait_for(ack_started.wait(), timeout=0.2)
+        drain_observed_ack.set()
+
+    async def retry_loop(_stop: asyncio.Event) -> None:
+        order.append("retry")
+        _stop.set()
+
+    publisher._flush_commands = flush_commands
+    publisher._ack_listener = ack_listener
+    publisher._drain_queue = drain_queue
+    publisher._retry_loop = retry_loop
+
+    await publisher.run(stop_event)
+
+    assert drain_observed_ack.is_set()
+    assert order[0] == "flush"
+    assert order.index("drain") < order.index("retry")
+
+
 # ── 5.2 Cursor cargado desde estado previo ────────────────────────────────────
 
 

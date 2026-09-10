@@ -148,11 +148,21 @@ class Publisher:
     async def run(self, stop_event: asyncio.Event) -> None:
         """Lanza flush de comandos, drenaje de eventos y listeners; termina cuando stop_event se activa."""
         await self._flush_commands()
-        await self._drain_queue()
-        await asyncio.gather(
-            self._ack_listener(stop_event),
-            self._retry_loop(stop_event),
-        )
+        # Consume acknowledgements while the initial disk queue is being
+        # published. Starting this listener only after _drain_queue meant a
+        # large drain could exceed _ACK_TIMEOUT_S before one ACK was applied;
+        # the subsequent retry loop then republished the whole tail.
+        ack_task = asyncio.create_task(self._ack_listener(stop_event))
+        try:
+            await self._drain_queue()
+            # Keep retries disabled during the initial FIFO drain. Once it
+            # completes, the listener is current and _pending contains only
+            # genuinely unacknowledged entries.
+            await asyncio.gather(ack_task, self._retry_loop(stop_event))
+        finally:
+            if not ack_task.done():
+                ack_task.cancel()
+            await asyncio.gather(ack_task, return_exceptions=True)
 
     async def publish(self, event_data: dict[str, Any]) -> None:
         """Encola y publica un evento. event_data son los campos del cambio detectado.
