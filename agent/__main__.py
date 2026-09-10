@@ -183,6 +183,10 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
 
     master_secret = load_master_secret(cfg.storage.secrets_dir)
     engine = BaselineEngine(cfg, master_secret)
+    from agent.quarantine import QuarantineStore
+
+    quarantine_dir = Path(cfg.storage.journal_dir).parent / "quarantine"
+    quarantine_store = QuarantineStore(quarantine_dir, master_secret, cfg.agent_id)
 
     # D36/RN-130: preflight de escritura por watch_path, DESPUÉS de cargar la
     # config y ANTES del scan inicial, para que el primer heartbeat ya lo
@@ -250,13 +254,13 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     loop.add_signal_handler(signal.SIGTERM, lambda: _shutdown("SIGTERM"))
     loop.add_signal_handler(signal.SIGINT, lambda: _shutdown("SIGINT"))
 
-    quarantine_dir = Path(cfg.storage.journal_dir).parent / "quarantine"
     journal = JournalManager(cfg.storage.journal_dir, shared_secret)
     decision_engine = DecisionEngine(
         rules=rules_cache,
         journal=journal,
         baseline=engine,
         quarantine_dir=quarantine_dir,
+        quarantine_store=quarantine_store,
     )
 
     detector = None
@@ -285,6 +289,7 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
             state=state,
             journal=journal,
             quarantine_dir=str(quarantine_dir),
+            quarantine_store=quarantine_store,
             detector=detector,
             preflight_registry=preflight_registry,
         )

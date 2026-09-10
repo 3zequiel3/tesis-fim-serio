@@ -262,16 +262,18 @@
 ## 8. Cuarentena
 
 ### RN-34: Destino de archivos en cuarentena
-**Descripción:** Los archivos puestos en cuarentena se mueven a un directorio dedicado del agente.
+**Descripción:** Los archivos puestos en cuarentena se conservan como artefactos cifrados en un directorio dedicado del agente.
 **Condición:** Se ejecuta una acción `quarantine` (automática o por rechazo).
-**Resultado:** El archivo se mueve a `/var/lib/fim-agent/quarantine/`.
+**Resultado:** Se crea y verifica un artefacto AES-256-GCM en `/var/lib/fim-agent/quarantine/`; recién después se retira la entrada de origen.
 **Excepciones:** Ninguna.
 
 ### RN-35: Renombrado de archivo en cuarentena
-**Descripción:** Los archivos en cuarentena se renombran para evitar colisiones y mantener trazabilidad.
+**Descripción:** Los artefactos usan identificadores opacos y determinísticos para evitar colisiones sin filtrar la ruta original.
 **Condición:** Se mueve un archivo a cuarentena.
-**Resultado:** El archivo se renombra incluyendo timestamp y hash en el nombre.
+**Resultado:** El nombre deriva de la identidad de acción y ruta; contenido, ruta, hash y metadatos quedan autenticados y cifrados.
 **Excepciones:** Ninguna.
+
+La clave de cuarentena se deriva desde `master_secret` mediante HKDF-SHA256 con dominio `quarantine-v1`; no reutiliza la clave `baseline-v1`. Esto protege una copia aislada de la cuarentena sin el directorio de secretos. No protege una adquisición que incluya `master_secret`, al usuario `root`, la memoria del proceso ni un host activo comprometido.
 
 ### RN-36: Permisos restringidos en cuarentena
 **Descripción:** Los archivos en cuarentena tienen permisos restringidos.

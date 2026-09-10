@@ -18,6 +18,7 @@ from agent.decision import (
     parse_baseline_mode,
 )
 from agent.journal import JournalManager
+from agent.quarantine import QuarantineStore
 from agent.rules import RulesCache
 
 
@@ -53,6 +54,7 @@ def _make_engine(
         journal=journal,
         baseline=baseline,
         quarantine_dir=quarantine_dir,
+        quarantine_store=QuarantineStore(quarantine_dir, b"q" * 32, "test-agent"),
     )
     return engine, journal, baseline
 
@@ -314,7 +316,7 @@ def test_decision_quarantine_success(tmp_path: Path) -> None:
     assert not target.exists()  # archivo movido
     q_path = Path(payload["quarantine_path"])
     assert q_path.exists()
-    assert q_path.read_bytes() == b"rm -rf /"
+    assert engine._quarantine_store.read_artifact(q_path).content == b"rm -rf /"
 
     commit_fn()
     # BUG-10 fix: commit_fn deletes the journal file after mark_completed

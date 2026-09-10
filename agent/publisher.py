@@ -100,6 +100,7 @@ class Publisher:
         self._agent_state: "AgentState | None" = None
         self._journal: "JournalManager | None" = None
         self._quarantine_dir: str | None = None
+        self._quarantine_store: Any | None = None
         self._detector: "FanotifyDetector | None" = None
         self._preflight_registry: "PreflightRegistry | None" = None
 
@@ -217,6 +218,7 @@ class Publisher:
         state: "AgentState",
         journal: "JournalManager",
         quarantine_dir: str | None = None,
+        quarantine_store: Any | None = None,
         detector: "FanotifyDetector | None" = None,
         preflight_registry: "PreflightRegistry | None" = None,
     ) -> None:
@@ -229,6 +231,7 @@ class Publisher:
         self._agent_state = state
         self._journal = journal
         self._quarantine_dir = quarantine_dir
+        self._quarantine_store = quarantine_store
         self._detector = detector
         self._preflight_registry = preflight_registry
 
@@ -569,6 +572,7 @@ class Publisher:
                     config=self._config,
                     journal=self._journal,
                     quarantine_dir=self._quarantine_dir,
+                    quarantine_store=self._quarantine_store,
                     detector=self._detector,
                     preflight_registry=self._preflight_registry,
                 )

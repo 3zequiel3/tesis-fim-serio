@@ -481,7 +481,7 @@ El bulk reject funciona igual pero adicionalmente pide la acción (`restore` o `
 | Acción | Qué pasa cuando se detecta un cambio |
 |--------|---------------------------------------|
 | `auto_restore` | El agente escribe journal pre-acción (W2), descifra el archivo del baseline (AES-GCM), lo restaura sobre el filesystem, verifica el hash post-restauración, y actualiza el journal. Evento con estado `auto_restored`. |
-| `quarantine` | El agente escribe journal pre-acción, mueve el archivo a `/var/lib/fim-agent/quarantine/` con permisos restringidos, y actualiza el journal. Evento con estado `quarantined`. |
+| `quarantine` | El agente escribe journal pre-acción, crea y verifica un artefacto AES-256-GCM opaco en `/var/lib/fim-agent/quarantine/`, retira el origen y actualiza el journal. Evento con estado `quarantined`; hardlinks se rechazan porque mover un solo nombre no aísla el inode. |
 | `manual_review` | El evento queda `pending` para que el admin decida (approve / reject). |
 | `alert_only` | Solo se registra el evento y se genera alerta. Evento con estado `alert_only`. No se toma acción sobre el archivo. |
 

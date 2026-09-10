@@ -27,7 +27,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +44,7 @@ if TYPE_CHECKING:
     from agent.detector import FanotifyDetector
     from agent.journal import JournalManager
     from agent.preflight import PreflightRegistry
+    from agent.quarantine import QuarantineStore
     from agent.state import AgentState
 
 log = structlog.get_logger()
@@ -112,6 +112,7 @@ async def dispatch(
     config: "AgentConfig",
     journal: "JournalManager | None" = None,
     quarantine_dir: str | None = None,
+    quarantine_store: "QuarantineStore | None" = None,
     detector: "FanotifyDetector | None" = None,
     preflight_registry: "PreflightRegistry | None" = None,
 ) -> None:
@@ -175,6 +176,7 @@ async def dispatch(
             valkey_client=valkey_client,
             config=config,
             quarantine_dir=quarantine_dir,
+            quarantine_store=quarantine_store,
         )
     elif cmd_type == "update_config":
         await handle_update_config(
@@ -422,12 +424,13 @@ async def handle_quarantine_file(
     valkey_client: "avalkey.Valkey",
     config: "AgentConfig",
     quarantine_dir: str | None = None,
+    quarantine_store: "QuarantineStore | None" = None,
 ) -> None:
     """
     Pone un archivo en cuarentena con journal transaccional.
 
     1. Journal pre-acción (pending).
-    2. Mover archivo a quarantine_dir con permisos 0400.
+    2. Encrypt and remove the source through QuarantineStore.
     3. Journal post-acción (completed/failed).
     4. Publicar event_ack.
     """
@@ -459,30 +462,27 @@ async def handle_quarantine_file(
     # 2. Quarantine
     error_reason: str | None = None
     try:
-        _qdir = Path(quarantine_dir) if quarantine_dir else Path("/var/lib/fim-agent/quarantine")
-        _qdir.mkdir(parents=True, exist_ok=True)
+        if quarantine_store is None:
+            from agent.baseline import load_master_secret
+            from agent.quarantine import QuarantineStore
 
-        basename = os.path.basename(path)
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-        dest = _qdir / f"{basename}.{timestamp}"
-
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"file_not_found: {path}")
-
-        shutil.move(path, str(dest))
-
-        # Permisos 0400 en plataformas Unix
-        try:
-            os.chmod(str(dest), 0o400)
-        except OSError as exc:
-            log.warning("commands.quarantine_file.chmod_failed", dest=str(dest), error=str(exc))
+            _qdir = Path(quarantine_dir) if quarantine_dir else Path("/var/lib/fim-agent/quarantine")
+            quarantine_store = QuarantineStore(
+                _qdir,
+                load_master_secret(config.storage.secrets_dir),
+                config.agent_id,
+            )
+        artifact = quarantine_store.quarantine(journal_key, path)
+        dest = artifact.path
 
         log.info("commands.quarantine_file.done", path=path, dest=str(dest))
         journal.mark_completed(journal_key)
 
     except FileNotFoundError:
-        error_reason = "file_not_found"
-        log.error("commands.quarantine_file.not_found", path=path)
+        # Source absence is normalized by QuarantineStore. A raw
+        # FileNotFoundError here means the local master secret is unavailable.
+        error_reason = "quarantine_store_unavailable"
+        log.error("commands.quarantine_file.store_unavailable", path=path)
         journal.mark_failed(journal_key, error_reason)
     except OSError as exc:
         from agent.decision import action_error_from_oserror
@@ -491,7 +491,9 @@ async def handle_quarantine_file(
         log.error("commands.quarantine_file.failed", path=path, error=error_reason)
         journal.mark_failed(journal_key, error_reason)
     except Exception as exc:
-        error_reason = str(exc)
+        from agent.quarantine import QuarantineError
+
+        error_reason = exc.reason if isinstance(exc, QuarantineError) else str(exc)
         log.error("commands.quarantine_file.failed", path=path, error=error_reason)
         journal.mark_failed(journal_key, error_reason)
 

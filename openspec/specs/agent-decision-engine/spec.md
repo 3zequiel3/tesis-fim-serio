@@ -92,14 +92,26 @@ Cuando la acción determinada es `auto_restore`, el `DecisionEngine` SHALL leer 
 - **WHEN** el archivo fue eliminado entre la detección y la ejecución de auto_restore
 - **THEN** el archivo es creado desde el contenido del baseline, hash verificado, evento publicado con `event_type: "auto_restored"`
 
-### Requirement: Acción quarantine — movimiento a directorio de cuarentena
+### Requirement: Acción quarantine — aislamiento cifrado local
 
-Cuando la acción determinada es `quarantine`, el `DecisionEngine` SHALL mover el archivo afectado a `/var/lib/fim-agent/quarantine/{event_id}_{basename}` usando `shutil.move()` (RN-34, RN-35). Si el archivo ya no existe al momento de ejecutar la cuarentena, la acción MUST fallar gracefully con `error: "file_not_found"` (RN-36). El evento MUST publicarse con `action: "quarantine"` y el `quarantine_path` resultante en el payload (RN-37).
+Cuando la acción determinada es `quarantine`, el `DecisionEngine` SHALL usar el almacén único de cuarentena para cifrar contenido y metadatos con AES-256-GCM antes de retirar la entrada de origen. La clave MUST derivarse de `master_secret` con HKDF-SHA256 e `info="quarantine-v1"`, separada de la clave del baseline. El nombre del artefacto MUST ser opaco y determinístico por identidad de acción y ruta. Si el archivo no existe, la acción MUST fallar con `error: "file_not_found"`. El evento MUST conservar `action: "quarantine"` y el `quarantine_path` opaco resultante.
 
 #### Scenario: Quarantine exitosa
 
 - **WHEN** el archivo `/opt/app/malware.sh` debe ser puesto en cuarentena
-- **THEN** el archivo se mueve a `/var/lib/fim-agent/quarantine/{event_id}_malware.sh`, journal queda `completed`, y el evento incluye `quarantine_path`
+- **THEN** existe un artefacto autenticado `0400` bajo `/var/lib/fim-agent/quarantine/`, el nombre original no aparece en el nombre del artefacto, el origen se retira solamente después de verificar el artefacto, journal queda `completed`, y el evento incluye `quarantine_path`
+
+#### Scenario: Reintento idempotente
+
+- **WHEN** el artefacto autenticado de la misma acción ya existe por una interrupción previa
+- **THEN** no se crea un duplicado y sólo se retira el origen si su identidad todavía coincide con la capturada
+
+#### Scenario: Enlaces
+
+- **WHEN** el origen es un enlace simbólico
+- **THEN** se cifra el target textual sin seguirlo y no se conserva un enlace vivo en cuarentena
+- **WHEN** el archivo regular tiene más de un hardlink
+- **THEN** la acción falla con `hardlink_not_isolatable` y no afirma aislamiento del inode
 
 #### Scenario: Archivo ya eliminado — falla graceful
 

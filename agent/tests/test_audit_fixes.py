@@ -37,6 +37,7 @@ import pytest
 from agent.config import AgentConfig, StorageConfig
 from agent.decision import DecisionEngine
 from agent.journal import JournalManager
+from agent.quarantine import QuarantineStore
 from agent.rules import RulesCache
 from agent.state import AgentState
 
@@ -92,6 +93,7 @@ def _make_engine(
         journal=journal,
         baseline=baseline,
         quarantine_dir=quarantine_dir,
+        quarantine_store=QuarantineStore(quarantine_dir, _MASTER_SECRET, "test-agent-c28"),
     )
     return engine, journal, baseline
 
@@ -125,9 +127,12 @@ def test_quarantine_creates_missing_dir(tmp_path: Path) -> None:
     target = tmp_path / "evil.sh"
     target.write_bytes(b"rm -rf /")
 
-    # Quarantine dir does NOT exist yet
-    engine, journal, baseline = _make_engine(tmp_path, action="quarantine", quarantine_dir_exists=False)
     assert not (tmp_path / "quarantine").exists(), "pre-condition: dir must not exist"
+    # Constructing the encrypted store creates and hardens the directory.
+    engine, journal, baseline = _make_engine(
+        tmp_path, action="quarantine", quarantine_dir_exists=False
+    )
+    assert (tmp_path / "quarantine").is_dir()
 
     change = _make_change(tmp_path, path=str(target))
     payload, commit_fn = engine.evaluate_and_act(change)
@@ -136,7 +141,7 @@ def test_quarantine_creates_missing_dir(tmp_path: Path) -> None:
     assert not target.exists(), "file should have been moved"
     quarantine_path = Path(payload["quarantine_path"])
     assert quarantine_path.exists(), "file should be in quarantine"
-    assert quarantine_path.read_bytes() == b"rm -rf /"
+    assert engine._quarantine_store.read_artifact(quarantine_path).content == b"rm -rf /"
 
 
 # ── BUG-11 (1.2) ──────────────────────────────────────────────────────────────
@@ -735,6 +740,7 @@ async def test_file_deleted_auto_restore_evaluates_before_mark_absent(tmp_path: 
         journal=journal,
         baseline=baseline,
         quarantine_dir=quarantine_dir,
+        quarantine_store=QuarantineStore(quarantine_dir, _MASTER_SECRET, "test-agent-c28"),
     )
 
     publisher = MagicMock()
@@ -821,6 +827,7 @@ async def test_file_created_quarantine_evaluates_before_write_entry(tmp_path: Pa
         journal=journal,
         baseline=baseline,
         quarantine_dir=quarantine_dir,
+        quarantine_store=QuarantineStore(quarantine_dir, _MASTER_SECRET, "test-agent-c28"),
     )
 
     publisher = MagicMock()

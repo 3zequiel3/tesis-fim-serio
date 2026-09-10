@@ -71,10 +71,13 @@ def tmp_dirs(tmp_path: Path) -> dict[str, Path]:
 
 
 @pytest.fixture()
-def agent_config(tmp_dirs: dict[str, Path], shared_secret: bytes) -> AgentConfig:
+def agent_config(
+    tmp_dirs: dict[str, Path], shared_secret: bytes, master_secret: bytes
+) -> AgentConfig:
     # Escribir shared_secret en disco para que load_shared_secret lo encuentre
     secret_path = tmp_dirs["secrets"] / "shared_secret"
     secret_path.write_bytes(shared_secret)
+    (tmp_dirs["secrets"] / "master_secret").write_bytes(master_secret)
 
     # Include tmp_path (parent of all tmp_dirs) in watch_paths so that tests
     # creating files under tmp_path pass the FIX-04 path containment check (D18).
@@ -706,7 +709,7 @@ async def test_restore_handler_no_baseline_publishes_error_ack(
 @pytest.mark.asyncio
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod/quarantine dir requires Unix")
 async def test_quarantine_handler_success(
-    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, journal, tmp_path
+    agent_config, shared_secret, master_secret, baseline_engine, agent_state, mock_valkey, journal, tmp_path
 ):
     """Quarantine exitoso: archivo movido, permisos 0400, event_ack ok."""
     from agent import commands
@@ -738,11 +741,17 @@ async def test_quarantine_handler_success(
     # Archivo ya no existe en origen
     assert not target.exists()
 
-    # Archivo existe en quarantine con permisos 0400
+    # Encrypted artifact exists in quarantine with permissions 0400.
     quarantine_files = list(quarantine_dir.iterdir())
     assert len(quarantine_files) == 1
     mode = quarantine_files[0].stat().st_mode & 0o777
     assert mode == 0o400
+    from agent.quarantine import QuarantineStore
+
+    stored = QuarantineStore(
+        quarantine_dir, master_secret, agent_config.agent_id
+    ).read_artifact(quarantine_files[0])
+    assert stored.content == b"#!/bin/bash\nrm -rf /"
 
     # event_ack publicado
     mock_valkey.xadd.assert_called_once()

@@ -5,7 +5,6 @@ import base64
 import errno
 import hashlib
 import os
-import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -18,6 +17,7 @@ if TYPE_CHECKING:
     from agent.baseline import BaselineEngine
     from agent.detector import DetectedChange
     from agent.publisher import Publisher
+    from agent.quarantine import QuarantineStore
 
 log = structlog.get_logger()
 
@@ -75,12 +75,13 @@ class DecisionEngine:
         rules: RulesCache,
         journal: JournalManager,
         baseline: "BaselineEngine",
-        quarantine_dir: str | Path,
+        quarantine_dir: str | Path | None = None,
+        quarantine_store: "QuarantineStore | None" = None,
     ) -> None:
         self._rules = rules
         self._journal = journal
         self._baseline = baseline
-        self._quarantine_dir = Path(quarantine_dir)
+        self._quarantine_store = quarantine_store
 
     # ── API pública ───────────────────────────────────────────────────────────
 
@@ -289,14 +290,15 @@ class DecisionEngine:
             raise _ActionFailed("hash_mismatch_after_restore")
 
     def _quarantine(self, event_id: str, path: str, payload: dict[str, Any]) -> None:
-        """Mueve archivo a directorio de cuarentena (RN-34–37)."""
-        self._quarantine_dir.mkdir(parents=True, exist_ok=True)
-        basename = os.path.basename(path)
-        quarantine_path = str(self._quarantine_dir / f"{event_id}_{basename}")
+        """Encrypt and remove a file through the shared quarantine store."""
+        if self._quarantine_store is None:
+            raise _ActionFailed("quarantine_store_unavailable")
         try:
-            shutil.move(path, quarantine_path)
-        except FileNotFoundError:
-            raise _ActionFailed("file_not_found")
-        except OSError as exc:
-            raise _ActionFailed(action_error_from_oserror(exc, fallback="move_failed")) from exc
-        payload["quarantine_path"] = quarantine_path
+            artifact = self._quarantine_store.quarantine(event_id, path)
+        except Exception as exc:
+            from agent.quarantine import QuarantineError
+
+            if isinstance(exc, QuarantineError):
+                raise _ActionFailed(exc.reason) from exc
+            raise _ActionFailed("quarantine_failed") from exc
+        payload["quarantine_path"] = str(artifact.path)

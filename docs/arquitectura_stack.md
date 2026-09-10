@@ -618,8 +618,9 @@ Evento detectado (fanotify, modo FID)
 ```
 
 * Escribir journal pre-acción
-* Mover archivo sospechoso
-* Renombrar con timestamp/hash
+* Cifrar contenido y metadatos con AES-256-GCM y clave HKDF `quarantine-v1`
+* Guardar con identificador opaco determinístico y verificar el artefacto
+* Retirar el origen sólo después de la verificación
 * Permisos restringidos (`0400`, owner `fim-agent`)
 * Actualizar journal
 * Enviar evento (status: quarantined)
