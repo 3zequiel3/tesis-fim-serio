@@ -66,7 +66,7 @@ class EventOut(BaseModel):
 
 
 class EventDetailOut(EventOut):
-    """Detail response with bounded textual evidence; listings exclude the diff."""
+    """Detalle con evidencia textual acotada; el listado no expone el diff."""
 
     hash_expected: str | None = None
     diff_text: str | None = None

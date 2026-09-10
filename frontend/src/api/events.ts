@@ -66,7 +66,8 @@ export interface EventListItem {
   action_error?: string | null
 }
 
-// US-09: the bounded unified diff is available only from the detail endpoint.
+// US-09: el diff se entrega solo en el detalle. Es un patch unificado acotado,
+// no las versiones completas del archivo.
 export type EventDetail = EventListItem & {
   hash_expected: string | null
   diff_text: string | null

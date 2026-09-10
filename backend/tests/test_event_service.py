@@ -202,15 +202,16 @@ def test_ingest_event_from_real_agent_payload_persists_hash_detected(mem_engine)
 
     assert event is not None
     assert event.hash_detected == detected_hash
+    assert event.hash_detected != ""
     assert event.hash_expected == "e" * 64
     assert event.diff_text is not None
     assert "-old" in event.diff_text
     assert "+new" in event.diff_text
-    assert event.hash_detected != ""
     # action=quarantine sin fallo deriva un estado terminal (D35/RN-129), NO pending.
     assert event.status == EventStatus.quarantined
     assert event.action_failed is False
     assert event.resolved_at is not None
+    assert event.resolved_by is None
 
 
 def test_ingest_event_bounds_diff_on_utf8_boundary(mem_engine) -> None:
@@ -281,7 +282,6 @@ def test_ingest_event_rejects_unsafe_or_non_patch_diff(mem_engine, diff_text: st
 
     assert event is not None
     assert event.diff_text is None
-    assert event.resolved_by is None
 
 
 def test_ingest_event_from_real_file_deleted_payload_persists_empty_hash(mem_engine) -> None:
