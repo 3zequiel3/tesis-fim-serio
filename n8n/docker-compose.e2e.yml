@@ -1,0 +1,65 @@
+name: fim-n8n-e2e
+
+volumes:
+  n8n_state:
+  receiver_data:
+
+services:
+  controlled-receiver:
+    image: python:3.13.7-alpine3.22
+    command: ["python", "/app/receiver.py"]
+    environment:
+      RECEIVER_DB: /data/receipts.sqlite3
+      RECEIVER_STATUS_CODE: ${RECEIVER_STATUS_CODE:-202}
+    volumes:
+      - ./e2e/receiver.py:/app/receiver.py:ro
+      - receiver_data:/data
+    ports:
+      - "127.0.0.1:18081:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 2s
+      timeout: 1s
+      retries: 10
+
+  n8n:
+    image: n8nio/n8n:2.17.8
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY to a temporary test secret}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_SECURE_COOKIE: "false"
+      N8N_HOST: 127.0.0.1
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://n8n:5678/
+    volumes:
+      - n8n_state:/home/node/.n8n
+      - ./workflows:/workflows:ro
+    ports:
+      - "127.0.0.1:15678:5678"
+    depends_on:
+      controlled-receiver:
+        condition: service_healthy
+      workflow-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:5678/healthz"]
+      interval: 2s
+      timeout: 1s
+      retries: 20
+
+  workflow-setup:
+    image: n8nio/n8n:2.17.8
+    restart: "no"
+    entrypoint: ["/bin/sh", "/e2e/import-and-publish.sh"]
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY to a temporary test secret}
+    volumes:
+      - n8n_state:/home/node/.n8n
+      - ./workflows:/workflows:ro
+      - ./e2e:/e2e:ro
+    depends_on:
+      controlled-receiver:
+        condition: service_healthy

@@ -1,0 +1,63 @@
+{
+  "evaluation": "new controlled n8n evaluation",
+  "date": "2026-09-09",
+  "n8n_image": "n8nio/n8n:2.17.8",
+  "receiver_image": "python:3.13.7-alpine3.22",
+  "scope": "backend notifier -> n8n router -> controlled receiver",
+  "scenarios": [
+    {
+      "name": "delivery after corrected import",
+      "notification_id": "controlled-c5a1ed11-fd84-4d78-b31e-90b0470d8c6f",
+      "backend_result": true,
+      "http_status": 202,
+      "received_at": "2026-09-10T02:29:16.563381+00:00",
+      "backend_dispatched_at": "2026-09-10T02:29:16.587798+00:00",
+      "n8n_accepted_at": "2026-09-09T22:29:16.715-04:00",
+      "receiver_received_at": "2026-09-10T02:29:16.734004+00:00"
+    },
+    {
+      "name": "controlled receiver unavailable",
+      "notification_id": "controlled-26a8070d-0c51-4c4f-aa9a-4bddb19443f0",
+      "backend_result": false,
+      "http_status": 502,
+      "receiver_record_created": false
+    },
+    {
+      "name": "receiver recovery",
+      "notification_id": "controlled-ee9e1b49-a673-4820-bf04-66721bd3d94d",
+      "backend_result": true,
+      "http_status": 202,
+      "received_at": "2026-09-10T02:29:56.725890+00:00",
+      "backend_dispatched_at": "2026-09-10T02:29:56.750269+00:00",
+      "n8n_accepted_at": "2026-09-09T22:29:56.842-04:00",
+      "receiver_received_at": "2026-09-10T02:29:56.847412+00:00"
+    },
+    {
+      "name": "n8n unavailable",
+      "notification_id": "controlled-42c163f0-e107-4e4b-a46f-fbecd3794b88",
+      "backend_result": false,
+      "transport_error": "All connection attempts failed",
+      "receiver_record_created": false
+    },
+    {
+      "name": "n8n recovery",
+      "notification_id": "controlled-11cdb9fc-5e9b-4c5c-9d32-6d6f1e21772d",
+      "backend_result": true,
+      "http_status": 202,
+      "received_at": "2026-09-10T02:30:53.435301+00:00",
+      "backend_dispatched_at": "2026-09-10T02:30:53.460504+00:00",
+      "n8n_accepted_at": "2026-09-09T22:30:53.623-04:00",
+      "receiver_received_at": "2026-09-10T02:30:53.645559+00:00"
+    }
+  ],
+  "excluded": [
+    "alert creation and persistence before notifier invocation",
+    "SMTP and direct-webhook fallback delivery",
+    "durable retry state across backend restart",
+    "commercial notification providers"
+  ],
+  "notes": [
+    "The first pre-fix receiver-outage attempt exposed a false HTTP 200 from n8n. The workflow was corrected to map downstream failure to HTTP 502 before the scenarios above were recorded.",
+    "Timestamps use independent process clocks and retain their original UTC offsets. No clock synchronization bound was measured in this single-host run."
+  ]
+}

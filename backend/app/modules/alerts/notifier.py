@@ -14,6 +14,7 @@ Canales disponibles:
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -25,15 +26,24 @@ _FALLBACK_TIMEOUT = 10.0
 
 
 async def send_n8n(payload: dict[str, Any], url: str, timeout: float = _N8N_TIMEOUT) -> bool:
-    """POST el payload al webhook de n8n. Retorna True si recibe 2xx."""
+    """POST el payload al webhook de n8n. Retorna True si recibe 2xx.
+
+    ``backend_dispatched_at`` is transport evidence, stamped immediately before
+    the request without mutating the canonical payload retained by the caller.
+    It is intentionally distinct from the event's ``received_at`` timestamp.
+    """
     if not url:
         log.debug("notifier.n8n_skipped", reason="url_not_configured")
         return False
     try:
         import httpx
 
+        wire_payload = {
+            **payload,
+            "backend_dispatched_at": datetime.now(timezone.utc).isoformat(),
+        }
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(url, json=wire_payload)
             response.raise_for_status()
         log.info("notifier.n8n_sent", status_code=response.status_code)
         return True
