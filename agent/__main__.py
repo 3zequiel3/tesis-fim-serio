@@ -42,7 +42,8 @@ async def _cert_renewal_loop(cfg: AgentConfig, stop_event: asyncio.Event) -> Non
     Verifica periódicamente el certificado mTLS y lo renueva si vence en ≤ 15 días (G3/RN-111).
 
     Loop: duerme cert_renewal_check_interval_h horas (interruptible por stop_event),
-    luego verifica not_valid_after_utc. Si el margen es ≤ 15 días, llama POST /agents/renew
+    luego verifica not_valid_after_utc. Si el margen es ≤ 15 días y el certificado
+    sigue vigente, llama POST /agents/renew mediante `mtls_backend_url`
     con el cert/key actuales como client cert + CA para autenticación mTLS.
 
     Cualquier error → log.warning + continuar. Nunca interrumpe la operación del agente.
@@ -70,6 +71,13 @@ async def _cert_renewal_loop(cfg: AgentConfig, stop_event: asyncio.Event) -> Non
             now_utc = datetime.datetime.now(datetime.timezone.utc)
             days_left = (cert.not_valid_after_utc - now_utc).days
 
+            if cert.not_valid_after_utc <= now_utc:
+                log.error(
+                    "cert_renewal.expired_admin_recovery_required",
+                    agent_id=cfg.agent_id,
+                )
+                continue
+
             if days_left > _CERT_RENEWAL_DAYS_THRESHOLD:
                 log.debug(
                     "cert_renewal.skipped",
@@ -79,7 +87,10 @@ async def _cert_renewal_loop(cfg: AgentConfig, stop_event: asyncio.Event) -> Non
                 continue
 
             log.info("cert_renewal.triggering", days_left=days_left)
-            url = cfg.backend_url.rstrip("/") + "/agents/renew"
+            if not cfg.mtls_backend_url:
+                log.error("cert_renewal.mtls_url_missing", agent_id=cfg.agent_id)
+                continue
+            url = cfg.mtls_backend_url.rstrip("/") + "/agents/renew"
 
             async with httpx.AsyncClient(
                 cert=(str(cert_path), str(key_path)),

@@ -1667,11 +1667,11 @@ máxima.
 el mismo criterio de tolerancia hacia adelante que `action` y `action_error` (D33, D36/RN-130): un
 valor desconocido emitido por un agente más nuevo se guarda tal cual en vez de rechazar el evento.
 
-#### D48 / RN-142: Ventana de gracia de 30 días para renovar un certificado vencido
+#### D48 / RN-142: Recuperación administrativa de certificados vencidos
 
-**Descripción:** `POST /agents/renew` acepta un certificado cliente **vencido**, siempre que sea por
-lo demás válido —firmado por la CA propia, con CN coincidente y **no revocado**— y que hayan pasado
-como máximo **30 días** desde su `not_valid_after`. Pasada la ventana, responde `403`.
+**Descripción:** `POST /agents/renew` acepta únicamente un certificado cliente vigente, firmado por
+la CA propia, con CN coincidente y no revocado. El listener conserva `CERT_REQUIRED` y TLS 1.3
+mínimo; un certificado vencido se rechaza durante el handshake, sin ventana de gracia.
 
 **Motivo — hoy un agente vencido no tiene camino de vuelta.** Verificado contra el código:
 
@@ -1688,36 +1688,17 @@ puede devolver el anterior**. Cualquier re-bootstrap emite uno nuevo, y de ahí 
 la clave AES-256-GCM del baseline: recuperar así un agente **le destruye la línea base y su historial
 de integridad**, obligando a un re-scan donde todo archivo aparece como nuevo.
 
-**Fundamento de seguridad.** Un certificado vencido sigue siendo **prueba de posesión de la clave
-privada**, que es exactamente lo que la autenticación necesita. El vencimiento expresa «esta
-credencial cumplió su plazo», no «quien la presenta no es quien dice ser». Lo que acota el riesgo no
-es la fecha sino la **verificación de revocación** (RN-141 y la spec `backend-cert-renewal`), que es
-donde vive la decisión real sobre si esa identidad sigue siendo legítima. Un agente revocado no
-renueva ni dentro ni fuera de la ventana.
+**Fundamento de seguridad.** La disponibilidad posterior al vencimiento no justifica relajar la
+validación del transporte. El agente debe renovar dentro de los 15 días previos al vencimiento. Si
+no lo hace, la recuperación es administrativa y fail-closed.
 
 **Condición:** Cada solicitud a `POST /agents/renew`.
 
-**Resultado:** Un agente apagado hasta alrededor de mes y medio —30 días de gracia más los 15 del
-umbral de renovación anticipada— vuelve solo, conservando su `master_secret` y por lo tanto su
-baseline. Más allá de eso la recuperación es una acción administrativa deliberada, que para un agente
-ausente meses es lo correcto: conviene que un humano se entere.
+**Resultado:** Un certificado vigente dentro del umbral puede renovarse automáticamente. Una vez
+vencido, la recuperación exige verificar administrativamente la identidad y preservar el
+`master_secret` existente; si se entrega uno nuevo, debe realizarse y documentarse un re-baseline.
 
-**Confinamiento de la relajación — la parte que no es opcional.** El puerto 8443 es **compartido**
-por todos los endpoints mTLS, así que relajarlo los relajaría a todos. La mitigación invierte el
-default en lugar de agregar excepciones:
-
-1. El listener opera en `CERT_OPTIONAL`: entrega el certificado a la aplicación en vez de rechazarlo
-   en el handshake.
-2. Una dependencia de validación **falla cerrada** —certificado presente, cadena válida, CN
-   coherente, **no vencido**, no revocado— y es el default de **todos** los endpoints mTLS.
-3. `POST /agents/renew` es la **única** excepción, y **sólo sobre el vencimiento**.
-
-Un endpoint mTLS que no declare su validación queda **protegido** por el default, nunca expuesto. El
-criterio de aceptación incluye un test de no-regresión que verifica que los demás endpoints siguen
-rechazando un certificado vencido; sin él, esta decisión degrada silenciosamente a una relajación
-general del puerto.
-
-**Excepciones:** La ventana no exime de ninguna otra verificación. Vencido **y** revocado es `403`.
+**Excepciones:** Ninguna. No se configura `CERT_OPTIONAL` ni una excepción temporal en la aplicación.
 
 **Reglas afectadas:** complementa RN-78 (rotación de certificados) definiendo qué ocurre cuando la
 rotación no llegó a tiempo. No altera el período de validez.

@@ -6,6 +6,7 @@ agent_id: docker-agent
 # Bootstrap mTLS va por HTTP al backend (pre-cert). El shared_secret y el cert
 # se obtienen en POST /agents/bootstrap.
 backend_url: http://backend:8000
+mtls_backend_url: https://backend:8443
 
 # Valkey del stack es plaintext (VALKEY_URL: valkey://valkey:6379). Los mensajes
 # igual van firmados con HMAC (shared_secret del bootstrap), así que el transporte

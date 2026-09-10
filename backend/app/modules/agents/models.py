@@ -79,6 +79,15 @@ class AgentBootstrapResponse(BaseModel):
     master_secret_hex: str
 
 
+class AgentRenewRequest(BaseModel):
+    agent_id: str
+
+
+class AgentRenewResponse(BaseModel):
+    cert_pem: str
+    ca_cert_pem: str
+
+
 class AgentResponse(BaseModel):
     """Schema de respuesta para un agente individual (GET /agents y GET /agents/{id})."""
 

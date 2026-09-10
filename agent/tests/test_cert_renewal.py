@@ -46,13 +46,14 @@ def _issue_cert(
 ) -> x509.Certificate:
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
     now = datetime.datetime.now(datetime.timezone.utc)
+    not_valid_before = now - datetime.timedelta(days=90) if days < 0 else now
     return (
         x509.CertificateBuilder()
         .subject_name(name)
         .issuer_name(ca_cert.subject)
         .public_key(subject_key.public_key())
         .serial_number(x509.random_serial_number())
-        .not_valid_before(now)
+        .not_valid_before(not_valid_before)
         .not_valid_after(now + datetime.timedelta(days=days))
         .sign(ca_key, None)  # type: ignore[arg-type]
     )
@@ -70,6 +71,7 @@ def _make_cfg(tmp_path: Path, interval_h: float = 24.0) -> MagicMock:
     cfg = MagicMock()
     cfg.agent_id = "agent-renewal-test"
     cfg.backend_url = "https://fim-backend:8000"
+    cfg.mtls_backend_url = "https://fim-backend:8443"
     cfg.storage.certs_dir = str(tmp_path / "certs")
     cfg.cert_renewal_check_interval_h = interval_h
     return cfg
@@ -243,6 +245,7 @@ async def test_cert_renewal_triggered_when_expiring(tmp_path: Path) -> None:
         )
 
     mock_client.post.assert_called_once()
+    assert mock_client.post.call_args.args[0] == "https://fim-backend:8443/agents/renew"
     saved_cert_pem = (certs_dir / "agent-cert.pem").read_text()
     assert saved_cert_pem == new_cert_pem
 
@@ -282,6 +285,27 @@ async def test_cert_renewal_failure_no_interrupt(tmp_path: Path) -> None:
 
     # Cert original intacto
     assert (certs_dir / "agent-cert.pem").read_text() == original_cert_pem
+
+
+@pytest.mark.asyncio
+async def test_expired_certificate_requires_administrative_recovery(tmp_path: Path) -> None:
+    ca_key, ca_cert = _generate_ca()
+    agent_key = Ed25519PrivateKey.generate()
+    expired_cert = _issue_cert(ca_key, ca_cert, agent_key, "agent-renewal-test", days=-1)
+    _write_certs(tmp_path / "certs", expired_cert, agent_key, ca_cert)
+    cfg = _make_cfg(tmp_path, interval_h=0.0001)
+    stop_event = asyncio.Event()
+
+    from agent.__main__ import _cert_renewal_loop
+
+    async def _stop_after() -> None:
+        await asyncio.sleep(0.5)
+        stop_event.set()
+
+    with patch("agent.__main__.httpx.AsyncClient") as mock_client_cls:
+        await asyncio.gather(_cert_renewal_loop(cfg, stop_event), _stop_after())
+
+    mock_client_cls.assert_not_called()
 
 
 @pytest.mark.asyncio

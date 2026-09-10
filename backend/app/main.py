@@ -29,7 +29,7 @@ from app.core.pki import ensure_ca, start_mtls_server
 from app.core.valkey import close_async_valkey, close_valkey, get_valkey_client, init_async_valkey, init_valkey
 from app.modules.agents.command_ack_consumer import run_command_ack_consumer
 from app.modules.agents.heartbeat_consumer import run_heartbeat_consumer
-from app.modules.agents.router import router as agents_router
+from app.modules.agents.router import renew_router, router as agents_router
 from app.modules.auth.router import router as auth_router
 from app.modules.auth.service import seed_admin
 from app.modules.events.consumer import run_consumer
@@ -42,6 +42,9 @@ from app.modules.rules.service import outbox_publisher_task
 from app.modules.users.router import router as users_router
 
 configure_logging()
+
+mtls_app = FastAPI(title="FIM Agent mTLS API", docs_url=None, redoc_url=None, openapi_url=None)
+mtls_app.include_router(renew_router)
 
 
 @asynccontextmanager
@@ -59,7 +62,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     seed_admin()
 
     mtls_server = start_mtls_server(
-        app,
+        mtls_app,
         ca_cert_path=settings.ca_cert_path,
         cert_path=settings.backend_cert_path,
         key_path=settings.backend_key_path,

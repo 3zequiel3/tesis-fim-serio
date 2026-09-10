@@ -41,6 +41,34 @@ Si falta alguna variable **obligatoria**, el proceso falla al arranque con un `V
 | `BACKEND_CERT_PATH` | `str` | `""` | Path al certificado TLS del backend. |
 | `BACKEND_KEY_PATH` | `str` | `""` | Path a la clave privada del backend. |
 
+### Recuperación administrativa de certificados y CA
+
+El listener de agentes exige TLS 1.3 y un certificado cliente vigente. No existe
+período de gracia: un certificado vencido se rechaza durante el handshake. La CA
+persistida también debe declarar `BasicConstraints(ca=true)`, `SubjectKeyIdentifier`
+y `KeyUsage` crítico con `keyCertSign` y `cRLSign`. Si una CA anterior no contiene
+esas extensiones, el backend falla al arrancar con un diagnóstico explícito y **no
+regenera ni reemplaza** los archivos existentes.
+
+La salida operativa es una rotación administrada, no un modo permisivo:
+
+1. Detener el backend y los agentes afectados, y respaldar fuera de línea la CA,
+   los certificados y claves de agentes y el `master_secret` local de cada agente.
+2. Conservar la CA anterior mientras se prepara una CA nueva con el perfil exigido;
+   no sobrescribirla en el mismo path ni regenerarla automáticamente.
+3. Emitir certificados nuevos y volver a enrolar cada agente durante una ventana de
+   mantenimiento. Preservar su `master_secret`; si se entrega uno nuevo, la baseline
+   cifrada anterior deja de ser utilizable y debe ejecutarse un re-baseline explícito.
+4. Instalar atómicamente la nueva cadena de confianza y los certificados, verificar
+   un handshake real contra el listener 8443 y comprobar acceso a la baseline antes
+   de reanudar el monitoreo.
+5. Retirar la CA y los certificados anteriores sólo después de completar y auditar
+   el re-enrolamiento de todos los agentes.
+
+Este procedimiento también aplica a agentes cuyo certificado venció antes de poder
+renovarse. El sistema no acepta `CERT_OPTIONAL`, `CERT_NONE` ni certificados vencidos
+como mecanismo de recuperación.
+
 ### Comportamiento del backend
 
 | Variable | Tipo | Default | Descripción |

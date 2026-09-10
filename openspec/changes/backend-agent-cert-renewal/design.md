@@ -67,7 +67,7 @@ El handshake mTLS **no alcanza**: valida la cadena contra la CA, no consulta la 
 
 Expuesta en 8000 no habría certificado cliente que inspeccionar, y la autenticación de D-1 sería imposible. El agente ya apunta a `cfg.backend_url`, que en su configuración es el endpoint mTLS.
 
-### D-6. Ventana de gracia para certificados vencidos — y por qué relajar TLS no relaja la autenticación
+### D-6. Certificados vencidos: recuperación administrativa fail-closed
 
 **El problema que resuelve.** Un agente apagado el tiempo suficiente pierde el certificado por vencimiento, y entonces queda **sin ningún camino de vuelta**, verificado contra el código:
 
@@ -79,21 +79,9 @@ Expuesta en 8000 no habría certificado cliente que inspeccionar, y la autentica
 
 La única recuperación hoy es escribir a mano en la base. Y peor: **cualquier re-bootstrap emite un `master_secret` nuevo**, del que sale por HKDF la clave AES-256-GCM del baseline. El backend no lo persiste —está sólo en `AgentBootstrapResponse`, nunca en la tabla `Agent`, porque D1 hace al agente custodio único—, así que no puede devolver el anterior. Recuperar un agente así **le destruye la línea base y su historial de integridad**.
 
-**Decisión**: `POST /agents/renew` SHALL aceptar un certificado **vencido pero por lo demás válido**, dentro de una ventana acotada a partir de `not_valid_after`.
+**Decisión confirmada**: el listener conserva `CERT_REQUIRED` y no acepta certificados vencidos. El agente renueva únicamente durante el umbral de 15 días previo a `not_valid_after`. Si el certificado vence, el handshake lo rechaza antes de llegar a la aplicación y la recuperación pasa a ser administrativa.
 
-Un certificado vencido sigue siendo **prueba de posesión de la clave privada** — que es lo que la autenticación necesita. Lo que el vencimiento expresa es «esta credencial ya cumplió su plazo», no «quien la presenta no es quien dice ser». Lo que acota el riesgo no es la fecha sino la **verificación de revocación** (D-4), que es donde vive la decisión real sobre si esa identidad sigue siendo legítima.
-
-**Cómo se implementa sin abrir el listener.** El riesgo que esta decisión introduce es concreto: el puerto 8443 es **compartido** por todos los endpoints mTLS, y relajarlo los relajaría a todos. La mitigación invierte el default:
-
-1. El listener baja a `CERT_OPTIONAL` — entrega el certificado a la aplicación en lugar de rechazarlo en el handshake.
-2. Una dependencia de validación **falla cerrada**: exige certificado presente, cadena válida contra la CA propia, CN coherente, **no vencido** y no revocado. Es el default de **todos** los endpoints mTLS.
-3. `POST /agents/renew` es la **única** excepción, y sólo sobre el vencimiento: sigue exigiendo cadena, CN y no-revocación, y agrega el chequeo de ventana.
-
-La relajación queda así en un solo punto explícito y auditable, en vez de repartida por omisión. Un endpoint nuevo que olvide declarar su validación queda **protegido**, no expuesto.
-
-**Alternativa descartada**: un listener aparte en otro puerto para la renovación. Aísla mejor, pero el agente apunta a un único `cfg.backend_url` y habría que cambiar su configuración — o sea, desplegar agentes nuevos para arreglar un defecto del backend, que es justo lo que este change evita.
-
-**Ventana propuesta: 30 días.** Con certificados de la vigencia que fija RN-78 y un umbral de renovación de 15 días antes del vencimiento, 30 días de gracia cubren un agente apagado alrededor de mes y medio. Más allá de eso la recuperación vuelve a ser una acción administrativa deliberada, que para un agente ausente meses es lo correcto: conviene que un humano se entere.
+La recuperación administrativa debe preservar deliberadamente el `master_secret` existente o documentar que un nuevo bootstrap invalida el baseline cifrado. No se automatiza esa operación en este cambio porque requiere una decisión humana sobre la identidad y el estado del agente.
 
 ## Risks / Trade-offs
 
@@ -103,11 +91,8 @@ La relajación queda así en un solo punto explícito y auditable, en vez de rep
 **[Riesgo] La clave privada del agente nunca rota.** Sólo rota el certificado.
 → Limitación declarada. Cambiarlo exige tocar el contrato de los dos lados; ver `[open-q]` 1.
 
-**[Riesgo] Bajar el listener a `CERT_OPTIONAL` afecta a los demás endpoints mTLS del puerto 8443.**
-→ Mitigado invirtiendo el default (D-6): la dependencia de validación falla cerrada y es obligatoria para todos; `/agents/renew` es la única excepción y sólo sobre el vencimiento. Un endpoint que olvide declararla queda protegido, no expuesto. **El criterio de aceptación SHALL incluir un test que verifique que los demás endpoints mTLS siguen rechazando un certificado vencido.**
-
-**[Riesgo] Un certificado comprometido hace tiempo puede renovarse dentro de la ventana de gracia.**
-→ Lo acota la verificación de revocación (D-4), no la fecha. Si el agente fue revocado, no renueva ni dentro ni fuera de la ventana. La ventana bounded limita la exposición de un compromiso no detectado.
+**[Riesgo] Un agente que no renueva antes del vencimiento queda desconectado.**
+→ Aceptado de forma explícita: la recuperación es administrativa y fail-closed; no se degrada el listener para recuperar disponibilidad.
 
 **[Riesgo] Ventana de solapamiento**: dos certificados válidos para el mismo agente hasta que el saliente expire.
 → Aceptado a propósito (D-3). El costo de la alternativa es un agente que se desconecta solo y no puede volver.
@@ -117,10 +102,15 @@ La relajación queda así en un solo punto explícito y auditable, en vez de rep
 
 ## Migration Plan
 
-1. Variante de emisión sobre clave pública en `core/pki.py`, sin tocar `issue_certificate`.
-2. Ruta en el router de agents, montada en el listener mTLS.
-3. Verificación de revocación y auditoría.
-4. Test de contrato contra el cuerpo real que emite el agente.
+1. La CA creada desde cero declara `BasicConstraints(ca=true)`,
+   `SubjectKeyIdentifier` y `KeyUsage` crítico con `keyCertSign` y `cRLSign`.
+2. Una CA persistida sin ese perfil falla de forma cerrada con un diagnóstico de
+   rotación y re-enrolamiento; nunca se regenera silenciosamente porque eso rompería
+   la confianza de todos los agentes existentes.
+3. Variante de emisión sobre clave pública en `core/pki.py`, sin tocar `issue_certificate`.
+4. Ruta en el router de agents, montada en el listener mTLS.
+5. Verificación de revocación y auditoría.
+6. Test de contrato contra el cuerpo real que emite el agente y handshake TLS real.
 
 **Rollback**: revertir el commit. El agente vuelve al comportamiento actual — 404, log, seguir —, que es exactamente donde está hoy. Ningún agente desplegado necesita cambios.
 
@@ -129,5 +119,5 @@ La relajación queda así en un solo punto explícito y auditable, en vez de rep
 ## Open Questions
 
 1. **¿Debería el agente rotar también su clave privada?** Hoy sólo rota el certificado. Rotar la clave da mejor higiene criptográfica pero exige que el agente genere un par nuevo y envíe CSR — cambio de contrato en los dos lados y despliegue coordinado.
-2. ~~**¿Qué pasa si el certificado ya venció?**~~ **RESUELTO por D-6**: ventana de gracia de 30 días sobre `not_valid_after`, con la relajación confinada a este endpoint mediante una dependencia que falla cerrada. Preserva el `master_secret` y por lo tanto el baseline, que es lo que un re-bootstrap habría destruido.
+2. ~~**¿Qué pasa si el certificado ya venció?**~~ **RESUELTO por D-6**: no renueva. La recuperación es administrativa y fail-closed, preservando conscientemente el `master_secret` o aceptando un re-baseline si se emite uno nuevo.
 3. **¿El período de validez del renovado es el mismo que el del bootstrap?** `_CERT_VALIDITY_DAYS` se reutiliza; conviene confirmarlo contra RN-78.

@@ -14,6 +14,7 @@ agent_id: host-prod-01
 # bootstrap request (POST /agents/bootstrap) before mTLS is established.
 # Example: http://192.168.1.10:8000
 backend_url: http://localhost:8000
+mtls_backend_url: https://localhost:8443
 
 # URL of the Valkey (Redis-compatible) server running in Docker Compose.
 # The agent uses Valkey Streams for all backend communication (RN-108).

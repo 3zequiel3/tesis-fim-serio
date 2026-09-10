@@ -70,6 +70,8 @@ class PublisherConfig(BaseModel):
 class AgentConfig(BaseModel):
     agent_id: str
     backend_url: str
+    # Credential issuance is isolated from the ordinary HTTP API.
+    mtls_backend_url: str = ""
     valkey_url: str
     ca_cert_path: str
     watch_paths: list[str]
