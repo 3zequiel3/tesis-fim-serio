@@ -1,0 +1,127 @@
+# Informe de cierre técnico — plataforma FIM
+
+> **Corte:** 2026-09-10, HEAD `3bec5841e92181047e4282453d085b7d944971c2`. El árbol de trabajo no estaba limpio. Este documento distingue la evidencia histórica de las nuevas evaluaciones y **no declara validación integral ni aptitud productiva**.
+
+## 1. Estado ejecutivo
+
+| Dimensión | Estado | Fundamento |
+|---|---|---|
+| Cierre de implementación | **PARCIAL** | US-09 y mTLS quedaron implementados y committeados. Las unidades n8n A y B también quedaron committeadas con evidencia controlada. Persisten criterios parciales en las historias y defectos fuera de esos lotes. |
+| Cierre de validación | **BLOQUEADO** | Las 19 operaciones históricas sin evento no tienen una cadena causal completa. Tampoco existe una corrida consolidada sobre un único snapshot final ni un ensayo distribuido de dos anfitriones. |
+| Cumplimiento experimental | **PARCIAL** | La latencia reagregada cumple; el drenaje de 153 s incumple; detección y desconexión conservan 7 y 12 ausencias no explicadas individualmente. |
+| Aptitud productiva | **NO EVALUABLE** | Las evaluaciones fueron de laboratorio y anfitrión único; no prueban operación multianfitrión, alta disponibilidad ni canales comerciales. |
+
+**Estado global para entrega:** **cierre parcial**. No corresponde declarar el proyecto cerrado integralmente.
+
+## 2. Versiones y alcance evaluado
+
+| Elemento | Identidad | Alcance comprobado |
+|---|---|---|
+| Corrida histórica | `77f0c53e9c5dac28f9b36e56e09bcdb8b214ba1c` | Baterías originales. `resultados/entorno.txt` informa un archivo sin commit y `resultados/RESULTADOS.md` dice árbol limpio: contradicción histórica no resoluble. |
+| Correcciones de recuperación/cola | `c806d1c220824b4e9c7ce6af5f18441482473bc0` | Contención de rutas, journal hasta publicación durable y sincronización drop-oldest. |
+| US-09 | `8039624292a1f84d6136dd5ed2b2e59d9bdb6f9b` + `f08626a758899d7bb701b55025ebd13f29c17240` | Diff textual acotado y corrección del snapshot aislado. |
+| mTLS | `28f87fe3d8183f506404aa1b4d166fabcbc64527` | Listener dedicado, identidad de certificado, renovación previa al vencimiento, perfil de CA estricto y recuperación administrativa para CA legacy. |
+| n8n, unidad controlada A | `f0a2907f2b2d282ea39ff255290f9625744c4bbf` | Backend notifier → n8n 2.17.8 → receptor SQLite controlado. |
+| n8n, unidad durable B | `e2519ebee40a149fc2cfaabf8b67c2407eac4da9` + evidencia `3bec5841e92181047e4282453d085b7d944971c2` | Estado de entrega persistido, recuperación tras reinicio y cascada posterior a cuatro intentos n8n. |
+| Coverage backend Run 3 | manifiesto y artefactos en `docs/cierre/evidencia/20260909-coverage-run3/` | Snapshot mixto identificado por manifiesto, anterior a los commits US-09/mTLS/n8n; no representa HEAD actual. |
+
+### Entorno histórico conocido
+
+- Python 3.13.14, pytest 8.3.4, PostgreSQL 18.3 y Valkey 9.0.3.
+- Batería 8: kernel `7.0.0-30-generic`.
+- El filesystem, hardware y versiones Docker/Compose/Node no quedaron preservados con detalle suficiente.
+- El código usa `FAN_REPORT_DFID_NAME`; la versión mínima exacta del kernel debe sostenerse con una fuente primaria externa, no inferirse sólo del identificador.
+
+## 3. Componentes ejecutables
+
+| Componente | Estado real | Evidencia | Límite |
+|---|---|---|---|
+| Agente fanotify | Implementado y ejecutable en Linux con capacidades | 418 pruebas históricas; experimentos fanotify | Suite final y compatibilidad de filesystem no consolidadas. |
+| Backend FastAPI/PostgreSQL | Implementado y ejecutable | 494 pruebas históricas; Run 3 de 572 pruebas | Run 3 es una nueva evaluación sobre snapshot manifestado anterior. |
+| Valkey Streams | Implementado | B5 y captura B5.5 | Captura histórica en claro; no acredita Valkey TLS. |
+| Frontend React | Implementado | Pruebas fuente y verificación dirigida US-09 | Sin salida consolidada equivalente a los 912 históricos. |
+| US-09 DiffViewer | Implementado | commits `8039624` + `f08626a`; snapshot limpio: compilación y serialización PASS, agente 10/10, backend 10/10; verificación previa 41 backend/agente + 7 frontend | No conserva contenido binario; lo descarta por contrato. |
+| mTLS agente/backend | Implementado | commit `28f87fe`; `backend/tests/test_mtls_transport.py`: 1 PASS con handshake válido y rechazo sin certificado, no confiable y vencido | Un solo anfitrión; la revocación se valida en la autorización de renovación, no como CRL durante handshake. |
+| n8n controlado y durable | Implementado y ejecutado | commits `f0a2907`, `e2519eb`, `3bec584`; evidencias `20260909-run.json` y `20260910-durable-fallback.json` | Un backend, receptor webhook de laboratorio; SMTP real y proveedores comerciales no acreditados. |
+
+## 4. Correcciones verificadas
+
+| Defecto | Corrección | Verificación |
+|---|---|---|
+| Escape de alcance en restauración/cuarentena | Contención por rutas canónicas bajo raíces autorizadas | 80 pruebas focales del lote `c806d1c` sobre índice exportado. |
+| Journal confirmado antes de persistir | El journal queda pendiente hasta publicación durable | Regresiones focales del mismo lote. |
+| Evento expulsado seguía en `_pending` | La expulsión drop-oldest retira el ID exacto | Regresión focal del mismo lote. |
+| US-09 inexistente/no autosuficiente | Unified patch textual, validación UTF-8/control/binario, límite de 1 MiB, persistencia y render multi-hunk; commit correctivo aislado | Snapshot limpio de `8039624` + `f08626a`: compilación/serialización PASS, 10/10 agente y 10/10 backend; además 41 pruebas backend/agente + 7 frontend dirigidas. |
+| Renovación sobre transporte no autenticado | Endpoint sólo en listener mTLS; certificado del peer llega por el scope TLS, no por headers | Handshake real 1 PASS y pruebas focales de PKI/renovación. |
+| Certificados incompatibles con OpenSSL estricto | CA nuevas con `KeyUsage` crítico; CA legacy fallan cerrado y exigen rotación administrativa | Pruebas de CA nueva/legacy y handshake TLS 1.3. |
+| Falso éxito n8n cuando el receptor falla | El workflow responde 202 sólo después de recepción durable; falla downstream produce 502 | Evaluación controlada: éxito 202, receptor caído 502, n8n caído con error de transporte y recuperación 202. |
+| Reintentos n8n se perdían al reiniciar | `notification_id`, `attempt_count` y `next_retry_at` persisten en `alerts`; startup recupera filas no terminales y evita reiniciar la escalera | 9 pruebas dirigidas PASS; runtime PostgreSQL limpio con cuatro intentos n8n, fallback webhook real, fallo total persistido y recuperación tras restart. |
+
+## 5. Pruebas y coverage
+
+### Evidencia histórica preservada
+
+- Backend: **494/494** aprobadas.
+- Agente: **418 recolectadas, 417 aprobadas, 1 omitida**.
+- Total: **912**, con **911 aprobadas y 1 omitida**. El valor 675 no describe esta misma corrida.
+
+### Nueva evaluación de coverage Run 3
+
+- **572 recolectadas: 570 aprobadas, 2 omitidas, 0 fallidas/errores**.
+- Omisiones: pruebas opt-in que requieren Valkey real.
+- `coverage.py` 7.14.3, statements: **2484/2780 = 89,3525 %** (redacción: **89,35 %**), 296 faltantes, 3 excluidas, branch coverage deshabilitada.
+- El listener mTLS fue deshabilitado sólo en ese harness; Run 3 no acredita mTLS.
+- Artefactos durables: `docs/cierre/evidencia/20260909-coverage-run3/`. El JUnit fue sanitizado reemplazando ruta absoluta y hostname; su hash difiere del original temporal.
+
+Esta evaluación no debe atribuirse a HEAD `3bec584`: su manifiesto identifica un snapshot anterior y con cambios locales.
+
+## 6. Resultados experimentales
+
+| Indicador | Resultado | Estado |
+|---|---|---|
+| Latencia según intervalo de Tabla 1 | Reagregación histórica `received_at - marca post-operación`: n=493, media 11,316 ms, P50 12,639, P95 16,798, P99 **17,745 ms** | **CUMPLE** <1.000 ms; no es una corrida nueva y la marca no prueba el instante físico exacto. |
+| Detección B3 | 493/500; faltan secuencias 193, 196, 209, 270, 323, 364 y 369 | **PARCIAL**: fueron operaciones efectivas, pero falta cadena kernel/baseline/decisión/cola. |
+| Desconexión B5 | 2.988/3.000; 12 ausencias identificadas | **PARCIAL**: sin explicación causal individual. |
+| Drenaje B5 | 153 s; 19,529 eventos/s. Para 30 s se requerían 99,6 eventos/s | **NO CUMPLE**, aproximadamente 5,1 veces más lento que el umbral. |
+| Notificaciones históricas B4 | 329 muestras de 360 operaciones (60/60, 99/100, 170/200) | No fueron 1.000 ni atravesaron n8n. |
+| Tasas B4 | 1/50/100 operaciones/s | No fueron concurrencias simultáneas 1/10/100. |
+| `mmap` | 30/30 en tres casos | Consistencia de laboratorio; no descarta ventana evasiva. |
+
+Las 19 ausencias son segundas operaciones de pares revertidos y tienen `error: null` con hash previo distinto del posterior. Eso hace plausible un descarte relacionado con baseline, pero **no prueba la causa interna**. Una repetición instrumentada puede caracterizar el sistema actual, no reconstruir retroactivamente la corrida histórica.
+
+## 7. Seguridad, notificaciones y durabilidad
+
+- **mTLS agente/backend:** nueva evaluación real en localhost con TLS 1.3; acepta certificado confiable y rechaza ausencia de certificado, CA no confiable y certificado vencido. La ruta HTTP común no expone renovación. Identidad/revocación del agente se valida al autorizar la renovación.
+- **Valkey:** la captura histórica usa `valkey://` y contiene tráfico legible. La verificación mTLS agente/backend no convierte esa captura en TLS.
+- **HMAC:** aporta autenticidad e integridad del mensaje; no confidencialidad.
+- **n8n A:** el receptor controlado persiste cada `notification_id` antes de 202 y separa `received_at`, `backend_dispatched_at`, `n8n_accepted_at` y `receiver_received_at`. Los relojes conservan sus offsets; no se midió un límite de sincronización.
+- **n8n B:** `alerts` persiste `notification_id`, `attempt_count`, `next_retry_at` y estado terminal. En PostgreSQL 18.3 limpio se observaron cuatro intentos n8n fallidos seguidos por webhook controlado exitoso, fallo total persistido sin falso éxito y recuperación en un proceso nuevo con el mismo `notification_id`. Los delays fueron 0 sólo en el proceso de ensayo; producción conserva 5/30/120 s. La garantía es al menos una vez y el receptor deduplica por `notification_id`. SMTP real no fue acreditado. Se asume una única instancia backend.
+- La DLQ implementada usa `alerts` (`failed_at`/`delivered_at`); no existe una tabla `failed_notifications` separada.
+- La cadena distribuida es **al menos una vez**. “Exactamente una vez” sólo puede usarse para una transición concreta con idempotencia demostrada, no para todos los efectos.
+- Una ejecución ampliada recolectó 62 pruebas: 55 aprobaron y 7 fallaron por el harness mTLS preexistente. No se atribuyen esos siete fallos a n8n ni se presenta esa ejecución como suite aprobada.
+
+## 8. Baseline, restauración y cuarentena
+
+- Baseline local: `/var/lib/fim-agent/baseline/<sha256(path)>.bin`, cifrado AES-256-GCM; secreto maestro en `/var/lib/fim-agent/secrets/master_secret`.
+- Se conserva una entrada activa por ruta y hasta tres snapshots previos. El servidor conserva metadatos/hashes y cambios aprobados; no está acreditado como copia autónoma completa de todos los contenidos.
+- El working tree no committeado contiene un candidato local cifrado ligado a `source_event_id`, ruta y hash para que la aprobación/restauración no dependa de que el archivo permanezca sin cambios. No se atribuye esta corrección a HEAD hasta aislarla y commitearla.
+- Guardar secreto y ciphertext en el mismo host protege frente a copia aislada del soporte cifrado, no frente a adquisición completa ni frente a `root`.
+- La cuarentena mueve contenido en claro a `/var/lib/fim-agent/quarantine/` y no tiene retención/cleanup. La retención del backend no se aplica a esos archivos. **NO CUMPLE** el principio declarado de minimización.
+- La reconciliación central compara estado reportado; no es atestación remota y no detecta necesariamente a un agente comprometido que miente.
+
+## 9. Bloqueos que permanecen
+
+1. Explicar causalmente o repetir con instrumentación las 19 operaciones sin evento; el histórico seguirá marcado como indeterminado.
+2. Reducir o reformular con fundamento el drenaje de 153 s; el umbral original está incumplido.
+3. Ejecutar una corrida consolidada de agente, backend y frontend sobre un commit final congelado.
+4. Ejecutar una prueba reducida de dos anfitriones con red real y TLS habilitado; no se realizó.
+5. Definir e implementar retención/cifrado o una justificación explícita para cuarentena.
+6. Acreditar SMTP con receptor controlado si se mantiene como canal del alcance; la evaluación durable comprobó el fallback webhook, no SMTP.
+7. Regenerar la figura editable de NotificationDispatcher.
+8. Identificar el código deontológico aplicable o retirar su invocación. La Res. AAIP 47/2018 no prescribe retención ilimitada.
+
+## 10. Conclusión
+
+Puede sostenerse que US-09, el límite mTLS agente/backend y los flujos n8n controlado y durable fueron implementados y verificados en evaluaciones nuevas y acotadas. También puede sostenerse la cobertura Run 3 con su denominador y la reagregación correcta de latencia.
+
+No puede sostenerse validación integral: persisten 19 ausencias históricas sin causa completa, el drenaje incumple 30 s, falta la evaluación en dos anfitriones y SMTP real no fue acreditado. El estado correcto es **cierre parcial**, no aptitud productiva.

@@ -1,0 +1,46 @@
+# Cambios sugeridos para la tesis
+
+> Este documento propone redacción para el informe académico. **No afirma que la tesis haya sido modificada.** “Nueva evaluación” no reescribe retrospectivamente las baterías históricas.
+
+| Sección afectada | Afirmación anterior | Hecho comprobado | Corrección sugerida | Evidencia |
+|---|---|---|---|---|
+| Resumen / §4.9 | 675 pruebas | La corrida histórica preserva 494 backend + 418 agente = 912; 911 aprobadas y una omitida | Usar “912 pruebas históricas (911 aprobadas y una omitida)” y separar cualquier corrida posterior | JUnit Batería 2 |
+| §4.9 coverage | 2711/3003 o 90,3 % | Run 3: 2484/2780 statements = 89,35 %; 570/572 aprobadas y 2 omitidas | Reemplazar por el denominador comprobado e indicar que branch coverage estaba deshabilitada y el snapshot era anterior a HEAD final | `docs/cierre/evidencia/20260909-coverage-run3/` |
+| Trazabilidad | 31/31 historias cubiertas | Matriz actual: 4 completas, 27 parciales, 0 sin cobertura funcional | Informar la distribución; no equiparar código o una prueba parcial con aceptación completa | `docs/cierre/MATRIZ_TRAZABILIDAD.md` |
+| US-09 | Sin implementación o sólo comparación de hashes | `8039624` + `f08626a` implementan diff textual real, acotado y validado sobre snapshot limpio | Describir el unified patch, sus descartes legítimos y las verificaciones; no llamarlo diff para binarios | commits y tests US-09 |
+| Tabla 1 / latencia | P99 17,274 ms como extremo a extremo | Ese valor usa `received_at-detected_at`. La reagregación desde la marca post-operación da P99 17,745 ms (n=493) | Usar 17,745 ms para la definición declarada y aclarar que la marca no prueba el instante físico exacto; conservar 17,274 ms como tramo interno histórico | manifiesto/latencias B3; generador líneas 579–619 |
+| Detección B3 | 500/500 | 493/500; siete operaciones efectivas sin evento correlacionado y sin cadena causal completa | Informar 493 y siete indeterminadas; no atribuirlas a descarte legítimo sin logs kernel/baseline/decisión/cola | `resultados/bateria3_manifiesto.jsonl` |
+| Desconexión B5 | 3.000/3.000 | 2.988/3.000; doce ausencias localizadas pero no explicadas individualmente | Informar 2.988 y mantener las doce como indeterminadas | `resultados/bateria5_manifiesto.jsonl` |
+| Drenaje | Recuperación <30 s | 153 s = 19,529 eventos/s; se requerían 99,6 eventos/s | Declarar **NO CUMPLE**; no asignar cuello de botella sin timestamps por etapa | cronología y resultados históricos |
+| Notificaciones B4 | 1.000 operaciones, niveles 1/10/100 | 360 operaciones, 329 muestras; tasas 1/50/100 ops/s; receptor HTTP local | Describir la carga real y denominar tasas, no concurrencias simultáneas | manifiestos y CSV B4 |
+| n8n histórico | B4 acredita n8n/canal final | B4 no atravesó n8n | Mantener B4 como recepción webhook local | receptor y evidencia B4 |
+| n8n, nueva evaluación | No existía E2E ejecutado | `f0a2907` acredita backend notifier → n8n 2.17.8 → receptor controlado: 202; receptor caído 502; n8n caído error; recuperación 202 | Agregarlo como **nueva evaluación controlada**, no como repetición de B4 ni proveedor comercial | `n8n/e2e/evidence/20260909-run.json` |
+| n8n durable | Fallback/retry durable completo | `e2519eb` persiste estado y recupera filas tras restart; runtime limpio acreditó cuatro intentos n8n → webhook, fallo total persistido y recuperación con el mismo `notification_id` | Incorporar como nueva evaluación; aclarar delays 0 en ensayo vs 5/30/120 s en producción, al-menos-una-vez, deduplicación por ID y una instancia backend | `3bec584`, `n8n/e2e/evidence/20260910-durable-fallback.json` |
+| Seguridad histórica | TLS/mTLS activado en la corrida | B5.5 usó Valkey en claro; no tuvo handshake agente/backend acreditado | Presentar TLS histórico como no habilitado | `resultados/bateria55_valkey.pcap` |
+| mTLS, nueva evaluación | Sólo funciones criptográficas | `28f87fe` ejercita handshake real TLS 1.3: válido y rechazos sin cert/no confiable/vencido; renovación e identidad se prueban focalmente | Agregar como nueva evaluación local; no convertirla en prueba de dos hosts ni de TLS Valkey | `backend/tests/test_mtls_transport.py` y tests de renovación |
+| Revocación | Revocación de certificado demostrada en handshake | El harness real no prueba CRL/OCSP; prueba rechazo de identidad/serial revocado al autorizar renovación | Redactar el límite con precisión | `backend/tests/test_agent_cert_renewal.py` |
+| “Exactamente una vez” | Garantía general | Transporte/outbox son al menos una vez y no hay deduplicación universal de efectos | Limitar la expresión a transiciones idempotentes demostradas y explicitar supuestos | código/tests de outbox y publisher |
+| Baseline servidor/local | Copia completa genérica | Local conserva contenido cifrado; servidor conserva metadatos/hashes y cambios aprobados, no una copia autónoma completa acreditada | Separar ambas representaciones | `agent/baseline.py`, `agent/decision.py` |
+| Cifrado baseline | Protege ante adquisición total | Secreto maestro y ciphertext residen en el mismo host | Limitar protección a copia aislada; no afirmar resistencia a adquisición completa o `root` | `docs/operations.md` |
+| Cuarentena / minimización | Cuarentena protegida y retenida | Contenido en claro y sin cleanup/retención; la retención backend no aplica | Declarar **NO CUMPLE** y definir política antes de afirmar minimización | comandos/decisión del agente |
+| Topología | Validación multianfitrión | Todas las evaluaciones disponibles son de anfitrión único | Retirar la afirmación o ejecutar dos hosts con red real y TLS | cronología/topología de ensayos |
+| Kernel mínimo | Linux 5.1 o 5.9 inferido sólo del código | El código usa `FAN_REPORT_DFID_NAME`, pero no fecha su disponibilidad | Citar Linux man-pages/documentación del kernel antes de fijar el mínimo | `agent/_fanotify.py`; fuente externa pendiente |
+| `mmap` | Ausencia de evasión | 30/30 en laboratorio, con carrera no caracterizada | Informar consistencia observada, no determinismo ni ausencia de ventana evasiva | Batería 8 |
+| Figura NotificationDispatcher | Figura actualizada/editable | Figura 6 es raster 1840×1280 y no tiene fuente editable | Regenerarla desde el flujo real; mantenerla pendiente mientras tanto | `docs/Tesis.pdf`, servicio/notifier |
+| DLQ | Tabla `failed_notifications` | La implementación usa `alerts` con estados de entrega/fallo | Sustituir el nombre de tabla | modelo/especificación de alerts |
+| Código deontológico | Código aplicable invocado genéricamente | No se identificó instrumento institucional específico para UTN-FRM | Identificar referencia completa o retirar la invocación | bibliografía actual |
+| AAIP 47/2018 | Retención ilimitada satisface la norma | La resolución aprueba medidas recomendadas y contempla destrucción segura; no prescribe retención ilimitada | Justificar finalidad/proporcionalidad y política de destrucción; retirar la equivalencia | https://www.argentina.gob.ar/normativa/nacional/resoluci%C3%B3n-47-2018-312662/texto |
+
+## Afirmaciones sostenibles ahora
+
+- US-09 está implementada como diff textual real y fue verificada sobre snapshot limpio.
+- La frontera mTLS agente/backend funciona en una evaluación local controlada con TLS 1.3 y rechazos negativos explícitos.
+- La unidad n8n A evita falsos éxitos y entrega a un receptor externo al backend; la unidad B persiste la escalera, recupera tras reinicio y alcanza un webhook controlado después de cuatro fallos n8n.
+- Run 3 midió 89,35 % de statements con denominador 2780.
+- La latencia reagregada según Tabla 1 tuvo P99 17,745 ms.
+
+## Afirmaciones que deben retirarse o limitarse
+
+- 31/31 historias completas; cero pérdidas; drenaje <30 s; validación multianfitrión; TLS habilitado en la corrida histórica; entrega SMTP real; exactamente una vez extremo a extremo; cuarentena cifrada/retenida; aptitud productiva.
+
+La ejecución ampliada de 62 pruebas no debe presentarse como aprobada: 55 pasaron y 7 fallaron por el harness mTLS preexistente. La evidencia focal n8n es de 9 pruebas aprobadas y los escenarios runtime registrados.
