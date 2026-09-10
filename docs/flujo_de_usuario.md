@@ -481,7 +481,7 @@ El bulk reject funciona igual pero adicionalmente pide la acción (`restore` o `
 | Acción | Qué pasa cuando se detecta un cambio |
 |--------|---------------------------------------|
 | `auto_restore` | El agente escribe journal pre-acción (W2), descifra el archivo del baseline (AES-GCM), lo restaura sobre el filesystem, verifica el hash post-restauración, y actualiza el journal. Evento con estado `auto_restored`. |
-| `quarantine` | El agente escribe journal pre-acción, crea y verifica un artefacto AES-256-GCM opaco en `/var/lib/fim-agent/quarantine/`, retira el origen y actualiza el journal. Evento con estado `quarantined`; hardlinks se rechazan porque mover un solo nombre no aísla el inode. |
+| `quarantine` | El agente escribe journal pre-acción, crea y verifica un artefacto AES-256-GCM opaco en `/var/lib/fim-agent/quarantine/`, retira el origen y actualiza el journal. Evento con estado `quarantined`; hardlinks se rechazan porque mover un solo nombre no aísla el inode. Al arranque y cada 24 h migra formatos plaintext históricos y elimina únicamente artefactos autenticados vencidos según `quarantine_retention_days` (30 por defecto); corrupción o formato desconocido se preserva y reporta como degradación. |
 | `manual_review` | El evento queda `pending` para que el admin decida (approve / reject). |
 | `alert_only` | Solo se registra el evento y se genera alerta. Evento con estado `alert_only`. No se toma acción sobre el archivo. |
 
@@ -544,6 +544,7 @@ storage:
   baseline_dir: /var/lib/fim-agent/baseline
   queue_dir: /var/lib/fim-agent/queue
   journal_dir: /var/lib/fim-agent/journal
+  quarantine_retention_days: 30
 ```
 
 > El agente es un servicio nativo de `systemd`, no un contenedor Docker. Corre con la capability `CAP_SYS_ADMIN` que `fanotify` requiere; esta capability no se otorga a un contenedor estándar sin romper su aislamiento.

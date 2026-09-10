@@ -27,3 +27,4 @@ storage:
   journal_dir: /var/lib/fim-agent/journal
   secrets_dir: /var/lib/fim-agent/secrets
   certs_dir: /var/lib/fim-agent/certs
+  quarantine_retention_days: 30

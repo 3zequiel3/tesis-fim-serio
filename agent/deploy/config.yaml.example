@@ -78,6 +78,10 @@ storage:
   # evidence of a lost detection, not disposable data.
   discard_dir: /var/lib/fim-agent/discarded
 
+  # Encrypted quarantine artifacts expire after this many days. Valid: 1..365.
+  # Corrupt artifacts are preserved for investigation instead of auto-deleted.
+  quarantine_retention_days: 30
+
 # Publisher settings — controls the reconnect behavior when the agent restarts.
 publisher:
   # Maximum time (in seconds) to spend flushing pending commands from the

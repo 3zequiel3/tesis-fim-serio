@@ -11,12 +11,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import stat
 import struct
 import threading
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, BinaryIO
 
@@ -31,6 +32,10 @@ _TAG_BYTES = 16
 _AAD = _MAGIC_VERSION
 _CHUNK_BYTES = 64 * 1024
 _MAX_METADATA_BYTES = 64 * 1024
+_AUTOMATIC_LEGACY_NAME = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_.+"
+)
+_COMMAND_LEGACY_NAME = re.compile(r"^.+\.(\d{8}T\d{6})$")
 
 
 class QuarantineError(Exception):
@@ -50,6 +55,42 @@ class QuarantineArtifact:
     path: Path
     metadata: dict[str, Any]
     content: bytes
+
+
+@dataclass(frozen=True)
+class QuarantineMigrationReport:
+    """Aggregate-only migration result; legacy names never enter logs."""
+
+    migrated: int = 0
+    skipped: int = 0
+    failed: int = 0
+    pending: int = 0
+
+
+@dataclass(frozen=True)
+class QuarantineCleanupReport:
+    deleted: int = 0
+    retained: int = 0
+    corrupt: int = 0
+    failed: int = 0
+
+    @property
+    def degraded(self) -> bool:
+        return self.corrupt > 0 or self.failed > 0
+
+
+@dataclass(frozen=True)
+class QuarantineMaintenanceReport:
+    migration: QuarantineMigrationReport
+    cleanup: QuarantineCleanupReport
+
+    @property
+    def degraded(self) -> bool:
+        return (
+            self.migration.failed > 0
+            or self.migration.pending > 0
+            or self.cleanup.degraded
+        )
 
 
 def derive_quarantine_key(master_secret: bytes, agent_id: str) -> bytes:
@@ -92,9 +133,17 @@ class QuarantineStore:
         directory: str | Path,
         master_secret: bytes,
         agent_id: str,
+        retention_days: int = 30,
     ) -> None:
+        if (
+            not isinstance(retention_days, int)
+            or isinstance(retention_days, bool)
+            or not 1 <= retention_days <= 365
+        ):
+            raise ValueError("retention_days must be between 1 and 365")
         self.directory = Path(directory)
         self._key = derive_quarantine_key(master_secret, agent_id)
+        self.retention_days = retention_days
         self._lock = threading.Lock()
         self._ensure_directory()
 
@@ -147,6 +196,171 @@ class QuarantineStore:
             self._validate_identity(artifact.metadata, action_id, source)
             self._remove_matching_source(source, artifact.metadata)
             return artifact
+
+    def maintain(self, *, now: datetime | None = None) -> QuarantineMaintenanceReport:
+        """Migrate known plaintext formats, then enforce encrypted retention."""
+        effective_now = self._normalise_now(now)
+        migration = self.migrate_legacy(now=effective_now)
+        cleanup = self.cleanup_expired(now=effective_now)
+        return QuarantineMaintenanceReport(migration=migration, cleanup=cleanup)
+
+    def migrate_legacy(
+        self, *, now: datetime | None = None
+    ) -> QuarantineMigrationReport:
+        """Atomically migrate both historical plaintext naming schemes.
+
+        Unknown entries are preserved and counted as pending.  A live symlink
+        is captured as target text; a multiply-linked regular file is rejected
+        fail-closed.  Reports contain counts only so legacy names and paths do
+        not leak into operational logs.
+        """
+        effective_now = self._normalise_now(now)
+        counts = {"migrated": 0, "skipped": 0, "failed": 0, "pending": 0}
+        with self._lock:
+            for path in sorted(self.directory.iterdir(), key=lambda item: item.name):
+                if path.name.endswith(".fimq") or path.name.startswith("."):
+                    continue
+                legacy_format, captured_at = self._classify_legacy(path, effective_now)
+                if legacy_format is None:
+                    counts["pending"] += 1
+                    continue
+                try:
+                    changed = self._migrate_legacy_artifact(
+                        path, legacy_format, captured_at
+                    )
+                except QuarantineError:
+                    counts["failed"] += 1
+                else:
+                    counts["migrated" if changed else "skipped"] += 1
+        return QuarantineMigrationReport(**counts)
+
+    def cleanup_expired(
+        self, *, now: datetime | None = None
+    ) -> QuarantineCleanupReport:
+        """Delete authenticated artifacts at their retention boundary.
+
+        Corrupt or unauthenticatable artifacts are never deleted automatically:
+        they are preserved and make the report degraded for administrator
+        investigation.
+        """
+        effective_now = self._normalise_now(now)
+        cutoff = effective_now - timedelta(days=self.retention_days)
+        counts = {"deleted": 0, "retained": 0, "corrupt": 0, "failed": 0}
+        with self._lock:
+            for path in sorted(self.directory.glob("*.fimq"), key=lambda item: item.name):
+                try:
+                    artifact = self._read_artifact(path, include_content=False)
+                    captured_at = self._metadata_time(artifact.metadata)
+                except QuarantineError:
+                    counts["corrupt"] += 1
+                    continue
+                if captured_at > cutoff:
+                    counts["retained"] += 1
+                    continue
+                try:
+                    path.unlink()
+                    _fsync_directory(self.directory)
+                except OSError:
+                    counts["failed"] += 1
+                else:
+                    counts["deleted"] += 1
+        return QuarantineCleanupReport(**counts)
+
+    @staticmethod
+    def _normalise_now(now: datetime | None) -> datetime:
+        value = now or datetime.now(timezone.utc)
+        if value.tzinfo is None:
+            raise ValueError("now must be timezone-aware")
+        return value.astimezone(timezone.utc)
+
+    @staticmethod
+    def _metadata_time(metadata: dict[str, Any]) -> datetime:
+        value = metadata.get("quarantined_at")
+        if not isinstance(value, str):
+            raise QuarantineIntegrityError("quarantine_metadata_invalid")
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError as exc:
+            raise QuarantineIntegrityError("quarantine_metadata_invalid") from exc
+        if parsed.tzinfo is None:
+            raise QuarantineIntegrityError("quarantine_metadata_invalid")
+        return parsed.astimezone(timezone.utc)
+
+    @staticmethod
+    def _classify_legacy(
+        path: Path, fallback_time: datetime
+    ) -> tuple[str | None, datetime]:
+        if _AUTOMATIC_LEGACY_NAME.fullmatch(path.name):
+            try:
+                return "automatic", datetime.fromtimestamp(
+                    os.lstat(path).st_ctime, timezone.utc
+                )
+            except OSError:
+                return "automatic", fallback_time
+        match = _COMMAND_LEGACY_NAME.fullmatch(path.name)
+        if match:
+            try:
+                return "command", datetime.strptime(
+                    match.group(1), "%Y%m%dT%H%M%S"
+                ).replace(tzinfo=timezone.utc)
+            except ValueError:
+                return None, fallback_time
+        return None, fallback_time
+
+    def _legacy_artifact_path(self, legacy_name: str) -> Path:
+        opaque = hashlib.sha256(b"legacy-v1\x00" + legacy_name.encode()).hexdigest()
+        return self.directory / f"{opaque}.fimq"
+
+    def _migrate_legacy_artifact(
+        self, source_path: Path, legacy_format: str, captured_at: datetime
+    ) -> bool:
+        source = str(source_path.absolute())
+        action_id = f"legacy:{legacy_format}:{source_path.name}"
+        final_path = self._legacy_artifact_path(source_path.name)
+        if final_path.exists():
+            artifact = self._read_artifact(final_path, include_content=False)
+            self._validate_legacy_identity(
+                artifact.metadata, legacy_format, source_path.name
+            )
+            self._remove_matching_source(source, artifact.metadata)
+            return False
+
+        source_handle, content, metadata = self._capture_source(action_id, source)
+        metadata["quarantined_at"] = captured_at.isoformat()
+        # Historical filenames retained only basename, never the original
+        # directory.  Do not misrepresent the quarantine directory as a
+        # restorable origin path; recovery requires an operator-selected path.
+        metadata["original_path"] = None
+        metadata["original_path_known"] = False
+        metadata["legacy_format"] = legacy_format
+        metadata["legacy_name"] = source_path.name
+        try:
+            self._write_encrypted(
+                final_path,
+                metadata,
+                source_handle,
+                content,
+                no_overwrite=True,
+            )
+        finally:
+            if source_handle is not None:
+                source_handle.close()
+        artifact = self._read_artifact(final_path, include_content=False)
+        self._validate_legacy_identity(
+            artifact.metadata, legacy_format, source_path.name
+        )
+        self._remove_matching_source(source, artifact.metadata)
+        return True
+
+    @staticmethod
+    def _validate_legacy_identity(
+        metadata: dict[str, Any], legacy_format: str, legacy_name: str
+    ) -> None:
+        if (
+            metadata.get("legacy_format") != legacy_format
+            or metadata.get("legacy_name") != legacy_name
+        ):
+            raise QuarantineIntegrityError("quarantine_identity_mismatch")
 
     def _capture_source(
         self, action_id: str, source: str
@@ -218,6 +432,8 @@ class QuarantineStore:
         metadata: dict[str, Any],
         source_handle: BinaryIO | None,
         content: bytes | None,
+        *,
+        no_overwrite: bool = False,
     ) -> None:
         metadata_bytes = json.dumps(
             metadata, sort_keys=True, separators=(",", ":"), ensure_ascii=False
@@ -255,7 +471,14 @@ class QuarantineStore:
 
             if second_hash.hexdigest() != metadata["sha256"]:
                 raise QuarantineError("quarantine_source_changed")
-            os.replace(tmp_path, final_path)
+            if no_overwrite:
+                try:
+                    os.link(tmp_path, final_path, follow_symlinks=False)
+                except FileExistsError as exc:
+                    raise QuarantineError("quarantine_artifact_exists") from exc
+                tmp_path.unlink()
+            else:
+                os.replace(tmp_path, final_path)
             _fsync_directory(self.directory)
         except QuarantineError:
             raise

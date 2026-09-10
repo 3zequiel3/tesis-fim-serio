@@ -24,12 +24,20 @@ class StorageConfig(BaseModel):
     # cola. Destino terminal de un evento que agota el techo de reintentos o
     # recibe un event_nack terminal (invalid_schema, clock_skew).
     discard_dir: str = "/var/lib/fim-agent/discarded"
+    quarantine_retention_days: int = 30
 
     @field_validator("baseline_dir", "queue_dir", "journal_dir", "discard_dir", mode="before")
     @classmethod
     def _not_empty(cls, v: object) -> object:
         if not str(v).strip():
             raise ValueError("storage path must not be empty")
+        return v
+
+    @field_validator("quarantine_retention_days", mode="before")
+    @classmethod
+    def _valid_quarantine_retention(cls, v: object) -> object:
+        if not isinstance(v, int) or isinstance(v, bool) or not 1 <= v <= 365:
+            raise ValueError("quarantine_retention_days must be between 1 and 365")
         return v
 
 

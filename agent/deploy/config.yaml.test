@@ -15,3 +15,4 @@ storage:
   journal_dir: /tmp/fim-agent-test/journal
   secrets_dir: /tmp/fim-agent-test/secrets
   certs_dir: /tmp/fim-agent-test/certs
+  quarantine_retention_days: 30

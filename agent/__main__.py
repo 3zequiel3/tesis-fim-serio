@@ -35,6 +35,7 @@ log = structlog.get_logger()
 
 _CERT_RENEWAL_DAYS_THRESHOLD = 15
 _ATOMIC_CERT_SUFFIX = ".fim_cert_tmp"
+_QUARANTINE_MAINTENANCE_INTERVAL_S = 24 * 60 * 60
 
 
 async def _cert_renewal_loop(cfg: AgentConfig, stop_event: asyncio.Event) -> None:
@@ -154,6 +155,45 @@ async def _drain_then_stop(
     stop_event.set()
 
 
+def _run_quarantine_maintenance(quarantine_store: object) -> None:
+    """Run one bounded maintenance pass and expose aggregate health only."""
+    try:
+        report = quarantine_store.maintain()  # type: ignore[attr-defined]
+    except Exception as exc:
+        log.error("quarantine.maintenance.failed", error=type(exc).__name__)
+        return
+    event = (
+        "quarantine.maintenance.degraded"
+        if report.degraded
+        else "quarantine.maintenance.complete"
+    )
+    logger = log.warning if report.degraded else log.info
+    logger(
+        event,
+        migrated=report.migration.migrated,
+        migration_skipped=report.migration.skipped,
+        migration_failed=report.migration.failed,
+        migration_pending=report.migration.pending,
+        retention_deleted=report.cleanup.deleted,
+        retention_retained=report.cleanup.retained,
+        retention_corrupt=report.cleanup.corrupt,
+        retention_failed=report.cleanup.failed,
+    )
+
+
+async def _quarantine_maintenance_loop(
+    quarantine_store: object,
+    stop_event: asyncio.Event,
+    interval_s: float = _QUARANTINE_MAINTENANCE_INTERVAL_S,
+) -> None:
+    """Run maintenance every 24 h; shutdown interrupts the wait cleanly."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval_s)
+        except asyncio.TimeoutError:
+            await asyncio.to_thread(_run_quarantine_maintenance, quarantine_store)
+
+
 async def main(config_path: Path, log_level: str, log_format: str) -> None:
     configure_logging(level=log_level, fmt=log_format)
 
@@ -186,7 +226,13 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     from agent.quarantine import QuarantineStore
 
     quarantine_dir = Path(cfg.storage.journal_dir).parent / "quarantine"
-    quarantine_store = QuarantineStore(quarantine_dir, master_secret, cfg.agent_id)
+    quarantine_store = QuarantineStore(
+        quarantine_dir,
+        master_secret,
+        cfg.agent_id,
+        retention_days=cfg.storage.quarantine_retention_days,
+    )
+    await asyncio.to_thread(_run_quarantine_maintenance, quarantine_store)
 
     # D36/RN-130: preflight de escritura por watch_path, DESPUÉS de cargar la
     # config y ANTES del scan inicial, para que el primer heartbeat ya lo
@@ -304,6 +350,7 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     coroutines = [
         publisher.run(stop_event),
         heartbeat.run(stop_event, shutdown_flag),
+        _quarantine_maintenance_loop(quarantine_store, stop_event),
     ]
 
     # Renovación proactiva de certificado: solo si ya está bootstrapped (G3/RN-111)

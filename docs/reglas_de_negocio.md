@@ -287,6 +287,12 @@ La clave de cuarentena se deriva desde `master_secret` mediante HKDF-SHA256 con 
 **Resultado:** El baseline permanece intacto. El evento se crea con estado `quarantined`.
 **Excepciones:** Ninguna.
 
+### RN-37a: Retención y migración local de cuarentena
+**Descripción:** La cuarentena cifrada tiene retención local configurable y migra los dos formatos históricos en texto plano.
+**Condición:** Al arrancar el agente y cada 24 horas.
+**Resultado:** Primero se migran de forma atómica e idempotente los nombres históricos `{event_id}_{basename}` y `{basename}.{YYYYMMDDTHHMMSS}` a artefactos cifrados; luego se eliminan únicamente artefactos autenticados cuya antigüedad alcanzó `quarantine_retention_days` (30 días por defecto, rango 1–365). El inventario agregado informa migrados, omitidos, fallidos y pendientes sin registrar nombres ni rutas.
+**Excepciones:** Artefactos corruptos o no autenticables y formatos legacy desconocidos se conservan, producen estado degradado y requieren revisión. Los hardlinks legacy se rechazan; los symlinks se migran como target textual sin seguirlos. Los dos nombres históricos sólo conservaron el basename, no el directorio original: la migración marca `original_path_known: false` y no inventa un destino de restauración. El formato automático tampoco registró una fecha; para retención se conserva el `ctime` local disponible como aproximación explícita. Esta política no constituye borrado seguro del soporte ni validación productiva.
+
 ---
 
 ## 9. Resiliencia y offline

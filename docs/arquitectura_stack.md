@@ -341,6 +341,7 @@ storage:
   baseline_dir: /var/lib/fim-agent/baseline
   queue_dir: /var/lib/fim-agent/queue
   journal_dir: /var/lib/fim-agent/journal
+  quarantine_retention_days: 30
 ```
 
 El agente lee los paths a monitorear desde el archivo de configuración local al arrancar. Esto define el estado inicial.
@@ -624,6 +625,12 @@ Evento detectado (fanotify, modo FID)
 * Permisos restringidos (`0400`, owner `fim-agent`)
 * Actualizar journal
 * Enviar evento (status: quarantined)
+
+Al arranque y cada 24 horas, el mismo almacén migra los dos formatos legacy
+plaintext reconocidos y aplica la retención configurable (30 días por defecto,
+rango 1–365). Sólo elimina artefactos autenticados que alcanzaron el límite.
+Corrupciones y formatos desconocidos se preservan y generan un reporte agregado
+degradado; esta limpieza no equivale a borrado seguro del soporte.
 
 ## 🔹 3. Revisión manual (pending)
 

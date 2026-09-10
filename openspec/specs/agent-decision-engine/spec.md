@@ -118,6 +118,25 @@ Cuando la acción determinada es `quarantine`, el `DecisionEngine` SHALL usar el
 - **WHEN** el archivo `/opt/app/gone.sh` no existe al momento de ejecutar quarantine
 - **THEN** journal queda `failed` con `error: "file_not_found"`, evento publicado con `action_failed: true`
 
+### Requirement: Retención y migración de cuarentena
+
+El agente SHALL ejecutar mantenimiento de cuarentena al arranque y cada 24 horas hasta el shutdown. La retención SHALL ser configurable, con 30 días por defecto y rango válido de 1 a 365. El mantenimiento MUST migrar primero los formatos plaintext históricos `{event_id}_{basename}` y `{basename}.{YYYYMMDDTHHMMSS}` al `QuarantineStore` cifrado de forma atómica e idempotente, sin sobreescribir artefactos ni seguir symlinks. Los hardlinks MUST fallar cerrados. Como ambos nombres legacy perdieron el directorio original, la metadata MUST declarar `original_path_known: false` en vez de inventar una ruta restaurable. Después MUST borrar únicamente artefactos autenticados que hayan alcanzado el límite de retención. Los artefactos corruptos, no autenticables o legacy desconocidos MUST conservarse y reportarse como estado degradado mediante contadores agregados que no filtren nombres, rutas ni secretos.
+
+#### Scenario: Expiración en el límite
+
+- **WHEN** un artefacto autenticado alcanza exactamente `quarantine_retention_days`
+- **THEN** se elimina y se sincroniza el directorio, mientras uno más reciente se conserva
+
+#### Scenario: Corrupción preservada
+
+- **WHEN** un artefacto no supera autenticación AES-GCM
+- **THEN** no se elimina, el mantenimiento continúa y reporta estado degradado
+
+#### Scenario: Reinicio durante migración legacy
+
+- **WHEN** el artefacto cifrado quedó durable pero el origen legacy no llegó a retirarse
+- **THEN** el siguiente arranque autentica el destino existente, no lo sobreescribe y completa el retiro sólo si la identidad del origen coincide
+
 ### Requirement: Rehidratación de journal al arrancar
 
 Al iniciar, el agente SHALL escanear `/var/lib/fim-agent/journal/` y procesar todas las entradas con `state: "pending"` (RN-83). Para cada entrada pendiente con acción `auto_restore` o `quarantine`: MUST reintentarse la acción. Para cada entrada pendiente con acción `manual_review` o `alert_only`: MUST marcarse `state: "failed"` con `error: "rehydrated_without_action"` y re-publicarse como evento `alert_only` para que el backend lo registre. La rehidratación MUST completarse antes de que el detector comience a aceptar nuevos eventos.
