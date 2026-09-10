@@ -56,6 +56,7 @@ class EventOut(BaseModel):
     # explicativa — ver Event.action_error. Aditivo, sin filtro nuevo.
     action_error: str | None = None
 
+    model_config = {"from_attributes": True}
 
 
 class EventDetailOut(EventOut):
@@ -63,7 +64,6 @@ class EventDetailOut(EventOut):
 
     hash_expected: str | None = None
     diff_text: str | None = None
-    model_config = {"from_attributes": True}
 
 
 class PaginatedEventsOut(BaseModel):
@@ -186,10 +186,10 @@ def _get_ack_status_map(session: Session, event_ids: list[int]) -> dict[int, str
 def _to_event_out(event: Event, ack_map: dict[int, str]) -> EventOut:
     out = EventOut.model_validate(event)
     out.ack_status = ack_map.get(event.id) if event.id is not None else None
+    return out
 
 
 def _to_event_detail_out(event: Event, ack_map: dict[int, str]) -> EventDetailOut:
     out = EventDetailOut.model_validate(event)
     out.ack_status = ack_map.get(event.id) if event.id is not None else None
-    return out
     return out

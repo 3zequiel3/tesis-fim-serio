@@ -339,6 +339,7 @@ async def test_get_event_by_id_returns_full_detail(client, session, agent) -> No
 async def test_get_event_by_id_unknown_returns_404(client, session, agent) -> None:
     """Un id inexistente devuelve 404, no 200 con un cuerpo vacío."""
     resp = await client.get("/events/987654", headers=_auth_headers())
+    assert resp.status_code == 404
 
 
 async def test_get_event_by_id_returns_textual_diff_metadata(client, session, agent) -> None:
@@ -361,4 +362,3 @@ async def test_list_events_does_not_expose_textual_diff(client, session, agent) 
 
     assert resp.status_code == 200
     assert "diff_text" not in resp.json()["items"][0]
-    assert resp.status_code == 404

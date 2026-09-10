@@ -150,6 +150,7 @@ def _is_text(path: str) -> bool:
         with open(path, "rb") as f:
             content = f.read(_MAX_DIFF_BYTES + 1)
     except OSError:
+        return False
     return len(content) <= _MAX_DIFF_BYTES and _is_text_bytes(content)
 
 
@@ -163,7 +164,6 @@ def _is_text_bytes(value: bytes) -> bool:
         char in "\t\n\r\f" or not (ord(char) < 32 or 127 <= ord(char) < 160)
         for char in text
     )
-        return False
 
 
 def _generate_diff(previous_content: str, current_path: str) -> str | None:
