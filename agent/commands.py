@@ -258,9 +258,12 @@ async def handle_baseline_update(
     path = command.get("path", "")
     hash_value: str | None = command.get("hash")
     baseline_status = command.get("baseline_status", "present")
+    source_event_id = command.get("source_event_id")
 
     try:
-        baseline_engine.update_from_command(path, hash_value, baseline_status)
+        baseline_engine.update_from_command(
+            path, hash_value, baseline_status, source_event_id=source_event_id,
+        )
     except Exception as exc:
         log.error("commands.baseline_update.write_failed", path=path, error=str(exc))
         await _publish_ack(

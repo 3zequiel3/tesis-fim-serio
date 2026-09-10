@@ -626,6 +626,37 @@ class FanotifyDetector:
         """
         return self._hardlink_suspected
 
+    def _stage_approval_candidate(
+        self,
+        change: DetectedChange,
+        *,
+        is_symlink: bool = False,
+    ) -> None:
+        """Best-effort local capture for a future, identity-bound approval."""
+        status = "absent" if change.hash_detected is None else "present"
+        try:
+            stored = self._baseline.stage_approval_candidate(
+                change.event_id,
+                change.path,
+                change.hash_detected,
+                status,
+                is_symlink=is_symlink,
+            )
+        except Exception as exc:
+            log.warning(
+                "detector.approval_candidate_failed",
+                event_id=change.event_id,
+                path=change.path,
+                error=str(exc),
+            )
+            return
+        if not stored:
+            log.warning(
+                "detector.approval_candidate_unavailable",
+                event_id=change.event_id,
+                path=change.path,
+            )
+
     # ── Procesamiento async de eventos ─────────────────────────────────────────
 
     def _classify_event(self, mask: int) -> str | None:
@@ -694,6 +725,7 @@ class FanotifyDetector:
                 is_symlink=was_symlink,
                 symlink_target=previous_symlink_target,
             )
+            self._stage_approval_candidate(change, is_symlink=was_symlink)
             self._trace_change_created(change, entry.status if entry else "missing")
             # BUG-01 (D14): evaluate FIRST so auto_restore can read baseline content;
             # only mutate baseline AFTER the decision is made.
@@ -724,7 +756,7 @@ class FanotifyDetector:
                 if commit_fn is not None:
                     commit_fn()
             except Exception as exc:
-                log.warning("detector.publish_failed", event_id=event_id, error=str(exc))
+                log.warning("detector.publish_failed", event_id=change.event_id, error=str(exc))
             log.info("detector.change_detected", path=path, event_type="file_deleted", event_id=event_id)
             return
 
@@ -798,6 +830,7 @@ class FanotifyDetector:
                 is_symlink=is_symlink,
                 symlink_target=symlink_target,
             )
+            self._stage_approval_candidate(change, is_symlink=is_symlink)
             self._trace_change_created(change, entry.status if entry else "missing")
             # BUG-02 (D14): evaluate FIRST so quarantine can act on the file before
             # the baseline records it as present.
@@ -823,7 +856,7 @@ class FanotifyDetector:
                 if commit_fn is not None:
                     commit_fn()
             except Exception as exc:
-                log.warning("detector.publish_failed", event_id=event_id, error=str(exc))
+                log.warning("detector.publish_failed", event_id=change.event_id, error=str(exc))
             log.info("detector.change_detected", path=path, event_type="file_created", event_id=event_id)
             return
 
@@ -918,6 +951,7 @@ class FanotifyDetector:
             is_symlink=is_symlink,
             symlink_target=symlink_target,
         )
+        self._stage_approval_candidate(change, is_symlink=is_symlink)
         self._trace_change_created(change, entry.status if entry else "missing")
 
         # Motor de decisión evalúa y actúa ANTES de actualizar el baseline,
@@ -964,7 +998,7 @@ class FanotifyDetector:
             if commit_fn is not None:
                 commit_fn()
         except Exception as exc:
-            log.warning("detector.publish_failed", event_id=event_id, error=str(exc))
+            log.warning("detector.publish_failed", event_id=change.event_id, error=str(exc))
         log.info(
             "detector.change_detected",
             path=path,

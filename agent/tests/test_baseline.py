@@ -299,7 +299,7 @@ def test_load_master_secret_ok(secrets_dir: Path, master_secret: bytes) -> None:
     assert len(loaded) == 32
 
 
-# ── C23-H4: update_from_command preserva snapshots y content_b64 ──────────────
+# ── Aprobación ligada a candidato local cifrado ──────────────────────────────
 
 def test_update_from_command_preserves_snapshots(
     engine: BaselineEngine, sample_file: Path
@@ -314,40 +314,53 @@ def test_update_from_command_preserves_snapshots(
     assert len(existing.snapshots) == 1
 
     # Aplicar un baseline_update por aprobación de cambio
-    new_hash = "aabbccdd" * 8  # 64 chars hex
-    updated = engine.update_from_command(str(sample_file), new_hash, "present")
+    approved = b"approved replacement"
+    sample_file.write_bytes(approved)
+    new_hash = hashlib.sha256(approved).hexdigest()
+    assert engine.stage_approval_candidate(
+        "event-new", str(sample_file), new_hash, "present"
+    )
+    updated = engine.update_from_command(
+        str(sample_file), new_hash, "present", source_event_id="event-new"
+    )
 
     assert updated.hash == new_hash
     assert len(updated.snapshots) == 1, "Los snapshots deben preservarse"
     assert updated.snapshots[0].hash == existing.snapshots[0].hash
 
 
-def test_update_from_command_preserves_content_b64(
+def test_update_from_command_uses_exact_candidate_content(
     engine: BaselineEngine, sample_file: Path
 ) -> None:
-    """update_from_command preserva content_b64 para que restore_file funcione."""
+    """A new approved hash is never paired with old baseline content."""
     engine.write_entry(str(sample_file))
-    existing = engine.read_entry(str(sample_file))
-    assert existing is not None
-    original_content = existing.content_b64
-    assert original_content is not None  # el sample_file es pequeño, debe tener content
+    approved = b"new approved bytes"
+    sample_file.write_bytes(approved)
+    new_hash = hashlib.sha256(approved).hexdigest()
+    assert engine.stage_approval_candidate(
+        "event-approved", str(sample_file), new_hash, "present"
+    )
 
-    new_hash = "deadbeef" * 8
-    updated = engine.update_from_command(str(sample_file), new_hash, "present")
+    updated = engine.update_from_command(
+        str(sample_file), new_hash, "present", source_event_id="event-approved"
+    )
 
-    assert updated.content_b64 == original_content
+    assert base64.b64decode(updated.content_b64 or "") == approved
+    assert hashlib.sha256(base64.b64decode(updated.content_b64 or "")).hexdigest() == updated.hash
 
 
-def test_update_from_command_no_existing_creates_empty(
+def test_update_from_command_without_candidate_is_rejected(
     engine: BaselineEngine, tmp_path: Path
 ) -> None:
-    """Sin entry previo, update_from_command crea entry con content vacío."""
-    path = str(tmp_path / "new_file.txt")
-    result = engine.update_from_command(path, "abcd1234" * 8, "present")
+    """A command cannot invent a restorable baseline without local evidence."""
+    from agent.baseline import BaselineApprovalError
 
-    assert result.snapshots == []
-    assert result.content_b64 is None
-    assert result.hash == "abcd1234" * 8
+    path = str(tmp_path / "new_file.txt")
+    with pytest.raises(BaselineApprovalError, match="approval_candidate_unavailable"):
+        engine.update_from_command(
+            path, "abcd1234" * 8, "present", source_event_id="missing-event"
+        )
+    assert engine.read_entry(path) is None
 
 
 def test_update_from_command_idempotent(
@@ -358,15 +371,53 @@ def test_update_from_command_idempotent(
     original = engine.read_entry(str(sample_file))
     assert original is not None
 
-    new_hash = "11223344" * 8
-    engine.update_from_command(str(sample_file), new_hash, "present")
-    engine.update_from_command(str(sample_file), new_hash, "present")  # re-delivery
+    approved = b"idempotently approved"
+    sample_file.write_bytes(approved)
+    new_hash = hashlib.sha256(approved).hexdigest()
+    assert engine.stage_approval_candidate(
+        "event-idempotent", str(sample_file), new_hash, "present"
+    )
+    engine.update_from_command(
+        str(sample_file), new_hash, "present", source_event_id="event-idempotent"
+    )
+    engine.update_from_command(  # re-delivery after candidate consumption
+        str(sample_file), new_hash, "present", source_event_id="event-idempotent"
+    )
 
     final = engine.read_entry(str(sample_file))
     assert final is not None
     assert final.hash == new_hash
-    # El content_b64 original debe seguir presente
-    assert final.content_b64 == original.content_b64
+    assert base64.b64decode(final.content_b64 or "") == approved
+
+
+@pytest.mark.parametrize(
+    ("source_event_id", "approved_hash", "expected_error"),
+    [
+        ("older-event", None, "approval_candidate_stale"),
+        ("latest-event", "0" * 64, "approval_candidate_mismatch"),
+    ],
+)
+def test_update_from_command_rejects_stale_or_hash_mismatch(
+    engine: BaselineEngine,
+    sample_file: Path,
+    source_event_id: str,
+    approved_hash: str | None,
+    expected_error: str,
+) -> None:
+    from agent.baseline import BaselineApprovalError
+
+    detected_hash = hashlib.sha256(sample_file.read_bytes()).hexdigest()
+    assert engine.stage_approval_candidate(
+        "latest-event", str(sample_file), detected_hash, "present"
+    )
+
+    with pytest.raises(BaselineApprovalError, match=expected_error):
+        engine.update_from_command(
+            str(sample_file),
+            approved_hash or detected_hash,
+            "present",
+            source_event_id=source_event_id,
+        )
 
 
 # ── C37/C39: symlinks en el scan (RN-04/RN-125, D31; refinado por RN-127, D33) ──

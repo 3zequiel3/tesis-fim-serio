@@ -49,6 +49,10 @@ class BaselineIntegrityError(Exception):
         super().__init__(f"baseline integrity failure: {path}")
 
 
+class BaselineApprovalError(Exception):
+    """A baseline approval cannot be bound to an exact local detection."""
+
+
 @dataclass
 class Snapshot:
     hash: str
@@ -75,6 +79,9 @@ class BaselineEntry:
     # archivos regulares. Default retrocompatible — entries viejas sin esta key
     # parsean igual vía from_dict.
     symlink_target: str | None = None
+    # UUID emitted by the agent for the event that last established this active
+    # baseline. It makes command redelivery idempotent without reusing stale bytes.
+    approved_event_id: str | None = None
 
     def to_json_bytes(self) -> bytes:
         return json.dumps(dataclasses.asdict(self), ensure_ascii=False).encode()
@@ -84,6 +91,24 @@ class BaselineEntry:
         snaps = [Snapshot(**s) for s in d.get("snapshots", [])]
         fields = {k: v for k, v in d.items() if k != "snapshots"}
         return cls(**fields, snapshots=snaps)
+
+
+@dataclass
+class ApprovalCandidate:
+    """Encrypted, one-per-path local content awaiting explicit approval."""
+
+    event_id: str
+    path: str
+    status: str
+    hash: str | None
+    size: int | None
+    mode: str | None
+    uid: int | None
+    gid: int | None
+    mtime: str | None
+    captured_at: str
+    content_b64: str | None
+    symlink_target: str | None = None
 
 
 @dataclass
@@ -137,6 +162,11 @@ def _decrypt(key: bytes, blob: bytes) -> bytes:
 def _entry_path(baseline_dir: Path, path: str) -> Path:
     name = hashlib.sha256(path.encode()).hexdigest() + ".bin"
     return baseline_dir / name
+
+
+def _candidate_path(candidate_dir: Path, path: str) -> Path:
+    name = hashlib.sha256(path.encode()).hexdigest() + ".bin"
+    return candidate_dir / name
 
 
 def _atomic_write(final_path: Path, data: bytes) -> None:
@@ -212,8 +242,12 @@ class BaselineEngine:
     def __init__(self, config: "AgentConfig", master_secret_bytes: bytes) -> None:
         self._config = config
         self._baseline_dir = Path(config.storage.baseline_dir)
+        self._candidate_dir = self._baseline_dir / ".approval-candidates"
         self._key = derive_baseline_key(master_secret_bytes, config.agent_id)
         self._ensure_dir()
+        self._candidate_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if _LINUX:
+            os.chmod(self._candidate_dir, 0o700)
 
     # ── 2.3 permisos del directorio ────────────────────────────────────────
 
@@ -544,14 +578,15 @@ class BaselineEngine:
         path: str,
         hash_value: str | None,
         baseline_status: str,
+        source_event_id: str | None = None,
     ) -> BaselineEntry:
         """
         Actualiza (o crea) la entrada de baseline a partir de un comando baseline_update
         recibido desde el backend (C13, RN handler 8.3).
 
-        Si ya existe una entrada, preserva snapshots y content_b64 para que
-        restore_file siga funcionando tras una aprobación de cambio (C23-H4).
-        Actualiza solo hash, status y captured_at.
+        La aprobación consume únicamente el candidato local cifrado que fue
+        capturado para el UUID de evento original. Nunca combina un hash nuevo
+        con content_b64 anterior y nunca recibe contenido desde el backend.
 
         Misma clave HKDF que el resto del motor. Nuevo nonce AES-GCM por escritura.
 
@@ -560,40 +595,62 @@ class BaselineEngine:
             hash_value: SHA-256 hexadecimal del archivo, o None si status=absent.
             baseline_status: "present" | "absent".
         """
-        existing = self.read_entry(path)
+        if not source_event_id:
+            raise BaselineApprovalError("approval_event_identity_missing")
 
-        if existing is not None:
-            entry = BaselineEntry(
-                path=path,
-                status=baseline_status,
-                hash=hash_value,
-                size=existing.size,
-                mode=existing.mode,
-                uid=existing.uid,
-                gid=existing.gid,
-                mtime=existing.mtime,
-                captured_at=_now_iso(),
-                snapshots=existing.snapshots,
-                content_b64=existing.content_b64,
-                oversize=existing.oversize,
-            )
-        else:
-            entry = BaselineEntry(
-                path=path,
-                status=baseline_status,
-                hash=hash_value,
-                size=None,
-                mode=None,
-                uid=None,
-                gid=None,
-                mtime=None,
-                captured_at=_now_iso(),
-                snapshots=[],
-                content_b64=None,
-            )
+        existing = self.read_entry(path)
+        if (
+            existing is not None
+            and existing.approved_event_id == source_event_id
+            and existing.status == baseline_status
+            and existing.hash == hash_value
+        ):
+            return existing
+
+        candidate_path = _candidate_path(self._candidate_dir, path)
+        if not candidate_path.exists():
+            raise BaselineApprovalError("approval_candidate_unavailable")
+        try:
+            plaintext = _decrypt(self._key, candidate_path.read_bytes())
+            candidate = ApprovalCandidate(**json.loads(plaintext))
+        except (InvalidTag, OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            raise BaselineApprovalError("approval_candidate_unavailable") from exc
+
+        if candidate.event_id != source_event_id:
+            raise BaselineApprovalError("approval_candidate_stale")
+        if (
+            candidate.path != path
+            or candidate.status != baseline_status
+            or candidate.hash != hash_value
+        ):
+            raise BaselineApprovalError("approval_candidate_mismatch")
+        if baseline_status == "present" and candidate.symlink_target is None:
+            if candidate.content_b64 is None:
+                raise BaselineApprovalError("approval_content_unavailable")
+            content = base64.b64decode(candidate.content_b64)
+            if hashlib.sha256(content).hexdigest() != hash_value:
+                raise BaselineApprovalError("approval_candidate_mismatch")
+
+        entry = BaselineEntry(
+            path=path,
+            status=baseline_status,
+            hash=hash_value,
+            size=candidate.size,
+            mode=candidate.mode,
+            uid=candidate.uid,
+            gid=candidate.gid,
+            mtime=candidate.mtime,
+            captured_at=candidate.captured_at,
+            snapshots=existing.snapshots if existing else [],
+            content_b64=candidate.content_b64,
+            oversize=False,
+            symlink_target=candidate.symlink_target,
+            approved_event_id=source_event_id,
+        )
 
         blob = self._encrypt_entry(entry)
         _atomic_write(_entry_path(self._baseline_dir, path), blob)
+        candidate_path.unlink(missing_ok=True)
         log.info(
             "baseline.update_from_command",
             path=path,
@@ -601,3 +658,95 @@ class BaselineEngine:
             hash=hash_value,
         )
         return entry
+
+    def stage_approval_candidate(
+        self,
+        event_id: str,
+        path: str,
+        hash_value: str | None,
+        baseline_status: str,
+        *,
+        is_symlink: bool = False,
+    ) -> bool:
+        """Persist the exact bounded local bytes associated with a detection.
+
+        Only the newest event for a path is retained. The encrypted candidate
+        is capped at the same 10 MiB limit as active baseline content.
+        """
+        candidate_path = _candidate_path(self._candidate_dir, path)
+        candidate_path.unlink(missing_ok=True)
+        if not event_id or baseline_status not in ("present", "absent"):
+            return False
+
+        if baseline_status == "absent":
+            if os.path.lexists(path):
+                return False
+            candidate = ApprovalCandidate(
+                event_id=event_id,
+                path=path,
+                status="absent",
+                hash=None,
+                size=None,
+                mode=None,
+                uid=None,
+                gid=None,
+                mtime=None,
+                captured_at=_now_iso(),
+                content_b64=None,
+            )
+        elif is_symlink:
+            try:
+                target = os.readlink(path)
+                st = os.lstat(path)
+            except OSError:
+                return False
+            actual_hash = hashlib.sha256(target.encode()).hexdigest()
+            if actual_hash != hash_value:
+                return False
+            candidate = ApprovalCandidate(
+                event_id=event_id,
+                path=path,
+                status="present",
+                hash=actual_hash,
+                size=st.st_size,
+                mode=oct(stat.S_IMODE(st.st_mode)),
+                uid=st.st_uid,
+                gid=st.st_gid,
+                mtime=datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat(),
+                captured_at=_now_iso(),
+                content_b64=None,
+                symlink_target=target,
+            )
+        else:
+            try:
+                flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                fd = os.open(path, flags)
+                with os.fdopen(fd, "rb") as source:
+                    content = source.read(_MAX_FILE_BYTES + 1)
+                    st = os.fstat(source.fileno())
+            except OSError:
+                return False
+            if not stat.S_ISREG(st.st_mode):
+                return False
+            if len(content) > _MAX_FILE_BYTES:
+                return False
+            actual_hash = hashlib.sha256(content).hexdigest()
+            if actual_hash != hash_value:
+                return False
+            candidate = ApprovalCandidate(
+                event_id=event_id,
+                path=path,
+                status="present",
+                hash=actual_hash,
+                size=len(content),
+                mode=oct(stat.S_IMODE(st.st_mode)),
+                uid=st.st_uid,
+                gid=st.st_gid,
+                mtime=datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat(),
+                captured_at=_now_iso(),
+                content_b64=base64.b64encode(content).decode(),
+            )
+
+        candidate_json = json.dumps(dataclasses.asdict(candidate)).encode()
+        _atomic_write(candidate_path, _encrypt(self._key, candidate_json))
+        return True

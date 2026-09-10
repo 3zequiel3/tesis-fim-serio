@@ -117,7 +117,7 @@ def enqueue_baseline_update(
     Encola el comando `baseline_update` en el outbox, firmado con HMAC-SHA256.
 
     Payload:
-      type, command_id, event_id, target_agent_id, path, hash,
+      type, command_id, event_id, source_event_id, target_agent_id, path, hash,
       baseline_status, ruleset_version, issued_at, signature.
 
     D2: usa event.hash_detected directamente, nunca consulta al agente.
@@ -137,6 +137,7 @@ def enqueue_baseline_update(
         "type": "baseline_update",
         "command_id": command_id,
         "event_id": event.id,
+        "source_event_id": event.event_id,
         "target_agent_id": event.agent_id,
         "path": event.path,
         "hash": hash_value,

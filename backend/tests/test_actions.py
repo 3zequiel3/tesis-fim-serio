@@ -168,6 +168,7 @@ def test_approve_success(session, mock_valkey, admin_user, agent_with_secret):
     payload = json.loads(call_args[0][1]["data"])
     assert payload["type"] == "baseline_update"
     assert payload["target_agent_id"] == agent.agent_id
+    assert payload["source_event_id"] == event.event_id
     assert payload["hash"] == "deadbeef1234"
     assert payload["baseline_status"] == "present"
 
@@ -257,6 +258,7 @@ def test_approve_absent_confirmed(session, mock_valkey, admin_user, agent_with_s
     payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
     assert payload["baseline_status"] == "absent"
     assert payload["hash"] is None
+    assert payload["source_event_id"] == event.event_id
 
 
 # ── 12.5 test_reject_restore ──────────────────────────────────────────────────

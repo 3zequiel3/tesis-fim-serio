@@ -395,14 +395,22 @@ async def test_target_agent_id_null_broadcast(
 
 @pytest.mark.asyncio
 async def test_baseline_update_present_writes_encrypted(
-    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, tmp_path
 ):
     """Entry cifrada creada/actualizada para status=present."""
     from agent import commands
 
+    approved = tmp_path / "approved-present"
+    approved.write_bytes(b"approved bytes")
+    approved_hash = hashlib.sha256(approved.read_bytes()).hexdigest()
+    assert baseline_engine.stage_approval_candidate(
+        "agent-event-present", str(approved), approved_hash, "present"
+    )
     cmd = _make_command(agent_config, shared_secret, "baseline_update", {
-        "hash": "aabb1122",
+        "path": str(approved),
+        "hash": approved_hash,
         "baseline_status": "present",
+        "source_event_id": "agent-event-present",
         "ruleset_version": 3,
     })
 
@@ -415,10 +423,11 @@ async def test_baseline_update_present_writes_encrypted(
     )
 
     # Verificar que la entry existe y es legible
-    entry = baseline_engine.read_entry("/etc/passwd")
+    entry = baseline_engine.read_entry(str(approved))
     assert entry is not None
     assert entry.status == "present"
-    assert entry.hash == "aabb1122"
+    assert entry.hash == approved_hash
+    assert base64.b64decode(entry.content_b64 or "") == b"approved bytes"
     assert agent_state.ruleset_version == 3
 
 
@@ -427,14 +436,20 @@ async def test_baseline_update_present_writes_encrypted(
 
 @pytest.mark.asyncio
 async def test_baseline_update_absent_writes_null_hash(
-    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, tmp_path
 ):
     """Entry con status=absent y hash=null escrita correctamente."""
     from agent import commands
 
+    absent_path = tmp_path / "approved-absent"
+    assert baseline_engine.stage_approval_candidate(
+        "agent-event-absent", str(absent_path), None, "absent"
+    )
     cmd = _make_command(agent_config, shared_secret, "baseline_update", {
+        "path": str(absent_path),
         "hash": None,
         "baseline_status": "absent",
+        "source_event_id": "agent-event-absent",
         "ruleset_version": 5,
     })
 
@@ -446,11 +461,124 @@ async def test_baseline_update_absent_writes_null_hash(
         config=agent_config,
     )
 
-    entry = baseline_engine.read_entry("/etc/passwd")
+    entry = baseline_engine.read_entry(str(absent_path))
     assert entry is not None
     assert entry.status == "absent"
     assert entry.hash is None
     assert agent_state.ruleset_version == 5
+
+
+@pytest.mark.asyncio
+async def test_baseline_update_mismatch_returns_error_without_mutating_baseline(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, tmp_path
+):
+    from agent import commands
+
+    target = tmp_path / "mismatch"
+    target.write_bytes(b"detected")
+    detected_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+    assert baseline_engine.stage_approval_candidate(
+        "actual-event", str(target), detected_hash, "present"
+    )
+    cmd = _make_command(agent_config, shared_secret, "baseline_update", {
+        "path": str(target),
+        "hash": detected_hash,
+        "baseline_status": "present",
+        "source_event_id": "stale-event",
+        "ruleset_version": 5,
+    })
+
+    await commands.handle_baseline_update(
+        command=cmd,
+        baseline_engine=baseline_engine,
+        state=agent_state,
+        valkey_client=mock_valkey,
+        config=agent_config,
+    )
+
+    ack = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert ack["status"] == "error"
+    assert ack["error"] == "approval_candidate_stale"
+    assert baseline_engine.read_entry(str(target)) is None
+    assert agent_state.ruleset_version == 0
+
+
+@pytest.mark.asyncio
+async def test_detect_approve_modify_restore_uses_exact_approved_bytes(
+    agent_config,
+    shared_secret,
+    baseline_engine,
+    agent_state,
+    mock_valkey,
+    journal,
+    tmp_path,
+):
+    """Real baseline/filesystem regression for the complete approval lifecycle."""
+    from datetime import datetime, timezone
+
+    from agent import commands
+    from agent.detector import FanotifyDetector, FanotifyEvent
+
+    target = tmp_path / "approval-lifecycle"
+    target.write_bytes(b"original baseline")
+    baseline_engine.write_entry(str(target))
+
+    approved_content = b"explicitly approved content"
+    target.write_bytes(approved_content)
+    publisher = AsyncMock()
+    detector = FanotifyDetector(
+        agent_id=agent_config.agent_id,
+        watch_paths=[str(tmp_path)],
+        baseline=baseline_engine,
+        publisher=publisher,
+        stop_event=asyncio.Event(),
+    )
+    await detector._process_event(FanotifyEvent(
+        path=str(target),
+        pid=os.getpid(),
+        uid=os.getuid(),
+        exe=sys.executable,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+    ))
+
+    detected = publisher.publish.call_args.args[0]
+    detected_hash = hashlib.sha256(approved_content).hexdigest()
+    assert detected["hash_detected"] == detected_hash
+
+    approve = _make_command(agent_config, shared_secret, "baseline_update", {
+        "path": str(target),
+        "hash": detected_hash,
+        "baseline_status": "present",
+        "source_event_id": detected["event_id"],
+        "ruleset_version": 1,
+    })
+    await commands.handle_baseline_update(
+        command=approve,
+        baseline_engine=baseline_engine,
+        state=agent_state,
+        valkey_client=mock_valkey,
+        config=agent_config,
+    )
+
+    active = baseline_engine.read_entry(str(target))
+    assert active is not None
+    assert active.hash == detected_hash
+    assert base64.b64decode(active.content_b64 or "") == approved_content
+
+    target.write_bytes(b"later tampering")
+    restore = _make_command(agent_config, shared_secret, "restore_file", {
+        "command_id": "restore-approved-content",
+        "path": str(target),
+    })
+    await commands.handle_restore_file(
+        command=restore,
+        baseline_engine=baseline_engine,
+        journal=journal,
+        valkey_client=mock_valkey,
+        config=agent_config,
+    )
+
+    assert target.read_bytes() == approved_content
 
 
 # ── 13.8 test_baseline_update_older_version_ignored ──────────────────────────
@@ -503,14 +631,7 @@ async def test_restore_handler_success_publishes_ack(
     content = b"original content from baseline"
     target.write_bytes(b"corrupted content")
 
-    # Escribir entry en baseline con content_b64
-    content_b64 = base64.b64encode(content).decode()
-    content_hash = hashlib.sha256(content).hexdigest()
-
-    # Usar update_from_command para crear la entry base
-    baseline_engine.update_from_command(str(target), content_hash, "present")
-    # Ahora inyectar content_b64 manualmente (update_from_command no guarda content_b64)
-    # Para este test usamos write_entry que sí guarda content_b64
+    # Crear la entry local con contenido restaurable.
     target.write_bytes(content)  # primero restaurar para poder hacer write_entry
     baseline_engine.write_entry(str(target))
     target.write_bytes(b"corrupted content")  # volver a corromper
