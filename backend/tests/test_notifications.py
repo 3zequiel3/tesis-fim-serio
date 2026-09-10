@@ -111,6 +111,7 @@ def _make_event(
     agent_id: str = "agent-001",
     path: str | None = "/etc/passwd",
     status: EventStatus = EventStatus.pending,
+    severity: RuleSeverity = RuleSeverity.low,
 ) -> Event:
     event = Event(
         event_id=f"evt-{id(session)}-{path[:5] if path else 'nopath'}",
@@ -118,6 +119,7 @@ def _make_event(
         path=path,
         hash_detected="abc123",
         status=status,
+        severity=severity,
         detected_at=datetime.now(timezone.utc),
         received_at=datetime.now(timezone.utc),
     )
@@ -284,8 +286,12 @@ def test_determine_severity_high_fixed_for_path_none(session, agent):
 @pytest.mark.asyncio
 async def test_notify_skip_superseded(session, agent):
     """Evento superseded → no crea Alert."""
-    _make_rule(session, pattern="/etc/*", severity=RuleSeverity.critical)
-    event = _make_event(session, path="/etc/passwd", status=EventStatus.superseded)
+    event = _make_event(
+        session,
+        path="/etc/passwd",
+        status=EventStatus.superseded,
+        severity=RuleSeverity.critical,
+    )
 
     with patch("app.modules.alerts.service.engine") as mock_engine:
         mock_engine.__enter__ = MagicMock()
@@ -303,8 +309,7 @@ async def test_notify_skip_superseded(session, agent):
 @pytest.mark.asyncio
 async def test_notify_skip_low_severity(session, agent):
     """Evento con severity=low → no crea Alert."""
-    _make_rule(session, pattern="/etc/*", severity=RuleSeverity.low)
-    event = _make_event(session, path="/etc/passwd")
+    event = _make_event(session, path="/etc/passwd", severity=RuleSeverity.low)
 
     with patch("app.modules.alerts.service.Session") as mock_session_class:
         mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
@@ -318,8 +323,7 @@ async def test_notify_skip_low_severity(session, agent):
 @pytest.mark.asyncio
 async def test_notify_skip_medium_severity(session, agent):
     """Evento con severity=medium → no crea Alert."""
-    _make_rule(session, pattern="/etc/*", severity=RuleSeverity.medium)
-    event = _make_event(session, path="/etc/passwd")
+    event = _make_event(session, path="/etc/passwd", severity=RuleSeverity.medium)
 
     with patch("app.modules.alerts.service.Session") as mock_session_class:
         mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
@@ -328,6 +332,41 @@ async def test_notify_skip_medium_severity(session, agent):
 
     alerts = session.exec(select(Alert)).all()
     assert len(alerts) == 0
+
+
+@pytest.mark.asyncio
+async def test_notify_critical_event_creates_alert_and_publishes_sse(session, agent):
+    """US-20: the positive notifier path persists an alert and emits its SSE payload."""
+    event = _make_event(session, path="/etc/passwd", severity=RuleSeverity.critical)
+
+    with patch("app.modules.alerts.service.Session") as mock_session_class, \
+         patch("app.modules.alerts.service.alerts_broadcaster.publish") as publish, \
+         patch("app.modules.alerts.service.notify_event", new_callable=AsyncMock) as deliver:
+        mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
+        mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        await notify_if_applicable(event)
+
+    alerts = session.exec(select(Alert)).all()
+    assert len(alerts) == 1
+    alert = alerts[0]
+    assert alert.event_id == event.id
+    assert alert.severity == AlertSeverity.critical
+    publish.assert_called_once_with(
+        {
+            "id": alert.id,
+            "event_id": event.id,
+            "severity": "critical",
+            "status": "pending",
+            "channel": None,
+            "delivered_at": None,
+            "failed_at": None,
+            "last_error": None,
+            "retry_count": 0,
+            "created_at": alert.created_at.isoformat(),
+        }
+    )
+    deliver.assert_awaited_once_with(alert, event)
 
 
 # ── 7.1 Tests de retry loop y cascada ────────────────────────────────────────

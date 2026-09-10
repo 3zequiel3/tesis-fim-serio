@@ -51,4 +51,28 @@ describe('getEvents — conversión de filtros de fecha local a UTC (8.7)', () =
     expect(sp.has('date_from')).toBe(false)
     expect(sp.has('date_to')).toBe(false)
   })
+
+  it('serializa include_superseded=true en el camino real que construye GET /events', async () => {
+    await getEvents({ include_superseded: true })
+
+    const config = apiGet.mock.calls[0][1] as {
+      params: Record<string, unknown>
+      paramsSerializer: (p: Record<string, unknown>) => string
+    }
+    const sp = new URLSearchParams(config.paramsSerializer(config.params))
+
+    expect(sp.get('include_superseded')).toBe('true')
+  })
+
+  it('omite include_superseded cuando el toggle está apagado', async () => {
+    await getEvents({ include_superseded: false })
+
+    const config = apiGet.mock.calls[0][1] as {
+      params: Record<string, unknown>
+      paramsSerializer: (p: Record<string, unknown>) => string
+    }
+    const sp = new URLSearchParams(config.paramsSerializer(config.params))
+
+    expect(sp.has('include_superseded')).toBe(false)
+  })
 })

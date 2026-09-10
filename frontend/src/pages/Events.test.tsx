@@ -60,3 +60,33 @@ describe('Events — filtro por severidad (8.6)', () => {
     await waitFor(() => expect(lastEventsRequestParams()?.severity).toBeUndefined())
   })
 })
+
+describe('Events — US-31 toggle superseded', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiGet.mockResolvedValue({ data: { total: 0, page: 1, page_size: 50, items: [] } })
+  })
+
+  it('está desmarcado por defecto y al activarlo persiste en la URL lógica y llega a la petición', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events' })
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+    const toggle = screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })
+    expect(toggle).not.toBeChecked()
+
+    await user.click(toggle)
+
+    await waitFor(() => expect(toggle).toBeChecked())
+    await waitFor(() => expect(lastEventsRequestParams()?.include_superseded).toBe(true))
+    expect(screen.getByRole('checkbox', { name: 'superseded' })).toBeInTheDocument()
+  })
+
+  it('restaura el toggle desde include_superseded=true de la URL', async () => {
+    renderWithProviders(<Events />, { route: '/events?include_superseded=true' })
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })).toBeChecked()
+    expect(lastEventsRequestParams()?.include_superseded).toBe(true)
+  })
+})
