@@ -24,6 +24,9 @@ function makeEvent(overrides: Partial<EventDetailData> = {}): EventDetailData {
     hash_detected: 'deadbeef',
     hash_expected: null,
     diff_text: null,
+    is_binary: false,
+    hex_dump_before: null,
+    hex_dump_after: null,
     status: 'pending',
     severity: 'low',
     parent_event_id: null,
@@ -138,6 +141,27 @@ describe('EventDetail — evento sin ruta (D51/RN-145)', () => {
     renderDetail(11)
 
     expect(await screen.findByText('Diff textual no disponible para este evento.')).toBeInTheDocument()
+    expect(screen.queryByTestId('content-diff')).not.toBeInTheDocument()
+  })
+
+  it('muestra comparación de hashes y hex dump para un evento binario', async () => {
+    apiGet.mockResolvedValue({
+      data: makeEvent({
+        id: 12,
+        diff_text: null,
+        is_binary: true,
+        hash_expected: 'aaaa',
+        hash_detected: 'bbbb',
+        hex_dump_before: '00000000  89 50 4e 47',
+        hex_dump_after: '00000000  ff ee dd cc',
+      }),
+    })
+
+    renderDetail(12)
+
+    const binaryView = await screen.findByTestId('binary-diff')
+    expect(binaryView).toHaveTextContent('89 50 4e 47')
+    expect(binaryView).toHaveTextContent('ff ee dd cc')
     expect(screen.queryByTestId('content-diff')).not.toBeInTheDocument()
   })
 })

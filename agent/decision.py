@@ -148,6 +148,13 @@ class DecisionEngine:
                 # modelo Event del backend; nunca emitir None (evita IntegrityError + poison loop).
                 "hash_detected": "",
                 "diff_text": None,
+                # US-09: la rehidratación nunca reconstruye contenido — mismo
+                # criterio que diff_text arriba, explícito en None/False en
+                # vez de omitido (el backend tolera la ausencia igual, pero
+                # esta ruta ya documenta cada campo relacionado con contenido).
+                "is_binary": False,
+                "hex_dump_before": None,
+                "hex_dump_after": None,
                 # D49/RN-143: los tres campos de proceso van en None. En esta ruta
                 # el proceso causante ya no existe POR DEFINICIÓN — la rehidratación
                 # corre tras un reinicio del agente —, así que el contexto es

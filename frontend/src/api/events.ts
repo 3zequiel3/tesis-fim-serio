@@ -75,6 +75,13 @@ export type EventDetail = EventListItem & {
   hash_expected: string | null
   diff_text: string | null
   action_type: string
+  // US-09: modo binario del DiffViewer. is_binary distingue "sin diff porque
+  // el contenido es binario" (hex dump disponible) de "sin diff por otra
+  // razón" (p. ej. sin contenido previo utilizable) — el componente decide
+  // el modo de render a partir de estos campos, no el caller.
+  is_binary: boolean
+  hex_dump_before: string | null
+  hex_dump_after: string | null
 }
 
 export interface EventListResponse {

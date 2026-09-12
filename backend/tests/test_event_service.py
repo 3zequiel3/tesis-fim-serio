@@ -284,6 +284,83 @@ def test_ingest_event_rejects_unsafe_or_non_patch_diff(mem_engine, diff_text: st
     assert event.diff_text is None
 
 
+def test_ingest_event_persists_binary_diff_metadata(mem_engine) -> None:
+    """US-09: is_binary + hex_dump_before/hex_dump_after persisten cuando el
+    agente los emite (archivo binario, sin diff_text)."""
+    now = _now()
+    payload = {
+        "event_id": "evt-binary-diff",
+        "agent_id": "agent-test",
+        "path": "/etc/binary.dat",
+        "hash_detected": "d" * 64,
+        "hash_expected": "e" * 64,
+        "diff_text": None,
+        "is_binary": True,
+        "hex_dump_before": "00000000  89 50 4e 47",
+        "hex_dump_after": "00000000  ff ee dd cc",
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.diff_text is None
+    assert event.is_binary is True
+    assert event.hex_dump_before == "00000000  89 50 4e 47"
+    assert event.hex_dump_after == "00000000  ff ee dd cc"
+
+
+def test_ingest_event_defaults_is_binary_false_for_older_agents(mem_engine) -> None:
+    """Tolerancia hacia adelante (mismo criterio que action/is_symlink): un
+    agente anterior a esta change no manda is_binary/hex_dump_* y el evento se
+    ingiere igual, con los defaults del modelo."""
+    now = _now()
+    payload = {
+        "event_id": "evt-old-agent",
+        "agent_id": "agent-test",
+        "path": "/etc/hosts",
+        "hash_detected": "d" * 64,
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.is_binary is False
+    assert event.hex_dump_before is None
+    assert event.hex_dump_after is None
+
+
+@pytest.mark.parametrize(
+    "hex_dump_after",
+    [
+        "not a hex dump at all",
+        "00000000  gg hh ii jj",  # non-hex characters
+        "x" * 5000,  # oversized, exceeds the bounded limit
+        123,  # wrong type entirely
+    ],
+)
+def test_ingest_event_rejects_malformed_hex_dump(mem_engine, hex_dump_after) -> None:
+    """Mismo criterio defensivo que _bounded_diff_text: un hex dump malformado
+    u oversized de un agente comprometido/desactualizado se descarta, nunca se
+    persiste tal cual ni se adivina."""
+    now = _now()
+    payload = {
+        "event_id": f"evt-bad-hexdump-{abs(hash(str(hex_dump_after)))}",
+        "agent_id": "agent-test",
+        "path": "/etc/hosts",
+        "hash_detected": "d" * 64,
+        "is_binary": True,
+        "hex_dump_after": hex_dump_after,
+    }
+    import app.modules.events.service as svc
+    with patch.object(svc, "engine", mem_engine):
+        event = ingest_event(payload, now, now)
+
+    assert event is not None
+    assert event.hex_dump_after is None
+
+
 def test_ingest_event_from_real_file_deleted_payload_persists_empty_hash(mem_engine) -> None:
     """
     Cross-boundary regression (C35 / FIX-01 → CRITICAL poison-loop): construye un

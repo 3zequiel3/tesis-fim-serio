@@ -87,6 +87,18 @@ def test_canonical_keys_all_redacted():
         assert result[k] == "[REDACTED]", f"Key '{k}' was not redacted"
 
 
+def test_hex_dump_keys_redacted():
+    """US-09: hex_dump_before/hex_dump_after are redacted like diff_text."""
+    event_dict = {
+        "event": "test",
+        "hex_dump_before": "00000000  89 50 4e 47",
+        "hex_dump_after": "00000000  ff ee dd cc",
+    }
+    result = sanitize_secrets(None, "info", event_dict)
+    assert result["hex_dump_before"] == "[REDACTED]"
+    assert result["hex_dump_after"] == "[REDACTED]"
+
+
 def test_non_sensitive_keys_preserved():
     """Non-sensitive keys retain their original values."""
     event_dict = {

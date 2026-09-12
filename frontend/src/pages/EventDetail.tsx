@@ -284,13 +284,17 @@ export function EventDetail() {
 
       <section className="bg-gray-800 border border-gray-700 rounded p-4 space-y-3">
         <h2 className="text-sm font-semibold text-gray-300">Diff de contenido</h2>
-        {event.diff_text ? (
-          <DiffViewer diffText={event.diff_text} />
-        ) : (
-          <p className="text-sm text-gray-500 italic">
-            Diff textual no disponible para este evento.
-          </p>
-        )}
+        {/* US-09: DiffViewer detecta automáticamente el modo (texto/binario/
+            no disponible) a partir de estas props — EventDetail ya no
+            decide qué rama mostrar. */}
+        <DiffViewer
+          diffText={event.diff_text}
+          isBinary={event.is_binary}
+          hashBefore={event.hash_expected}
+          hashAfter={event.hash_detected}
+          hexDumpBefore={event.hex_dump_before}
+          hexDumpAfter={event.hex_dump_after}
+        />
       </section>
 
       {/* Timeline */}

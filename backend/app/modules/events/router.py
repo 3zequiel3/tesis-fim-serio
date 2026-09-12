@@ -76,6 +76,13 @@ class EventDetailOut(EventOut):
     # Derivado 1:1 desde status (events/service.py::derive_action_type) — no
     # es una columna persistida, ver ese docstring para el porqué.
     action_type: str = "manual_review"
+    # US-09: modo binario del DiffViewer — detalle-only, mismo criterio que
+    # diff_text/hash_expected. is_binary distingue "sin diff porque el
+    # contenido es binario" (hex dump disponible) de "sin diff por otra
+    # razón" (p. ej. sin contenido previo utilizable).
+    is_binary: bool = False
+    hex_dump_before: str | None = None
+    hex_dump_after: str | None = None
 
 
 class PaginatedEventsOut(BaseModel):

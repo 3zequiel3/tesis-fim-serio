@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import structlog
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -165,6 +166,96 @@ def test_rejection_audit_redacts_diff_text_from_payload_dump(mem_engine, agent) 
     assert "[REDACTED:diff_text]" in rejections[0].payload_dump
     # El resto del payload (campos no sensibles) se conserva para diagnóstico.
     assert "/etc/shadow" in rejections[0].payload_dump
+
+
+def test_rejection_audit_redacts_hex_dump_from_payload_dump(mem_engine, agent) -> None:
+    """US-09: payload_dump nunca debe conservar hex_dump_before/hex_dump_after
+    en texto plano — mismo criterio de RN-105 ya aplicado a diff_text."""
+    secret_hex_before = "00000000  89 50 4e 47 0d 0a 1a 0a"
+    secret_hex_after = "00000000  ff ee dd cc bb aa 99 88"
+    payload = {
+        "event_id": str(uuid.uuid4()),
+        "agent_id": "agent-test",
+        "detected_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": "not-a-number",  # no parseable → invalid_schema
+        "path": "/etc/binary.dat",
+        "hash_detected": "h",
+        "is_binary": True,
+        "hex_dump_before": secret_hex_before,
+        "hex_dump_after": secret_hex_after,
+    }
+    _run_handle(mem_engine, payload)
+
+    with Session(mem_engine) as session:
+        rejections = session.exec(select(RejectedEventAudit)).all()
+    assert len(rejections) == 1
+    assert secret_hex_before not in rejections[0].payload_dump
+    assert secret_hex_after not in rejections[0].payload_dump
+    assert "[REDACTED:hex_dump]" in rejections[0].payload_dump
+    assert "/etc/binary.dat" in rejections[0].payload_dump
+
+
+def test_ingest_with_binary_diff_never_logs_diff_or_hexdump_content(
+    mem_engine, agent, shared_secret
+) -> None:
+    """Integral log-inspection test (US-09, W6): ingesting a real signed event
+    carrying diff_text/hex_dump_before/hex_dump_after must never surface that
+    content through any structlog call made along the happy ingestion path —
+    only hash/event metadata. Exercises the actual consumer.py log.* call
+    sites via structlog.testing.capture_logs(), independent of (and in
+    addition to) the sanitize_secrets processor covered elsewhere.
+    """
+    import app.modules.events.consumer as consumer_mod
+    import app.modules.events.service as service_mod
+    from app.core.streams import SCHEMA_VERSION, sign_payload
+
+    secret_diff = "--- a/etc/app.conf\n+++ b/etc/app.conf\n@@ -1 +1 @@\n-SECRET-OLD\n+SECRET-NEW\n"
+    secret_hex_before = "00000000  89 50 4e 47 0d 0a 1a 0a"
+    secret_hex_after = "00000000  ff ee dd cc bb aa 99 88"
+    payload = {
+        "event_id": str(uuid.uuid4()),
+        "agent_id": "agent-test",
+        "detected_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": SCHEMA_VERSION,
+        "path": "/etc/app.conf",
+        "hash_detected": "abc123",
+        "hash_expected": "def456",
+        "diff_text": secret_diff,
+        "is_binary": True,
+        "hex_dump_before": secret_hex_before,
+        "hex_dump_after": secret_hex_after,
+    }
+    payload["signature"] = sign_payload(shared_secret, payload)
+
+    mock_client = AsyncMock()
+    mock_client.xack = AsyncMock()
+    mock_client.xadd = AsyncMock()
+
+    with patch.object(consumer_mod, "engine", mem_engine), \
+            patch.object(service_mod, "engine", mem_engine):
+        with structlog.testing.capture_logs() as captured:
+            asyncio.run(
+                consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload))
+            )
+
+    assert len(captured) > 0, "no structured logs were captured — test would be vacuous"
+    for record in captured:
+        assert "diff_text" not in record
+        assert "hex_dump_before" not in record
+        assert "hex_dump_after" not in record
+        serialized = json.dumps(record, default=str)
+        assert secret_diff not in serialized
+        assert secret_hex_before not in serialized
+        assert secret_hex_after not in serialized
+        assert "SECRET-OLD" not in serialized
+        assert "SECRET-NEW" not in serialized
+
+    with Session(mem_engine) as session:
+        persisted = session.exec(select(Event)).all()
+    assert len(persisted) == 1
+    assert persisted[0].diff_text == secret_diff
+    assert persisted[0].hex_dump_before == secret_hex_before
+    assert persisted[0].hex_dump_after == secret_hex_after
 
 
 def test_reject_unknown_agent(mem_engine) -> None:

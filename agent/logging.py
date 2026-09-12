@@ -14,8 +14,11 @@ import structlog
 # added here: no agent log call passes the full payload dict as a kwarg
 # today (grep-verified), and doing so would make this regex swallow
 # unrelated non-sensitive keys.
+# US-09: hex_dump (matches hex_dump_before/hex_dump_after) added for the same
+# reason as diff_text — it is a bounded sample of file content, not a secret
+# by name, but still content that must never reach structured logs (W6).
 _SENSITIVE_RE = re.compile(
-    r"(password|token|secret|key|credential|diff_text)", re.IGNORECASE
+    r"(password|token|secret|key|credential|diff_text|hex_dump)", re.IGNORECASE
 )
 
 

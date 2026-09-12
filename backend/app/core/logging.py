@@ -59,6 +59,11 @@ _EXTENDED_KEYS: frozenset[str] = frozenset(
         # include secrets — never logged today (grep-verified), but not
         # structurally guaranteed without this key in the redaction list.
         "diff_text",
+        # US-09: hex_dump_before/hex_dump_after are the binary-mode
+        # counterpart of diff_text — a bounded partial sample of file
+        # content, same reasoning for redaction.
+        "hex_dump_before",
+        "hex_dump_after",
     }
 )
 

@@ -27,6 +27,10 @@ class ExperimentTrace:
         "baseline_hash", "hash_before", "hash_after", "decision", "reason",
         "outcome", "queue_size", "suppressed_count", "source", "attempt",
         "baseline_revision",
+        # US-09/W6: tamaño con signo (bytes actuales - bytes previos), nunca
+        # el contenido del diff ni del hex dump — ninguno de los dos entra
+        # jamás a este esquema cerrado.
+        "size_delta",
     })
 
     def __init__(self, path: Path | None = None, run_id: str | None = None) -> None:

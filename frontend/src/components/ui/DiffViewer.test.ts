@@ -30,4 +30,60 @@ describe('DiffViewer', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Diff truncado')
   })
+
+  it('detecta modo binario automáticamente y muestra hash + hex dump lado a lado', () => {
+    render(createElement(DiffViewer, {
+      diffText: null,
+      isBinary: true,
+      hashBefore: 'aaaa',
+      hashAfter: 'bbbb',
+      hexDumpBefore: '00000000  89 50 4e 47',
+      hexDumpAfter: '00000000  ff ee dd cc',
+    }))
+
+    const view = screen.getByTestId('binary-diff')
+    expect(view).toHaveTextContent('aaaa')
+    expect(view).toHaveTextContent('bbbb')
+    expect(view).toHaveTextContent('89 50 4e 47')
+    expect(view).toHaveTextContent('ff ee dd cc')
+    expect(screen.queryByTestId('content-diff')).not.toBeInTheDocument()
+  })
+
+  it('indica visualmente que los hashes difieren en modo binario', () => {
+    render(createElement(DiffViewer, {
+      diffText: null,
+      isBinary: true,
+      hashBefore: 'aaaa',
+      hashAfter: 'bbbb',
+      hexDumpBefore: null,
+      hexDumpAfter: '00000000  ff ee dd cc',
+    }))
+
+    expect(screen.getByText(/difieren/i)).toBeInTheDocument()
+  })
+
+  it('declara ausencia de diff cuando no hay patch textual ni contenido binario', () => {
+    render(createElement(DiffViewer, { diffText: null, isBinary: false }))
+
+    expect(screen.getByText('Diff textual no disponible para este evento.')).toBeInTheDocument()
+    expect(screen.queryByTestId('content-diff')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('binary-diff')).not.toBeInTheDocument()
+  })
+
+  it('nunca usa dangerouslySetInnerHTML (W8): el patch se ve como texto escapado', () => {
+    const diff = [
+      '--- a/etc/hosts',
+      '+++ b/etc/hosts',
+      '@@ -1 +1 @@',
+      '-<script>alert(1)</script>',
+      '+safe',
+    ].join('\n')
+
+    const { container } = render(createElement(DiffViewer, { diffText: diff }))
+
+    // Si el contenido se hubiera inyectado como HTML crudo, el navegador
+    // parsearía un <script> real dentro del árbol renderizado.
+    expect(container.querySelector('script')).toBeNull()
+    expect(screen.getByLabelText('Patch unificado')).toHaveTextContent('<script>alert(1)</script>')
+  })
 })

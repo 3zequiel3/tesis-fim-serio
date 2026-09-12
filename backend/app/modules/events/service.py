@@ -30,6 +30,13 @@ _MAX_DIFF_TEXT_BYTES = 1024 * 1024
 _DIFF_TRUNCATION_MARKER = "\n... [diff truncated by backend]\n"
 _UNIFIED_HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@(?: .*)?$", re.MULTILINE)
 
+# US-09: hex dump parcial acotado (modo binario del DiffViewer). El agente ya
+# limita cada lado a _HEX_DUMP_BYTES=256 bytes (agent/detector.py); a 3 chars
+# por byte más el offset por fila, 4096 deja margen holgado sin abrir la
+# puerta a un payload arbitrariamente grande de un agente comprometido.
+_MAX_HEX_DUMP_CHARS = 4096
+_HEX_DUMP_LINE = re.compile(r"^[0-9a-f]{8}  [0-9a-f]{2}(?: [0-9a-f]{2}){0,15}$")
+
 
 def _is_safe_text(value: str) -> bool:
     if "\x00" in value or "\ufffd" in value:
@@ -74,6 +81,22 @@ def _bounded_diff_text(value: Any) -> str | None:
     marker = _DIFF_TRUNCATION_MARKER.encode("utf-8")
     prefix = encoded[: _MAX_DIFF_TEXT_BYTES - len(marker)].decode("utf-8", errors="ignore")
     return prefix + _DIFF_TRUNCATION_MARKER
+
+
+def _bounded_hex_dump(value: Any) -> str | None:
+    """Return a validated, bounded partial hex dump or None (US-09).
+
+    Same defensive posture as _bounded_diff_text: a malformed, oversized, or
+    wrong-typed value (from an untrusted or older agent) is dropped rather
+    than persisted or guessed at — never truncated/repaired, just rejected.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    if len(value) > _MAX_HEX_DUMP_CHARS:
+        return None
+    if not all(_HEX_DUMP_LINE.fullmatch(line) for line in value.split("\n")):
+        return None
+    return value
 
 TERMINAL_STATUSES: frozenset[EventStatus] = frozenset(
     {
@@ -304,6 +327,13 @@ def _ingest_event_outcome(
     else:
         hash_expected = None
     diff_text = _bounded_diff_text(event_data.get("diff_text"))
+    # US-09: is_binary tolerante hacia adelante (mismo criterio que
+    # is_symlink/action_failed) — ausente en un agente anterior a esta
+    # change -> False. hex_dump_before/hex_dump_after pasan por la misma
+    # validación defensiva bounded que diff_text.
+    is_binary = bool(event_data.get("is_binary", False))
+    hex_dump_before = _bounded_hex_dump(event_data.get("hex_dump_before"))
+    hex_dump_after = _bounded_hex_dump(event_data.get("hex_dump_after"))
 
     with Session(engine) as session:
         duplicate = session.exec(
@@ -375,6 +405,9 @@ def _ingest_event_outcome(
             hash_detected=event_data.get("hash_detected") or "",
             hash_expected=hash_expected,
             diff_text=diff_text,
+            is_binary=is_binary,
+            hex_dump_before=hex_dump_before,
+            hex_dump_after=hex_dump_after,
             status=status,
             severity=severity,
             action_failed=action_failed,

@@ -32,6 +32,13 @@ log = structlog.get_logger()
 
 _LINUX = platform.system() == "Linux"
 _MAX_DIFF_BYTES = 1024 * 1024  # 1 MB
+# US-09: volcado hex parcial para el modo binario del DiffViewer. Acotado e
+# independiente de _MAX_DIFF_BYTES — solo se leen/emiten los primeros N bytes
+# de cada lado, nunca el archivo completo (mismo criterio defensivo que el
+# límite de diff textual, pero deliberadamente mucho más chico: es una
+# muestra de inspección, no un intento de reconstruir el contenido).
+_HEX_DUMP_BYTES = 256
+_HEX_DUMP_ROW_WIDTH = 16
 _AGENT_WORK_DIR = "/var/lib/fim-agent"
 _DRAIN_TIMEOUT_S = 30.0
 _AT_FDCWD = -100  # Linux AT_FDCWD
@@ -85,6 +92,13 @@ class DetectedChange:
     parent_event_id: str | None
     is_symlink: bool = False        # D33/RN-127: symlink-as-object, nunca se sigue el link
     symlink_target: str | None = None  # string crudo de os.readlink, sin normalizar
+    # US-09: modo binario del DiffViewer. True solo cuando el contenido no es
+    # texto UTF-8 y por lo tanto no se generó diff_text; hex_dump_* son un
+    # volcado hex parcial acotado (primeros _HEX_DUMP_BYTES bytes) de cada
+    # lado, para la comparación lado a lado de archivos binarios.
+    is_binary: bool = False
+    hex_dump_before: str | None = None
+    hex_dump_after: str | None = None
 
     def to_event_data(self) -> dict[str, Any]:
         data = dataclasses.asdict(self)
@@ -218,6 +232,59 @@ def _generate_diff(previous_content: str, current_path: str) -> str | None:
     return result
 
 
+def _hex_dump(data: bytes) -> str:
+    """Volcado hex legible de a lo sumo _HEX_DUMP_BYTES bytes (US-09).
+
+    Formato `OFFSET  XX XX XX ...` en filas de _HEX_DUMP_ROW_WIDTH bytes —
+    el mismo layout que un `hexdump -C` sin la columna ASCII (se omite:
+    para contenido binario esa columna solo repetiría los pocos bytes
+    imprimibles ya visibles, y agregarla no ayuda a la inspección forense
+    que persigue el criterio de aceptación). Determinístico y acotado en
+    tamaño: NUNCA procesa más de _HEX_DUMP_BYTES, sin importar cuántos bytes
+    reciba — el caller es responsable de no leer de más, esto solo trunca
+    defensivamente si igual lo hiciera.
+    """
+    sample = data[:_HEX_DUMP_BYTES]
+    lines = []
+    for offset in range(0, len(sample), _HEX_DUMP_ROW_WIDTH):
+        row = sample[offset : offset + _HEX_DUMP_ROW_WIDTH]
+        hex_bytes = " ".join(f"{b:02x}" for b in row)
+        lines.append(f"{offset:08x}  {hex_bytes}")
+    return "\n".join(lines)
+
+
+def _binary_diff_info(path: str, previous_raw: bytes | None) -> tuple[bool, str | None, str | None]:
+    """Detecta contenido binario y arma la comparación hex parcial (US-09).
+
+    Se llama SOLO cuando `_generate_diff` ya devolvió None (sin diff textual).
+    Reutiliza `_is_text` (que ya limita su lectura a _MAX_DIFF_BYTES+1) para
+    decidir si el contenido actual es binario:
+    - Si el archivo supera _MAX_DIFF_BYTES o SÍ es texto, no es el caso
+      binario de este criterio (False, None, None) — mismo hueco ya existente
+      para diffs de texto grandes, sin ampliarlo acá.
+    - Si es binario y cabe en el límite, lee de nuevo solo los primeros
+      _HEX_DUMP_BYTES bytes (lectura chica y acotada, independiente del
+      tamaño real del archivo) para el volcado "after". El volcado "before"
+      sale de `previous_raw` (bytes crudos de la baseline, ya en memoria) si
+      está disponible; si no (entry oversize o ausente), queda en None — el
+      frontend debe tolerar la ausencia del lado "before".
+    """
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        return False, None, None
+    if size > _MAX_DIFF_BYTES or _is_text(path):
+        return False, None, None
+    try:
+        with open(path, "rb") as f:
+            sample_after = f.read(_HEX_DUMP_BYTES)
+    except OSError:
+        return False, None, None
+    hex_after = _hex_dump(sample_after)
+    hex_before = _hex_dump(previous_raw) if previous_raw is not None else None
+    return True, hex_before, hex_after
+
+
 # ── Helpers de scope (RN-04, D31/RN-125, refinado por D33/RN-127) ────────────
 
 def _target_in_scope(path: str, canonical_roots: list[str]) -> bool:
@@ -337,7 +404,11 @@ class FanotifyDetector:
             return
 
     def _trace_change_created(
-        self, change: DetectedChange, baseline_status: str | None
+        self,
+        change: DetectedChange,
+        baseline_status: str | None,
+        *,
+        size_delta: int | None = None,
     ) -> None:
         self._trace_record(
             "change_classified",
@@ -349,6 +420,12 @@ class FanotifyDetector:
             baseline_status=baseline_status,
             baseline_hash=change.hash_expected,
             outcome="classified",
+            # US-09/W6: el trace nunca lleva diff_text ni hex_dump_* (ambos
+            # fuera de _ALLOWED_FIELDS) — solo hash_before/hash_after ya
+            # existentes y size_delta, el tamaño con signo (bytes actuales -
+            # bytes previos) cuando ambos lados son conocidos; None si alguno
+            # no lo es (p. ej. file_absent, o baseline sin contenido usable).
+            size_delta=size_delta,
         )
 
     def _trace_decision(self, change: DetectedChange, payload: dict[str, Any]) -> None:
@@ -924,6 +1001,11 @@ class FanotifyDetector:
             )
             return
 
+        is_binary = False
+        hex_dump_before: str | None = None
+        hex_dump_after: str | None = None
+        size_delta: int | None = None
+
         if current_hash is None:
             event_type = "file_absent"
             operation_type = "file_absent"
@@ -941,19 +1023,37 @@ class FanotifyDetector:
             # destino en diff_text. El guard `and not is_symlink` (la misma
             # variable que ya protege current_hash arriba) lo impide de raíz.
             previous_content: str | None = None
+            previous_raw: bytes | None = None
             if entry and entry.content_b64 and not entry.oversize:
                 try:
-                    raw = base64.b64decode(entry.content_b64)
-                    previous_content = raw.decode("utf-8", errors="strict")
-                    if not _is_text_bytes(raw):
-                        previous_content = None
-                except (ValueError, UnicodeDecodeError):
-                    previous_content = None
+                    previous_raw = base64.b64decode(entry.content_b64)
+                    if _is_text_bytes(previous_raw):
+                        previous_content = previous_raw.decode("utf-8", errors="strict")
+                except ValueError:
+                    previous_raw = None
             diff_text = (
                 _generate_diff(previous_content, path)
                 if (previous_content is not None and not is_symlink)
                 else None
             )
+            # US-09: modo binario del DiffViewer — solo se evalúa cuando no
+            # hubo diff textual. El mismo guard `not is_symlink` que protege
+            # diff_text protege el volcado hex: un symlink jamás abre el
+            # contenido del destino, ni como diff ni como hex dump.
+            if diff_text is None and not is_symlink:
+                is_binary, hex_dump_before, hex_dump_after = _binary_diff_info(
+                    path, previous_raw
+                )
+            # US-09/W6: size_delta para el trace experimental (bytes actuales
+            # menos bytes previos). None si algún lado no se pudo determinar
+            # (p. ej. baseline sin content_b64 usable) — nunca se adivina.
+            try:
+                current_size: int | None = os.path.getsize(path)
+            except OSError:
+                current_size = None
+            previous_size = len(previous_raw) if previous_raw is not None else None
+            if current_size is not None and previous_size is not None:
+                size_delta = current_size - previous_size
 
         event_id = str(uuid.uuid4())
         parent_event_id = self._pending.get(path)
@@ -982,9 +1082,14 @@ class FanotifyDetector:
             parent_event_id=parent_event_id,
             is_symlink=is_symlink,
             symlink_target=symlink_target,
+            is_binary=is_binary,
+            hex_dump_before=hex_dump_before,
+            hex_dump_after=hex_dump_after,
         )
         self._stage_approval_candidate(change, is_symlink=is_symlink)
-        self._trace_change_created(change, entry.status if entry else "missing")
+        self._trace_change_created(
+            change, entry.status if entry else "missing", size_delta=size_delta
+        )
 
         # Motor de decisión evalúa y actúa ANTES de actualizar el baseline,
         # para que auto_restore pueda leer el content_b64 anterior (RN-30).

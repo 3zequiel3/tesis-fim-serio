@@ -50,6 +50,16 @@ class Event(SQLModel, table=True):
     # versiones completas del archivo; el backend aplica ademas un limite
     # defensivo antes de llegar a esta columna.
     diff_text: str | None = Field(default=None, sa_column=sa.Column(sa.Text, nullable=True))
+    # US-09: modo binario del DiffViewer. is_binary es true solo cuando el
+    # agente detectó contenido no-UTF8 y por lo tanto no produjo diff_text;
+    # hex_dump_before/hex_dump_after son un volcado hex parcial acotado
+    # (primeros N bytes de cada lado) para la comparación lado a lado. Mismo
+    # criterio defensivo que diff_text: el backend valida formato y tamaño
+    # antes de persistir (ver _bounded_hex_dump), nunca decodifica ni
+    # reconstruye contenido completo.
+    is_binary: bool = Field(default=False)
+    hex_dump_before: str | None = Field(default=None, sa_column=sa.Column(sa.Text, nullable=True))
+    hex_dump_after: str | None = Field(default=None, sa_column=sa.Column(sa.Text, nullable=True))
     status: EventStatus = Field(index=True)
     # D34/RN-128 (C38): severidad calculada al ingerir con la lógica compartida
     # de D-C15-01 (rules/service.py::determine_severity_for_path). Snapshot al

@@ -28,3 +28,21 @@ def test_non_sensitive_keys_preserved():
     result = sanitize_logs(None, "info", event_dict)
     assert result["event_id"] == "abc-123"
     assert result["path"] == "/etc/passwd"
+
+
+def test_hex_dump_before_redacted():
+    """US-09: hex_dump_before (comparación binaria) debe quedar [REDACTED]."""
+    event_dict = {
+        "event": "publish_attempt",
+        "hex_dump_before": "00000000  89 50 4e 47 0d 0a 1a 0a",
+    }
+    result = sanitize_logs(None, "info", event_dict)
+    assert result["hex_dump_before"] == "[REDACTED]"
+    assert "89 50 4e 47" not in str(result)
+
+
+def test_hex_dump_after_redacted():
+    """US-09: hex_dump_after debe quedar [REDACTED] igual que hex_dump_before."""
+    event_dict = {"event": "x", "hex_dump_after": "00000000  ff ee dd cc"}
+    result = sanitize_logs(None, "info", event_dict)
+    assert result["hex_dump_after"] == "[REDACTED]"

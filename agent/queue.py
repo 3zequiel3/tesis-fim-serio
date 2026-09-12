@@ -48,9 +48,10 @@ def _ensure_dir_0700(path: Path) -> None:
 
     Mirrors the mkdir-mode + chmod-fallback + verify pattern already used by
     baseline.py/_ensure_dir and quarantine.py/_ensure_directory: the queue
-    stores full event envelopes in plaintext JSON, including diff_text when
-    present, so a pre-existing directory with laxer permissions (e.g. 0755)
-    must be hardened, not just left alone because it already exists.
+    stores full event envelopes in plaintext JSON, including diff_text and,
+    since US-09, hex_dump_before/hex_dump_after when present, so a
+    pre-existing directory with laxer permissions (e.g. 0755) must be
+    hardened, not just left alone because it already exists.
     """
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:

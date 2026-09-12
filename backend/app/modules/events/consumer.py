@@ -102,6 +102,15 @@ def _fire_and_forget(coro) -> None:
     task.add_done_callback(_background_tasks.discard)
 _MAX_PAYLOAD_DUMP = 4 * 1024  # 4 KB (RN-105)
 _DIFF_TEXT_REDACTION_MARKER = "[REDACTED:diff_text]"
+_HEX_DUMP_REDACTION_MARKER = "[REDACTED:hex_dump]"
+# US-09: hex_dump_before/hex_dump_after carry the same kind of bounded file
+# content sample as diff_text — redacted the same way before ever touching
+# the rejected-events audit trail.
+_REDACTED_PAYLOAD_KEYS: dict[str, str] = {
+    "diff_text": _DIFF_TEXT_REDACTION_MARKER,
+    "hex_dump_before": _HEX_DUMP_REDACTION_MARKER,
+    "hex_dump_after": _HEX_DUMP_REDACTION_MARKER,
+}
 _BLOCK_MS = 2000
 _BATCH_SIZE = 50
 
@@ -110,17 +119,19 @@ def _build_payload_dump(raw: str, payload: dict[str, Any]) -> str:
     """Construye payload_dump para RejectedEventAudit, redactando diff_text.
 
     `payload` ya es el dict resultado de `json.loads(raw)` (ver
-    _handle_message) — si trae 'diff_text' se re-serializa con el valor
-    reemplazado por un marcador antes de truncar a _MAX_PAYLOAD_DUMP
-    (privacy hardening, evita que un diff sensible quede en texto plano en
-    la auditoría de rechazos). Si por algún motivo `payload` no es un dict
-    (no debería ocurrir en este call site, ya que _handle_message ya validó
-    que raw parsea), se conserva el comportamiento anterior de truncar el
-    raw tal cual.
+    _handle_message) — si trae alguna de _REDACTED_PAYLOAD_KEYS se
+    re-serializa con esos valores reemplazados por su marcador antes de
+    truncar a _MAX_PAYLOAD_DUMP (privacy hardening, evita que un diff o
+    hex dump sensible quede en texto plano en la auditoría de rechazos). Si
+    por algún motivo `payload` no es un dict (no debería ocurrir en este call
+    site, ya que _handle_message ya validó que raw parsea), se conserva el
+    comportamiento anterior de truncar el raw tal cual.
     """
-    if isinstance(payload, dict) and "diff_text" in payload:
+    if isinstance(payload, dict) and any(k in payload for k in _REDACTED_PAYLOAD_KEYS):
         redacted = dict(payload)
-        redacted["diff_text"] = _DIFF_TEXT_REDACTION_MARKER
+        for key, marker in _REDACTED_PAYLOAD_KEYS.items():
+            if key in redacted:
+                redacted[key] = marker
         raw = json.dumps(redacted, sort_keys=True, separators=(",", ":"))
     return raw[:_MAX_PAYLOAD_DUMP]
 
