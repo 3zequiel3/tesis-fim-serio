@@ -94,7 +94,7 @@ class Publisher:
         self._discarded_events: int = 0
         self._on_ack_cb: Callable[[str], None] | None = None
         self._on_update_config_cb: Callable[[list[str]], None] | None = None
-        self._on_rule_sync_cb: Callable[[list, int], None] | None = None
+        self._on_rule_sync_cb: Callable[[list, int], bool] | None = None
         # C13/C14: referencias opcionales para dispatch de comandos del agente
         self._baseline_engine: "BaselineEngine | None" = None
         self._agent_state: "AgentState | None" = None
@@ -205,7 +205,7 @@ class Publisher:
         self,
         on_ack: Callable[[str], None] | None = None,
         on_update_config: Callable[[list[str]], None] | None = None,
-        on_rule_sync: Callable[[list, int], None] | None = None,
+        on_rule_sync: Callable[[list, int], bool] | None = None,
     ) -> None:
         """Registra callbacks opcionales invocados al procesar comandos del stream."""
         self._on_ack_cb = on_ack
@@ -547,13 +547,30 @@ class Publisher:
         elif cmd_type == "rule_sync":
             rules_payload = payload.get("rules")
             ruleset_version = payload.get("ruleset_version")
+            ok = False
+            error: str | None = None
             if (
                 isinstance(rules_payload, list)
                 and isinstance(ruleset_version, int)
                 and self._on_rule_sync_cb is not None
             ):
-                self._on_rule_sync_cb(rules_payload, ruleset_version)
-                log.info("publisher.rule_sync_received", ruleset_version=ruleset_version)
+                try:
+                    ok = bool(self._on_rule_sync_cb(rules_payload, ruleset_version))
+                except Exception as exc:  # pragma: no cover - defensivo, mismo criterio que dispatch()
+                    error = str(exc)
+                    log.error("publisher.rule_sync_apply_failed", error=error)
+                else:
+                    log.info("publisher.rule_sync_received", ruleset_version=ruleset_version)
+            # US-18 criterio 8 / RN-58: confirmar aplicación vía event_ack,
+            # igual que baseline_update/restore_file/quarantine_file/
+            # update_config/rescan_baseline (agent/commands.py::_publish_ack).
+            command_id = payload.get("command_id", "")
+            if command_id:
+                from agent import commands as _commands
+
+                await _commands._publish_ack(
+                    self._client, command_id, "rule_sync", None, self._config, ok=ok, error=error,
+                )
         elif cmd_type in (
             "baseline_update", "restore_file", "quarantine_file",
             "update_config", "rescan_baseline",

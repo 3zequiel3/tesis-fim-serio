@@ -29,6 +29,8 @@ from app.modules.rules.service import (
     SEVERITY_ORDER,
     create_rule,
     delete_rule,
+    determine_severity_for_path,
+    get_ruleset_version,
     increment_ruleset_version,
     list_rules,
     publish_rule_sync,
@@ -113,6 +115,13 @@ class TestValidatePattern:
     def test_whitespace_only_raises(self):
         with pytest.raises(ValueError, match="empty"):
             validate_pattern("   ")
+
+    def test_valid_negated_pattern(self):
+        """US-15 criterio 2: patrón con prefijo `!` (negación) es un glob válido."""
+        validate_pattern("!/etc/motd")  # no lanza
+
+    def test_valid_negated_pattern_with_glob(self):
+        validate_pattern("!/etc/**")  # no lanza
 
 
 # ── increment_ruleset_version ─────────────────────────────────────────────────
@@ -242,6 +251,44 @@ class TestPublishRuleSync:
         assert isinstance(payload["rules"], list)
         assert len(payload["rules"]) == 1
         assert payload["rules"][0]["pattern"] == "/etc/*"
+
+
+# ── determine_severity_for_path — negación (US-15 criterios 2/3) ─────────────
+
+
+class TestSeverityNegation:
+    def test_determine_severity_exclusive_pattern_wins_over_inclusive(self, session):
+        """
+        Si un path matchea tanto una regla inclusiva como una exclusiva (`!`),
+        la exclusiva gana: el path se trata como si ninguna regla matcheara
+        (severidad default `low`, D-C15-01/RN-65).
+        """
+        session.add(Rule(pattern="/etc/*", severity=RuleSeverity.critical, action=RuleAction.auto_restore))
+        session.add(Rule(pattern="!/etc/motd", severity=RuleSeverity.critical, action=RuleAction.auto_restore))
+        session.commit()
+
+        assert determine_severity_for_path("/etc/motd", session) == RuleSeverity.low
+
+    def test_determine_severity_exclusive_does_not_affect_other_paths(self, session):
+        """Caso negativo: la exclusión sólo aplica al path que matchea, no a otros paths inclusivos."""
+        session.add(Rule(pattern="/etc/*", severity=RuleSeverity.critical, action=RuleAction.auto_restore))
+        session.add(Rule(pattern="!/etc/motd", severity=RuleSeverity.critical, action=RuleAction.auto_restore))
+        session.commit()
+
+        assert determine_severity_for_path("/etc/passwd", session) == RuleSeverity.critical
+
+
+# ── get_ruleset_version — US-14 criterio 4 ────────────────────────────────────
+
+
+class TestGetRulesetVersion:
+    def test_returns_zero_when_no_counter_exists(self, session):
+        assert get_ruleset_version(session) == 0
+
+    def test_returns_current_counter(self, session):
+        increment_ruleset_version(session)
+        increment_ruleset_version(session)
+        assert get_ruleset_version(session) == 2
 
 
 # ── create / update / delete — audit + counter ────────────────────────────────
@@ -417,6 +464,49 @@ class TestWriteOperations:
         )
         logs = session.exec(select(AuditLog)).all()
         assert all(l.target_type == "rule" for l in logs)
+
+    def test_create_rule_duplicate_pattern_raises(self, session, mock_valkey, admin_user):
+        """US-15 criterio 5: el patrón no puede estar duplicado."""
+        create_rule(
+            session, mock_valkey, admin_user.id,
+            {"pattern": "/etc/dup/*", "severity": "high", "action": "alert_only"},
+        )
+        with pytest.raises(ValueError, match="duplicate"):
+            create_rule(
+                session, mock_valkey, admin_user.id,
+                {"pattern": "/etc/dup/*", "severity": "low", "action": "alert_only"},
+            )
+        # No se creó una segunda regla.
+        assert len(session.exec(select(Rule)).all()) == 1
+
+    def test_update_rule_enqueues_rule_sync_command(self, session, mock_valkey, admin_user, agent_with_secret):
+        """US-18 criterio 1: update_rule también encola un PublishedCommand rule_sync."""
+        agent, _ = agent_with_secret
+        rule = Rule(pattern="/var/log/*", severity=RuleSeverity.low, action=RuleAction.alert_only)
+        session.add(rule)
+        session.commit()
+        session.refresh(rule)
+
+        update_rule(
+            session, mock_valkey, admin_user.id, rule.id,
+            {"pattern": "/var/log/*", "severity": "high", "action": "quarantine"},
+        )
+        cmds = session.exec(select(PublishedCommand).where(PublishedCommand.command_type == "rule_sync")).all()
+        assert len(cmds) == 1
+        assert cmds[0].target_agent_id == agent.agent_id
+
+    def test_delete_rule_enqueues_rule_sync_command(self, session, mock_valkey, admin_user, agent_with_secret):
+        """US-18 criterio 1: delete_rule también encola un PublishedCommand rule_sync."""
+        agent, _ = agent_with_secret
+        rule = Rule(pattern="/opt/*", severity=RuleSeverity.low, action=RuleAction.alert_only)
+        session.add(rule)
+        session.commit()
+        session.refresh(rule)
+
+        delete_rule(session, mock_valkey, admin_user.id, rule.id)
+        cmds = session.exec(select(PublishedCommand).where(PublishedCommand.command_type == "rule_sync")).all()
+        assert len(cmds) == 1
+        assert cmds[0].target_agent_id == agent.agent_id
 
 
 # ── list_rules — orden severity ───────────────────────────────────────────────

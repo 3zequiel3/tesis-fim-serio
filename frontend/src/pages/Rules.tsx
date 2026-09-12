@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import axios from 'axios'
-import { useRules, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useRules'
+import { useRules, useRulesetVersion, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useRules'
 import { RuleForm } from '@/components/ui/RuleForm'
 import { ModalDialog } from '@/components/ui/ModalDialog'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 export function Rules() {
   const { data: rules, isLoading, isError, refetch } = useRules()
+  const { data: rulesetVersion } = useRulesetVersion()
   const createMutation = useCreateRule()
   const updateMutation = useUpdateRule()
   const deleteMutation = useDeleteRule()
@@ -116,7 +117,14 @@ export function Rules() {
     <div className="space-y-4">
       {/* Encabezado */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-white">Reglas de monitoreo</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-white">Reglas de monitoreo</h1>
+          {rulesetVersion !== undefined && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              ruleset_version actual: <span className="font-mono text-gray-300">{rulesetVersion}</span>
+            </p>
+          )}
+        </div>
         <button
           onClick={openCreate}
           className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-sm rounded"
@@ -124,6 +132,12 @@ export function Rules() {
           Nueva regla
         </button>
       </div>
+
+      {/* Leyenda: acción por defecto sin regla que matchee (RN-06) */}
+      <p className="text-xs text-gray-400">
+        Si ningún patrón matchea un archivo, se aplica la acción por defecto:{' '}
+        <span className="text-gray-300 font-medium">Solo alerta (alert_only)</span>.
+      </p>
 
       {/* Modal create/edit */}
       {formMode && (

@@ -322,8 +322,11 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
             decision_engine=decision_engine,
         )
 
-        def _on_rule_sync(rules_payload: list, ruleset_version: int) -> None:
-            rules_cache.update(rules_payload, ruleset_version, state)
+        def _on_rule_sync(rules_payload: list, ruleset_version: int) -> bool:
+            # US-18 criterio 8 / RN-58: el valor de retorno le indica al
+            # publisher si aplicar el rule_sync antes de confirmar vía
+            # event_ack (agent/publisher.py::_handle_command_async).
+            return rules_cache.update(rules_payload, ruleset_version, state)
 
         publisher.register_callbacks(
             on_ack=detector.on_ack,

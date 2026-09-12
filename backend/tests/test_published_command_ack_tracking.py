@@ -5,8 +5,9 @@ migración, publicadores y fix D5/RN-106 en la publicación).
 Cubre:
   - update_config: NO avanza ruleset_version_applied al publicar; sí crea
     PublishedCommand con command_id y ack_status=pending.
-  - rule_sync: persiste con ack_status=NULL (excluido del barrido de timeout,
-    que se agrega en slice 2).
+  - rule_sync: persiste con command_id y ack_status=pending (US-18 criterio 8
+    / RN-58 — el agente confirma aplicación vía event_ack, igual que el resto
+    de los comandos versionados).
   - enqueue_restore_file/enqueue_baseline_update/enqueue_quarantine_file y
     enqueue_update_config/enqueue_rescan_baseline (D37/RN-131 — renombradas
     desde publish_*, ver módulo actions/streams.py y agents/streams.py):
@@ -122,10 +123,18 @@ def test_enqueue_rescan_baseline_creates_pending_command(mem_engine, agent_onlin
         assert cmds[0].command_id is not None
 
 
-# ── rule_sync: ack_status NULL, excluido del barrido ─────────────────────────
+# ── rule_sync: command_id + ack_status=pending (US-18 criterio 8) ────────────
 
 
-def test_rule_sync_persists_with_null_ack_status(mem_engine, agent_online):
+def test_rule_sync_persists_with_command_id_and_pending_ack_status(mem_engine, agent_online):
+    """
+    US-18 criterio 8 / RN-58: el agente confirma la aplicación de rule_sync
+    vía event_ack, igual que baseline_update/update_config/rescan_baseline.
+    Antes de este fix, rule_sync se insertaba con ack_status=NULL (excluido
+    del barrido de timeout) porque el agente nunca lo confirmaba — un gap
+    real de implementación, no una decisión de producto documentada (no hay
+    ningún appendix que reemplace RN-58/arquitectura_stack.md:2152).
+    """
     from app.modules.rules.service import publish_rule_sync
 
     mock_valkey = MagicMock()
@@ -135,7 +144,8 @@ def test_rule_sync_persists_with_null_ack_status(mem_engine, agent_online):
     with Session(mem_engine) as s:
         cmd = s.exec(select(PublishedCommand).where(PublishedCommand.command_type == "rule_sync")).first()
         assert cmd is not None
-        assert cmd.ack_status is None
+        assert cmd.command_id is not None
+        assert cmd.ack_status == "pending"
 
 
 # ── D37/RN-131: enqueue_* persiste en la sesión, el caller decide el commit ──

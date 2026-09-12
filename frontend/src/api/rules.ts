@@ -34,6 +34,12 @@ export async function getRules(): Promise<Rule[]> {
   return data
 }
 
+/** US-14 criterio 4 (C11): ruleset_version actual del sistema. */
+export async function getRulesetVersion(): Promise<number> {
+  const { data } = await apiClient.get<{ version: number }>('/rules/version')
+  return data.version
+}
+
 export async function createRule(payload: CreateRulePayload): Promise<Rule> {
   const { data } = await apiClient.post<Rule>('/rules', payload)
   return data

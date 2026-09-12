@@ -1,9 +1,9 @@
 """
 Lógica de negocio del dominio de reglas (Change 12).
 
-Expone: validate_pattern, increment_ruleset_version, enqueue_rule_sync,
-publish_pending_commands, publish_rule_sync, write_audit, create_rule,
-update_rule, delete_rule, list_rules, get_rule.
+Expone: validate_pattern, increment_ruleset_version, get_ruleset_version,
+enqueue_rule_sync, publish_pending_commands, publish_rule_sync, write_audit,
+create_rule, update_rule, delete_rule, list_rules, get_rule.
 
 Orden de operaciones por escritura (D-F, revisado por H6 — outbox):
   1. Validar input  → ValueError si inválido (mapeado a 422 en router)
@@ -24,6 +24,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import re
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -57,18 +58,31 @@ VALID_ACTIONS: frozenset[str] = frozenset(a.value for a in RuleAction)
 
 def determine_severity_for_path(path: str, session: Session) -> RuleSeverity:
     """
-    Retorna la severidad más alta entre las reglas cuyo patrón glob (fnmatch)
-    matchea el path. Sin matches → RuleSeverity.low (D-C15-01).
+    Retorna la severidad más alta entre las reglas inclusivas cuyo patrón
+    glob (fnmatch) matchea el path. Sin matches → RuleSeverity.low (D-C15-01).
+
+    Negación (US-15 criterios 2/3, RN-65): una regla con patrón prefijado por
+    `!` es exclusiva. Si el path matchea tanto una regla inclusiva como una
+    exclusiva, la exclusiva gana — el path se trata como si ninguna regla
+    matcheara (severidad default `low`), igual que la evaluación de acciones
+    del agente (`agent/rules.py::RulesCache.evaluate`).
 
     Única fuente de cálculo de severidad, compartida por el pipeline de
     alertas (RN-52/RN-53, alerts/service.py) y la ingesta de eventos
     (D34/RN-128, events/service.py) — no duplicar esta lógica.
     """
     rules = session.exec(select(Rule)).all()
+
+    for rule in rules:
+        if rule.pattern.startswith("!") and fnmatch.fnmatch(path, rule.pattern[1:]):
+            return RuleSeverity.low
+
     best = RuleSeverity.low
     best_order = SEVERITY_ORDER[RuleSeverity.low.value]
 
     for rule in rules:
+        if rule.pattern.startswith("!"):
+            continue
         if fnmatch.fnmatch(path, rule.pattern):
             order = SEVERITY_ORDER.get(rule.severity.value, SEVERITY_ORDER["low"])
             if order < best_order:
@@ -96,6 +110,16 @@ def validate_pattern(pattern: str) -> None:
 
 
 # ── Counter de versión ────────────────────────────────────────────────────────
+
+
+def get_ruleset_version(session: Session) -> int:
+    """
+    Retorna el `ruleset_version` actual del sistema (US-14 criterio 4, C11),
+    sin incrementarlo. 0 si el counter todavía no fue inicializado (bootstrap
+    pendiente — ver `increment_ruleset_version`).
+    """
+    rv = session.exec(select(RulesetVersion)).first()
+    return rv.version if rv is not None else 0
 
 
 def increment_ruleset_version(session: Session) -> int:
@@ -160,8 +184,10 @@ def enqueue_rule_sync(session: Session, new_version: int) -> int:
     count = 0
     for agent in agents:
         secret_bytes = bytes.fromhex(agent.shared_secret_hex)  # type: ignore[arg-type]
+        command_id = str(uuid.uuid4())
         payload: dict[str, Any] = {
             "type": "rule_sync",
+            "command_id": command_id,
             "target_agent_id": agent.agent_id,
             "ruleset_version": new_version,
             "schema_version": SCHEMA_VERSION,
@@ -173,6 +199,8 @@ def enqueue_rule_sync(session: Session, new_version: int) -> int:
         cmd = PublishedCommand(
             command_type="rule_sync",
             target_agent_id=agent.agent_id,
+            command_id=command_id,
+            ack_status="pending",  # US-18 criterio 8 / RN-58: el agente confirma vía event_ack
             ruleset_version=new_version,
             payload=data,
             status="pending",
@@ -281,6 +309,11 @@ def create_rule(
     action_val: str = data.get("action", "")
 
     validate_pattern(pattern)
+
+    # US-15 criterio 5: el patrón no puede estar duplicado.
+    existing = session.exec(select(Rule).where(Rule.pattern == pattern)).first()
+    if existing is not None:
+        raise ValueError(f"duplicate pattern: {pattern}")
 
     rule = Rule(
         pattern=pattern,

@@ -154,6 +154,99 @@ async def test_update_config_dispatched_via_commands_not_direct_callback(
 
 
 @pytest.mark.asyncio
+async def test_rule_sync_dispatches_event_ack(
+    publisher: Publisher, shared_secret: bytes
+) -> None:
+    """
+    US-18 criterio 8 / RN-58: tras aplicar un rule_sync válido, el agente
+    confirma la aplicación publicando un event_ack firmado con el mismo
+    command_id — igual que baseline_update/restore_file/quarantine_file/
+    update_config/rescan_baseline (agent/commands.py::_publish_ack).
+    """
+    applied: list[tuple[list, int]] = []
+
+    def _on_rule_sync(rules_payload: list, ruleset_version: int) -> bool:
+        applied.append((rules_payload, ruleset_version))
+        return True
+
+    publisher.register_callbacks(on_rule_sync=_on_rule_sync)
+
+    payload = {
+        "type": "rule_sync",
+        "command_id": "cmd-rule-sync-001",
+        "target_agent_id": "test-agent-01",
+        "ruleset_version": 7,
+        "rules": [{"pattern": "/etc/*", "action": "alert_only", "negated": False}],
+    }
+
+    verified = publisher._verify_and_parse(_make_signed_msg(shared_secret, payload))
+    assert verified is not None
+    await publisher._handle_command_async(verified)
+
+    assert applied == [([{"pattern": "/etc/*", "action": "alert_only", "negated": False}], 7)]
+
+    publisher._client.xadd.assert_called_once()
+    call_args = publisher._client.xadd.call_args
+    assert call_args[0][0] == "event_ack"
+    ack_payload = json.loads(call_args[0][1]["data"])
+    assert ack_payload["command_id"] == "cmd-rule-sync-001"
+    assert ack_payload["command_type"] == "rule_sync"
+    assert ack_payload["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_rule_sync_dispatched_via_publisher_updates_real_rules_cache(
+    publisher: Publisher, shared_secret: bytes, tmp_path: Path
+) -> None:
+    """
+    US-18 criterio 5: el cableado real entre el listener de comandos del
+    publisher (`_handle_command_async`) y `RulesCache.update` — el mismo que
+    `agent/__main__.py::_on_rule_sync` conecta en producción — reemplaza la
+    cache local y persiste el nuevo ruleset_version en state.json SIN
+    reiniciar el proceso (una única instancia de RulesCache/AgentState viva
+    durante toda la prueba).
+    """
+    from agent.rules import RulesCache
+    from agent.state import AgentState
+
+    state_path = tmp_path / "state.json"
+    state = AgentState(state_path=state_path)
+    rules_cache = RulesCache(state_path)
+
+    def _on_rule_sync(rules_payload: list, ruleset_version: int) -> bool:
+        return rules_cache.update(rules_payload, ruleset_version, state)
+
+    publisher.register_callbacks(on_rule_sync=_on_rule_sync)
+
+    # Antes del sync: ninguna regla cacheada, todo cae al default alert_only.
+    assert rules_cache.evaluate("/etc/passwd") == "alert_only"
+
+    payload = {
+        "type": "rule_sync",
+        "command_id": "cmd-rule-sync-real-001",
+        "target_agent_id": "test-agent-01",
+        "ruleset_version": 9,
+        "rules": [{"pattern": "/etc/*", "action": "quarantine", "negated": False}],
+    }
+    verified = publisher._verify_and_parse(_make_signed_msg(shared_secret, payload))
+    assert verified is not None
+    await publisher._handle_command_async(verified)
+
+    # La cache en memoria refleja la nueva regla sin reiniciar el proceso.
+    assert rules_cache.evaluate("/etc/passwd") == "quarantine"
+    assert state.ruleset_version == 9
+    # Persistencia en state.json (criterio 6, ya cubierto por test_rules.py,
+    # verificado acá de punta a punta a través del dispatch real).
+    persisted = json.loads(state_path.read_text())
+    assert persisted["ruleset_version"] == 9
+
+    publisher._client.xadd.assert_called_once()
+    ack_payload = json.loads(publisher._client.xadd.call_args[0][1]["data"])
+    assert ack_payload["command_id"] == "cmd-rule-sync-real-001"
+    assert ack_payload["status"] == "ok"
+
+
+@pytest.mark.asyncio
 async def test_command_without_handlers_logs_not_registered(
     publisher: Publisher, shared_secret: bytes
 ) -> None:

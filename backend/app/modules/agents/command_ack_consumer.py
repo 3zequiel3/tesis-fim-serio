@@ -33,8 +33,10 @@ Por cada command_ack:
 
 Barrido periódico de timeout: filas `ack_status=pending` vencidas pasan a
 `timeout` (patrón heartbeat_consumer._sweep_offline). Las filas con
-ack_status IS NULL (p. ej. rule_sync, que el agente no confirma) quedan
-excluidas.
+ack_status IS NULL quedan excluidas — hoy sólo filas heredadas de antes de
+US-18/RN-58: `rule_sync` también nace `ack_status="pending"` y participa del
+barrido como cualquier otro comando versionado (ver docstring de
+`rules/models.py::PublishedCommand`).
 
 El I/O de DB corre vía run_in_executor (D21) para no bloquear el event loop.
 """

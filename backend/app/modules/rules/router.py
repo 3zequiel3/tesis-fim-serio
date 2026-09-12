@@ -1,11 +1,12 @@
 """
 Endpoints REST del dominio de reglas (Change 12).
 
-POST   /rules        — crear regla (admin)
-GET    /rules        — listar reglas ordenadas por severity (autenticado)
-GET    /rules/{id}   — obtener regla por id (autenticado)
-PUT    /rules/{id}   — actualizar regla (admin)
-DELETE /rules/{id}   — eliminar regla (admin)
+POST   /rules          — crear regla (admin)
+GET    /rules          — listar reglas ordenadas por severity (autenticado)
+GET    /rules/version  — ruleset_version actual del sistema (autenticado, US-14 C11)
+GET    /rules/{id}     — obtener regla por id (autenticado)
+PUT    /rules/{id}     — actualizar regla (admin)
+DELETE /rules/{id}     — eliminar regla (admin)
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from app.modules.rules.service import (
     create_rule,
     delete_rule,
     get_rule,
+    get_ruleset_version,
     list_rules,
     update_rule,
 )
@@ -59,6 +61,12 @@ class RuleOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RulesetVersionOut(BaseModel):
+    """US-14 criterio 4 (C11): ruleset_version actual del sistema."""
+
+    version: int
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
@@ -90,6 +98,15 @@ async def list_rules_endpoint(
     """Lista reglas ordenadas por severity canónico (RN-09). Requiere autenticación."""
     rules = list_rules(session)
     return [RuleOut.model_validate(r) for r in rules]
+
+
+@router.get("/version", response_model=RulesetVersionOut)
+async def get_rules_version_endpoint(
+    _user: User = Depends(require_full_access),
+    session: Session = Depends(get_session),
+) -> RulesetVersionOut:
+    """Retorna el ruleset_version actual del sistema (US-14 criterio 4, C11). Requiere autenticación."""
+    return RulesetVersionOut(version=get_ruleset_version(session))
 
 
 @router.get("/{rule_id}", response_model=RuleOut)

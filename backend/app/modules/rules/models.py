@@ -69,9 +69,15 @@ class PublishedCommand(SQLModel, table=True):
         `XADD` a Valkey ya se ejecutó (H6/D9/D10). Preexistente, sin cambios.
       - `ack_status` (`"pending" | "acked" | "failed" | "timeout" | None`):
         estado de **ejecución** — si el agente confirmó el comando vía
-        `command_ack` (stream `event_ack`). `None` para comandos que el
-        agente no confirma (p. ej. `rule_sync`, excluido del barrido de
-        timeout).
+        `command_ack` (stream `event_ack`). `None` solo para filas heredadas
+        de antes de este fix (US-18 criterio 8, RN-58): `rule_sync` ahora
+        también nace `ack_status="pending"` y el agente lo confirma como el
+        resto de los comandos versionados — no hay ningún appendix de
+        `docs/reglas_de_negocio.md`/`docs/arquitectura_stack.md` que revierta
+        RN-58 ("...y confirma vía `event_ack`") ni la tabla de
+        `arquitectura_stack.md:2152` ("Rule sync → Async vía `rule_sync` +
+        `event_ack`"); el `None` anterior era un gap de implementación, no
+        una decisión de producto.
 
     Ambas columnas comparten el literal `"pending"` con significados
     distintos: `status=pending` = por-publicar a Valkey; `ack_status=pending`

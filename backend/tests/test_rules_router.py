@@ -188,6 +188,31 @@ async def test_post_rules_invalid_action_returns_422(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_post_rules_duplicate_pattern_returns_422(monkeypatch) -> None:
+    """US-15 criterio 5: crear una regla con un patrón ya existente retorna 422."""
+    from app.core import deps
+    from app.modules.rules import router as rules_router_mod
+
+    async def _fake_admin():
+        return _make_admin()
+
+    monkeypatch.setattr(deps, "get_current_user", _fake_admin)
+
+    mock_valkey = MagicMock()
+    mock_valkey.xadd = MagicMock()
+    body = {"pattern": "/etc/dup-router/*", "severity": "critical", "action": "auto_restore"}
+
+    with patch.object(rules_router_mod, "get_valkey_client", return_value=mock_valkey):
+        async with await _get_client() as ac:
+            first = await ac.post("/rules", json=body, headers=_admin_headers())
+            second = await ac.post("/rules", json=body, headers=_admin_headers())
+
+    assert first.status_code in (201, 401, 500)
+    if first.status_code == 201:
+        assert second.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_post_rules_empty_pattern_returns_422(monkeypatch) -> None:
     from app.core import deps
 
@@ -343,3 +368,42 @@ async def test_get_rules_list_is_sorted_by_severity(monkeypatch) -> None:
     # critical=0, high=1, low=3 — verificar que el orden es correcto
     assert severities.index("critical") < severities.index("high")
     assert severities.index("high") < severities.index("low")
+
+
+# ── GET /rules/version — US-14 criterio 4 ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_rules_version_no_auth_returns_401() -> None:
+    async with await _get_client() as ac:
+        resp = await ac.get("/rules/version")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_rules_version_returns_current_counter(monkeypatch) -> None:
+    """GET /rules/version retorna el ruleset_version actual del sistema (C11)."""
+    from app.core import deps
+    from app.modules.rules import router as rules_router_mod
+
+    async def _fake_admin():
+        return _make_admin()
+
+    monkeypatch.setattr(deps, "get_current_user", _fake_admin)
+
+    mock_valkey = MagicMock()
+    mock_valkey.xadd = MagicMock()
+    with patch.object(rules_router_mod, "get_valkey_client", return_value=mock_valkey):
+        async with await _get_client() as ac:
+            create_resp = await ac.post(
+                "/rules",
+                json={"pattern": "/etc/version-check/*", "severity": "low", "action": "alert_only"},
+                headers=_admin_headers(),
+            )
+            resp = await ac.get("/rules/version", headers=_admin_headers())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert isinstance(body["version"], int)
+    if create_resp.status_code == 201:
+        assert body["version"] >= 1
