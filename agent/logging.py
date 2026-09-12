@@ -8,8 +8,14 @@ from typing import Any
 
 import structlog
 
+# Privacy hardening M4: diff_text added explicitly — it carries file content
+# that may include secrets and does not match any of the existing terms
+# (password/token/secret/key/credential). "payload" is deliberately NOT
+# added here: no agent log call passes the full payload dict as a kwarg
+# today (grep-verified), and doing so would make this regex swallow
+# unrelated non-sensitive keys.
 _SENSITIVE_RE = re.compile(
-    r"(password|token|secret|key|credential)", re.IGNORECASE
+    r"(password|token|secret|key|credential|diff_text)", re.IGNORECASE
 )
 
 
