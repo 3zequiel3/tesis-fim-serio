@@ -174,83 +174,88 @@ def test_run_scan_skips_nonexistent_path(baseline_engine, tmp_path):
 # ── 13.3 test_reload_watch_paths_marks_new ────────────────────────────────────
 
 
-def test_reload_watch_paths_marks_new():
-    """Nuevo path marcado en fanotify (mock del método _mark)."""
+def _fake_fan_mod() -> MagicMock:
+    """Mock del módulo ctypes de fanotify con las constantes reales usadas por
+    ``FanotifyDetector.reload_watch_paths`` (agent/detector.py)."""
+    fake = MagicMock()
+    fake.FAN_CLOSE_WRITE = 1
+    fake.FAN_DELETE = 2
+    fake.FAN_MOVED_FROM = 4
+    fake.FAN_MOVED_TO = 8
+    fake.FAN_CREATE = 16
+    fake.FAN_MARK_REMOVE = 32
+    fake.FAN_MARK_ADD = 64
+    fake.FAN_MARK_FILESYSTEM = 128
+    fake.mark = MagicMock()
+    return fake
+
+
+def _make_reload_detector(watch_paths: list[str]):
     from agent.detector import FanotifyDetector
 
-    detector = MagicMock(spec=FanotifyDetector)
-    detector._watch_paths = ["/etc"]
-    detector._HAS_FAN = False  # noqa
+    baseline = MagicMock()
+    baseline.init_scan = MagicMock()
+    publisher = MagicMock()
+    publisher.publish = AsyncMock()
+    detector = FanotifyDetector(
+        agent_id="agent-reload-test",
+        watch_paths=watch_paths,
+        baseline=baseline,
+        publisher=publisher,
+        stop_event=MagicMock(),
+    )
+    detector._fan = MagicMock()
+    return detector
 
-    # Llamar la implementación real con _HAS_FAN=False
-    # Crear instancia real con mocks
-    detector2 = MagicMock()
-    detector2._watch_paths = ["/etc"]
-    marked_paths = []
-    unmarked_paths = []
 
-    def mock_mark(fan, flags, mask, at_fdcwd, path):
-        # Identificar add vs remove por los flags
-        from agent.detector import _fan_mod
-        if _fan_mod and hasattr(_fan_mod, "FAN_MARK_ADD"):
-            if flags & _fan_mod.FAN_MARK_ADD:
-                marked_paths.append(path)
-            elif flags & _fan_mod.FAN_MARK_REMOVE:
-                unmarked_paths.append(path)
+def test_reload_watch_paths_marks_new(tmp_path: Path) -> None:
+    """Nuevo path marcado en fanotify: invoca el método real
+    ``FanotifyDetector.reload_watch_paths`` (no reimplementa el delta a mano) y
+    verifica que ``_fan_mod.mark`` se llame con ``FAN_MARK_ADD`` para el path
+    agregado."""
+    watch_a = tmp_path / "etc"
+    watch_a.mkdir()
+    watch_b = tmp_path / "usr_bin"
+    watch_b.mkdir()
 
-    # Para plataformas sin fanotify, verificamos el comportamiento del atributo
-    # instanciando y llamando reload_watch_paths directamente
-    from agent.baseline import BaselineEngine
-    import os
+    detector = _make_reload_detector([str(watch_a)])
+    fake_fan_mod = _fake_fan_mod()
 
-    master_secret = os.urandom(32)
+    with patch("agent.detector._HAS_FAN", True), patch("agent.detector._fan_mod", fake_fan_mod):
+        detector.reload_watch_paths([str(watch_a), str(watch_b)])
 
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setattr("agent.detector._HAS_FAN", False)
-
-        config = MagicMock()
-        config.agent_id = "test-agent"
-        config.watch_paths = ["/etc"]
-        config.storage = MagicMock()
-        config.storage.baseline_dir = "/tmp/bl"
-        config.storage.secrets_dir = "/tmp/sec"
-
-        # Crear un detector mock que implemente reload_watch_paths
-        from unittest.mock import create_autospec
-        from agent.detector import FanotifyDetector as RealDetector
-
-        real_detector = MagicMock()
-        real_detector._watch_paths = ["/etc"]
-
-        # Llamar el método directamente sobre el objeto mock con la lógica real
-        # Verificamos la semántica: new_paths incluye /etc y /usr/bin
-        # added = {/usr/bin}, removed = {}
-        new_paths = ["/etc", "/usr/bin"]
-        current = set(real_detector._watch_paths)
-        updated = set(new_paths)
-        added = updated - current
-        removed = current - updated
-
-        assert "/usr/bin" in added
-        assert len(removed) == 0
+    calls = {call.args[4]: call.args[1] for call in fake_fan_mod.mark.call_args_list}
+    assert str(watch_b) in calls
+    assert calls[str(watch_b)] & fake_fan_mod.FAN_MARK_ADD
+    assert not (calls[str(watch_b)] & fake_fan_mod.FAN_MARK_REMOVE)
+    assert str(watch_a) not in calls
+    assert detector._watch_paths == [str(watch_a), str(watch_b)]
 
 
 # ── 13.4 test_reload_watch_paths_unmarks_removed ──────────────────────────────
 
 
-def test_reload_watch_paths_unmarks_removed():
-    """Path eliminado desmarcado (verificación de lógica delta)."""
-    # Verificar lógica: current=[/etc, /tmp], new=[/etc] → removed={/tmp}, added={}
-    current_paths = ["/etc", "/tmp"]
-    new_paths = ["/etc"]
+def test_reload_watch_paths_unmarks_removed(tmp_path: Path) -> None:
+    """Path eliminado desmarcado: invoca el método real
+    ``FanotifyDetector.reload_watch_paths`` y verifica que ``_fan_mod.mark`` se
+    llame con ``FAN_MARK_REMOVE`` para el path quitado."""
+    watch_a = tmp_path / "etc"
+    watch_a.mkdir()
+    watch_tmp = tmp_path / "tmp_dir"
+    watch_tmp.mkdir()
 
-    current = set(current_paths)
-    updated = set(new_paths)
-    removed = current - updated
-    added = updated - current
+    detector = _make_reload_detector([str(watch_a), str(watch_tmp)])
+    fake_fan_mod = _fake_fan_mod()
 
-    assert "/tmp" in removed
-    assert len(added) == 0
+    with patch("agent.detector._HAS_FAN", True), patch("agent.detector._fan_mod", fake_fan_mod):
+        detector.reload_watch_paths([str(watch_a)])
+
+    calls = {call.args[4]: call.args[1] for call in fake_fan_mod.mark.call_args_list}
+    assert str(watch_tmp) in calls
+    assert calls[str(watch_tmp)] & fake_fan_mod.FAN_MARK_REMOVE
+    assert not (calls[str(watch_tmp)] & fake_fan_mod.FAN_MARK_ADD)
+    assert str(watch_a) not in calls
+    assert detector._watch_paths == [str(watch_a)]
 
 
 # ── 13.5 test_update_config_handler_reloads_detector ─────────────────────────
