@@ -3,6 +3,7 @@ Endpoints REST del dominio de eventos (Change 11).
 
 GET /events  — lista paginada con filtros
 GET /events/{event_id} — detalle de un evento
+GET /events/{event_id}/chain — cadena de eventos del mismo path (US-10)
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from app.core.database import get_session
 from app.core.deps import require_admin, require_full_access
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus
+from app.modules.events.service import derive_action_type, get_event_chain
 from app.modules.rules.models import PublishedCommand, RuleSeverity
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -70,12 +72,23 @@ class EventDetailOut(EventOut):
 
     hash_expected: str | None = None
     diff_text: str | None = None
+    # US-08 criterio 2: "tipo de acción", siempre presente en el detalle.
+    # Derivado 1:1 desde status (events/service.py::derive_action_type) — no
+    # es una columna persistida, ver ese docstring para el porqué.
+    action_type: str = "manual_review"
 
 
 class PaginatedEventsOut(BaseModel):
     total: int
     page: int
     page_size: int
+    items: list[EventOut]
+
+
+class EventChainOut(BaseModel):
+    """US-10: cadena de eventos del mismo path, orden cronológico ascendente."""
+
+    path: str | None
     items: list[EventOut]
 
 
@@ -151,6 +164,26 @@ async def get_event(
     return _to_event_detail_out(event, ack_map)
 
 
+@router.get("/{event_id}/chain", response_model=EventChainOut)
+async def get_event_chain_endpoint(
+    event_id: int,
+    session: Session = Depends(get_session),
+    # US-10: mismo auth que GET /events (require_full_access) — este endpoint
+    # no expone diff_text ni hash_expected (EventOut, no EventDetailOut), a
+    # diferencia de GET /events/{id} que sí requiere require_admin.
+    _user: User = Depends(require_full_access),
+) -> EventChainOut:
+    event = session.exec(select(Event).where(Event.id == event_id)).first()
+    if event is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    chain = get_event_chain(session, event)
+    ack_map = _get_ack_status_map(session, [e.id for e in chain if e.id is not None])
+    return EventChainOut(
+        path=event.path,
+        items=[_to_event_out(e, ack_map) for e in chain],
+    )
+
+
 # ── Helpers — filtros de fecha (D39/RN-133) ──────────────────────────────────
 
 
@@ -201,4 +234,5 @@ def _to_event_out(event: Event, ack_map: dict[int, str]) -> EventOut:
 def _to_event_detail_out(event: Event, ack_map: dict[int, str]) -> EventDetailOut:
     out = EventDetailOut.model_validate(event)
     out.ack_status = ack_map.get(event.id) if event.id is not None else None
+    out.action_type = derive_action_type(event.status)
     return out

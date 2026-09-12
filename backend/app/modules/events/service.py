@@ -153,6 +153,42 @@ def derive_event_status(action: str | None, action_failed: bool) -> EventStatus:
     return EventStatus.pending
 
 
+# US-08 criterio 2: "tipo de acción" siempre visible en el detalle. `action`
+# (RuleAction) no sobrevive al ingest más allá de derivar EventStatus (ver
+# derive_event_status arriba) — no hay columna nueva ni migración. RN-72 dice
+# que `pending` es el único estado con out-edges (VALID_TRANSITIONS), así que
+# approved/rejected/superseded solo pueden haberse originado en un ingest con
+# action=manual_review; auto_restored/quarantined/alert_only son terminales
+# sin out-edges y mapean 1:1 a la acción que los produjo.
+def derive_action_type(event_status: EventStatus) -> str:
+    """Deriva el tipo de acción a mostrar en el detalle desde el status."""
+    if event_status == EventStatus.auto_restored:
+        return "auto_restore"
+    if event_status == EventStatus.quarantined:
+        return "quarantine"
+    if event_status == EventStatus.alert_only:
+        return "alert_only"
+    return "manual_review"
+
+
+# US-10: la cadena se indexa por path (RN-21/RN-23). Un evento sin path
+# (D51/RN-145, ej. detection_gap) no participa del mecanismo — su "cadena" es
+# únicamente él mismo, nunca se agrupa con otros eventos sin ruta (un filtro
+# `Event.path == None` traducido a `IS NULL` agruparía a todos los pathless
+# entre sí, que es exactamente lo que D51/RN-145 dice que no debe pasar).
+def get_event_chain(session: Session, event: Event) -> list[Event]:
+    """Retorna todos los eventos del mismo path que `event`, orden cronológico ascendente."""
+    if event.path is None:
+        return [event]
+    return list(
+        session.exec(
+            select(Event)
+            .where(Event.path == event.path)
+            .order_by(Event.created_at.asc(), Event.id.asc())
+        ).all()
+    )
+
+
 def get_pending_event_for_path(session: Session, path: str) -> Event | None:
     """Retorna el evento pending más reciente para un path, o None."""
     return session.exec(

@@ -520,3 +520,186 @@ async def test_get_event_by_id_pathless_event_returns_null_path(client, session,
     assert body["event_type"] == "detection_gap"
     assert body["severity"] == "high"
     assert body["status"] == "alert_only"
+
+
+# ── 5. `action_type` derivado en GET /events/{id} (US-08 criterio 2) ────────
+#
+# `action` (RuleAction) no sobrevive al ingest como columna propia: sólo se
+# usa para derivar EventStatus (events/service.py::derive_event_status) y se
+# descarta. RN-72 dice que `pending` es el único estado con out-edges, así
+# que approved/rejected/superseded solo pueden haberse originado en un
+# ingest con action=manual_review. El campo se deriva 1:1 desde `status`,
+# sin ninguna columna ni migración nueva.
+
+
+async def test_get_event_by_id_action_type_for_auto_restored(client, session, agent) -> None:
+    event = _new_event(agent, status=EventStatus.auto_restored)
+    _persist(session, event)
+
+    resp = await client.get(f"/events/{event.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["action_type"] == "auto_restore"
+
+
+async def test_get_event_by_id_action_type_for_quarantined(client, session, agent) -> None:
+    event = _new_event(agent, status=EventStatus.quarantined)
+    _persist(session, event)
+
+    resp = await client.get(f"/events/{event.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["action_type"] == "quarantine"
+
+
+async def test_get_event_by_id_action_type_for_alert_only(client, session, agent) -> None:
+    event = _new_event(agent, status=EventStatus.alert_only)
+    _persist(session, event)
+
+    resp = await client.get(f"/events/{event.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["action_type"] == "alert_only"
+
+
+async def test_get_event_by_id_action_type_for_pending_is_manual_review(
+    client, session, agent
+) -> None:
+    event = _new_event(agent, status=EventStatus.pending)
+    _persist(session, event)
+
+    resp = await client.get(f"/events/{event.id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["action_type"] == "manual_review"
+
+
+async def test_get_event_by_id_action_type_for_terminal_admin_decisions(
+    client, session, agent
+) -> None:
+    """approved/rejected/superseded solo son alcanzables desde pending
+    (RN-72) — su action_type es siempre manual_review, nunca auto_restore o
+    quarantine (esos son terminales sin out-edges, ver VALID_TRANSITIONS)."""
+    for terminal_status in (EventStatus.approved, EventStatus.rejected, EventStatus.superseded):
+        event = _new_event(agent, status=terminal_status)
+        _persist(session, event)
+
+        resp = await client.get(f"/events/{event.id}", headers=_auth_headers())
+
+        assert resp.status_code == 200
+        assert resp.json()["action_type"] == "manual_review"
+
+
+# ── 6. GET /events/{id}/chain (US-10) ────────────────────────────────────────
+#
+# Mismo auth que el listado (require_full_access): el endpoint no expone
+# diff_text/hash_expected, así que no requiere require_admin (a diferencia de
+# GET /events/{id}).
+
+
+async def test_get_event_chain_returns_events_for_same_path_chronologically(
+    client, session, agent
+) -> None:
+    path = f"/etc/{uuid.uuid4().hex[:8]}"
+    a = _new_event(agent, path=path, status=EventStatus.superseded, created_at=_NOW)
+    _persist(session, a)
+    b = _new_event(
+        agent,
+        path=path,
+        status=EventStatus.superseded,
+        created_at=_NOW + timedelta(minutes=1),
+    )
+    b.parent_event_id = a.id
+    _persist(session, b)
+    c = _new_event(
+        agent, path=path, status=EventStatus.pending, created_at=_NOW + timedelta(minutes=2)
+    )
+    c.parent_event_id = b.id
+    _persist(session, c)
+
+    resp = await client.get(f"/events/{c.id}/chain", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["path"] == path
+    ids = [item["id"] for item in body["items"]]
+    assert ids == [a.id, b.id, c.id]
+
+
+async def test_get_event_chain_marks_superseded_events(client, session, agent) -> None:
+    path = f"/etc/{uuid.uuid4().hex[:8]}"
+    a = _new_event(agent, path=path, status=EventStatus.superseded, created_at=_NOW)
+    _persist(session, a)
+    b = _new_event(
+        agent, path=path, status=EventStatus.pending, created_at=_NOW + timedelta(minutes=1)
+    )
+    b.parent_event_id = a.id
+    _persist(session, b)
+
+    resp = await client.get(f"/events/{a.id}/chain", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    statuses = {item["id"]: item["status"] for item in body["items"]}
+    assert statuses[a.id] == "superseded"
+    assert statuses[b.id] == "pending"
+    parents = {item["id"]: item["parent_event_id"] for item in body["items"]}
+    assert parents[b.id] == a.id
+    assert parents[a.id] is None
+
+
+async def test_get_event_chain_unknown_id_returns_404(client, session, agent) -> None:
+    resp = await client.get("/events/987654/chain", headers=_auth_headers())
+    assert resp.status_code == 404
+
+
+async def test_get_event_chain_pathless_event_returns_only_itself(client, session, agent) -> None:
+    """D51/RN-145: un evento sin path no participa del mecanismo de cadena —
+    su "cadena" es únicamente él mismo, nunca se agrupa con otros pathless."""
+    gap1 = _new_pathless_event(agent, created_at=_NOW)
+    _persist(session, gap1)
+    gap2 = _new_pathless_event(agent, created_at=_NOW + timedelta(minutes=1))
+    _persist(session, gap2)
+
+    resp = await client.get(f"/events/{gap1.id}/chain", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["path"] is None
+    assert [item["id"] for item in body["items"]] == [gap1.id]
+
+
+async def test_get_event_chain_does_not_require_admin_role(client, session, agent) -> None:
+    """Same auth as GET /events (require_full_access): no diff_text or
+    hash_expected is exposed by this endpoint, so a non-admin viewer with
+    full access is allowed — unlike GET /events/{id}."""
+    from app.core.security import hash_password
+    from app.modules.auth.models import User
+
+    viewer = User(
+        username="viewer-chain",
+        email="viewer-chain@fim.local",
+        password_hash=hash_password("ViewerPassword123!"),
+        role="viewer",
+        is_active=True,
+        must_change_password=False,
+    )
+    session.add(viewer)
+    session.commit()
+    session.refresh(viewer)
+
+    viewer_token = create_access_token(
+        user_id=viewer.id, username="viewer-chain", must_change_password=False, jti="test-jti-chain"
+    )
+
+    event = _new_event(agent)
+    _persist(session, event)
+
+    resp = await client.get(
+        f"/events/{event.id}/chain", headers={"Authorization": f"Bearer {viewer_token}"}
+    )
+    assert resp.status_code == 200
+
+    # The chain endpoint must never leak diff_text/hash_expected either.
+    assert "diff_text" not in resp.json()["items"][0]
+    assert "hash_expected" not in resp.json()["items"][0]
