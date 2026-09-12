@@ -127,12 +127,22 @@ def enqueue_update_config(
 def enqueue_rescan_baseline(
     session: Session,
     agent: Agent,
+    paths: list[str] | None = None,
+    ruleset_version: int = 0,
 ) -> None:
     """
     Encola el comando `rescan_baseline` en el outbox, firmado con HMAC-SHA256.
 
     Payload:
-      type, command_id, target_agent_id, issued_at, schema_version, signature.
+      type, command_id, target_agent_id, paths, ruleset_version, issued_at,
+      schema_version, signature.
+
+    US-22: `paths` acota el rescan a paths específicos — None/[] instruye al
+    agente a re-escanear todos sus watch_paths (comportamiento previo,
+    retrocompatible con agentes que ignoren la clave). `ruleset_version` (C11)
+    ya fue incrementado por el caller (rescan_agent) — el agente descarta el
+    comando si su versión local es mayor o igual (guard monotónico, mismo
+    patrón que update_config).
 
     MUST llamarse ANTES de `db.commit()` (D37/RN-131) — ver docstring del módulo.
     """
@@ -143,16 +153,22 @@ def enqueue_rescan_baseline(
         "type": "rescan_baseline",
         "command_id": command_id,
         "target_agent_id": agent.agent_id,
+        "paths": paths or [],
+        "ruleset_version": ruleset_version,
         "issued_at": datetime.now(timezone.utc).isoformat(),
         "schema_version": SCHEMA_VERSION,
     }
     payload["signature"] = sign_payload(secret, payload)
 
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    _record_published_command(session, agent.agent_id, "rescan_baseline", command_id, data)
+    _record_published_command(
+        session, agent.agent_id, "rescan_baseline", command_id, data, ruleset_version
+    )
 
     log.info(
         "streams.agents.rescan_baseline_enqueued",
         agent_id=agent.agent_id,
         command_id=command_id,
+        paths=paths or [],
+        ruleset_version=ruleset_version,
     )

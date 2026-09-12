@@ -75,6 +75,10 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
     if not agent_id:
         return
     queue_pressure = payload.get("queue_pressure")
+    # US-21: cantidad de eventos en la cola local, mismo criterio tolerante
+    # que queue_pressure — ausente o no numérico no pisa el último valor
+    # conocido (bool se rechaza explícitamente, ver discarded_events).
+    queue_size = payload.get("queue_size")
     shutdown = bool(payload.get("shutdown", False))
     # D36/RN-130 (C41): clave nueva, opcional. Sin schema ni allowlist en este
     # consumer (ver docstring del módulo) — leer una clave más no toca la
@@ -111,6 +115,12 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
         agent.last_heartbeat = datetime.now(timezone.utc)
         if isinstance(queue_pressure, (int, float)):
             agent.queue_pressure = float(queue_pressure)
+        # US-21: mismo criterio tolerante — bool se rechaza explícitamente
+        # (isinstance(True, int) es True en Python), no numérico se ignora.
+        if isinstance(queue_size, bool):
+            log.warning("heartbeat_consumer.invalid_queue_size", agent_id=agent_id)
+        elif isinstance(queue_size, (int, float)):
+            agent.queue_size = int(queue_size)
         # dead → online cuando llega un heartbeat (D-C14-04: el agente puede volver a la vida)
         agent.status = AgentStatus.draining if shutdown else AgentStatus.online
 
@@ -146,7 +156,8 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
 
 
 async def _sweep_loop(stop_event: asyncio.Event) -> None:
-    """Marca offline a agentes sin heartbeat en los últimos 30 s (RN-92)."""
+    """Marca offline/dead a agentes sin heartbeat (RN-92) y dispara webhook n8n
+    al pasar a `dead` (US-21)."""
     loop = asyncio.get_running_loop()
     while not stop_event.is_set():
         try:
@@ -156,15 +167,47 @@ async def _sweep_loop(stop_event: asyncio.Event) -> None:
         if stop_event.is_set():
             break
         try:
-            await loop.run_in_executor(None, _sweep_offline)
+            newly_dead = await loop.run_in_executor(None, _sweep_offline)
         except Exception as exc:
             log.error("heartbeat_consumer.sweep_error", error=str(exc))
+            continue
+        for agent_id in newly_dead:
+            _notify_agent_dead(agent_id)
 
 
-def _sweep_offline() -> None:
+def _notify_agent_dead(agent_id: str) -> None:
+    """Dispara (fire-and-forget) el webhook n8n cuando un agente pasa a `dead`.
+
+    Mismo patrón que core/health.py::check_health — asyncio.create_task, sin
+    esperar el resultado, sin bloquear el sweep. Vacío ⇒ no configurado, no
+    se intenta (mismo criterio que n8n_webhook_url en el resto del backend).
+    """
+    from app.core.config import settings
+
+    if not settings.n8n_webhook_url:
+        return
+    import uuid
+
+    from app.modules.alerts.contract import NOTIFICATION_TYPE_AGENT_DEAD, SCHEMA_VERSION
+    from app.modules.alerts.notifier import send_n8n
+
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "notification_id": str(uuid.uuid4()),
+        "type": NOTIFICATION_TYPE_AGENT_DEAD,
+        "event": NOTIFICATION_TYPE_AGENT_DEAD,
+        "agent_id": agent_id,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+    asyncio.create_task(send_n8n(payload, settings.n8n_webhook_url, timeout=5.0))
+
+
+def _sweep_offline() -> list[str]:
+    """Retorna los agent_id que recién pasaron a `dead` en este barrido."""
     now = datetime.now(timezone.utc)
     offline_threshold = now - timedelta(seconds=_OFFLINE_THRESHOLD_S)
     dead_threshold = now - timedelta(seconds=_DEAD_THRESHOLD_S)
+    newly_dead: list[str] = []
 
     with Session(engine) as session:
         # Primera pasada: online/draining sin heartbeat en 30s → offline
@@ -190,8 +233,11 @@ def _sweep_offline() -> None:
         for agent in dead_candidates:
             agent.status = AgentStatus.dead
             session.add(agent)
+            newly_dead.append(agent.agent_id)
         if dead_candidates:
             log.info("heartbeat_consumer.sweep_dead", count=len(dead_candidates))
 
         if candidates or dead_candidates:
             session.commit()
+
+    return newly_dead

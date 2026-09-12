@@ -25,6 +25,12 @@ class Agent(SQLModel, table=True):
     last_heartbeat: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     ruleset_version_applied: int = Field(default=0)
     queue_pressure: float | None = Field(default=None)
+    # US-21: cantidad de eventos en la cola local del agente, tal como la
+    # reporta el heartbeat (agent/heartbeat.py, clave "queue_size"). Nullable
+    # sin default, mismo criterio que discarded_events (D37/RN-131): None =
+    # "el agente nunca reportó", distinto de 0 = "reportó cola vacía".
+    # Migración 015.
+    queue_size: int | None = Field(default=None)
     bootstrap_secret_hash: str | None = Field(default=None)
     shared_secret_hex: str | None = Field(default=None)  # persiste tras bootstrap para HMAC
     watch_paths: list[str] = Field(default=[], sa_column=Column(JSON))
@@ -95,6 +101,9 @@ class AgentResponse(BaseModel):
     status: AgentStatus
     last_heartbeat: datetime | None
     queue_pressure: float | None
+    # US-21: cantidad de eventos en la cola local del agente. None si el
+    # agente nunca reportó heartbeat (distinto de 0).
+    queue_size: int | None = None
     ruleset_version_applied: int
     watch_paths: list[str]
     # D36/RN-130 (C41): mapa por-path de clasificación de escritura, tal como
@@ -123,6 +132,9 @@ class AgentRescanRequest(BaseModel):
     """Body para POST /agents/{id}/rescan."""
 
     force: bool = False
+    # US-22: selección de paths específicos para el rescan. None/[] = todos
+    # los watch_paths del agente (comportamiento previo, retrocompatible).
+    paths: list[str] | None = None
 
 
 class BaselineStatus(str, Enum):

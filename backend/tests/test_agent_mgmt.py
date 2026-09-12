@@ -159,6 +159,26 @@ def test_get_agent_detail(session, agent_with_secret):
     assert result.status == AgentStatus.online
 
 
+# ── US-21: queue_size expuesto en AgentResponse ──────────────────────────────
+
+
+def test_get_agent_detail_exposes_queue_size(session, agent_with_secret):
+    """AgentResponse expone queue_size — None si el agente nunca reportó,
+    el valor persistido si sí."""
+    from app.modules.agents.service import get_agent
+
+    agent, _ = agent_with_secret
+    result = get_agent(session, agent.agent_id)
+    assert result.queue_size is None
+
+    agent.queue_size = 42
+    session.add(agent)
+    session.commit()
+
+    result = get_agent(session, agent.agent_id)
+    assert result.queue_size == 42
+
+
 # ── 12.3 test_get_agent_not_found ─────────────────────────────────────────────
 
 
@@ -332,6 +352,141 @@ def test_rescan_with_pending_force(session, mock_valkey, admin_user, agent_with_
     mock_valkey.xadd.assert_called_once()
     payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
     assert payload["type"] == "rescan_baseline"
+
+
+# ── US-22: rescan_baseline con ruleset_version++ y selección de paths ───────
+
+
+def test_rescan_increments_ruleset_version(session, mock_valkey, admin_user, agent_with_secret):
+    """C11: rescan_baseline también incrementa el counter ruleset_version
+    (antes solo update_config/reglas lo hacían — gap detectado en la
+    verificación cruzada del backlog)."""
+    from app.modules.agents.service import rescan_agent
+
+    before = session.exec(select(RulesetVersion)).first()
+    before_version = before.version if before is not None else 0
+
+    agent, _ = agent_with_secret
+    rescan_agent(
+        db=session,
+        valkey_client=mock_valkey,
+        agent_id=agent.agent_id,
+        force=False,
+        user_id=admin_user.id,
+    )
+
+    payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert payload["ruleset_version"] == before_version + 1
+
+    after = session.exec(select(RulesetVersion)).first()
+    assert after.version == before_version + 1
+
+
+def test_rescan_with_paths_scopes_pending_count(session, mock_valkey, admin_user, agent_with_secret):
+    """force=False + paths → PendingEventsExist.count solo cuenta los
+    eventos pending bajo los paths seleccionados, no todos los del agente."""
+    from app.modules.agents.service import PendingEventsExist, rescan_agent
+
+    agent, _ = agent_with_secret
+    _make_pending_event(session, agent.agent_id, path="/etc/passwd")
+    _make_pending_event(session, agent.agent_id, path="/etc/shadow")
+    _make_pending_event(session, agent.agent_id, path="/var/log/syslog")
+
+    with pytest.raises(PendingEventsExist) as exc_info:
+        rescan_agent(
+            db=session,
+            valkey_client=mock_valkey,
+            agent_id=agent.agent_id,
+            force=False,
+            user_id=admin_user.id,
+            paths=["/etc"],
+        )
+
+    assert exc_info.value.count == 2
+
+
+def test_rescan_with_paths_supersedes_only_selected_paths(session, mock_valkey, admin_user, agent_with_secret):
+    """force=True + paths → solo los pending bajo los paths seleccionados
+    pasan a superseded; el resto queda pending."""
+    from app.modules.agents.service import rescan_agent
+
+    agent, _ = agent_with_secret
+    _make_pending_event(session, agent.agent_id, path="/etc/passwd")
+    _make_pending_event(session, agent.agent_id, path="/var/log/syslog")
+
+    rescan_agent(
+        db=session,
+        valkey_client=mock_valkey,
+        agent_id=agent.agent_id,
+        force=True,
+        user_id=admin_user.id,
+        paths=["/etc"],
+    )
+
+    superseded = session.exec(
+        select(Event).where(Event.status == EventStatus.superseded)
+    ).all()
+    assert [e.path for e in superseded] == ["/etc/passwd"]
+
+    still_pending = session.exec(
+        select(Event).where(Event.status == EventStatus.pending)
+    ).all()
+    assert [e.path for e in still_pending] == ["/var/log/syslog"]
+
+
+def test_rescan_with_paths_publishes_paths_in_command(session, mock_valkey, admin_user, agent_with_secret):
+    """El comando rescan_baseline lleva los paths seleccionados en el payload."""
+    from app.modules.agents.service import rescan_agent
+
+    agent, _ = agent_with_secret
+    rescan_agent(
+        db=session,
+        valkey_client=mock_valkey,
+        agent_id=agent.agent_id,
+        force=False,
+        user_id=admin_user.id,
+        paths=["/etc", "/opt/app"],
+    )
+
+    payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert payload["paths"] == ["/etc", "/opt/app"]
+
+
+def test_rescan_without_paths_publishes_empty_list(session, mock_valkey, admin_user, agent_with_secret):
+    """Sin paths seleccionados (comportamiento previo) → paths=[] en el
+    comando, que el agente interpreta como 'todos los watch_paths'."""
+    from app.modules.agents.service import rescan_agent
+
+    agent, _ = agent_with_secret
+    rescan_agent(
+        db=session,
+        valkey_client=mock_valkey,
+        agent_id=agent.agent_id,
+        force=False,
+        user_id=admin_user.id,
+    )
+
+    payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert payload["paths"] == []
+
+
+def test_audit_log_on_rescan_includes_paths(session, mock_valkey, admin_user, agent_with_secret):
+    """audit_log de agent_rescan incluye los paths seleccionados."""
+    from app.modules.agents.service import rescan_agent
+
+    agent, _ = agent_with_secret
+    rescan_agent(
+        db=session,
+        valkey_client=mock_valkey,
+        agent_id=agent.agent_id,
+        force=False,
+        user_id=admin_user.id,
+        paths=["/etc"],
+    )
+
+    audit = session.exec(select(AuditLog).where(AuditLog.action == "agent_rescan")).first()
+    detail = json.loads(audit.detail)
+    assert detail["paths"] == ["/etc"]
 
 
 # ── 12.10 test_dead_transition ────────────────────────────────────────────────

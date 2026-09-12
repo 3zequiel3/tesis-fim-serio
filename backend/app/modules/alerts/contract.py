@@ -36,6 +36,8 @@ SCHEMA_VERSION = 1
 
 NOTIFICATION_TYPE_ALERT = "alert"
 NOTIFICATION_TYPE_HEALTH_CHANGE = "health_change"
+# US-21: agente sin heartbeat por >= 5 minutos (heartbeat_consumer._sweep_offline).
+NOTIFICATION_TYPE_AGENT_DEAD = "agent_dead"
 
 # Envelope keys, shared by every notification type.
 ENVELOPE_FIELDS: tuple[str, ...] = (

@@ -106,6 +106,8 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
         status=agent.status,
         last_heartbeat=agent.last_heartbeat,
         queue_pressure=agent.queue_pressure,
+        # US-21: None si el agente nunca reportó (distinto de 0).
+        queue_size=agent.queue_size,
         ruleset_version_applied=agent.ruleset_version_applied,
         watch_paths=agent.watch_paths or [],
         # D36/RN-130 (C41): None si el agente nunca reportó (no default a {}).
@@ -197,6 +199,7 @@ def rescan_agent(
     agent_id: str,
     force: bool,
     user_id: int,
+    paths: list[str] | None = None,
 ) -> None:
     """
     Fuerza re-scan de baseline del agente.
@@ -208,28 +211,41 @@ def rescan_agent(
     publicarse post-commit. Sin esto, los eventos quedan `superseded` y el
     agente puede no recibir nunca la orden de re-escanear si Valkey falla
     justo ahí.
+
+    US-22: `paths` acota el rescan a paths específicos — None/[] conserva el
+    comportamiento previo (todos los watch_paths del agente): se filtran los
+    eventos `pending` por prefijo de path y se incluyen los `paths` en el
+    comando `rescan_baseline` para que el agente re-escanee solo esos.
     """
     from app.modules.agents.streams import enqueue_rescan_baseline
     from app.modules.audit.models import AuditLog
     from app.modules.events.models import Event, EventStatus
-    from app.modules.rules.service import publish_pending_commands
+    from app.modules.rules.service import increment_ruleset_version, publish_pending_commands
 
     agent = db.get(Agent, agent_id)
     if agent is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="agent not found")
 
-    # Contar eventos pending del agente
-    pending_events = db.exec(
-        select(Event).where(
-            Event.agent_id == agent_id,
-            Event.status == EventStatus.pending,
-        )
-    ).all()
+    scoped_paths = [p for p in (paths or []) if p]
+
+    # Contar eventos pending del agente, acotado a los paths seleccionados
+    # (prefijo de directorio o archivo exacto — mismo criterio que
+    # events/router.py::path_prefix).
+    q = select(Event).where(
+        Event.agent_id == agent_id,
+        Event.status == EventStatus.pending,
+    )
+    pending_events = db.exec(q).all()
+    if scoped_paths:
+        pending_events = [
+            e for e in pending_events
+            if e.path is not None and any(e.path.startswith(p) for p in scoped_paths)
+        ]
 
     if not force and pending_events:
         raise PendingEventsExist(count=len(pending_events))
 
-    # force=True: marcar pending como superseded
+    # force=True: marcar pending como superseded (solo los paths seleccionados)
     if pending_events:
         for event in pending_events:
             event.status = EventStatus.superseded
@@ -237,17 +253,27 @@ def rescan_agent(
             db.add(event)
         db.flush()
 
-    # Registrar audit_log
+    # C11: ruleset_version++ también para rescan_baseline (mismo counter que
+    # update_config/rule create/update/delete) — el agente descarta comandos
+    # con versión <= la local (D-C14-05, guard replicado en agent/commands.py).
+    new_version = increment_ruleset_version(db)
+
+    # Registrar audit_log (incluye paths seleccionados, [] = todos)
     audit = AuditLog(
         user_id=user_id,
         action="agent_rescan",
         target_type="agent",
-        detail=f'{{"agent_id": "{agent_id}", "force": {str(force).lower()}, "superseded_count": {len(pending_events)}}}',
+        detail=json.dumps({
+            "agent_id": agent_id,
+            "force": force,
+            "superseded_count": len(pending_events),
+            "paths": scoped_paths,
+        }),
     )
     db.add(audit)
 
     # Encolar rescan_baseline en el outbox — MISMA transacción (D37/RN-131).
-    enqueue_rescan_baseline(db, agent)
+    enqueue_rescan_baseline(db, agent, scoped_paths, new_version)
 
     db.commit()
 

@@ -184,6 +184,7 @@ async def rescan(
             agent_id=agent_id,
             force=req.force,
             user_id=_admin.id,
+            paths=req.paths,
         )
     except PendingEventsExist as exc:
         raise HTTPException(

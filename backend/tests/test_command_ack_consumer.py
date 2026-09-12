@@ -213,6 +213,27 @@ def test_ack_ok_baseline_update_advances_ruleset_version_applied(mem_engine, age
         assert agent.ruleset_version_applied == 9
 
 
+def test_ack_ok_rescan_baseline_advances_ruleset_version_applied(mem_engine, agent_online, secret):
+    """US-22/C11: rescan_baseline también avanza ruleset_version_applied al
+    confirmarse — antes solo update_config/baseline_update estaban en
+    _RECONCILE_ROOT_VERSION_TYPES, dejando rescan_baseline sin reconciliar."""
+    cmd = _make_pending_command(
+        mem_engine,
+        command_id="cmd-ack-rescan-001",
+        command_type="rescan_baseline",
+        target_agent_id=agent_online.agent_id,
+        event_id=None,
+        ruleset_version=11,
+    )
+    payload = _make_ack_payload(cmd.command_id, "rescan_baseline", None, agent_online.agent_id, secret)
+
+    _handle(mem_engine, payload)
+
+    with Session(mem_engine) as s:
+        agent = s.get(Agent, agent_online.agent_id)
+        assert agent.ruleset_version_applied == 11
+
+
 def test_ack_ok_monotonic_does_not_regress(mem_engine, agent_online, approved_event, secret):
     """Un ack con ruleset_version menor al ya aplicado no retrocede el valor."""
     cmd = _make_pending_command(

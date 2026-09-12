@@ -1,0 +1,23 @@
+-- Migration 015: queue_size persistido en agents (US-21).
+--
+-- Agrega la columna queue_size a agents: cantidad de eventos actualmente en
+-- la cola local del agente (agent/queue.py::EventQueue.queue_size), tal como
+-- la reporta el heartbeat (agent/heartbeat.py, clave "queue_size", cada 10 s).
+--
+-- Hasta esta migración el backend solo persistía queue_pressure (ratio de
+-- bytes 0.0-1.0), a pesar de que el agente ya venía enviando queue_size en
+-- el heartbeat desde su implementación original — el valor se descartaba en
+-- silencio en heartbeat_consumer.py. US-21 (historias_de_usuario.md) exige
+-- mostrar el queue_size local de cada agente en la lista de agentes.
+--
+-- Nullable, SIN default: mismo criterio que discarded_events (migración 010)
+-- y watch_path_status — un agente que nunca reportó heartbeat queda en NULL,
+-- distinto de 0 ("reportó y su cola está vacía").
+--
+-- Idempotente: ADD COLUMN IF NOT EXISTS. Ejecutar el script dos veces no
+-- produce error.
+--
+-- Aplicar manualmente contra la base de datos de producción o test (D3, sin Alembic):
+--   psql $DATABASE_URL -f 015_add_agent_queue_size.sql
+
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS queue_size INTEGER;

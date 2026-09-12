@@ -70,7 +70,7 @@ _BATCH_SIZE = 50
 _SWEEP_INTERVAL_S = 10.0
 
 _TERMINAL_ACK_STATUSES = ("acked", "failed")
-_RECONCILE_ROOT_VERSION_TYPES = ("update_config", "baseline_update")
+_RECONCILE_ROOT_VERSION_TYPES = ("update_config", "baseline_update", "rescan_baseline")
 
 # Errores de CONEXIÓN/disponibilidad de DB: transitorios → NO XACK (reintento en PEL).
 # Los errores de DATOS (IntegrityError, DataError, ProgrammingError, payload
