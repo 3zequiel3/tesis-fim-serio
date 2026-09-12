@@ -42,3 +42,39 @@ async def test_health_trace_id_unique_per_request(client):
     assert t1 is not None
     assert t2 is not None
     assert t1 != t2, "Dos requests consecutivas tienen el mismo X-Trace-Id"
+
+
+# ── GET /health/components — HTTP-level (US-28) ─────────────────────────────
+#
+# The rest of this module (test_notifications.py §7.3) exercises
+# `check_components()` directly as a unit. Nothing previously hit the real
+# route through the ASGI app, so the wiring (no-auth, response shape, status
+# code) was unverified at the HTTP layer. These tests close that gap.
+
+
+async def test_health_components_returns_200_without_auth(client) -> None:
+    """RN-101: monitoring endpoint, no JWT required — unlike every /events,
+    /rules, /actions route."""
+    response = await client.get("/health/components")
+
+    assert response.status_code == 200
+    assert response.headers.get("content-type", "").startswith("application/json")
+
+
+async def test_health_components_reports_every_monitored_component(client) -> None:
+    """Body carries postgres/valkey/n8n/agents + checked_at, per US-28 criterio 2."""
+    response = await client.get("/health/components")
+    body = response.json()
+
+    for key in ("postgres", "valkey", "n8n", "checked_at"):
+        assert key in body, f"'{key}' ausente en GET /health/components"
+
+    assert isinstance(body["agents"], dict)
+    assert "status" in body["agents"]
+    assert "items" in body["agents"]
+
+    for component in ("postgres", "valkey", "n8n"):
+        assert body[component] in ("ok", "degraded", "down"), (
+            f"{component}='{body[component]}' no es un estado válido"
+        )
+    assert body["agents"]["status"] in ("ok", "degraded", "down")
