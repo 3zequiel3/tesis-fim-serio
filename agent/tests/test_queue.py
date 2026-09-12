@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -198,6 +199,49 @@ def test_drop_oldest_counter_tracks_multiple_evictions(queue: EventQueue) -> Non
         assert q.iter_fifo()[-1]["event_id"] == "large-new"
     finally:
         qmod._MAX_BYTES = original
+
+
+# ── permisos de directorio (0700) ─────────────────────────────────────────────
+
+def test_queue_dir_created_with_0700(tmp_path: Path) -> None:
+    """El directorio de cola debe crearse con modo 0700 (mismo criterio que
+    baseline.py/quarantine.py) — la cola guarda diff_text en texto plano."""
+    qdir = tmp_path / "queue"
+    EventQueue(qdir)
+    assert stat.S_IMODE(os.stat(qdir).st_mode) == 0o700
+
+
+def test_queue_dir_preexisting_permissions_hardened_to_0700(tmp_path: Path) -> None:
+    """Un directorio de cola pre-existente con permisos laxos (0755) debe
+    quedar endurecido a 0700 al construir la cola."""
+    qdir = tmp_path / "queue"
+    qdir.mkdir(mode=0o755)
+    os.chmod(qdir, 0o755)
+    EventQueue(qdir)
+    assert stat.S_IMODE(os.stat(qdir).st_mode) == 0o700
+
+
+def test_discard_dir_created_with_0700(queue: EventQueue) -> None:
+    """El directorio de descarte también debe quedar en 0700 al crearse bajo
+    demanda (discard())."""
+    event = _make_event("discard-perm-1")
+    queue.enqueue(event)
+    queue.discard("discard-perm-1", "test_reason")
+    assert stat.S_IMODE(os.stat(queue._discard_dir).st_mode) == 0o700
+
+
+def test_discard_dir_preexisting_permissions_hardened_to_0700(tmp_path: Path) -> None:
+    """Un directorio de descarte pre-existente con 0755 debe quedar en 0700
+    tras el primer discard()."""
+    qdir = tmp_path / "queue"
+    ddir = tmp_path / "discarded"
+    ddir.mkdir(mode=0o755)
+    os.chmod(ddir, 0o755)
+    q = EventQueue(qdir, discard_dir=ddir)
+    event = _make_event("discard-perm-2")
+    q.enqueue(event)
+    q.discard("discard-perm-2", "test_reason")
+    assert stat.S_IMODE(os.stat(ddir).st_mode) == 0o700
 
 
 # ── barrido de .tmp huérfanos ─────────────────────────────────────────────────

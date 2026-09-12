@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -40,6 +41,25 @@ log = structlog.get_logger()
 
 _MAX_BYTES: int = 100 * 1024 * 1024  # 100 MB
 _DEFAULT_MAX_DISCARD_FILES: int = 1000
+
+
+def _ensure_dir_0700(path: Path) -> None:
+    """Creates path if needed and enforces 0700 permissions (privacy hardening).
+
+    Mirrors the mkdir-mode + chmod-fallback + verify pattern already used by
+    baseline.py/_ensure_dir and quarantine.py/_ensure_directory: the queue
+    stores full event envelopes in plaintext JSON, including diff_text when
+    present, so a pre-existing directory with laxer permissions (e.g. 0755)
+    must be hardened, not just left alone because it already exists.
+    """
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        os.chmod(path, 0o700)
+    except OSError as exc:
+        raise RuntimeError(f"Cannot set 0700 on queue dir {path}: {exc}") from exc
+    actual = stat.S_IMODE(path.stat().st_mode)
+    if actual != 0o700:
+        raise RuntimeError(f"queue dir {path} has wrong permissions: {oct(actual)}")
 
 
 def _iso_to_epoch_ms(iso_str: str) -> int:
@@ -88,7 +108,7 @@ class EventQueue:
         max_discard_files: int = _DEFAULT_MAX_DISCARD_FILES,
     ) -> None:
         self._dir = Path(queue_dir)
-        self._dir.mkdir(parents=True, exist_ok=True)
+        _ensure_dir_0700(self._dir)
         self._discard_dir = Path(discard_dir) if discard_dir else self._dir.parent / "discarded"
         self._max_discard_files = max_discard_files
         # Acumulativo durante la vida de esta instancia, igual que los otros
@@ -310,7 +330,7 @@ class EventQueue:
         envelope["discard_reason"] = reason
         envelope["discarded_at"] = datetime.now(timezone.utc).isoformat()
 
-        self._discard_dir.mkdir(parents=True, exist_ok=True)
+        _ensure_dir_0700(self._discard_dir)
         dest = self._discard_dir / f.name
         _atomic_write_json(dest, envelope)
         try:
