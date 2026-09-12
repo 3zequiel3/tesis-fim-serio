@@ -242,8 +242,9 @@ export function AgentCard({
             <div className="flex gap-2">
               <button
                 onClick={handleSavePaths}
-                disabled={isSavingConfig}
-                className="px-3 py-1 text-xs bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-40"
+                disabled={isSavingConfig || isDraining}
+                title={isDraining ? DRAINING_TOOLTIP : undefined}
+                className="px-3 py-1 text-xs bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isSavingConfig ? 'Guardando...' : 'Guardar paths'}
               </button>

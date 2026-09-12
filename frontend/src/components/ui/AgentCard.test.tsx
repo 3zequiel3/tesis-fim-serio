@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
 import { AgentCard } from './AgentCard'
@@ -217,5 +217,137 @@ describe('AgentCard — selección de paths para rescan (US-22)', () => {
     await user.click(screen.getByRole('button', { name: /rescan/i }))
 
     expect(onRescan).toHaveBeenCalledWith('agent-tz-test', ['/etc', '/var/lib/fim'])
+  })
+})
+
+// ── US-24: gestión de paths monitoreados desde el frontend ──────────────────
+//
+// C1: lista de paths actualmente monitoreados por agente.
+// C2: opción de agregar un nuevo path.
+// C3: opción de quitar un path existente.
+// C11: si el agente está `draining`, los botones de guardar configuración
+// quedan deshabilitados (ver US-30). Las criterios de infraestructura
+// (persistencia PostgreSQL, comando update_config firmado HMAC, reload en
+// caliente del agente, baseline scan automático, event_ack, audit_log) ya
+// fueron demostrados por el lab fanotify privilegiado de la lane L7 — fuera
+// de alcance de este archivo, que cubre solo la UI.
+
+describe('AgentCard — lista de paths monitoreados (US-24/C1)', () => {
+  it('muestra todos los watch_paths actualmente monitoreados por el agente', () => {
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ watch_paths: ['/etc', '/var/lib/fim', '/home/user'] })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
+    )
+
+    // Con >1 watch_paths también se renderiza la selección de re-escaneo
+    // (US-22), que repite los mismos paths como <label> — se acota la
+    // aserción a la sección "Watch paths" propiamente dicha.
+    const watchPathsSection = screen.getByText('Watch paths').closest('div')!.parentElement!
+    expect(within(watchPathsSection).getByText('/etc')).toBeInTheDocument()
+    expect(within(watchPathsSection).getByText('/var/lib/fim')).toBeInTheDocument()
+    expect(within(watchPathsSection).getByText('/home/user')).toBeInTheDocument()
+  })
+})
+
+describe('AgentCard — agregar un nuevo path (US-24/C2)', () => {
+  it('agrega el path escrito al listado y lo envía en onConfigSave al guardar', async () => {
+    const user = userEvent.setup()
+    const onConfigSave = vi.fn()
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ watch_paths: ['/etc'] })}
+        onConfigSave={onConfigSave}
+        onRescan={noop}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /editar/i }))
+    await user.type(screen.getByPlaceholderText('/ruta/nueva'), '/var/lib/fim')
+    await user.click(screen.getByRole('button', { name: /^agregar$/i }))
+
+    expect(screen.getByText('/var/lib/fim')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+
+    expect(onConfigSave).toHaveBeenCalledWith('agent-tz-test', ['/etc', '/var/lib/fim'])
+  })
+})
+
+describe('AgentCard — quitar un path existente (US-24/C3)', () => {
+  it('quita el path seleccionado del listado y lo envía sin él en onConfigSave al guardar', async () => {
+    const user = userEvent.setup()
+    const onConfigSave = vi.fn()
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ watch_paths: ['/etc', '/var/lib/fim'] })}
+        onConfigSave={onConfigSave}
+        onRescan={noop}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /editar/i }))
+
+    // El path aparece dos veces mientras se edita: en el listado editable
+    // (con "Quitar") y en la selección de paths a re-escanear (US-22) — el
+    // primero en orden de DOM es el editable.
+    const editingList = screen.getAllByText('/var/lib/fim')[0].closest('li')!
+    await user.click(within(editingList).getByRole('button', { name: /quitar/i }))
+
+    expect(
+      screen.queryByText('/var/lib/fim', { selector: 'span.font-mono' })
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+
+    expect(onConfigSave).toHaveBeenCalledWith('agent-tz-test', ['/etc'])
+  })
+})
+
+describe('AgentCard — botón de guardar deshabilitado durante drenaje (US-24/C11, ver US-30)', () => {
+  it('el botón "Guardar paths" está deshabilitado con el tooltip canónico cuando el agente está draining', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ status: 'online', watch_paths: ['/etc'] })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
+    )
+
+    // Se entra en modo edición mientras el agente todavía está online.
+    await user.click(screen.getByRole('button', { name: /editar/i }))
+    expect(screen.getByRole('button', { name: /guardar paths/i })).toBeEnabled()
+
+    // El agente pasa a draining (p. ej. por refetch de polling) mientras la
+    // edición ya estaba abierta — el botón de guardar debe deshabilitarse
+    // igual, no solo el de "Editar" al entrar.
+    rerender(
+      <AgentCard
+        agent={makeAgent({ status: 'draining', watch_paths: ['/etc'] })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
+    )
+
+    const saveButton = screen.getByRole('button', { name: /guardar paths/i })
+    expect(saveButton).toBeDisabled()
+    expect(saveButton).toHaveAttribute('title', 'No disponible durante shutdown graceful')
+  })
+
+  it('un agente que ya está draining al abrir la tarjeta no puede llegar a guardar (Editar deshabilitado)', () => {
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ status: 'draining', watch_paths: ['/etc'] })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
+    )
+
+    const editButton = screen.getByRole('button', { name: /editar/i })
+    expect(editButton).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /guardar paths/i })).not.toBeInTheDocument()
   })
 })
