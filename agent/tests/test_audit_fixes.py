@@ -388,12 +388,14 @@ async def test_rehydrate_continues_over_multiple_entries_on_publish_failure(tmp_
 
     assert publisher.publish.call_count == 3, "publish attempted for all 3 entries"
 
-    # Journal entries should be marked failed (action was manual_review/alert_only)
+    # A publish exception means the event was not durably enqueued.  Keep every
+    # journal entry pending so the next process start can retry it instead of
+    # terminalising the only durable copy.
     for i in range(3):
         entry_path = tmp_path / "journal" / f"evt-rehy-{i}.json"
         assert entry_path.exists(), f"journal entry {i} must exist"
         data = json.loads(entry_path.read_text())
-        assert data["state"] == "failed"
+        assert data["state"] == "pending"
 
 
 # ── BUG-09 (4.1) ──────────────────────────────────────────────────────────────

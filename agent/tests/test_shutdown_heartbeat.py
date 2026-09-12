@@ -28,6 +28,7 @@ def _make_publisher(tmp_path: Path) -> Publisher:
     cfg = _make_config(tmp_path)
     queue = MagicMock()
     queue.queue_size = 0
+    queue.evicted_events = 0
     client = MagicMock()
 
     with patch("agent.publisher.load_shared_secret", return_value=b"x" * 32):
