@@ -251,7 +251,18 @@ test('US-25 bulk approve publishes a signed command, receives ACK, and updates t
     headers: { Authorization: `Bearer ${token}` },
     data: { pattern, severity: 'high', action: 'manual_review' },
   })
-  expect(ruleResponse.status()).toBe(201)
+  // The lab runs this test individually and again inside the combined suite
+  // against the same database. US-15 rejects duplicate patterns with 422, so a
+  // second run must reuse the identical rule created by the first one.
+  if (ruleResponse.status() === 422) {
+    expect(JSON.stringify(await ruleResponse.json())).toContain('duplicate pattern')
+    const listed = await page.request.get('/api/rules', { headers: { Authorization: `Bearer ${token}` } })
+    expect(listed.status()).toBe(200)
+    const existing = (await listed.json()).find((r: { pattern: string }) => r.pattern === pattern)
+    expect(existing).toMatchObject({ pattern, severity: 'high', action: 'manual_review' })
+  } else {
+    expect(ruleResponse.status()).toBe(201)
+  }
   await expect.poll(() => {
     const p = JSON.parse(composePython(probeRule, { PATTERN: pattern, AGENT_ID: agentId }))
     const a = JSON.parse(agentPython(probeAgent))
