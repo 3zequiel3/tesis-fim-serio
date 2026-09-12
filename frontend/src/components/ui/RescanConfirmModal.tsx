@@ -5,6 +5,9 @@ interface RescanConfirmModalProps {
   onConfirm: () => void
   onCancel: () => void
   isLoading?: boolean
+  // US-22: paths seleccionados para este rescan — el diálogo de confirmación
+  // debe listarlos explícitamente, no solo la cantidad de eventos pending.
+  paths?: string[]
 }
 
 export function RescanConfirmModal({
@@ -12,7 +15,9 @@ export function RescanConfirmModal({
   onConfirm,
   onCancel,
   isLoading,
+  paths,
 }: RescanConfirmModalProps) {
+  const scopedPaths = paths ?? []
   return (
     <ModalDialog labelledBy="rescan-confirm-title" onClose={onCancel} panelClassName="p-6 w-full max-w-md mx-4">
       <h2 id="rescan-confirm-title" className="text-base font-semibold text-white mb-3">
@@ -26,8 +31,15 @@ export function RescanConfirmModal({
         {pendingCount !== 1 ? 's' : ''} que{' '}
         {pendingCount !== 1 ? 'serán marcados como' : 'será marcado como'}{' '}
         <span className="font-mono text-xs bg-gray-700 px-1 py-0.5 rounded">superseded</span>{' '}
-        si forzás el rescan.
+        si forzás el rescan{scopedPaths.length > 0 ? ' para los siguientes paths' : ''}.
       </p>
+      {scopedPaths.length > 0 && (
+        <ul className="text-xs font-mono text-gray-400 mb-2 space-y-0.5 list-disc list-inside">
+          {scopedPaths.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
+      )}
       <p className="text-sm text-gray-400">
         ¿Querés continuar de todas formas?
       </p>

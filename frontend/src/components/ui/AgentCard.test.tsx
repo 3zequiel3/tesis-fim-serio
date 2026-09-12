@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
 import { AgentCard } from './AgentCard'
 import type { Agent } from '@/api/agents'
@@ -98,5 +99,123 @@ describe('AgentCard — invariancia de zona del transcurrido (8.5)', () => {
     // El transcurrido ("hace 1 minuto"/"hace 90 segundos") es igual — es
     // propiedad de los instantes, no de la zona de visualización.
     expect(arText?.match(/hace [\d.,]+ \w+/)?.[0]).toBe(utcText?.match(/hace [\d.,]+ \w+/)?.[0])
+  })
+})
+
+// ── US-21: queue_size local mostrado ──────────────────────────────────────────
+
+describe('AgentCard — queue_size local (US-21)', () => {
+  it('muestra el queue_size reportado por el agente', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ queue_size: 12 })} onConfigSave={noop} onRescan={noop} />
+    )
+    expect(screen.getByText(/12/)).toBeInTheDocument()
+  })
+
+  it('un agente que nunca reportó queue_size lo muestra como desconocido, no como 0', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ queue_size: null })} onConfigSave={noop} onRescan={noop} />
+    )
+    // D37/RN-131 ya estableció este criterio para discarded_events — mismo
+    // principio para queue_size: null != 0.
+    expect(screen.queryByText(/Cola local: 0/)).not.toBeInTheDocument()
+  })
+})
+
+// ── US-30: indicador "Drenando N eventos" + tooltip canónico ────────────────
+
+describe('AgentCard — indicador de drenaje graceful (US-30)', () => {
+  it('un agente draining muestra "Drenando N eventos" con el queue_size actual', () => {
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ status: 'draining', queue_size: 5 })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
+    )
+    expect(screen.getByText(/Drenando 5 eventos/)).toBeInTheDocument()
+  })
+
+  it('un agente online no muestra el indicador de drenaje', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ status: 'online' })} onConfigSave={noop} onRescan={noop} />
+    )
+    expect(screen.queryByText(/Drenando/)).not.toBeInTheDocument()
+  })
+
+  it('el botón de rescan tiene el tooltip canónico exacto durante el drenaje', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ status: 'draining' })} onConfigSave={noop} onRescan={noop} />
+    )
+    const rescanButton = screen.getByRole('button', { name: /rescan/i })
+    expect(rescanButton).toBeDisabled()
+    expect(rescanButton).toHaveAttribute('title', 'No disponible durante shutdown graceful')
+  })
+
+  it('el botón de editar paths (update config) tiene el mismo tooltip canónico durante el drenaje', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ status: 'draining' })} onConfigSave={noop} onRescan={noop} />
+    )
+    const editButton = screen.getByRole('button', { name: /editar/i })
+    expect(editButton).toBeDisabled()
+    expect(editButton).toHaveAttribute('title', 'No disponible durante shutdown graceful')
+  })
+})
+
+// ── US-21 (W3): banner de queue_pressure > 80% ───────────────────────────────
+
+describe('AgentCard — banner de presión de cola alta (US-21/W3)', () => {
+  it('queue_pressure > 80% muestra un banner de alerta específico del agente', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ queue_pressure: 0.85 })} onConfigSave={noop} onRescan={noop} />
+    )
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('queue_pressure <= 80% no muestra el banner', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ queue_pressure: 0.5 })} onConfigSave={noop} onRescan={noop} />
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+// ── US-22: selección de paths específicos para el rescan ────────────────────
+
+describe('AgentCard — selección de paths para rescan (US-22)', () => {
+  it('con múltiples watch_paths, permite deseleccionar uno y sólo pasa los seleccionados a onRescan', async () => {
+    const user = userEvent.setup()
+    const onRescan = vi.fn()
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ watch_paths: ['/etc', '/var/lib/fim'] })}
+        onConfigSave={noop}
+        onRescan={onRescan}
+      />
+    )
+
+    // Ambos paths están seleccionados por defecto.
+    const varCheckbox = screen.getByRole('checkbox', { name: /\/var\/lib\/fim/ })
+    await user.click(varCheckbox)
+
+    await user.click(screen.getByRole('button', { name: /rescan/i }))
+
+    expect(onRescan).toHaveBeenCalledWith('agent-tz-test', ['/etc'])
+  })
+
+  it('sin deseleccionar nada, pasa todos los watch_paths', async () => {
+    const user = userEvent.setup()
+    const onRescan = vi.fn()
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ watch_paths: ['/etc', '/var/lib/fim'] })}
+        onConfigSave={noop}
+        onRescan={onRescan}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /rescan/i }))
+
+    expect(onRescan).toHaveBeenCalledWith('agent-tz-test', ['/etc', '/var/lib/fim'])
   })
 })

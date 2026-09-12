@@ -15,24 +15,30 @@ export function Agents() {
   const [rescanModal, setRescanModal] = useState<{
     agentId: string
     pendingCount: number
+    paths: string[]
   } | null>(null)
 
   // IDs que están actualmente en rescan
   const [rescanningId, setRescanningId] = useState<string | null>(null)
   const [savingConfigId, setSavingConfigId] = useState<string | null>(null)
 
-  async function handleRescan(agentId: string) {
+  // US-22: `paths` son los watch_paths seleccionados en AgentCard para este
+  // rescan (por defecto, todos). Antes de ejecutar, se intenta sin forzar —
+  // el backend devuelve 409 con la cantidad de eventos `pending` bajo esos
+  // paths si los hay, y recién ahí se muestra el diálogo de confirmación
+  // (RescanConfirmModal) antes de proceder con force=true.
+  async function handleRescan(agentId: string, paths: string[]) {
     setRescanningId(agentId)
     rescan.mutate(
-      { id: agentId, force: false },
+      { id: agentId, force: false, paths },
       {
         onSuccess: (result) => {
           if (result.success) {
             toast.success('Rescan iniciado')
             setRescanningId(null)
           } else {
-            // 409 — mostrar modal
-            setRescanModal({ agentId, pendingCount: result.conflictCount ?? 0 })
+            // 409 — mostrar modal de confirmación antes de forzar
+            setRescanModal({ agentId, pendingCount: result.conflictCount ?? 0, paths })
             setRescanningId(null)
           }
         },
@@ -49,10 +55,10 @@ export function Agents() {
 
   function handleForceRescan() {
     if (!rescanModal) return
-    const { agentId } = rescanModal
+    const { agentId, paths } = rescanModal
     setRescanningId(agentId)
     rescan.mutate(
-      { id: agentId, force: true },
+      { id: agentId, force: true, paths },
       {
         onSuccess: () => {
           toast.success('Rescan forzado iniciado')
@@ -107,6 +113,7 @@ export function Agents() {
       {rescanModal && (
         <RescanConfirmModal
           pendingCount={rescanModal.pendingCount}
+          paths={rescanModal.paths}
           onConfirm={handleForceRescan}
           onCancel={() => setRescanModal(null)}
           isLoading={rescan.isPending && rescanningId === rescanModal.agentId}

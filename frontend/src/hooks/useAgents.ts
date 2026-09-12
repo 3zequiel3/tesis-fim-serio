@@ -45,10 +45,10 @@ export interface RescanResult {
  */
 export function useRescanAgent() {
   const qc = useQueryClient()
-  return useMutation<RescanResult, Error, { id: string; force: boolean }>({
-    mutationFn: async ({ id, force }) => {
+  return useMutation<RescanResult, Error, { id: string; force: boolean; paths?: string[] }>({
+    mutationFn: async ({ id, force, paths }) => {
       try {
-        await triggerRescan(id, force)
+        await triggerRescan(id, force, paths)
         return { success: true }
       } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 409) {

@@ -7,10 +7,16 @@ import { formatAbsolute, formatRelative } from '@/utils/timeDisplay'
 interface AgentCardProps {
   agent: Agent
   onConfigSave: (id: string, paths: string[]) => void
-  onRescan: (id: string) => void
+  // US-22: `rescanPaths` son los paths seleccionados para el rescan — todos
+  // los watch_paths por defecto (comportamiento previo).
+  onRescan: (id: string, rescanPaths: string[]) => void
   isSavingConfig?: boolean
   isRescanning?: boolean
 }
+
+// US-30/RN-93 (W17): tooltip canónico exacto para cualquier acción
+// deshabilitada mientras el agente está en drenaje graceful.
+const DRAINING_TOOLTIP = 'No disponible durante shutdown graceful'
 
 const STATUS_STYLES: Record<Agent['status'], string> = {
   online: 'bg-green-700 text-green-200',
@@ -68,8 +74,19 @@ export function AgentCard({
   const [editingPaths, setEditingPaths] = useState(false)
   const [paths, setPaths] = useState<string[]>(agent.watch_paths)
   const [newPath, setNewPath] = useState('')
+  // US-22: paths seleccionados para el próximo rescan — todos por defecto.
+  const [rescanPaths, setRescanPaths] = useState<string[]>(agent.watch_paths)
 
   const pressurePct = Math.round((agent.queue_pressure ?? 0) * 100)
+  // W3/RN-84: banner de alerta específico del agente cuando la cola local
+  // supera el 80% de presión.
+  const showQueuePressureBanner = pressurePct > 80
+
+  function toggleRescanPath(path: string) {
+    setRescanPaths((prev) =>
+      prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
+    )
+  }
 
   function handleAddPath() {
     const trimmed = newPath.trim()
@@ -109,6 +126,18 @@ export function AgentCard({
         </span>
       </div>
 
+      {/* US-30 (RN-93/W17): indicador distintivo de drenaje graceful — el
+          agente sigue publicando su cola local (queue_size) mientras drena;
+          se muestra "Drenando N eventos" con un ícono, no solo el badge de
+          estado. N desconocido (agente que aún no reportó heartbeat en este
+          ciclo) se muestra como 0 en vez de omitir el indicador. */}
+      {isDraining && (
+        <div className="flex items-center gap-1.5 text-xs text-yellow-300 bg-yellow-900/30 border border-yellow-700 rounded px-2 py-1">
+          <span aria-hidden="true">⏳</span>
+          <span>Drenando {agent.queue_size ?? 0} eventos</span>
+        </div>
+      )}
+
       {/* Queue pressure */}
       <div>
         <div className="flex items-center justify-between mb-1">
@@ -130,6 +159,21 @@ export function AgentCard({
             style={{ width: `${pressurePct}%` }}
           />
         </div>
+        {/* W3/RN-84: banner específico del agente cuando la cola local supera
+            el 80% — distinto de la barra de color, que ya existía. */}
+        {showQueuePressureBanner && (
+          <div
+            role="alert"
+            className="mt-1.5 text-xs text-red-200 bg-red-900/40 border border-red-700 rounded px-2 py-1"
+          >
+            Cola local por encima del 80% — riesgo de pérdida de eventos.
+          </div>
+        )}
+        {/* US-21: cola local reportada por el agente (distinto de la presión
+            en bytes). null/undefined = el agente nunca reportó heartbeat. */}
+        <p className="mt-1 text-[11px] text-gray-500">
+          Cola local: {agent.queue_size ?? '—'} eventos
+        </p>
       </div>
 
       {/* Last seen — D39/RN-133: forma relativa + absoluta con zona visible
@@ -156,7 +200,7 @@ export function AgentCard({
             <button
               onClick={() => setEditingPaths(true)}
               disabled={isDraining}
-              title={isDraining ? 'El agente está en modo draining' : undefined}
+              title={isDraining ? DRAINING_TOOLTIP : undefined}
               className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Editar
@@ -229,12 +273,42 @@ export function AgentCard({
         )}
       </div>
 
+      {/* US-22: selección de paths específicos para el rescan — todos los
+          watch_paths seleccionados por defecto (comportamiento previo). Solo
+          tiene sentido elegir si hay más de un path configurado. */}
+      {agent.watch_paths.length > 1 && (
+        <div>
+          <span className="text-xs text-gray-400">Paths a re-escanear</span>
+          <ul className="space-y-0.5 mt-1">
+            {agent.watch_paths.map((p) => (
+              <li key={p} className="flex items-center gap-2">
+                <input
+                  id={`rescan-path-${agent.agent_id}-${p}`}
+                  type="checkbox"
+                  checked={rescanPaths.includes(p)}
+                  onChange={() => toggleRescanPath(p)}
+                  disabled={isDraining}
+                  aria-label={p}
+                  className="shrink-0"
+                />
+                <label
+                  htmlFor={`rescan-path-${agent.agent_id}-${p}`}
+                  className="text-xs font-mono text-gray-400 truncate"
+                >
+                  {p}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-2 pt-1">
         <button
-          onClick={() => onRescan(agent.agent_id)}
+          onClick={() => onRescan(agent.agent_id, rescanPaths)}
           disabled={isDraining || isRescanning}
-          title={isDraining ? 'El agente está en modo draining' : undefined}
+          title={isDraining ? DRAINING_TOOLTIP : undefined}
           className="flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isRescanning ? 'Rescaneando...' : 'Rescan'}

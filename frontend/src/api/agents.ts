@@ -9,6 +9,10 @@ export interface Agent {
   status: AgentStatus
   watch_paths: string[]
   queue_pressure: number | null   // 0..1 float
+  // US-21: cantidad de eventos en la cola local del agente, reportada en el
+  // heartbeat. null/undefined cuando el agente nunca reportó — distinto de 0
+  // (mismo criterio que discarded_events).
+  queue_size?: number | null
   last_heartbeat: string | null   // ISO8601
   ruleset_version_applied: number | null
   // D36/RN-130 (C41): mapa {watch_path: clasificación} del preflight de
@@ -55,7 +59,10 @@ export async function updateAgentConfig(id: string, config: AgentConfig): Promis
  * Si force=false y hay pending events, el backend retorna 409 con
  * { code: "pending_events_exist", count: N }.
  * El caller debe manejar el AxiosError 409 y leer error.response.data.
+ *
+ * US-22: `paths` acota el rescan a paths específicos del agente. Ausente o
+ * vacío conserva el comportamiento previo (todos los watch_paths).
  */
-export async function triggerRescan(id: string, force: boolean): Promise<void> {
-  await apiClient.post(`/agents/${id}/rescan`, { force })
+export async function triggerRescan(id: string, force: boolean, paths?: string[]): Promise<void> {
+  await apiClient.post(`/agents/${id}/rescan`, { force, paths })
 }
