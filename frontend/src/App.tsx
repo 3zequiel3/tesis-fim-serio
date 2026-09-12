@@ -7,6 +7,7 @@ import { Login } from '@/pages/Login'
 import { ForcePasswordChange } from '@/pages/ForcePasswordChange'
 import { Events } from '@/pages/Events'
 import { EventDetail } from '@/pages/EventDetail'
+import { EventChain } from '@/pages/EventChain'
 import { Rules } from '@/pages/Rules'
 import { Agents } from '@/pages/Agents'
 import { Dashboard } from '@/pages/Dashboard'
@@ -49,6 +50,8 @@ export function App() {
             {/* Página de eventos (C18) */}
             <Route path="/events" element={<Events />} />
             <Route path="/events/:id" element={<EventDetail />} />
+            {/* Cadena de eventos del mismo path (US-10) */}
+            <Route path="/events/:id/chain" element={<EventChain />} />
 
             {/* Reglas (C19) */}
             <Route path="/rules" element={<Rules />} />

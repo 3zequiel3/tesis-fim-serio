@@ -41,8 +41,25 @@ function makeEvent(overrides: Partial<EventDetailData> = {}): EventDetailData {
     symlink_target: null,
     action_failed: false,
     action_error: null,
+    action_type: 'manual_review',
     ...overrides,
   }
+}
+
+/** Respuesta por defecto para GET /events/{id}/chain — cadena de un solo evento (US-10). */
+function makeChainResponse(overrides: { path?: string | null; items?: unknown[] } = {}) {
+  return { path: overrides.path ?? '/etc/passwd', items: overrides.items ?? [] }
+}
+
+/** Enruta apiGet según la URL: /chain va a la cadena, cualquier otra al detalle. */
+function mockDetailAndChain(
+  event: EventDetailData,
+  chain: ReturnType<typeof makeChainResponse> = makeChainResponse()
+) {
+  apiGet.mockImplementation((url: string) => {
+    if (url.includes('/chain')) return Promise.resolve({ data: chain })
+    return Promise.resolve({ data: event })
+  })
 }
 
 function renderDetail(id: number) {
@@ -122,5 +139,84 @@ describe('EventDetail — evento sin ruta (D51/RN-145)', () => {
 
     expect(await screen.findByText('Diff textual no disponible para este evento.')).toBeInTheDocument()
     expect(screen.queryByTestId('content-diff')).not.toBeInTheDocument()
+  })
+})
+
+describe('EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+  })
+
+  it('muestra el tipo de acción, la severidad y la fecha de creación', async () => {
+    mockDetailAndChain(
+      makeEvent({ id: 12, action_type: 'auto_restore', severity: 'critical', created_at: '2026-08-20T10:00:00Z' })
+    )
+
+    renderDetail(12)
+
+    expect(await screen.findByText('auto_restore')).toBeInTheDocument()
+    expect(screen.getByText('critical')).toBeInTheDocument()
+    expect(screen.getByText('Fecha de creación')).toBeInTheDocument()
+  })
+
+  it('si el evento tiene parent_event_id, muestra un enlace al evento padre', async () => {
+    mockDetailAndChain(makeEvent({ id: 13, parent_event_id: 5 }))
+
+    renderDetail(13)
+
+    const parentLink = await screen.findByRole('link', { name: /evento padre/i })
+    expect(parentLink).toHaveAttribute('href', '/events/5')
+  })
+
+  it('sin parent_event_id no muestra enlace al evento padre', async () => {
+    mockDetailAndChain(makeEvent({ id: 14, parent_event_id: null }))
+
+    renderDetail(14)
+
+    await screen.findByText('/etc/passwd')
+    expect(screen.queryByRole('link', { name: /evento padre/i })).not.toBeInTheDocument()
+  })
+
+  it('si el evento pertenece a una cadena de más de un elemento, indica su posición y permite navegar a la cadena (US-10)', async () => {
+    mockDetailAndChain(
+      makeEvent({ id: 20, path: '/etc/passwd' }),
+      makeChainResponse({
+        path: '/etc/passwd',
+        items: [{ id: 18 }, { id: 20 }, { id: 21 }],
+      })
+    )
+
+    renderDetail(20)
+
+    expect(await screen.findByText(/posici[oó]n 2 de 3/i)).toBeInTheDocument()
+    const chainLink = screen.getByRole('link', { name: /ver cadena/i })
+    expect(chainLink).toHaveAttribute('href', '/events/20/chain')
+  })
+
+  it('si la cadena tiene un solo evento, no muestra el indicador de posición', async () => {
+    mockDetailAndChain(
+      makeEvent({ id: 30, path: '/etc/passwd' }),
+      makeChainResponse({ path: '/etc/passwd', items: [{ id: 30 }] })
+    )
+
+    renderDetail(30)
+
+    await screen.findByText('/etc/passwd')
+    expect(screen.queryByText(/posici[oó]n/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /ver cadena/i })).not.toBeInTheDocument()
+  })
+
+  it('un evento sin path (detection_gap) no dispara la consulta de cadena', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url.includes('/chain')) {
+        throw new Error('no debería consultarse la cadena para un evento sin path')
+      }
+      return Promise.resolve({ data: makeEvent({ id: 40, path: null, event_type: 'detection_gap' }) })
+    })
+
+    renderDetail(40)
+
+    expect(await screen.findByText('Brecha de detección')).toBeInTheDocument()
+    expect(screen.queryByText(/posici[oó]n/i)).not.toBeInTheDocument()
   })
 })

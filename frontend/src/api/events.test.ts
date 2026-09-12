@@ -13,7 +13,7 @@ vi.mock('@/api/client', () => ({
   default: { get: (...args: unknown[]) => apiGet(...args) },
 }))
 
-import { getEvents } from './events'
+import { getEvents, getEventChain } from './events'
 
 describe('getEvents — conversión de filtros de fecha local a UTC (8.7)', () => {
   beforeEach(() => {
@@ -74,5 +74,24 @@ describe('getEvents — conversión de filtros de fecha local a UTC (8.7)', () =
     const sp = new URLSearchParams(config.paramsSerializer(config.params))
 
     expect(sp.has('include_superseded')).toBe(false)
+  })
+})
+
+// US-10: GET /events/{id}/chain — cadena de eventos del mismo path.
+describe('getEventChain', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+  })
+
+  it('llama a GET /events/{id}/chain y retorna path + items', async () => {
+    apiGet.mockResolvedValue({
+      data: { path: '/etc/passwd', items: [{ id: 1 }, { id: 2 }] },
+    })
+
+    const result = await getEventChain(7)
+
+    expect(apiGet).toHaveBeenCalledWith('/events/7/chain')
+    expect(result.path).toBe('/etc/passwd')
+    expect(result.items).toHaveLength(2)
   })
 })

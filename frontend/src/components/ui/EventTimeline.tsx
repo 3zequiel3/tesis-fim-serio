@@ -9,7 +9,9 @@ interface EventTimelineProps {
 /**
  * Muestra la cadena temporal del evento.
  * Para C18, muestra el padre como link clickeable y el estado actual.
- * Una cadena completa requeriría múltiples llamadas API (fuera del alcance de C18).
+ * La cadena completa (US-10) vive en su propia vista (@/pages/EventChain),
+ * accesible desde el link "Ver cadena completa" que agrega EventDetail.tsx
+ * cuando el evento pertenece a una cadena de más de un elemento.
  */
 export function EventTimeline({ event }: EventTimelineProps) {
   return (
@@ -25,6 +27,7 @@ export function EventTimeline({ event }: EventTimelineProps) {
               <Link
                 to={`/events/${event.parent_event_id}`}
                 className="text-blue-400 hover:text-blue-300 underline"
+                aria-label={`Ver evento padre #${event.parent_event_id}`}
               >
                 #{event.parent_event_id}
               </Link>

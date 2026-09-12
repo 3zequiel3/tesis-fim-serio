@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useEvent } from '@/hooks/useEvent'
 import { useEventActions } from '@/hooks/useEventActions'
+import { useEventChain } from '@/hooks/useEventChain'
 import { EventTimeline } from '@/components/ui/EventTimeline'
 import { DiffViewer } from '@/components/ui/DiffViewer'
 import { RejectModal } from '@/components/ui/RejectModal'
@@ -10,6 +11,7 @@ import { getAckStatusMeta } from '@/utils/ackStatus'
 import { getActionFailedMeta } from '@/utils/actionFailed'
 import { getActionErrorMeta } from '@/utils/actionError'
 import { getEventTypeGapMeta } from '@/utils/eventType'
+import { getSeverityMeta } from '@/utils/severity'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import type { CommandAckStatus } from '@/api/events'
 
@@ -27,6 +29,13 @@ export function EventDetail() {
   } = useEventActions({ eventId: eventId ?? undefined })
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
+
+  // US-10: la cadena se indexa por path (RN-21/RN-23) — un evento sin path
+  // (D51/RN-145) nunca participa del mecanismo, así que ni se consulta.
+  const { data: chain } = useEventChain(event?.path != null ? eventId : null)
+  const chainItems = chain?.items ?? []
+  const chainPosition = eventId != null ? chainItems.findIndex((item) => item.id === eventId) : -1
+  const belongsToChain = chainPosition >= 0 && chainItems.length > 1
 
   // Manejo de 404
   const is404 =
@@ -173,6 +182,23 @@ export function EventDetail() {
         </div>
       )}
 
+      {/* US-10: posición en la cadena + acceso a la vista completa. Solo se
+          muestra cuando el evento comparte path con al menos otro evento —
+          una cadena de un solo elemento no es una cadena. */}
+      {belongsToChain && (
+        <div className="flex items-center gap-3 text-sm bg-gray-800 border border-gray-700 rounded p-3">
+          <span className="text-gray-300">
+            Posición {chainPosition + 1} de {chainItems.length} en la cadena
+          </span>
+          <Link
+            to={`/events/${eventId}/chain`}
+            className="text-blue-400 hover:text-blue-300 underline text-xs"
+          >
+            Ver cadena completa
+          </Link>
+        </div>
+      )}
+
       {/* Detalles del evento */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FieldCard label="Hash detectado">
@@ -187,8 +213,25 @@ export function EventDetail() {
           )}
         </FieldCard>
 
+        {/* US-08 criterio 2: "tipo de acción" — derivado por el backend 1:1
+            desde status (events/service.py::derive_action_type), no una
+            columna nueva. */}
+        <FieldCard label="Tipo de acción">
+          <span className="font-mono text-xs">{event.action_type}</span>
+        </FieldCard>
+
+        <FieldCard label="Severidad">
+          <span className={`font-mono text-xs ${getSeverityMeta(event.severity).textClass}`}>
+            {event.severity}
+          </span>
+        </FieldCard>
+
         <FieldCard label="Versión de optimistic lock">
           <span className="font-mono">{event.version}</span>
+        </FieldCard>
+
+        <FieldCard label="Fecha de creación">
+          {formatAbsolute(event.created_at)}
         </FieldCard>
 
         <FieldCard label="Detectado">

@@ -68,15 +68,27 @@ export interface EventListItem {
 
 // US-09: el diff se entrega solo en el detalle. Es un patch unificado acotado,
 // no las versiones completas del archivo.
+// US-08 criterio 2: action_type solo va en el detalle (EventDetailOut del
+// backend) — derivado 1:1 desde status, no una columna nueva (ver
+// events/service.py::derive_action_type).
 export type EventDetail = EventListItem & {
   hash_expected: string | null
   diff_text: string | null
+  action_type: string
 }
 
 export interface EventListResponse {
   total: number
   page: number
   page_size: number
+  items: EventListItem[]
+}
+
+// US-10: cadena de eventos del mismo path, orden cronológico ascendente
+// (GET /events/{id}/chain). No expone diff_text/hash_expected — mismo shape
+// que el listado (EventListItem), no el detalle.
+export interface EventChainResponse {
+  path: string | null
   items: EventListItem[]
 }
 
@@ -147,5 +159,10 @@ export async function getEvents(filters: EventFilters = {}): Promise<EventListRe
 
 export async function getEvent(id: number): Promise<EventDetail> {
   const { data } = await apiClient.get<EventDetail>(`/events/${id}`)
+  return data
+}
+
+export async function getEventChain(id: number): Promise<EventChainResponse> {
+  const { data } = await apiClient.get<EventChainResponse>(`/events/${id}/chain`)
   return data
 }
