@@ -186,3 +186,51 @@ describe('Events — filtro por estado (US-07)', () => {
     await waitFor(() => expect(lastEventsRequestParams()?.status).toBeUndefined())
   })
 })
+
+// US-26: navegación numerada + "ir a página", respetando filtros activos.
+describe('Events — US-26 paginación', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiGet.mockResolvedValue({
+      data: { total: 250, page: 1, page_size: 50, items: [] },
+    })
+  })
+
+  it('muestra navegación numerada ademas de anterior/siguiente cuando hay varias páginas', async () => {
+    renderWithProviders(<Events />, { route: '/events' })
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    // 250 eventos / 50 por página = 5 páginas.
+    expect(await screen.findByRole('button', { name: '1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /primera/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /última/i })).toBeInTheDocument()
+  })
+
+  it('clickear un número de página respeta el filtro de estado activo', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events?status=pending' })
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    await user.click(await screen.findByRole('button', { name: '3' }))
+
+    await waitFor(() => expect(lastEventsRequestParams()?.page).toBe(3))
+    expect(lastEventsRequestParams()?.status).toEqual(['pending'])
+  })
+
+  it('el input "ir a página" navega y conserva los filtros activos', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events?status=approved' })
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    const input = await screen.findByLabelText(/ir a página/i)
+    await user.type(input, '4')
+    await user.click(screen.getByRole('button', { name: /^ir$/i }))
+
+    await waitFor(() => expect(lastEventsRequestParams()?.page).toBe(4))
+    expect(lastEventsRequestParams()?.status).toEqual(['approved'])
+  })
+})

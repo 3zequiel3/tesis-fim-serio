@@ -4,6 +4,7 @@ import { useEvents } from '@/hooks/useEvents'
 import { EventsTable } from '@/components/ui/EventsTable'
 import { BulkActionBar } from '@/components/ui/BulkActionBar'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { Pagination } from '@/components/ui/Pagination'
 import { parseEventFilters, serializeEventFilters } from '@/utils/eventFilters'
 import type { EventFilters } from '@/api/events'
 
@@ -206,31 +207,17 @@ export function Events() {
         />
       )}
 
-      {/* Paginación */}
+      {/* Paginación (US-26: navegación numerada + "ir a página") */}
       {!isLoading && total > 0 && (
-        <div className="flex items-center justify-between text-sm text-gray-400">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-400">
           <span>
             Mostrando {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, total)} de {total} eventos
           </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Anterior
-            </button>
-            <span className="tabular-nums">
-              Página {currentPage} de {totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Siguiente
-            </button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         </div>
       )}
     </div>
