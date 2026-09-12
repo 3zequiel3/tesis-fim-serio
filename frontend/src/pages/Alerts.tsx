@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAlerts } from '@/hooks/useAlerts'
 import { QueryErrorState } from '@/components/ui/QueryErrorState'
 import { formatAbsolute } from '@/utils/timeDisplay'
@@ -121,7 +121,9 @@ export function Alerts() {
             <thead>
               <tr className="border-b border-gray-700 text-xs text-gray-400">
                 <th className="text-left px-4 py-2.5">ID</th>
+                <th className="text-left px-4 py-2.5">Path</th>
                 <th className="text-left px-4 py-2.5">Severidad</th>
+                <th className="text-left px-4 py-2.5">Acción</th>
                 <th className="text-left px-4 py-2.5">Estado</th>
                 <th className="text-left px-4 py-2.5">Canal</th>
                 <th className="text-left px-4 py-2.5">Creada</th>
@@ -132,8 +134,21 @@ export function Alerts() {
               {data.items.map((alert) => (
                 <tr key={alert.id} className="hover:bg-gray-750">
                   <td className="px-4 py-2.5 text-gray-400 tabular-nums">{alert.id}</td>
+                  <td className="px-4 py-2.5">
+                    {/* US-19: la alerta es navegable hacia el detalle del
+                        evento asociado — mismo patrón que EventsTable. */}
+                    <Link
+                      to={`/events/${alert.event_id}`}
+                      className="font-mono text-xs text-blue-400 hover:text-blue-300 break-all"
+                    >
+                      {alert.path ?? '—'}
+                    </Link>
+                  </td>
                   <td className={`px-4 py-2.5 font-medium ${getSeverityMeta(alert.severity).textClass}`}>
                     {alert.severity}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-400 font-mono text-xs">
+                    {alert.action_taken ?? '—'}
                   </td>
                   <td className={`px-4 py-2.5 font-medium ${STATUS_COLORS[alert.status] ?? 'text-gray-300'}`}>
                     {alert.status}

@@ -7,6 +7,7 @@ Cubre:
   6.3  GET /alerts: sin filtros, filtro status/severity, paginación, sin auth → 401
   6.4  GET /alerts/stream: token inválido → 401; token válido → text/event-stream
   6.5  Replay via Last-Event-ID
+  6.6  US-19: orden DESC por created_at, path/action_taken del evento asociado
 
 Usa SQLite in-memory. Salta si psycopg no está disponible (Windows sin PostgreSQL).
 """
@@ -21,6 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 try:
@@ -40,7 +42,20 @@ from app.modules.events.models import Event, EventStatus
 
 @pytest.fixture()
 def mem_engine():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    # StaticPool (not the SQLAlchemy-default SingletonThreadPool a bare
+    # check_same_thread=False falls back to) keeps ONE physical connection for
+    # the whole engine regardless of which thread asks for it. Without it,
+    # TestClient's ASGI portal thread can receive a *different* thread id than
+    # the one that ran `create_all` — the OS/interpreter is free to reuse a
+    # retired thread's id — and SingletonThreadPool then hands back a stale
+    # connection to an empty `:memory:` database: intermittent
+    # "no such table: alerts", not reproducible under plain pytest (no
+    # TestClient/portal thread involved) or with async ASGITransport.
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     SQLModel.metadata.create_all(engine)
     return engine
 
@@ -253,6 +268,24 @@ def test_list_alerts_empty(session):
     assert items == []
 
 
+def test_list_alerts_order_desc_by_created_at(session):
+    """US-19: el listado está ordenado por fecha de creación descendente."""
+    event = _make_event(session)
+    older = _make_alert(session, event.id)
+    older.created_at = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    session.add(older)
+    session.commit()
+
+    newer = _make_alert(session, event.id)
+    newer.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    session.add(newer)
+    session.commit()
+
+    items, total = list_alerts(session)
+    assert total == 2
+    assert [item.id for item in items] == [newer.id, older.id]
+
+
 # ── 6.3 GET /alerts endpoint ──────────────────────────────────────────────────
 
 
@@ -397,6 +430,111 @@ def test_get_alerts_pagination(session):
         assert data["page"] == 2
         assert data["size"] == 1
         assert len(data["items"]) == 1
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_alerts_order_desc_by_created_at(session):
+    """US-19: GET /alerts sin filtros retorna las alertas más recientes primero."""
+    event = _make_event(session)
+    older = _make_alert(session, event.id)
+    older.created_at = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    session.add(older)
+    session.commit()
+
+    newer = _make_alert(session, event.id)
+    newer.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    session.add(newer)
+    session.commit()
+
+    app = _make_test_app(session)
+    try:
+        with TestClient(app) as tc:
+            resp = tc.get("/alerts")
+        assert resp.status_code == 200
+        ids = [item["id"] for item in resp.json()["items"]]
+        assert ids == [newer.id, older.id]
+    finally:
+        app.dependency_overrides.clear()
+
+
+# ── 6.6 US-19: path y tipo de acción del evento asociado ─────────────────────
+
+
+def test_get_alerts_includes_path_and_action_taken(session):
+    """
+    US-19: cada alerta expone el path del archivo y el tipo de acción tomada
+    sobre el evento asociado (join con `events`, sin migración de esquema).
+    """
+    event = Event(
+        event_id="evt-path-action",
+        agent_id="agent-001",
+        path="/etc/shadow",
+        hash_detected="deadbeef",
+        status=EventStatus.quarantined,
+        detected_at=datetime.now(timezone.utc),
+        received_at=datetime.now(timezone.utc),
+    )
+    session.add(event)
+    session.commit()
+    session.refresh(event)
+    alert = _make_alert(session, event.id, severity=AlertSeverity.critical)
+
+    app = _make_test_app(session)
+    try:
+        with TestClient(app) as tc:
+            resp = tc.get("/alerts")
+        assert resp.status_code == 200
+        item = resp.json()["items"][0]
+        assert item["id"] == alert.id
+        assert item["path"] == "/etc/shadow"
+        assert item["action_taken"] == "quarantine"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_alerts_action_taken_null_when_pending(session):
+    """Un evento `pending` no tiene acción tomada todavía: action_taken es null."""
+    event = _make_event(session)  # status=pending por defecto
+    alert = _make_alert(session, event.id)
+
+    app = _make_test_app(session)
+    try:
+        with TestClient(app) as tc:
+            resp = tc.get("/alerts")
+        assert resp.status_code == 200
+        item = resp.json()["items"][0]
+        assert item["id"] == alert.id
+        assert item["path"] == "/etc/passwd"
+        assert item["action_taken"] is None
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_failed_alerts_includes_path_and_action_taken(session):
+    """La DLQ (GET /alerts/failed) también expone path y action_taken (mismo AlertResponse)."""
+    event = Event(
+        event_id="evt-failed-path",
+        agent_id="agent-001",
+        path="/etc/cron.d/rogue",
+        hash_detected="cafebabe",
+        status=EventStatus.approved,
+        detected_at=datetime.now(timezone.utc),
+        received_at=datetime.now(timezone.utc),
+    )
+    session.add(event)
+    session.commit()
+    session.refresh(event)
+    _make_alert(session, event.id, failed=True)
+
+    app = _make_test_app(session)
+    try:
+        with TestClient(app) as tc:
+            resp = tc.get("/alerts/failed")
+        assert resp.status_code == 200
+        item = resp.json()["items"][0]
+        assert item["path"] == "/etc/cron.d/rogue"
+        assert item["action_taken"] == "approved"
     finally:
         app.dependency_overrides.clear()
 

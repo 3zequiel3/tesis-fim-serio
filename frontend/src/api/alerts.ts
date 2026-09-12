@@ -14,6 +14,11 @@ export interface Alert {
   created_at: string
   delivered_at: string | null
   failed_at: string | null
+  // US-19: path del archivo y tipo de acción tomada sobre el evento asociado
+  // (derivados server-side con un join a `events`; null si el evento no tiene
+  // acción tomada todavía, p. ej. status=pending).
+  path: string | null
+  action_taken: string | null
 }
 
 export interface AlertFilters {

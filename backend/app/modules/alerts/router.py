@@ -29,10 +29,12 @@ from app.core.deps import require_admin
 from app.core.rate_limit import check_api_rate_limit
 from app.core.security import BLACKLIST_PREFIX, decode_token
 from app.core.valkey import get_valkey_client
+from app.modules.alerts.contract import action_taken_for
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
 from app.modules.alerts.service import delete_alert, list_alerts, list_failed_alerts, retry_alert
 from app.modules.alerts.stream import alerts_broadcaster
 from app.modules.auth.models import User
+from app.modules.events.models import Event
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -56,6 +58,12 @@ class AlertResponse(BaseModel):
     # que el filtro filter_status de list_alerts. Antes solo se computaba
     # server-side para filtrar y la columna "Estado" del frontend quedaba vacía.
     status: AlertDerivedStatus
+    # US-19: path y acción tomada del evento asociado — la alerta en sí no los
+    # persiste (RN-107/D6), así que se derivan con un join a `events` en el
+    # router, sin migración de esquema. `None` cuando el evento no tiene acción
+    # tomada todavía (p. ej. `pending`) o no se encontró (dato huérfano).
+    path: str | None
+    action_taken: str | None
 
 
 def _derive_alert_status(alert: Alert) -> AlertDerivedStatus:
@@ -67,7 +75,7 @@ def _derive_alert_status(alert: Alert) -> AlertDerivedStatus:
     return "pending"
 
 
-def _to_alert_response(alert: Alert) -> AlertResponse:
+def _to_alert_response(alert: Alert, event: Event | None) -> AlertResponse:
     return AlertResponse(
         id=alert.id,  # type: ignore[arg-type]
         event_id=alert.event_id,
@@ -79,7 +87,18 @@ def _to_alert_response(alert: Alert) -> AlertResponse:
         retry_count=alert.retry_count,
         created_at=alert.created_at,
         status=_derive_alert_status(alert),
+        path=event.path if event else None,
+        action_taken=action_taken_for(event.status) if event else None,
     )
+
+
+def _events_by_id(session: Session, alerts: list[Alert]) -> dict[int, Event]:
+    """Batch-fetch the events referenced by a page of alerts (US-19, D6/RN-107 join)."""
+    event_ids = {a.event_id for a in alerts}
+    if not event_ids:
+        return {}
+    events = session.exec(select(Event).where(Event.id.in_(event_ids))).all()  # type: ignore[attr-defined]
+    return {e.id: e for e in events}
 
 
 class AlertListResponse(BaseModel):
@@ -227,8 +246,9 @@ async def list_all_alerts(
 ) -> AlertPaginatedResponse:
     """Listado paginado de todas las alertas con filtros opcionales por estado y severidad."""
     items, total = list_alerts(session, status=filter_status, severity=severity, page=page, size=size)
+    event_map = _events_by_id(session, items)
     return AlertPaginatedResponse(
-        items=[_to_alert_response(a) for a in items],
+        items=[_to_alert_response(a, event_map.get(a.event_id)) for a in items],
         total=total,
         page=page,
         size=size,
@@ -252,8 +272,9 @@ async def get_failed_alerts(
 ) -> AlertListResponse:
     """Lista alertas con failed_at NOT NULL y delivered_at IS NULL, ordenadas por failed_at DESC."""
     alerts = list_failed_alerts(session)
+    event_map = _events_by_id(session, alerts)
     return AlertListResponse(
-        items=[_to_alert_response(a) for a in alerts],
+        items=[_to_alert_response(a, event_map.get(a.event_id)) for a in alerts],
         total=len(alerts),
     )
 
@@ -274,7 +295,8 @@ async def retry_failed_alert(
         if reason == "already_delivered":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="alert_already_delivered")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=reason)
-    return _to_alert_response(alert)
+    event = session.get(Event, alert.event_id)
+    return _to_alert_response(alert, event)
 
 
 @router.delete("/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
