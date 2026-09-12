@@ -14,7 +14,6 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Any
 
-import valkey.asyncio as avalkey
 from fastapi import FastAPI, Depends
 from sqlmodel import SQLModel, Session
 
@@ -26,7 +25,14 @@ from app.core.logging import configure_logging, log
 from app.core.middleware.cors import CORSOriginMiddleware
 from app.core.middleware.trace_id import TraceIdMiddleware
 from app.core.pki import ensure_ca, start_bootstrap_server, start_mtls_server
-from app.core.valkey import close_async_valkey, close_valkey, get_valkey_client, init_async_valkey, init_valkey
+from app.core.valkey import (
+    build_async_valkey_client,
+    close_async_valkey,
+    close_valkey,
+    get_valkey_client,
+    init_async_valkey,
+    init_valkey,
+)
 from app.modules.agents.command_ack_consumer import run_command_ack_consumer
 from app.modules.agents.heartbeat_consumer import run_heartbeat_consumer
 from app.modules.agents.router import bootstrap_router, renew_router, router as agents_router
@@ -96,7 +102,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
 
     # Consumers asyncio — conexiones Valkey dedicadas (no bloquean el cliente HTTP)
     stop_event = asyncio.Event()
-    async_valkey = avalkey.Valkey.from_url(settings.valkey_url, decode_responses=True)
+    async_valkey = build_async_valkey_client(settings.valkey_url)
     consumer_task = asyncio.create_task(run_consumer(async_valkey, stop_event))
     heartbeat_task = asyncio.create_task(run_heartbeat_consumer(async_valkey, stop_event))
     command_ack_task = asyncio.create_task(run_command_ack_consumer(async_valkey, stop_event))

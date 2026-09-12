@@ -36,6 +36,14 @@
 #   - `valkey` recibe `FIM_PUBLIC_HOSTS` sin uso funcional propio: sólo para
 #     que Compose recree el contenedor cuando cambia, de modo que cargue el
 #     certificado reemitido con el SAN ampliado (D-1).
+#
+# CLIENTE mTLS DEL BACKEND (L8)
+#   app.core.valkey._tls_kwargs() agrega ssl_certfile/ssl_keyfile/ssl_ca_certs
+#   desde CA_CERT_PATH / BACKEND_CERT_PATH / BACKEND_KEY_PATH para esquemas
+#   valkeys:// y rediss://, y falla al arrancar si falta alguna. Los parámetros
+#   TLS de la query string de VALKEY_URL tienen precedencia: valkey-py aplica
+#   kwargs.update(url_options) en from_url(), así que en este override el backend
+#   usa backend-valkey.pem (clientAuth) y no backend.pem (sólo serverAuth).
 
 services:
   valkey:
