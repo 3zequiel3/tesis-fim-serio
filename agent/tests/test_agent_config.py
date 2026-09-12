@@ -14,6 +14,12 @@ Cubre:
   13.10 test_dispatch_routes_update_config
   13.11 test_dispatch_routes_rescan_baseline
 
+US-22 (path selection + guard de versión en rescan_baseline):
+  test_rescan_baseline_handler_scans_only_specified_paths
+  test_rescan_baseline_handler_rejects_paths_outside_watch_roots
+  test_rescan_baseline_handler_ignores_stale_version
+  test_rescan_baseline_handler_updates_state_ruleset_version
+
 Los tests que requieren el backend fanotify interno se mockean completamente.
 Los tests que requieren chmod/operaciones Unix de bajo nivel se saltan en Windows.
 """
@@ -411,6 +417,129 @@ async def test_rescan_baseline_handler_publishes_ack(
     ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
     assert ack_payload["status"] == "ok"
     assert ack_payload["command_type"] == "rescan_baseline"
+
+
+# ── US-22: rescan_baseline con paths específicos + guard de versión ─────────
+
+
+@pytest.mark.asyncio
+async def test_rescan_baseline_handler_scans_only_specified_paths(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey
+):
+    """Con `paths` en el comando, sólo esos paths se re-escanean (US-22)."""
+    from agent import commands
+
+    agent_config.watch_paths = ["/etc", "/var/lib/fim"]
+
+    run_scan_calls = []
+
+    def mock_run_scan(paths):
+        run_scan_calls.append(list(paths))
+        from agent.baseline import ScanReport
+        return ScanReport(scanned=0, skipped=0, oversize=0, errors=0)
+
+    cmd = _make_command(agent_config, shared_secret, "rescan_baseline", {
+        "paths": ["/etc"],
+        "ruleset_version": 1,
+    })
+
+    with patch.object(baseline_engine, "run_scan", side_effect=mock_run_scan):
+        await commands.handle_rescan_baseline(
+            command=cmd,
+            baseline_engine=baseline_engine,
+            state=agent_state,
+            valkey_client=mock_valkey,
+            config=agent_config,
+        )
+
+    assert run_scan_calls == [["/etc"]]
+
+
+@pytest.mark.asyncio
+async def test_rescan_baseline_handler_rejects_paths_outside_watch_roots(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey
+):
+    """Un path fuera de los watch_paths configurados se descarta, no se escanea."""
+    from agent import commands
+
+    agent_config.watch_paths = ["/etc"]
+
+    run_scan_calls = []
+
+    def mock_run_scan(paths):
+        run_scan_calls.append(list(paths))
+        from agent.baseline import ScanReport
+        return ScanReport(scanned=0, skipped=0, oversize=0, errors=0)
+
+    cmd = _make_command(agent_config, shared_secret, "rescan_baseline", {
+        "paths": ["/root/escape"],
+        "ruleset_version": 1,
+    })
+
+    with patch.object(baseline_engine, "run_scan", side_effect=mock_run_scan):
+        await commands.handle_rescan_baseline(
+            command=cmd,
+            baseline_engine=baseline_engine,
+            state=agent_state,
+            valkey_client=mock_valkey,
+            config=agent_config,
+        )
+
+    assert run_scan_calls == [[]]
+    mock_valkey.xadd.assert_called_once()
+    ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    assert ack_payload["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_rescan_baseline_handler_ignores_stale_version(
+    agent_config, shared_secret, baseline_engine, mock_valkey, tmp_dirs
+):
+    """rescan_baseline con ruleset_version menor al local se descarta sin ack
+    (mismo guard monotónico que update_config, BUG-12)."""
+    from agent import commands
+
+    state = AgentState(ruleset_version=10, state_path=tmp_dirs["secrets"] / "state.json")
+
+    run_scan = MagicMock()
+    cmd = _make_command(agent_config, shared_secret, "rescan_baseline", {
+        "ruleset_version": 5,
+    })
+
+    with patch.object(baseline_engine, "run_scan", run_scan):
+        await commands.handle_rescan_baseline(
+            command=cmd,
+            baseline_engine=baseline_engine,
+            state=state,
+            valkey_client=mock_valkey,
+            config=agent_config,
+        )
+
+    run_scan.assert_not_called()
+    mock_valkey.xadd.assert_not_called()
+    assert state.ruleset_version == 10
+
+
+@pytest.mark.asyncio
+async def test_rescan_baseline_handler_updates_state_ruleset_version(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey
+):
+    """Tras un rescan exitoso, state.ruleset_version avanza al del comando (C11)."""
+    from agent import commands
+
+    cmd = _make_command(agent_config, shared_secret, "rescan_baseline", {
+        "ruleset_version": 7,
+    })
+
+    await commands.handle_rescan_baseline(
+        command=cmd,
+        baseline_engine=baseline_engine,
+        state=agent_state,
+        valkey_client=mock_valkey,
+        config=agent_config,
+    )
+
+    assert agent_state.ruleset_version == 7
 
 
 # ── 13.10 test_dispatch_routes_update_config ─────────────────────────────────

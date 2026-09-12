@@ -322,6 +322,10 @@ class FanotifyDetector:
         # ya no es comparable.
         self._last_detection_gap_at: float | None = None
         self._suppressed_overflow_count: int = 0
+        # US-30/RN-93 (W17): durante el drenaje graceful (SIGTERM) el agente
+        # deja de aceptar nuevos eventos de fanotify — ver set_draining() y
+        # _try_enqueue(). False por defecto: comportamiento normal.
+        self._draining: bool = False
 
     def _trace_record(self, stage: str, **fields: Any) -> None:
         """Write best-effort experimental evidence without changing the pipeline."""
@@ -509,8 +513,36 @@ class FanotifyDetector:
                 )
                 self._loop.call_soon_threadsafe(self._try_enqueue, fan_event)
 
+    def set_draining(self, value: bool) -> None:
+        """
+        Activa/desactiva el modo drenaje graceful (US-30/RN-93, W17).
+
+        Con `value=True`, `_try_enqueue` descarta silenciosamente cualquier
+        evento nuevo de fanotify en vez de encolarlo — el agente deja de
+        aceptar detecciones nuevas mientras drena la cola local existente.
+        Llamado desde `__main__._shutdown` junto a `publisher.set_shutdown(True)`.
+        """
+        self._draining = value
+
     def _try_enqueue(self, fan_event: FanotifyEvent) -> None:
-        """Intenta encolar un evento; si la cola está llena incrementa el contador de drops."""
+        """Intenta encolar un evento; si la cola está llena incrementa el contador de drops.
+
+        US-30: si el detector está en modo drenaje (`set_draining(True)`), el
+        evento se descarta sin encolarse — el agente ya dejó de aceptar
+        eventos nuevos. `getattr` con default False: detectores construidos
+        vía `FanotifyDetector.__new__` en tests preexistentes que no
+        inicializan `_draining` deben seguir comportándose como antes.
+        """
+        if getattr(self, "_draining", False):
+            self._trace_record(
+                "kernel_dropped",
+                path=fan_event.path,
+                operation="kernel",
+                reason="draining",
+                outcome="dropped",
+            )
+            log.debug("detector.event_dropped_draining", path=fan_event.path)
+            return
         try:
             self._raw_queue.put_nowait(fan_event)
         except asyncio.QueueFull:

@@ -10,7 +10,8 @@ Handlers:
   handle_restore_file     — restaura archivo desde baseline con journal.
   handle_quarantine_file  — pone en cuarentena con journal.
   handle_update_config    — recarga watch_paths en fanotify + scan de paths nuevos (C14).
-  handle_rescan_baseline  — scan completo de todos los watch_paths (C14).
+  handle_rescan_baseline  — scan de baseline: todos los watch_paths, o solo
+                            los paths indicados por el comando (C14, US-22).
 
 Restricciones:
   - Sin servidor HTTP (D8, RN-108).
@@ -654,23 +655,66 @@ async def handle_rescan_baseline(
     config: "AgentConfig",
 ) -> None:
     """
-    Ejecuta scan completo de baseline sobre todos los watch_paths actuales (C14, D-C14-07).
+    Ejecuta scan de baseline sobre watch_paths — completo, o acotado a `paths`
+    específicos si el comando los trae (US-22, C11).
 
-    1. Obtiene watch_paths actuales de config.
-    2. Llama baseline_engine.run_scan(watch_paths) para scan completo.
-    3. Publica event_ack con resultado.
+    1. Guard de versión monotónico (mismo patrón que handle_update_config,
+       BUG-12): un comando con ruleset_version menor al local se descarta sin
+       ack (comando repetido o fuera de orden).
+    2. Si el comando trae `paths`, se acotan a los watch_paths configurados
+       (misma validación de contención que el dispatcher usa para
+       restore_file/quarantine_file — _path_is_within_watch_paths); un path
+       fuera de los watch roots se descarta con log warning en vez de abortar
+       todo el rescan. Sin `paths` (o vacío): comportamiento previo, scan
+       completo de todos los watch_paths.
+    3. Llama baseline_engine.run_scan(paths) para el scan.
+    4. Actualiza state.ruleset_version y persiste en state.json (mismo patrón
+       que handle_update_config) — solo tras un scan exitoso.
+    5. Publica event_ack con resultado.
     """
+    from agent.state import save_state
+
     command_id = command.get("command_id", "")
     event_id = command.get("event_id")
+    cmd_version: int = command.get("ruleset_version", 0)
+
+    # Monotonic version guard — mirrors handle_update_config (BUG-12, US-22/C11)
+    if cmd_version < state.ruleset_version:
+        log.debug(
+            "commands.rescan_baseline.stale_version",
+            cmd_version=cmd_version,
+            local_version=state.ruleset_version,
+        )
+        return
 
     error_reason: str | None = None
     try:
-        watch_paths = list(config.watch_paths)
-        log.info("commands.rescan_baseline.starting", watch_paths=watch_paths)
+        requested_paths: list[str] = command.get("paths") or []
+        if requested_paths:
+            watch_paths = list(config.watch_paths)
+            scan_paths = [
+                p for p in requested_paths if _path_is_within_watch_paths(p, watch_paths)
+            ]
+            skipped = [p for p in requested_paths if p not in scan_paths]
+            if skipped:
+                log.warning(
+                    "commands.rescan_baseline.paths_outside_watch_roots",
+                    skipped=skipped,
+                )
+        else:
+            scan_paths = list(config.watch_paths)
 
-        baseline_engine.run_scan(watch_paths)
+        log.info("commands.rescan_baseline.starting", paths=scan_paths)
 
-        log.info("commands.rescan_baseline.done", watch_paths=watch_paths)
+        baseline_engine.run_scan(scan_paths)
+
+        state.ruleset_version = cmd_version
+        try:
+            save_state(state)
+        except Exception as exc:
+            log.warning("commands.rescan_baseline.save_state_failed", error=str(exc))
+
+        log.info("commands.rescan_baseline.done", paths=scan_paths)
 
     except Exception as exc:
         error_reason = str(exc)

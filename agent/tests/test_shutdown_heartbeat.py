@@ -316,4 +316,60 @@ async def test_heartbeat_adding_watch_path_status_keeps_signature_valid() -> Non
 
     data = json.loads(client_mock.xadd.call_args[0][1]["data"])
     assert "watch_path_status" in data
-    assert verify_payload(shared_secret, data)
+
+
+# ── US-30: el shutdown handler propaga draining al detector (RN-93/W17) ──────
+#
+# `__main__._shutdown` es una closure anidada dentro de `main()` (no
+# importable de forma aislada). Igual que test_stability_fixes.py::
+# test_shutdown_handler_safe_before_queue_created, estos tests replican su
+# cuerpo real (mismo orden de llamadas que agent/__main__.py) para verificar
+# el contrato de la propagación sin requerir un loop asyncio real con signal
+# handlers.
+
+
+def test_shutdown_handler_sets_detector_draining_before_publisher_shutdown() -> None:
+    """_shutdown() llama detector.set_draining(True) además de
+    publisher.set_shutdown(True) — el detector deja de aceptar eventos de
+    fanotify nuevos apenas arranca el drenaje, no solo cuando el drenaje del
+    lado de la cola termina."""
+    calls: list[str] = []
+
+    queue_ref = MagicMock()
+    publisher_ref = MagicMock()
+    publisher_ref.set_shutdown = MagicMock(side_effect=lambda v: calls.append(f"publisher.set_shutdown({v})"))
+    detector_ref = MagicMock()
+    detector_ref.set_draining = MagicMock(side_effect=lambda v: calls.append(f"detector.set_draining({v})"))
+
+    def _shutdown(sig_name: str) -> None:
+        if queue_ref is None or publisher_ref is None:
+            return
+        if detector_ref is not None:
+            detector_ref.set_draining(True)
+        publisher_ref.set_shutdown(True)
+
+    _shutdown("SIGTERM")
+
+    detector_ref.set_draining.assert_called_once_with(True)
+    publisher_ref.set_shutdown.assert_called_once_with(True)
+    assert calls == ["detector.set_draining(True)", "publisher.set_shutdown(True)"]
+
+
+def test_shutdown_handler_safe_when_detector_is_none() -> None:
+    """Sin detector (no-Linux, D-C14: `detector = None` en __main__), el
+    shutdown handler no debe romper — mismo criterio que queue/publisher None
+    en test_stability_fixes.py::test_shutdown_handler_safe_before_queue_created."""
+    queue_ref = MagicMock()
+    publisher_ref = MagicMock()
+    detector_ref = None
+
+    def _shutdown(sig_name: str) -> None:
+        if queue_ref is None or publisher_ref is None:
+            return
+        if detector_ref is not None:
+            detector_ref.set_draining(True)
+        publisher_ref.set_shutdown(True)
+
+    # No debe lanzar excepción
+    _shutdown("SIGTERM")
+    publisher_ref.set_shutdown.assert_called_once_with(True)

@@ -283,6 +283,13 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
             return
         log.info("shutting down", signal=sig_name)
         publisher.set_shutdown(True)
+        # US-30/RN-93: deja de aceptar eventos NUEVOS de fanotify de
+        # inmediato — no recién cuando termine de drenar (stop_event solo se
+        # activa al final de _drain_then_stop, más abajo). Sin esto, el
+        # detector seguía leyendo y encolando eventos del kernel durante toda
+        # la ventana de 30 s de drenaje.
+        if detector is not None:
+            detector.set_draining(True)
         shutdown_flag.set()
         nonlocal _drain_task
         # Drena la cola y luego activa stop_event (RN-93)
