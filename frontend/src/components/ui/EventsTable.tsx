@@ -219,9 +219,11 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                     <Link
                       to={`/events/${item.parent_event_id}`}
                       title={`Ver evento padre #${item.parent_event_id}`}
-                      className="text-gray-500 hover:text-gray-300 text-xs"
+                      aria-label="Evento superseded, ver cadena"
+                      className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-300 text-xs"
                     >
-                      <span aria-label="Evento superseded, ver cadena">&#128279;</span>
+                      <span aria-hidden="true">&#128279;</span>
+                      <span>#{item.parent_event_id}</span>
                     </Link>
                   )}
                 </td>

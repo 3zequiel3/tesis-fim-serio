@@ -60,11 +60,12 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs text-gray-400 mb-1">
-          Pattern <span className="text-red-400">*</span>
+        <label htmlFor="rule-pattern" className="block text-xs text-gray-400 mb-1">
+          Pattern <span aria-hidden="true" className="text-red-400">*</span>
         </label>
         <input
           type="text"
+          id="rule-pattern"
           value={pattern}
           onChange={(e) => {
             setPattern(e.target.value)
@@ -72,15 +73,18 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
           }}
           placeholder="/etc/**"
           className={`${inputCls} ${patternError ? 'border-red-500' : ''}`}
+          aria-invalid={patternError ? 'true' : 'false'}
+          aria-describedby={patternError ? 'rule-pattern-error' : undefined}
         />
         {patternError && (
-          <p className="mt-1 text-xs text-red-400">{patternError}</p>
+          <p id="rule-pattern-error" className="mt-1 text-xs text-red-400">{patternError}</p>
         )}
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Severidad</label>
+        <label htmlFor="rule-severity" className="block text-xs text-gray-400 mb-1">Severidad</label>
         <select
+          id="rule-severity"
           value={severity}
           onChange={(e) => setSeverity(e.target.value as RuleSeverity)}
           className={selectCls}
@@ -94,8 +98,9 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Acción</label>
+        <label htmlFor="rule-action" className="block text-xs text-gray-400 mb-1">Acción</label>
         <select
+          id="rule-action"
           value={action}
           onChange={(e) => setAction(e.target.value as RuleAction)}
           className={selectCls}

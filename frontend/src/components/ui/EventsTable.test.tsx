@@ -170,7 +170,8 @@ describe('EventsTable — US-31 vínculo de cadena superseded', () => {
     renderWithProviders(<EventsTable items={items} selected={new Set()} onSelectionChange={noop} />)
 
     const indicator = screen.getByLabelText('Evento superseded, ver cadena')
-    expect(indicator.closest('a')).toHaveAttribute('href', '/events/17')
-    expect(indicator.closest('a')).toHaveAttribute('title', 'Ver evento padre #17')
+    expect(indicator).toHaveAttribute('href', '/events/17')
+    expect(indicator).toHaveAttribute('title', 'Ver evento padre #17')
+    expect(indicator).toHaveTextContent('#17')
   })
 })
