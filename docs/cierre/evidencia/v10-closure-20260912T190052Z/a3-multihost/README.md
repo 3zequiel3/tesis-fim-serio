@@ -130,6 +130,11 @@ ejecutado y sus resultados son los de este paquete (`a3-multihost/`).
 
 ## Cómo verificar el paquete
 
+Este paquete se verifica solo con su propio `SHA256SUMS`; todos sus archivos están versionados en git. El
+manifiesto del directorio padre (`../SHA256SUMS`) incluye este paquete, pero no está versionado: la mayor parte del
+paquete v10 (`lanes/`, `m3/`, `m4/`, `m8/`, `m9/`, `build/`, `backlog/`, `figures/`) todavía no está en git y un
+clon no podría verificarlo. Se conserva sólo en la copia de trabajo hasta que se versione el paquete v10 completo.
+
 ```bash
 cd docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost
 sha256sum -c SHA256SUMS
