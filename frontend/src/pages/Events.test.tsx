@@ -90,3 +90,99 @@ describe('Events — US-31 toggle superseded', () => {
     expect(lastEventsRequestParams()?.include_superseded).toBe(true)
   })
 })
+
+// US-07: selector de estado con 7 estados posibles, selección múltiple,
+// `superseded` excluido por defecto y sólo disponible como 7º checkbox
+// cuando el toggle "Mostrar superseded" está activo, y actualización dinámica
+// del listado al aplicar/quitar filtros.
+const BASE_STATUS_CHECKBOXES = [
+  'pending',
+  'approved',
+  'rejected',
+  'auto_restored',
+  'quarantined',
+  'alert_only',
+]
+
+describe('Events — filtro por estado (US-07)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiGet.mockResolvedValue({ data: { total: 0, page: 1, page_size: 50, items: [] } })
+  })
+
+  it('sin el toggle activo muestra los 6 checkboxes de estado base y NINGUNO de superseded', async () => {
+    renderWithProviders(<Events />, { route: '/events' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    for (const status of BASE_STATUS_CHECKBOXES) {
+      expect(screen.getByRole('checkbox', { name: status })).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('checkbox', { name: 'superseded' })).not.toBeInTheDocument()
+    // Falla si el checkbox default incluyera un 7mo estado: hay exactamente 6
+    // checkboxes de estado + el toggle "Mostrar eventos superseded".
+    const statusCheckboxes = BASE_STATUS_CHECKBOXES.map((s) =>
+      screen.getByRole('checkbox', { name: s }),
+    )
+    expect(statusCheckboxes).toHaveLength(6)
+  })
+
+  it('con el toggle "Mostrar eventos superseded" activo aparecen los 7 checkboxes de estado', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    await user.click(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' }))
+
+    for (const status of [...BASE_STATUS_CHECKBOXES, 'superseded']) {
+      expect(screen.getByRole('checkbox', { name: status })).toBeInTheDocument()
+    }
+  })
+
+  it('seleccionar dos estados refleja ambos en la petición (selección múltiple)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    await user.click(screen.getByRole('checkbox', { name: 'pending' }))
+    await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['pending']))
+
+    await user.click(screen.getByRole('checkbox', { name: 'quarantined' }))
+    await waitFor(() =>
+      expect(lastEventsRequestParams()?.status).toEqual(['pending', 'quarantined']),
+    )
+    expect(screen.getByRole('checkbox', { name: 'pending' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'quarantined' })).toBeChecked()
+  })
+
+  it('por defecto ningún filtro de estado incluye superseded (excluido por defecto, W1)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    expect(lastEventsRequestParams()?.status).toBeUndefined()
+
+    await user.click(screen.getByRole('checkbox', { name: 'rejected' }))
+    await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['rejected']))
+    expect(lastEventsRequestParams()?.status).not.toContain('superseded')
+  })
+
+  it('cambiar un filtro de estado dispara una nueva petición con los parámetros actualizados', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    const callsBefore = apiGet.mock.calls.filter(([url]: [string]) => url === '/events').length
+
+    await user.click(screen.getByRole('checkbox', { name: 'approved' }))
+
+    await waitFor(() => {
+      const callsAfter = apiGet.mock.calls.filter(([url]: [string]) => url === '/events').length
+      expect(callsAfter).toBeGreaterThan(callsBefore)
+    })
+    expect(lastEventsRequestParams()?.status).toEqual(['approved'])
+
+    // Quitar el filtro dispara otra petición más, sin 'approved'.
+    await user.click(screen.getByRole('checkbox', { name: 'approved' }))
+    await waitFor(() => expect(lastEventsRequestParams()?.status).toBeUndefined())
+  })
+})
