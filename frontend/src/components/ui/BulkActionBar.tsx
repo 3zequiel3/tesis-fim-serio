@@ -16,7 +16,7 @@ type BulkModal = 'approve' | 'reject' | null
 
 interface BulkResultRow {
   eventId: number
-  path: string
+  path: string | null
   succeeded: boolean
   reason?: string
 }
@@ -34,7 +34,10 @@ export function BulkActionBar({ selected, items, onSelectionChange }: BulkAction
   const { bulkApproveMutation, bulkRejectMutation } = useEventActions()
 
   const selectedItems = items.filter((item) => selected.has(item.id))
-  const previewPaths = selectedItems.slice(0, 10).map((item) => item.path)
+  const previewPaths = selectedItems.slice(0, 10).map((item) => ({
+    eventId: item.id,
+    label: item.path ?? `Evento #${item.id} sin path`,
+  }))
   const extraCount = selectedItems.length - previewPaths.length
 
   function recordResult(response: BulkResult, verb: BulkResultSummary['verb']) {
@@ -64,26 +67,13 @@ export function BulkActionBar({ selected, items, onSelectionChange }: BulkAction
   }
 
   function handleBulkApprove() {
-    const bulkItems = selectedItems.map((item) => ({
-      event_id: item.id,
-      version: item.version,
-      confirm_absent: false,
-    }))
-    bulkApproveMutation.mutate(bulkItems, {
+    bulkApproveMutation.mutate(selectedItems.map((item) => item.id), {
       onSuccess: (response) => recordResult(response, 'aprobados'),
     })
   }
 
   function handleBulkReject() {
-    // La elección única del modal es la UX que pide US-25; mapearla sobre
-    // cada ítem es lo que exige el wire (BulkRejectItem.action, obligatoria
-    // por ítem en el backend). Las dos cosas valen a la vez.
-    const bulkItems = selectedItems.map((item) => ({
-      event_id: item.id,
-      version: item.version,
-      action: rejectAction,
-    }))
-    bulkRejectMutation.mutate(bulkItems, {
+    bulkRejectMutation.mutate({ eventIds: selectedItems.map((item) => item.id), action: rejectAction }, {
       onSuccess: (response) => recordResult(response, 'rechazados'),
     })
   }
@@ -146,7 +136,9 @@ export function BulkActionBar({ selected, items, onSelectionChange }: BulkAction
             <ul id="bulk-result-details" className="mt-3 space-y-2">
               {result.rows.map((row) => (
                 <li key={row.eventId} className="flex items-start justify-between gap-4 text-xs">
-                  <span className="font-mono text-gray-300 break-all">{row.path}</span>
+                  <span className="font-mono text-gray-300 break-all">
+                    {row.path ?? `Evento #${row.eventId} sin path`}
+                  </span>
                   <span className={row.succeeded ? 'text-green-400' : 'text-red-400'}>
                     {row.succeeded ? 'Correcto' : `Falló: ${row.reason}`}
                   </span>
@@ -168,8 +160,8 @@ export function BulkActionBar({ selected, items, onSelectionChange }: BulkAction
             <span className="font-bold text-white">{selected.size}</span> evento{selected.size !== 1 ? 's' : ''}:
           </p>
           <ul className="text-xs font-mono text-gray-400 mb-2 space-y-0.5 max-h-40 overflow-y-auto">
-            {previewPaths.map((p) => (
-              <li key={p} className="truncate">• {p}</li>
+            {previewPaths.map((item) => (
+              <li key={item.eventId} className="truncate">• {item.label}</li>
             ))}
           </ul>
           {extraCount > 0 && (
@@ -205,8 +197,8 @@ export function BulkActionBar({ selected, items, onSelectionChange }: BulkAction
             <span className="font-bold text-white">{selected.size}</span> evento{selected.size !== 1 ? 's' : ''}:
           </p>
           <ul className="text-xs font-mono text-gray-400 mb-3 space-y-0.5 max-h-40 overflow-y-auto">
-            {previewPaths.map((p) => (
-              <li key={p} className="truncate">• {p}</li>
+            {previewPaths.map((item) => (
+              <li key={item.eventId} className="truncate">• {item.label}</li>
             ))}
           </ul>
           {extraCount > 0 && (

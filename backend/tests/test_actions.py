@@ -377,13 +377,16 @@ def test_bulk_approve_partial(session, mock_valkey, admin_user, agent_with_secre
     e2 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="222bbb", path="/etc/b")
     e3 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="333ccc", path="/etc/c")
 
-    items = [
-        {"event_id": e1.id, "version": 0, "confirm_absent": False},
-        {"event_id": e2.id, "version": 99, "confirm_absent": False},  # conflicto
-        {"event_id": e3.id, "version": 0, "confirm_absent": False},
-    ]
+    import app.modules.actions.service as actions_service
+    real_approve = actions_service._approve_single
 
-    result = approve_bulk(session, mock_valkey, items, admin_user.id)
+    def _racing_approve(*args, **kwargs):
+        if kwargs["event_id"] == e2.id:
+            raise ConflictError(e2.id)
+        return real_approve(*args, **kwargs)
+
+    with patch.object(actions_service, "_approve_single", side_effect=_racing_approve):
+        result = approve_bulk(session, mock_valkey, [e1.id, e2.id, e3.id], admin_user.id)
 
     assert len(result["succeeded"]) == 2
     assert len(result["failed"]) == 1
@@ -400,19 +403,24 @@ def test_bulk_reject_partial(session, mock_valkey, admin_user, agent_with_secret
     e1 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="444ddd", path="/etc/d")
     e2 = _make_pending_event(session, agent_id=agent.agent_id, hash_detected="555eee", path="/etc/e")
 
-    items = [
-        {"event_id": e1.id, "version": 0, "action": "restore"},
-        {"event_id": e2.id, "version": 99, "action": "quarantine"},  # conflicto
-    ]
+    import app.modules.actions.service as actions_service
+    real_reject = actions_service._reject_single
 
-    result = reject_bulk(session, mock_valkey, items, admin_user.id)
+    def _racing_reject(*args, **kwargs):
+        if kwargs["event_id"] == e2.id:
+            raise ConflictError(e2.id)
+        return real_reject(*args, **kwargs)
+
+    with patch.object(actions_service, "_reject_single", side_effect=_racing_reject):
+        result = reject_bulk(
+            session, mock_valkey, [e1.id, e2.id], RejectAction.restore, admin_user.id
+        )
 
     assert len(result["succeeded"]) == 1
     assert len(result["failed"]) == 1
     assert result["failed"][0]["event_id"] == e2.id
     assert result["failed"][0]["reason"] == "conflict"
-    # M8: baseline_absent mapea cada evento exitoso; e1 tiene baseline presente.
-    assert result["baseline_absent"] == {e1.id: False}
+    assert set(result) == {"succeeded", "failed"}
 
 
 # ── 12.14 test_bulk_approve_rollback_isolates_failed_item (C35 / FIX-04) ──────
@@ -447,14 +455,10 @@ def test_bulk_approve_rollback_isolates_failed_item(session, mock_valkey, admin_
             raise RuntimeError("simulated_transient_failure")
         return real_incr(db)
 
-    items = [
-        {"event_id": e1.id, "version": 0, "confirm_absent": False},
-        {"event_id": e2.id, "version": 0, "confirm_absent": False},
-        {"event_id": e3.id, "version": 0, "confirm_absent": False},
-    ]
-
     with patch.object(actions_service, "_increment_ruleset_version", side_effect=_flaky_incr):
-        result = actions_service.approve_bulk(session, mock_valkey, items, admin_user.id)
+        result = actions_service.approve_bulk(
+            session, mock_valkey, [e1.id, e2.id, e3.id], admin_user.id
+        )
 
     assert sorted(result["succeeded"]) == sorted([e1.id, e3.id])
     assert len(result["failed"]) == 1
@@ -494,14 +498,10 @@ def test_bulk_reject_rollback_isolates_failed_item(session, mock_valkey, admin_u
             raise RuntimeError("simulated_transient_failure")
         return real_write_audit(*args, **kwargs)
 
-    items = [
-        {"event_id": e1.id, "version": 0, "action": "restore"},
-        {"event_id": e2.id, "version": 0, "action": "restore"},
-        {"event_id": e3.id, "version": 0, "action": "restore"},
-    ]
-
     with patch.object(actions_service, "_write_audit", side_effect=_flaky_write_audit):
-        result = actions_service.reject_bulk(session, mock_valkey, items, admin_user.id)
+        result = actions_service.reject_bulk(
+            session, mock_valkey, [e1.id, e2.id, e3.id], RejectAction.restore, admin_user.id
+        )
 
     assert sorted(result["succeeded"]) == sorted([e1.id, e3.id])
     assert len(result["failed"]) == 1

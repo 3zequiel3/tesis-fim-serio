@@ -46,31 +46,24 @@ function makeItem(id: number): EventListItem {
 describe('BulkActionBar — bulk reject con acción por ítem (8.7)', () => {
   beforeEach(() => {
     apiPost.mockReset()
-    apiPost.mockResolvedValue({ data: { succeeded: [1, 2, 3], failed: [], baseline_absent: {} } })
+    apiPost.mockResolvedValue({ data: { succeeded: [1, 2, 3], failed: [] } })
   })
 
-  it('rechazar 3 eventos con "quarantine" produce 3 ítems con action:"quarantine" cada uno, sin action al nivel superior', async () => {
+  it('rechazar 3 eventos emite event_ids y una única action, sin items legacy', async () => {
     const user = userEvent.setup()
     const items = [makeItem(1), makeItem(2), makeItem(3)]
-    const selected = new Set([1, 2, 3])
-
     renderWithProviders(
-      <BulkActionBar selected={selected} items={items} filters={{}} onSelectionChange={vi.fn()} />
+      <BulkActionBar selected={new Set([1, 2, 3])} items={items} filters={{}} onSelectionChange={vi.fn()} />
     )
 
     await user.click(screen.getByRole('button', { name: /rechazar seleccionados/i }))
     await user.click(screen.getByLabelText(/poner en cuarentena/i))
     await user.click(screen.getByRole('button', { name: /^rechazar$/i }))
-
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/actions/bulk-reject', expect.anything()))
 
     const [, body] = apiPost.mock.calls[0]
-    expect(body.action).toBeUndefined()
-    expect(body.items).toHaveLength(3)
-    for (const item of body.items) {
-      expect(item.action).toBe('quarantine')
-    }
-    expect(body.items.map((i: { event_id: number }) => i.event_id).sort()).toEqual([1, 2, 3])
+    expect(body).toEqual({ event_ids: [1, 2, 3], action: 'quarantine' })
+    expect(body.items).toBeUndefined()
   })
 
   it('el modal resume la cantidad, muestra sólo los primeros 10 paths y anuncia el excedente', async () => {

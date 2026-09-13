@@ -1,6 +1,8 @@
 # Anexo — Matriz de trazabilidad: historias de usuario ↔ tests automatizados
 
-> Elaborado el 2026-08-18 sobre la rama `devel`. **Revisado el 2026-08-19** tras los commits
+> Elaborado el 2026-08-18 sobre la rama `devel`. **Actualizado el 2026-09-11** con las verificaciones
+> posteriores identificadas en cada historia, sobre candidatos congelados con base HEAD `6948aae`.
+> La revisión inicial del 2026-08-19 siguió a los commits
 > `faf7771` (backend, +45 tests) y `cff86fb` (frontend, infraestructura de componentes).
 > Responde al punto "El requisito '31 de 31 historias' necesita trabajo aparte" de
 > [`docs/plan_medicion_cap5.md`](plan_medicion_cap5.md) (Batería 2), opción **(b)**: matriz manual
@@ -73,19 +75,22 @@ salida de la Batería 2 que no aparezcan como `skipped`, porque sostienen buena 
 
 | Cobertura | Historias | Cuáles |
 |---|---|---|
-| `completa` | **3** | US-04, US-06, US-13 |
-| `parcial` | **27** | US-01, US-02, US-03, US-05, US-07, US-08, US-10, US-11, US-12, US-14, US-15, US-16, US-17, US-18, US-19, US-20, US-21, US-22, US-23, US-24, US-25, US-26, US-27, US-28, US-29, US-30, US-31 |
-| `sin cobertura` | **1** | US-09 |
+| `completa` | **10** | US-02, US-03, US-04, US-06, US-13, US-16, US-17, US-20, US-25, US-31 |
+| `parcial` | **21** | US-01, US-05, US-07, US-08, US-09, US-10, US-11, US-12, US-14, US-15, US-18, US-19, US-21, US-22, US-23, US-24, US-26, US-27, US-28, US-29, US-30 |
+| `sin cobertura` | **0** | — |
 
 Situación anterior a la revisión (2026-08-18): 0 `completa`, 28 `parcial`, 3 `sin cobertura`.
 Situación tras la change `frontend-severity-triage` (2026-08-21): US-06 cierra su cuarto y último
 criterio (fila con severidad y proceso causante) y pasa de `parcial` a `completa`.
 
-**Lo que el Capítulo 5 puede afirmar con esta evidencia:** que las 31 historias tienen
-implementación, que 30 de ellas tienen al menos un test automatizado que asserta parte de sus
-criterios de aceptación y que 3 los tienen asertados por completo — pero **no** que las 31 historias
-estén cubiertas, porque 27 conservan criterios sin verificar y una (US-09) describe una función que
-fue removida del producto.
+El corte inmediatamente anterior a la implementación posterior de US-09 tenía **10 completas,
+20 parciales y 1 sin cobertura**. Tras esa implementación, US-09 pasa a parcial, no a completa:
+el flujo textual está integrado y probado, pero la historia canónica también exige comparación de
+hashes y hex dump para binarios, detección de modo en el visor y `react-diff-viewer-continued`.
+
+**Lo que el Capítulo 5 puede afirmar con esta evidencia:** que las 31 historias tienen al menos una
+cobertura automatizada y que 10 tienen todos sus criterios funcionales asertados — pero **no** que
+las 31 historias estén completas.
 
 Tres matices que conviene declarar junto al número, porque explican la forma del resultado:
 
@@ -94,7 +99,7 @@ Tres matices que conviene declarar junto al número, porque explican la forma de
    baseline) y nula donde el sistema es visual, porque `vitest` corría sin DOM. Con `jsdom` y
    Testing Library ya instalados, la brecha dejó de ser infraestructural y pasó a ser de alcance:
    hay tres componentes con tests y el resto sin ellos.
-2. **De las 28 `parcial`, en 19 el criterio que falta no es un test sino una función.** Se listan en
+2. **En muchas de las 22 `parcial`, el criterio que falta no es un test sino una función.** Se listan en
    §6. Cerrar esas filas exige desarrollo o una decisión de producto, no escribir un test.
 3. **El resto de las `parcial` son mayoritariamente criterios de interfaz** en pantallas que todavía
    no tienen test de componente: Events, EventDetail, Rules, Agents, Login.
@@ -108,36 +113,36 @@ historia (§5), al que remite cada fila.
 | US | Criterios (resumidos) | Tests | Cobertura | Observaciones |
 |---|---|---|---|---|
 | **US-01** Inicio de sesión | Formulario; tokens JWT 15 min / 7 días con rotación; error genérico; token en memoria; cookie `httpOnly`/`Secure`/`SameSite=Strict`; Argon2id C9; rate limit 5/15 min; scope `password_change_only` | `test_auth.py` (7), `test_c22_auth.py` (1), `core/test_rate_limit_load.py` (4) — [§5.1](#us-01) | parcial | El error genérico quedó cerrado: `test_login_error_es_identico_para_password_mala_y_usuario_inexistente` compara los cuerpos completos de las dos respuestas y verifica que ninguna nombra al usuario probado. Siguen sin test los parámetros Argon2id, los atributos de la cookie, la vida de los tokens y el almacenamiento en memoria. La cookie además **diverge**: `samesite="lax"` y `path="/"` en `auth/router.py` |
-| **US-02** Cierre de sesión | Botón; limpieza de token; blacklist del `jti` en Valkey con TTL; redirección; 401 posterior | `test_auth.py` (2) — [§5.2](#us-02) | parcial | **El criterio central quedó cerrado.** `test_logout_invalida_access_token` fue reescrito: pide `GET /events` con el mismo token antes (200) y después del logout (401), y comprueba el TTL de la entrada de blacklist. La causa de que nadie lo hubiera cerrado antes es estructural y vale registrarla: `logout` escribe la blacklist con el cliente Valkey **síncrono** y `get_current_user` la lee con el **asíncrono**, y el conftest le daba a cada uno un mock independiente, de modo que la escritura nunca podía leerse. Los fixtures `blacklist_store`/`blacklist_valkey`/`blacklist_client` les dan un único store en memoria. Siguen sin test los dos criterios de cliente (botón, limpieza del token en memoria, redirección) |
-| **US-03** Renovación de sesión | Refresh anticipado; rotación single-use; blacklist → login; transparencia; multi-key JWT | Backend previo más `test_jwt_key_rotation.py` (2); frontend: `auth.test.ts` (2), `auth.store.test.ts` (3), `client.test.ts` (1), `ProtectedRoute.test.tsx` (1) — [§5.3](#us-03) | parcial | Las capacidades automatizables quedaron implementadas y verificadas: timer 60 s antes de `exp`, single-flight, retry transparente, limpieza + navegación y dual-key. Resta aceptación integrada en navegador/backend real. |
+| **US-02** Cierre de sesión | Botón; limpieza de token; blacklist del `jti` en Valkey con TTL; redirección; 401 posterior | `test_auth.py` (2), `auth.test.ts`, `Navbar.test.tsx`, `auth.store.test.ts`, `us02-logout.spec.ts` — [§5.2](#us-02) | **completa** | La corrección posterior envía el Bearer al endpoint autenticado de logout. Unitarias y Playwright real verifican botón, limpieza local, revocación de access/refresh, cookie eliminada, redirección, Back seguro y comunicación explícita cuando la revocación remota no puede confirmarse. |
+| **US-03** Renovación de sesión | Refresh anticipado; rotación single-use; blacklist → login; transparencia; multi-key JWT | Unitarios; `us03-session-refresh.spec.ts`; cookie/ruta/logout/reuso y rotación live en `us-isolated-lab.spec.ts`/runner — [§5.3](#us-03) | completa | Cookie `Strict`+`/auth/refresh`, migración legacy, revocación por `refresh_jti` y CURRENT/PREVIOUS ejecutados. |
 | **US-04** Métricas del dashboard | Conteo por los 7 estados; léxico en minúsculas C1; carga al entrar; indicadores numéricos | `Dashboard.test.tsx` (4) — [§5.4](#us-04) | **completa** | Los cuatro criterios asertados sobre el componente real. El test mockea `@/api/client` y no `@/api/dashboard`, así que ejercita la agregación real del cliente (N requests a `/events`, una por estado). **Encontró un defecto real**: el dashboard enumeraba 6 de los 7 estados canónicos — faltaba `superseded` en `EVENT_STATUSES` (`Dashboard.tsx`) y en `statuses` (`api/dashboard.ts`) —, de modo que los eventos `superseded` no aparecían en ningún contador. Corregido en ambas listas |
 | **US-05** Estado general del sistema | Pendientes sin resolver; conectividad de agentes; realce de críticos; banner rojo; banner amarillo | `Dashboard.test.tsx` (5), `SystemBanner.test.tsx` (4), `AlertsBanner.test.tsx` (5) — [§5.5](#us-05) | parcial | Cuatro de los cinco criterios quedaron asertados sobre componentes reales, incluido el realce visual de los `pending critical + high` con su caso negativo. El quinto no cierra por la regla de §2: la historia condiciona el banner amarillo a `retry_count >= 3` y `AlertsBanner` lo muestra ante **cualquier** alerta fallida, sin ese umbral; el test asserta la conducta implementada, no la pedida |
 | **US-06** Listado de eventos | Tabla paginada 50/página; fila con path, estado, acción, severidad, fecha y proceso causante; orden desc; excluye `superseded` | `test_event_listing_contract.py` (4), `test_c31_backend_event_correctness.py` (1), `eventFilters.test.ts` (2), `EventsTable.test.tsx` (5) — [§5.6](#us-06) | **completa** | Change `frontend-severity-triage` (2026-08-21) cerró el cuarto criterio: `EventsTable.tsx` ahora renderiza severidad (banda de borde + texto canónico) y proceso causante como sublínea del path, con caso negativo para el evento sin contexto de proceso. El "tipo de acción" del criterio se satisface por la columna Estado (D35/RN-129: el `status` derivado *es* la acción ejecutada), sin campo nuevo. Los cuatro criterios quedan asertados sobre el componente real |
 | **US-07** Filtrado por estado | Selector de los 7 estados; multi-selección; `superseded` excluido; toggle; actualización dinámica | `test_event_listing_contract.py` (3), `eventFilters.test.ts` (4) — [§5.7](#us-07) | parcial | La selectividad real del filtro quedó probada: `test_pagination_total_respects_status_filter` verifica que `total` cuenta sólo el estado pedido y que el ítem devuelto es de ese estado, y `test_status_filter_accepts_multiple_values` que el parámetro repetible es una unión. Siguen sin test los tres criterios de interfaz, y el selector **enumera 6 estados**, no 7 |
 | **US-08** Detalle de un evento | Vista de detalle; campos; timestamps dobles con clock skew W13; contexto forense del proceso; enlace al padre; posición en la cadena | `test_event_listing_contract.py` (2), `test_stream_ack_durability_consumer.py` (11), `test_consumer.py` (1), `test_c31_backend_event_correctness.py` (2), `test_event_severity.py` (1), `test_event_symlink_metadata.py` (2), `test_event_ack_status_field.py` (3), `test_detector_context.py` (4) — [§5.8](#us-08) | parcial | Dos huecos grandes cerrados. `test_get_event_by_id_returns_full_detail` es el primer test de camino feliz del detalle: 200 y el conjunto de campos, con el contexto forense (`process_pid`/`uid`/`exe`) verificado ya persistido y expuesto, no sólo capturado en el agente. Y la frontera del clock skew quedó fijada a 299 s / 301 s en las **dos** ramas (con `sent_at` y por fallback sobre `detected_at`), incluida una aserción de que `_CLOCK_SKEW_S == 300`. Falta "tipo de acción", que no existe como campo, y la posición en la cadena |
-| **US-09** Diff de un evento | Diff lado a lado/unificado; sólo texto; binarios con hashes y hex dump; detección automática; escapado W8; nunca loguear el diff W6 | `DiffViewer.test.ts` (7, helpers de un componente que ya no se monta), `test_detector_diff.py` (7, lado agente) — [§5.9](#us-09) | **sin cobertura** | Sin cambios, y debe seguir así: el panel de diff sigue ausente de `EventDetail.tsx` y `DiffViewer.tsx` no lo importa ningún módulo de la aplicación. Es una función faltante, no un test faltante; escribir un test sobre un componente que nadie renderiza sería cobertura falsa. W6 es doblemente huérfano: `hash_before`, `hash_after` y `size_delta` no existen en ninguna parte del código |
+| **US-09** Diff de un evento | Diff lado a lado/unificado; sólo texto; binarios con hashes y hex dump; detección automática; escapado W8; nunca loguear el diff W6 | Pruebas dirigidas de agente/backend/frontend sobre `8039624` + `f08626a` — [§5.9](#us-09) | **parcial** | El patch textual está integrado en el detalle autenticado, limitado a UTF-8 y 1 MiB y verificado. Los binarios se descartan: no hay comparación de hashes ni hex dump; el visor tampoco usa `react-diff-viewer-continued`. |
 | **US-10** Cadena de eventos | Acceso a la cadena del path; orden cronológico con marca de `superseded`; navegación; ícono de cadena rota y `parent_event_id` | `test_event_service.py` (5), `test_event_status_derivation.py` (2), `test_c31_backend_event_correctness.py` (3), `test_c22_fk_chain.py` (3), `modules/events/test_retention.py` (3) — [§5.10](#us-10) | parcial | Sin cambios. El **modelo de datos** de la cadena está entre lo mejor cubierto del repositorio (supersesión optimista, `parent_event_id`, compactación a 10, protección por `audit_log`, carreras). La **funcionalidad de usuario** no existe: no hay endpoint que devuelva la cadena de un path, y `EventTimeline.tsx` documenta que quedó fuera de alcance |
 | **US-11** Aprobación de un evento | Botón; UPDATE optimista C5; `approved` + `resolved_at`/`resolved_by`; baseline con hash actual; comando firmado C7 + C11; agente rechaza firma/versión; re-cifrado W10; `event_ack` C3; warning de archivo ausente; `audit_log`; 409 + toast | `test_actions_router.py` (11), `test_actions.py` (7), `test_c31_backend_event_correctness.py` (1), `test_stream_ack_durability_outbox.py` (4), `test_command_ack_consumer.py` (9), `test_commands.py` (5), `test_baseline.py` (7) — [§5.11](#us-11) | parcial | El hueco transversal del router quedó cerrado: `ConflictError → 409` con `detail.code`, `AbsentConfirmationRequired → 422` **contrastado contra un 422 de validación de Pydantic**, `require_admin` parametrizado sobre los cuatro endpoints, y la forma exacta de `ActionResponse` con el evento releído de la base. El criterio "baseline con el **hash actual**" sigue sin test y sin implementación: `test_no_get_file_hash_published` asserta la decisión contraria (D2). Falta el toast del 409 y el warning de archivo ausente en la UI |
 | **US-12** Rechazo de un evento | Botón; elección `restore`/`quarantine`; modal ante baseline `absent` C10; no-op con warning; UPDATE optimista; `rejected` + campos; comando firmado C7 + C11; journal pre-acción W2; `audit_log` | `test_actions_router.py` (8), `test_actions.py` (5), `test_stream_ack_durability_outbox.py` (3), `test_published_command_ack_tracking.py` (2), `test_commands.py` (5), `test_journal.py` (9), `test_baseline_restore.py` (2) — [§5.12](#us-12) | parcial | `resolved_at`/`resolved_by` ahora sí se assertan en las tres rutas de reject (restore, quarantine y el no-op de baseline `absent`), y el no-op es observable por HTTP vía `baseline_absent: true`. El journal pre-acción W2 conserva la mejor prueba del lote (`test_journal_written_before_filesystem_op` intercepta `os.open`). Sigue sin asertarse que los handlers dejen el journal en `completed`/`failed` tras ejecutar. `ruleset_version` no se incluye en estos comandos por diseño → criterio no implementado |
 | **US-13** Superseded automático | Nuevo evento supersede al `pending`; vínculo `parent_event_id`; no aparece en pendientes; transición validada C2; accesible por el toggle | `test_event_listing_contract.py` (3), `test_event_service.py` (7), `test_event_status_derivation.py` (5), `test_c31_backend_event_correctness.py` (2), `test_event_consumer_c11.py` (1), `test_c22_consumer.py` (1) — [§5.13](#us-13) | **completa** | Era la más cerca de cerrarse y se cerró. `test_list_events_excludes_superseded_by_default` cubre el único criterio que faltaba, y `test_superseded_filter_applies_to_total_not_only_to_the_page` agrega el matiz que hacía falta para que la exclusión sea coherente con la paginación: el `superseded` excluido tampoco cuenta en `total`. El acceso para auditoría queda cubierto por `test_list_events_includes_superseded_when_flag_is_true` |
 | **US-14** Listado de reglas | Tabla; fila con patrón, severidad y acción; leyenda del default `alert_only`; `ruleset_version` del sistema | `test_rules_service.py` (3), `test_rules_router.py` (2), `test_rules.py` (1) — [§5.14](#us-14) | parcial | Sin cambios. Sólo el listado y su orden canónico por severidad están asertados. El `ruleset_version` global del sistema **no lo expone ningún endpoint**: lo que la UI muestra es `ruleset_version_applied` por agente, que es otra cosa |
 | **US-15** Creación de regla | Formulario; glob y negación `!`; la exclusiva gana; persistencia; patrón no duplicado; `ruleset_version++` C11 + sync; `audit_log` | `test_rules_service.py` (10), `test_rules_router.py` (3), `test_ruleset_version_atomic.py` (2), `test_rules.py` (3) — [§5.15](#us-15) | parcial | Sin cambios. La precedencia de reglas exclusivas está probada **sólo en el agente**: `rules/service.py::determine_severity_for_path` hace `fnmatch` sin tratar el prefijo `!`. La validación de patrón duplicado no está implementada |
-| **US-16** Edición de regla | Formulario precargado; modificar patrón/severidad/acción; persistencia; `ruleset_version++` + sync; `audit_log` | `test_rules_service.py` (4), `test_rules_router.py` (3) — [§5.16](#us-16) | parcial | El núcleo de la historia dejó de estar sin asertar: `test_update_rule_persists_the_new_field_values` relee la fila desde la base tras un `expire_all()` —para no leer el objeto en memoria que el servicio ya mutó— y verifica los tres campos, que no se creó una fila nueva y que `updated_at` avanzó; `test_update_rule_partial_payload_keeps_untouched_fields` cubre el payload parcial. Sólo queda sin test el formulario precargado |
-| **US-17** Eliminación de regla | Opción de borrar; confirmación; eliminación de la fila; `ruleset_version++` + sync; caída al default `alert_only`; `audit_log` | `test_rules_service.py` (3), `test_rules_router.py` (3), `test_rules.py` (1), `test_decision.py` (1) — [§5.17](#us-17) | parcial | `test_delete_rule_removes_the_row` cierra el criterio central y agrega el control de que sólo se borró la regla pedida. Siguen sin test los dos criterios de interfaz y el criterio 5 conserva cobertura indirecta (el default `alert_only` de `RulesCache.evaluate`), no una prueba del escenario "regla borrada → el path cae al default" |
+| **US-16** Edición de regla | Formulario precargado; modificar patrón/severidad/acción; persistencia; `ruleset_version++` + sync; `audit_log` | Unitarios previos + `us-isolated-lab.spec.ts` — [§5.16](#us-16) | **completa** | Playwright real verifica precarga/edición y el laboratorio verifica persistencia, auditoría, incremento exacto +1 y convergencia DB/agente. Pendiente separado: asociación accesible de labels, no criterio funcional de esta historia. |
+| **US-17** Eliminación de regla | Opción de borrar; confirmación; eliminación de la fila; `ruleset_version++` + sync; caída al default `alert_only`; `audit_log` | Unitarios previos + `us-isolated-lab.spec.ts` — [§5.17](#us-17) | **completa** | Cancelar no emite DELETE; confirmar elimina, incrementa exactamente +1, converge con el agente y el siguiente cambio propio cae a `alert_only`. Pendiente separado: labels accesibles de RuleForm. |
 | **US-18** Sync automática de reglas | Publica `rule_sync`; firma C7 + `ruleset_version` C11; el agente verifica firma; descarta versiones menores; reemplaza caché sin reiniciar; persiste en `state.json`; comandos antes que eventos W4; `event_ack` C3 | `test_rules_service.py` (8), `test_rule_sync_outbox.py` (4), `test_c32_sse_security_fixes.py` (1), `test_rules.py` (5), `test_stability_fixes.py` (2), `test_reconnect_order.py` (7) — [§5.18](#us-18) | parcial | Sin cambios. Siete de ocho criterios asertados, incluido el orden de reconexión W4 y la persistencia del `ruleset_version` en `state.json`. El único que falla —`event_ack` tras `rule_sync`— no está implementado, y los tests **documentan la decisión contraria** (`test_rule_sync_persists_with_null_ack_status`) |
 | **US-19** Listado de alertas | Lista ordenada por fecha desc; fila con path, severidad, acción, fecha y canal; navegación al evento | `test_sse_alerts.py` (10) — [§5.19](#us-19) | parcial | Sin cambios. El endpoint, sus filtros y la paginación están bien cubiertos; los tres criterios *de la historia*, no. `AlertResponse` no expone `path` ni tipo de acción, la navegación al evento no está implementada, y el `ORDER BY created_at DESC` no lo asserta ningún test |
-| **US-20** Alertas en tiempo real | Conexión SSE; alerta ante nuevo evento; notificación visual; reconexión automática | `test_sse_alerts.py` (12), `test_c32_sse_security_fixes.py` (4) — [§5.20](#us-20) | parcial | Sin cambios. El backend SSE está bien cubierto: auth por query param, replay con `Last-Event-ID`, keepalive, cierre de sesión de DB y cola acotada a 100. El hueco relevante es la cadena real evento → `notify_if_applicable` → `alerts_broadcaster.publish`, que **ningún test recorre**: de `notify_if_applicable` sólo se prueban los tres casos de *skip* |
+| **US-20** Alertas en tiempo real | Conexión SSE; alerta ante nuevo evento; notificación visual; reconexión automática | Unitarios previos + `us20-realtime-alerts.spec.ts` — [§5.20](#us-20) | completa | Un proxy exclusivo del laboratorio permitió cortar físicamente sólo la ruta SSE. Dos corridas individuales y dos combinadas probaron cierre, API y refresh 200 durante el corte, segunda respuesta SSE establecida antes de publicar y toast para un evento real posterior. |
 | **US-21** Estado de agentes | Lista; identificador, estado, última actividad, `ruleset_version`, `queue_size`; realce de no-ok; heartbeat 10 s / 30 s → offline / 5 min → dead + webhook / `shutdown` → draining; banner de `queue_pressure` W3 | `test_agent_mgmt.py` (5), `test_heartbeat_consumer.py` (6), `test_agent_watch_path_status.py` (2), `test_domain_models.py` (1), `test_queue.py` (4) — [§5.21](#us-21) | parcial | La máquina de estados del heartbeat quedó completa en sus transiciones (online → draining → offline@30s → dead@5min → vuelta a online, y ahora también draining → offline). Sin cobertura: el intervalo de 10 s, el webhook n8n al pasar a `dead` (no implementado), `queue_size` en la vista (no se persiste) y el umbral del 80% de W3, que no existe en el código |
 | **US-22** Re-scan de baseline | Botón con selección de paths; diálogo con los `pending` afectados; confirmación explícita; supersesión + comando firmado C7 con `ruleset_version++` C11; el agente verifica firma y versión; regenera baseline cifrado W10; `event_ack` C3; confirmación visual; `audit_log`; deshabilitado si `draining` | `test_agent_mgmt.py` (4), `test_published_command_ack_tracking.py` (1), `test_stream_ack_durability_outbox.py` (1), `test_agent_config.py` (5), `test_commands.py` (3), `test_baseline.py` (7) — [§5.22](#us-22) | parcial | Sin cambios. El flujo existe de punta a punta y ese eje está bien cubierto. Tres criterios fallan por implementación: no hay selección de paths, el comando no lleva `ruleset_version++`, y `handle_rescan_baseline` no tiene guard de versión. La supersesión alcanza a **todos** los pending del agente, no a los paths seleccionados |
 | **US-23** Notificación externa | Webhook n8n ante `critical`/`high`; payload con contexto de proceso y timestamps; n8n como enrutador; retry 5/30/120 s; cascada SMTP → webhook → log; fila en DLQ; n8n caído no compromete la operación | `test_notifications.py` (16), `test_c31_backend_event_correctness.py` (2), `test_health_n8n_check.py` (8) — [§5.23](#us-23) | parcial | Sin cambios. El retry con los delays exactos y la caída a DLQ son el núcleo mejor asertado. El criterio "sólo `critical`/`high`" se demuestra **por exclusión**, nunca por inclusión. El payload no incluye `process_pid`/`uid`/`exe`, `received_at` ni la acción tomada → criterio incumplido en el código. La entrega efectiva por SMTP y por webhook directo nunca se asserta con éxito |
 | **US-24** Paths monitoreados | Lista de paths por agente; agregar; quitar; persistencia; `update_config` firmado C7 + `ruleset_version++` C11; el agente verifica y recarga en caliente; baseline scan de paths nuevos W10; `event_ack` C3; bootstrap desde YAML → autoridad en PostgreSQL; `audit_log`; deshabilitado si `draining` | `test_agent_mgmt.py` (5), `test_agent_watch_path_status.py` (3), `test_published_command_ack_tracking.py` (2), `test_agent_config.py` (6), `test_commands.py` (5), `test_stability_fixes.py` (2), `test_audit_fixes.py` (1) — [§5.24](#us-24) | parcial | Sin cambios. La historia mejor cubierta del lado backend + agente. Se mantiene la advertencia metodológica: `test_reload_watch_paths_marks_new` y `::test_reload_watch_paths_unmarks_removed` **no invocan el método que dicen probar** — reimplementan la aritmética de conjuntos dentro del propio test. La reconfiguración real de las marcas de `fanotify` no está verificada por ningún test |
-| **US-25** Bulk approve/reject | Checkbox por fila y "todo en la página"; botones bulk; modal con los primeros 10 paths; elección de acción; `POST /actions/bulk-*`; locking individual C5; `succeeded[]`/`failed[]`; baseline firmado por cada aprobado; `audit_log`; resumen visual; refresco | Backend previo; frontend: `EventsTable.test.tsx` (2 casos US-25), `BulkActionBar.test.tsx` (4) — [§5.25](#us-25) | parcial | El resumen expandible por path, la invalidación y la conciliación segura de selecciones concurrentes quedaron implementados y verificados. Resta aceptación visual e integración con backend real. |
+| **US-25** Bulk approve/reject | Checkbox por fila y "todo en la página"; botones bulk; modal; acción compartida; `event_ids[]`; locking C5; resultados; baseline; auditoría; resumen/refresco | Unitarios + `us25-bulk-actions.spec.ts` + `us-isolated-lab.spec.ts` — [§5.25](#us-25) | completa | Wire canónico, rechazo 422 de legacy, UX/parcialidad y cadena approve→comando→agente→ACK→baseline pasaron. |
 | **US-26** Paginación | 50 por página; navegación numerada; input "ir a página"; `?page=N&page_size=50`; respeta los filtros activos | `test_event_listing_contract.py` (5), `test_c31_backend_event_correctness.py` (1), `test_event_router.py` (1), `eventFilters.test.ts` (3) — [§5.26](#us-26) | parcial | El riesgo silencioso más grande quedó cubierto con tres tests: `total` respeta el filtro de estado, el `path_prefix` y el rango de fechas — cada uno con `page_size=1` para que un `total` mal calculado no se disimule. Los criterios 2 y 3 siguen sin test porque **no están implementados**: sólo hay "Anterior"/"Siguiente" |
 | **US-27** Cambio obligatorio de password | Seed con el flag; scope `password_change_only`; redirect forzado; formulario con complejidad; validación de la actual; Argon2id C9; flag a `false` + tokens nuevos; bloqueo de otras rutas; re-exigencia; `audit_log` | `test_auth.py` (5), `test_c22_auth.py` (1), `test_c22_scope_gate.py` (5), `modules/users/test_user_management.py` (3) — [§5.27](#us-27) | parcial | El gate de scope en backend está bien cubierto. El flujo completo (login inicial → cambio → login con scope pleno) ahora se ejercita como precondición del helper `_full_access_login` de los tests de logout, aunque de forma incidental. Sin test: validación de la contraseña actual, reglas de complejidad (no implementadas), Argon2id, `audit_log` y re-exigencia tras cerrar sesión |
 | **US-28** Banner de degradación | Poll cada 10 s; estado de `postgres`, `valkey`, `n8n` y agentes; banner rojo con componente y timestamp; cerrable y reaparece; no bloquea; webhook ante cambio de estado | `SystemBanner.test.tsx` (4), `test_notifications.py` (5), `test_health_n8n_check.py` (8) — [§5.28](#us-28) | parcial | El banner dejó de estar sin test: se asserta que no aparece con todo `ok`, que nombra el componente caído, que trata el subsistema `agents` como degradado y que nombra varios caídos a la vez sin inventar uno sano. Quedan tres huecos: el poll de 10 s (`refetchInterval: 10_000` existe en `SystemBanner.tsx` y ningún test lo verifica), la porción `agents` de `check_components` **del lado backend**, y `GET /health/components` como endpoint HTTP, que ningún test invoca. Dos criterios de UI no están implementados: timestamp del último check saludable y botón de cierre |
 | **US-29** Webhooks fallidos | Banner amarillo con `retry_count >= 3`; link a la vista; tabla con `event_id`, primer intento, error y `retry_count`; reintentar/descartar por fila; bulk; eliminación tras reintento exitoso; el banner desaparece; `audit_log` | `test_notifications.py` (9), `AlertsBanner.test.tsx` (5), `test_sse_alerts.py` (3) — [§5.29](#us-29) | parcial | Dos criterios cerrados. El reintento tiene por fin camino feliz, en dos capas: `test_retry_alert_resets_dlq_state_and_reschedules` verifica el reseteo de `failed_at`/`last_error`/`retry_count` y que la cascada se vuelve a disparar sobre la misma alerta y el mismo evento; `test_retry_alert_delivers_and_leaves_the_dlq` cierra el ciclo hasta que la fila desaparece de `list_failed_alerts`. Y el banner desaparece con la DLQ vacía. Persisten las divergencias: sin umbral `retry_count >= 3`, el link va a `/alerts` y no a `/notifications/failed`, no hay bulk ni `audit_log`, y la tabla `failed_notifications` no existe |
 | **US-30** Agente en shutdown graceful | Deja de aceptar eventos; drena con timeout 30 s; heartbeat con `shutdown: true`; backend marca `draining`; indicador "Drenando N eventos"; botones deshabilitados con tooltip; pasa a `offline`/`dead` | `test_shutdown_heartbeat.py` (5), `test_heartbeat_consumer.py` (3), `test_stability_fixes.py` (1), `test_agent_mgmt.py` (1), `test_publisher.py` (1), `test_reconnect_order.py` (2) — [§5.30](#us-30) | parcial | La transición `draining → offline` quedó cubierta con su caso negativo (un agente drenando que sigue latiendo no se marca offline): era la rama del `status.in_([online, draining])` que nunca se ejercitaba. Siguen sin test o sin implementación el cese de aceptación de eventos de `fanotify`, el timeout de 30 s del drenaje (`_drain_then_stop(..., timeout=30.0)` no lo invoca ningún test) y los dos criterios de interfaz |
-| **US-31** Toggle de superseded | Oculto por defecto; checkbox; ícono de cadena rota y `parent_event_id`; persistencia en la URL; `GET /events` respeta el parámetro | `test_event_listing_contract.py` (2), `eventFilters.test.ts` (7) — [§5.31](#us-31) | parcial | El vacío más significativo quedó cerrado: el criterio 5 (la regla W1 del lado servidor) lo assertan ahora dos tests con eventos `superseded` reales, uno por cada lado del flag. Persisten sin test los dos criterios de interfaz, y sigue vigente la advertencia de que `frontend/src/api/events.ts:88-97` **duplica** la serialización de filtros en un `paramsSerializer` sin ningún test |
+| **US-31** Toggle de superseded | Oculto por defecto; checkbox; ícono de cadena rota y `parent_event_id`; persistencia en la URL; `GET /events` respeta el parámetro | Unitarios previos + `EventsTable.test.tsx` + `us31-superseded-toggle.spec.ts` — [§5.31](#us-31) | **completa** | Toggle, URL, request real y reload pasaron; el vínculo conserva su semántica accesible y muestra `parent_event_id` como texto visible. |
 
 ## 5. Detalle por historia
 
@@ -221,15 +226,15 @@ que los valores del criterio quedan verificados sólo en tanto se respeten los d
 ---
 
 <a id="us-02"></a>
-### 5.2 US-02: Cierre de sesión — `parcial`
+### 5.2 US-02: Cierre de sesión — `completa`
 
 | Criterio | Tests |
 |---|---|
-| Botón de logout visible | SIN TEST (UI) |
-| Limpieza del access token e invalidación de la cookie | Lado servidor: `backend/tests/test_auth.py::test_logout_invalida_tambien_el_refresh_token`. La limpieza del store en memoria del cliente: SIN TEST |
+| Botón de logout visible | `frontend/src/components/layout/Navbar.test.tsx`; `frontend/e2e/us02-logout.spec.ts`. |
+| Limpieza del access token e invalidación de la cookie | Lado servidor: `backend/tests/test_auth.py::test_logout_invalida_tambien_el_refresh_token`. Cliente y navegador real: `Navbar.test.tsx`, `auth.store.test.ts` y `us02-logout.spec.ts`. |
 | `jti` del refresh en blacklist con TTL restante (C8) | `backend/tests/test_auth.py::test_logout_invalida_access_token` (TTL del access acotado a `ACCESS_TOKEN_EXPIRE_MINUTES * 60` y verificado como recién emitido), `::test_logout_invalida_tambien_el_refresh_token` (TTL del refresh dentro de la ventana de `REFRESH_TOKEN_EXPIRE_DAYS`) |
-| Redirección al login | SIN TEST (UI) |
-| Solicitudes posteriores con token invalidado → 401 | `backend/tests/test_auth.py::test_logout_invalida_access_token` (200 en `GET /events` antes del logout, 401 después con el mismo token), `::test_logout_invalida_tambien_el_refresh_token` (el refresh revocado ya no rota la sesión) |
+| Redirección al login | `frontend/src/components/layout/Navbar.test.tsx`; Playwright verifica `/login` y que Back no reabra la vista protegida. |
+| Solicitudes posteriores con token invalidado → 401 | `backend/tests/test_auth.py::test_logout_invalida_access_token` y `::test_logout_invalida_tambien_el_refresh_token`; Playwright repite ambos probes contra el stack real. |
 
 **Por qué este criterio estuvo tanto tiempo sin cerrar.** No era desidia sino un artefacto del
 arnés de tests: `logout` escribe la blacklist a través del cliente Valkey **síncrono**
@@ -244,7 +249,7 @@ criterio se vuelve verificable de punta a punta.
 ---
 
 <a id="us-03"></a>
-### 5.3 US-03: Renovación automática de sesión — `parcial`
+### 5.3 US-03: Renovación automática de sesión — `completa`
 
 | Criterio | Tests |
 |---|---|
@@ -252,7 +257,8 @@ criterio se vuelve verificable de punta a punta.
 | El refresh rota en cada uso (C8) | `backend/tests/test_auth.py::test_refresh_valido_rota_token`, `::test_refresh_con_token_revocado_retorna_401`; single-flight cliente: `frontend/src/api/auth.test.ts` (2) |
 | Refresh expirado o revocado → login | Contratos backend anteriores; cliente: `frontend/src/stores/auth.store.test.ts::si el refresh anticipado falla limpia la sesión local`, `frontend/src/components/layout/ProtectedRoute.test.tsx::navega una sola vez a login cuando una sesión ya verificada queda sin token` |
 | Renovación transparente | `frontend/src/api/client.test.ts::reintenta la petición original con el token rotado después de un 401`; además, ventana de gracia backend y single-flight cliente ya citados |
-| Multi-key `JWT_SECRET_CURRENT` + `JWT_SECRET_PREVIOUS` (C8) | `backend/tests/test_jwt_key_rotation.py` (2): acepta CURRENT/PREVIOUS y rechaza una clave ajena; ejecutados individualmente contra PostgreSQL 18.3 efímero |
+| Multi-key `JWT_SECRET_CURRENT` + `JWT_SECRET_PREVIOUS` (C8) | Unitarios y rotación live en `scripts/run-isolated-acceptance-lab.sh`: access/refresh previos 200, clave ajena 401 y nuevo CURRENT 200 |
+| Cookie canónica y revocación | `backend/tests/test_auth.py::test_login_migra_cookie_legacy_y_emite_cookie_canonica`, `::test_logout_revoca_refresh_jti_sin_recibir_cookie_canonica`, `::test_gracia_no_resucita_refresh_ganador_revocado_por_logout`, `::test_gracia_no_resucita_refresh_ganador_revocado_por_change_password_sin_cookie`; `us-isolated-lab.spec.ts::US-03...` observa URL exacta, atributos, rotación, logout y reuso 401 |
 
 ---
 
@@ -333,27 +339,28 @@ El test que antes se citaba aquí con reservas —`backend/tests/test_event_seve
 ---
 
 <a id="us-09"></a>
-### 5.9 US-09: Visualización de diff — `sin cobertura`
+### 5.9 US-09: Visualización de diff — `parcial`
 
-Estado reverificado el 2026-08-19: sin cambios. El panel de diff sigue removido del detalle
-(commit `9e566ed`); `frontend/src/pages/EventDetail.tsx:224-228` conserva sólo un comentario
-explicando la remoción, y `DiffViewer.tsx` no se importa desde ningún módulo de la aplicación. El
-modelo `Event` no tiene campo de contenido ni de diff, e `ingest_event` descarta el `diff_text` que
-el agente sí emite.
+En el corte histórico del 2026-08-19 esta historia estaba `sin cobertura`: el panel había sido
+removido y el backend descartaba `diff_text`. La implementación posterior `8039624`, corregida por
+`f08626a`, integró un patch unificado textual en el detalle autenticado. El agente lo genera sólo
+para texto UTF-8 admisible de hasta 1 MiB; el backend revalida, limita y persiste; la lista no expone
+el contenido y `DiffViewer` lo renderiza como texto React sin HTML inyectado.
 
-La clasificación debe permanecer en `sin cobertura` aunque ahora exista infraestructura de tests de
-componente: la función está ausente, no sin testear. Montar `DiffViewer` en un test para poder citar
-una fila cubierta produciría cobertura de código muerto, que es exactamente el tipo de evidencia que
-este anexo existe para descartar.
+La historia no queda completa. `docs/historias_de_usuario.md` exige además que los binarios muestren
+hashes y hex dump parcial, que el visor cambie de modo automáticamente y que utilice
+`react-diff-viewer-continued`. La implementación vigente descarta el contenido binario y el visor es
+un `<pre>` propio. Mantener esos pendientes evita convertir una implementación textual verificada en
+cumplimiento retrospectivo de criterios que no fueron modificados.
 
 | Criterio | Tests |
 |---|---|
-| Diff lado a lado o unificado en el detalle | SIN TEST — sin implementación activa |
-| Diff textual sólo para archivos de texto | `agent/tests/test_detector_diff.py::test_is_text_returns_true_for_text_file`, `::test_is_text_returns_false_for_binary`, `::test_is_text_returns_false_when_file_missing`, `::test_generate_diff_returns_unified_diff`, `::test_generate_diff_returns_none_for_binary`, `::test_generate_diff_returns_none_for_large_file`, `::test_generate_diff_returns_none_when_no_diff` — lado agente, no la UI |
-| Binarios: hashes + hex dump | `frontend/src/components/ui/DiffViewer.test.ts::toHexDump — convierte texto ASCII a hex`, `::trunca a maxBytes`, `::trunca al default de 256 bytes`, `::maneja string vacío` (helper de un componente que no se monta). Comparación visual de hashes: SIN TEST |
-| Detección automática texto/binario | `frontend/src/components/ui/DiffViewer.test.ts::isBinaryContent — retorna false para texto normal`, `::retorna true para strings con byte nulo`, `::retorna true para ELF header (binario real)` — sólo el predicado |
-| Escapado activo; prohibido `dangerouslySetInnerHTML` (W8) | SIN TEST — no hay regla de lint que lo enforce (verificado: no aparece en `frontend/src`) |
-| El diff nunca se loguea (W6) | SIN TEST — `hash_before`, `hash_after` y `size_delta` no existen en el código |
+| Diff lado a lado o unificado en el detalle | `frontend/src/pages/EventDetail.test.tsx`; `frontend/src/components/ui/DiffViewer.test.ts`; render integrado y patch multi-hunk verificados. |
+| Diff textual sólo para archivos de texto | `agent/tests/test_detector_diff.py`; binario, UTF-8 inválido, controles y tamaño excesivo producen `diff_text=None`. |
+| Binarios: hashes + hex dump | **Pendiente de implementación y prueba.** El contrato vigente descarta el contenido binario. |
+| Detección automática texto/binario | Detección en el agente probada; **pendiente en el visor**, que sólo recibe `diffText`. |
+| `react-diff-viewer-continued` con escapado; prohibido `dangerouslySetInnerHTML` (W8) | El render React como texto y la ausencia de `dangerouslySetInnerHTML` reducen el riesgo de inyección; **no se usa la biblioteca exigida por el criterio**. |
+| El diff nunca se loguea (W6) | La inspección del camino implementado no muestra logging directo de `diff_text`, pero no hay una prueba automatizada específica que inspeccione todos los logs; la nomenclatura canónica completa de hashes/tamaño tampoco queda acreditada. |
 
 ---
 
@@ -459,35 +466,42 @@ de dominio y ninguno describe una pantalla, de modo que el techo de la suite de 
 ---
 
 <a id="us-16"></a>
-### 5.16 US-16: Edición de una regla — `parcial`
+### 5.16 US-16: Edición de una regla — `completa`
 
 | Criterio | Tests |
 |---|---|
-| Formulario precargado | SIN TEST (UI) |
+| Formulario precargado | `frontend/e2e/us-isolated-lab.spec.ts::US-16 and US-17...` verifica los valores reales de patrón, severidad y acción antes de editar. |
 | Modificación de patrón, severidad y acción | `backend/tests/test_rules_service.py::TestWriteOperations::test_update_rule_persists_the_new_field_values`, `::TestWriteOperations::test_update_rule_partial_payload_keeps_untouched_fields` |
 | Los cambios se persisten | `backend/tests/test_rules_service.py::TestWriteOperations::test_update_rule_persists_the_new_field_values` (relee la fila tras `expire_all()`, para no leer el objeto en memoria que el servicio ya mutó; verifica además que `updated_at` avanzó y que no se creó una fila nueva). Ruta de error: `backend/tests/test_rules_router.py::test_put_rule_not_found_returns_404` (aserción débil) |
-| `ruleset_version++` (C11) + sync | `backend/tests/test_rules_service.py::TestWriteOperations::test_update_rule_increments_counter` |
+| `ruleset_version++` (C11) + sync | Unitario previo y Playwright aislado: versión posterior = versión anterior + 1, seguida de convergencia exacta del `state.json` del agente con DB. |
 | `audit_log` (W18) | `backend/tests/test_rules_service.py::TestWriteOperations::test_update_rule_writes_audit_log` |
 
 Autorización sí cubierta: `backend/tests/test_rules_router.py::test_put_rule_non_admin_returns_403`,
 `::test_put_rule_no_auth_returns_401`.
 
+Pendiente de accesibilidad separado de los criterios funcionales: los labels visibles de
+`RuleForm` no tienen asociación programática con sus controles. El E2E acota selectores al diálogo
+y no presenta ese defecto como corregido.
+
 ---
 
 <a id="us-17"></a>
-### 5.17 US-17: Eliminación de una regla — `parcial`
+### 5.17 US-17: Eliminación de una regla — `completa`
 
 | Criterio | Tests |
 |---|---|
-| Opción de eliminar | SIN TEST (UI) |
-| Confirmación previa | SIN TEST (UI) |
+| Opción de eliminar | `frontend/e2e/us-isolated-lab.spec.ts::US-16 and US-17...` acciona el control real de la fila. |
+| Confirmación previa | El caso cancela y verifica cero estado de confirmación/DELETE antes de confirmar; luego observa DELETE 204. |
 | La regla se elimina | `backend/tests/test_rules_service.py::TestWriteOperations::test_delete_rule_removes_the_row` (la fila desaparece y las demás quedan intactas) |
-| `ruleset_version++` (C11) + sync | `backend/tests/test_rules_service.py::TestWriteOperations::test_delete_rule_increments_counter` |
-| Los paths pasan al default `alert_only` | Indirecto: `agent/tests/test_rules.py::test_rules_evaluate_no_match_default`, `agent/tests/test_decision.py::test_decision_alert_only` |
+| `ruleset_version++` (C11) + sync | Unitario previo y Playwright aislado: delete incrementa exactamente +1 y DB/agente convergen en la misma versión sin la regla. |
+| Los paths pasan al default `alert_only` | El E2E modifica un archivo propio después de borrar y espera el evento real `alert_only` producido por agente→Valkey→backend. |
 | `audit_log` (W18) | `backend/tests/test_rules_service.py::TestWriteOperations::test_delete_rule_writes_audit_log` |
 
 Autorización sí cubierta: `backend/tests/test_rules_router.py::test_delete_rule_non_admin_returns_403`,
 `::test_delete_rule_no_auth_returns_401`.
+
+El pendiente de asociación accesible de labels pertenece a `RuleForm` y se registra por separado;
+no se lo ocultó ni se modificó producción durante esta validación.
 
 ---
 
@@ -519,14 +533,14 @@ Autorización sí cubierta: `backend/tests/test_rules_router.py::test_delete_rul
 ---
 
 <a id="us-20"></a>
-### 5.20 US-20: Alertas en tiempo real — `parcial`
+### 5.20 US-20: Alertas en tiempo real — `completa`
 
 | Criterio | Tests |
 |---|---|
-| Conexión SSE | `backend/tests/test_sse_alerts.py::test_stream_alerts_valid_token_content_type`, `::test_stream_alerts_invalid_token_returns_401`, `::test_stream_alerts_no_token_returns_422`. Lado cliente: SIN TEST |
-| Alerta ante nuevo evento | Por tramos: `backend/tests/test_sse_alerts.py::test_broadcaster_publish_delivers_to_all_subscribers`, `::test_broadcaster_unsubscribe_removes_queue`, `::test_broadcaster_unsubscribe_idempotent`, `::test_sse_realtime_frame_carries_event_alert`, `::test_sse_keepalive_frame_has_no_event_type`. **La cadena consumer → `notify_if_applicable` → `publish` no la recorre ningún test** |
-| Notificación visual sin recargar | SIN TEST (UI) |
-| Reconexión automática | Lado servidor: `backend/tests/test_sse_alerts.py::test_sse_replay_yields_missed_alerts`, `::test_sse_no_last_event_id_no_replay`, `::test_sse_replay_frames_carry_event_alert`, `::test_sse_replay_last_event_id_current_no_extra`. La reconexión del cliente: SIN TEST |
+| Conexión SSE | Unitarios previos y `frontend/e2e/us20-realtime-alerts.spec.ts` contra backend real. |
+| Alerta ante nuevo evento | El E2E recorrió Valkey HMAC → consumer → Event/Alert PostgreSQL → broadcaster SSE; PASS. |
+| Notificación visual sin recargar | El mismo caso observó el toast sin reload; PASS. |
+| Reconexión automática | `us02-us20-us31-fixed-us20isolated20260911T0220Z/` corta sólo un proxy SSE del laboratorio: el stream inicial cierra, API y refresh permanecen 200, el proxy vuelve, se observa la segunda respuesta SSE antes de publicar y llega el toast del evento real posterior. Dos corridas individuales 2/2 y dos combinadas 5/5 PASS. Los paquetes anteriores se conservan como evidencia histórica insuficiente. |
 | Robustez de la conexión (C32) | `backend/tests/test_c32_sse_security_fixes.py::test_session_closed_after_replay_before_sse_loop`, `::test_session_closed_when_no_replay`, `::test_broadcaster_queue_bounded_at_100`, `::test_broadcaster_queue_full_logs_warning` |
 
 De las ramas de `_require_admin_from_token` sólo están asertadas el JWT inválido y el token ausente;
@@ -611,25 +625,18 @@ reconfiguración real de las marcas de `fanotify` no está verificada por ningú
 ---
 
 <a id="us-25"></a>
-### 5.25 US-25: Bulk approve/reject — `parcial`
+### 5.25 US-25: Bulk approve/reject — `completa`
 
 | Criterio | Tests |
 |---|---|
-| Checkbox por fila y "seleccionar todo en la página" | SIN TEST (UI) |
-| Botones bulk al seleccionar ≥ 1 | Ejercitado (no asertado como criterio aislado) por `frontend/src/components/ui/BulkActionBar.test.tsx`, que hace click en "Rechazar seleccionados" como parte del flujo de rechazo |
-| Modal con cantidad y primeros 10 paths | SIN TEST (UI) |
-| Elección de acción para el rechazo bulk | `backend/tests/test_actions_router.py::test_bulk_reject_uses_items_contract_with_per_item_action`; cliente: `frontend/src/components/ui/BulkActionBar.test.tsx::rechazar 3 eventos con "quarantine" produce 3 ítems con action:"quarantine" cada uno, sin action al nivel superior del cuerpo`. **Divergencia** (persiste, ver §6): la acción va por ítem en el wire, no una única aplicada a todos los seleccionados como pide la historia — pero la UI sí ofrece la elección única, y el mapeo por ítem ocurre en `BulkActionBar.handleBulkReject` |
-| `POST /actions/bulk-approve` / `bulk-reject` | `backend/tests/test_actions_router.py::test_bulk_approve_uses_items_contract_and_partitions_results`, `::test_bulk_reject_uses_items_contract_with_per_item_action`, `::test_bulk_endpoints_accept_an_empty_batch` (el lote vacío devuelve la estructura vacía, no un 500), `::test_actions_endpoints_require_authentication[/actions/bulk-approve]`, `::test_actions_endpoints_require_authentication[/actions/bulk-reject]`, `::test_actions_endpoints_reject_non_admin[/actions/bulk-approve]`, `::test_actions_endpoints_reject_non_admin[/actions/bulk-reject]`, `::test_bulk_reject_request_fixture_matches_pydantic_schema`, `::test_bulk_reject_request_fixture_is_accepted_by_the_real_endpoint`, `::test_bulk_reject_superseded_shape_is_rejected_with_422_naming_the_missing_field` (contrato de wire compartido con el frontend, ver `contracts/actions.bulk-reject.request.json`) |
-| Optimistic locking individual (C5) | `backend/tests/test_actions_router.py::test_bulk_approve_uses_items_contract_and_partitions_results` (el ítem en conflicto no arrastra a los demás, verificado releyendo los tres eventos); `backend/tests/test_actions.py::test_bulk_approve_partial`, `::test_bulk_reject_partial`, `::test_bulk_approve_rollback_isolates_failed_item`, `::test_bulk_reject_rollback_isolates_failed_item` |
-| `succeeded[]` y `failed[]` con razón | `backend/tests/test_actions_router.py::test_bulk_approve_uses_items_contract_and_partitions_results` (`reason: "conflict"`), `::test_bulk_approve_reports_absent_confirmation_as_failed_item` (`reason: "absent_confirmation_required"`, sin cortar el lote); tests de servicio ya citados |
-| Baseline firmado por cada aprobado (C7, C11) | Indirecto: `backend/tests/test_actions.py::test_baseline_update_hmac_valid`; `backend/tests/test_ruleset_version_atomic.py::test_concurrent_increments_no_lost_update` |
-| `audit_log` por operación exitosa (W18) | Indirecto: `backend/tests/test_actions.py::test_audit_log_on_approve`, `::test_audit_log_on_reject` (ruta unitaria, no el camino bulk) |
-| Resumen visual con detalle expandible | `frontend/src/components/ui/BulkActionBar.test.tsx::muestra un resumen expandible por evento y conserva seleccionados sólo los fallidos`: aserta `button`, `aria-expanded`, path, éxito y razón de fallo |
-| Refresco automático de la tabla | El mismo caso aserta invalidación de `['events']`; la conciliación funcional quita sólo éxitos del lote sobre el estado actual, sin perder cambios concurrentes |
+| Selección, botones y modal 10+N | `frontend/e2e/us25-bulk-actions.spec.ts`; `frontend/src/components/ui/BulkActionBar.test.tsx` |
+| Wire canónico | `frontend/src/api/actions.test.ts` compara el JSON serializado con `contracts/actions.bulk-reject.request.json`; `backend/tests/test_actions_router.py` valida schema/endpoint y exige 422 para `items[]` legacy |
+| Acción compartida y carga server-side | `test_bulk_reject_uses_event_ids_contract_with_shared_action`; `test_bulk_approve_uses_event_ids_contract_and_partitions_results` cubre `not_found`/`not_pending`; `test_bulk_approve_reports_absent_confirmation_as_failed_item` cubre `baseline_absent` |
+| Locking y aislamiento parcial | `backend/tests/test_actions.py::test_bulk_approve_partial`, `::test_bulk_reject_partial`, y los dos casos rollback; `_approve_single`/`_reject_single` conservan UPDATE condicional por versión capturada |
+| Resultado y conciliación visual | `BulkActionBar.test.tsx::muestra un resumen expandible...` y `::aplica el resultado sobre la selección actual...` |
+| Firma, entrega, ACK, auditoría y efecto | `us-isolated-lab.spec.ts::US-25...` contra backend, DB, Valkey y agente reales; baseline cifrada termina ligada al UUID/hash aprobado |
 
-Nota de fidelidad del contrato, ahora confirmada por test: el cuerpo es `items[]` con
-`{event_id, version, action}`, no `event_ids[]`; y `baseline_absent` no es un motivo de fallo sino un
-mapa en la respuesta exitosa.
+El wire bulk no mantiene alias: approve usa `{event_ids:[...]}` y reject `{event_ids:[...], action:"restore|quarantine"}`. `baseline_absent` queda sólo en la acción individual; approve bulk informa el motivo y reject bulk lo trata como éxito sin comando (RN-74).
 
 ---
 
@@ -717,15 +724,15 @@ La tabla `failed_notifications` no existe: su rol lo cumple `alerts` con `failed
 ---
 
 <a id="us-31"></a>
-### 5.31 US-31: Toggle para mostrar eventos superseded — `parcial`
+### 5.31 US-31: Toggle para mostrar eventos superseded — `completa`
 
 | Criterio | Tests |
 |---|---|
 | El filtro oculta `superseded` por defecto | `backend/tests/test_event_listing_contract.py::test_list_events_excludes_superseded_by_default`, `::test_superseded_filter_applies_to_total_not_only_to_the_page`; cliente: `frontend/src/utils/eventFilters.test.ts::parseEventFilters — retorna defaults cuando el URLSearchParams está vacío`, `::include_superseded=false queda como undefined` |
-| Checkbox "Mostrar superseded" | SIN TEST |
-| Ícono de cadena rota y `parent_event_id` visible | SIN TEST |
+| Checkbox "Mostrar superseded" | `frontend/e2e/us31-superseded-toggle.spec.ts`: oculto por defecto y toggle real PASS. |
+| Ícono de cadena rota y `parent_event_id` visible | `frontend/src/components/ui/EventsTable.test.tsx` y E2E posterior: link/ícono presentes, semántica accesible conservada y `#<parent_event_id>` visible. PASS. |
 | Persistencia en la URL | `frontend/src/utils/eventFilters.test.ts::parseEventFilters — parsea include_superseded=true`, `::serializeEventFilters — serializa include_superseded=true`, `::omite include_superseded cuando es false/undefined`, `::round-trip parse/serialize — preserva filtros complejos en ida y vuelta`, `::filtros vacíos round-trip produce URLSearchParams vacío` |
-| `GET /events` respeta el parámetro | `backend/tests/test_event_listing_contract.py::test_list_events_includes_superseded_when_flag_is_true` (con eventos `superseded` reales: `total` pasa de 1 a 2 y el estado aparece en los ítems) |
+| `GET /events` respeta el parámetro | Unitario previo y E2E: request real `include_superseded=true`, URL y persistencia tras reload PASS. |
 
 Sigue vigente la advertencia de que `frontend/src/api/events.ts:88-97` **duplica** la serialización
 de filtros en un `paramsSerializer` sin ningún test: el camino que realmente llega al backend no es
@@ -740,12 +747,11 @@ salió del rastreo de código, no del texto de las historias, y se reverificó e
 
 | Historia | Criterio | Estado real |
 |---|---|---|
-| US-01, US-02, US-03 | Cookie de refresh `SameSite=Strict` + `Path=/auth/refresh` | Implementado como `samesite="lax"`, `path="/"` |
 | US-07 | Selector con los 7 estados | `ALL_STATUSES` enumera 6 |
 | US-08 | "Tipo de acción" del evento | No existe el campo en `Event` ni en `EventOut` |
 | US-08, US-10 | Posición en la cadena y navegación | Fuera de alcance declarado; sólo se muestra el padre inmediato |
-| US-09 | Panel de diff en el detalle | Removido (commit `9e566ed`); `DiffViewer.tsx` es código muerto |
-| US-09 | `hash_before`, `hash_after`, `size_delta` (W6) | No existen en el código |
+| US-09 | Modo binario con hashes y hex dump | No implementado; el contenido binario se descarta por el contrato vigente. |
+| US-09 | `react-diff-viewer-continued` | No se usa; el visor vigente renderiza el patch en un `<pre>`. |
 | US-10 | Endpoint de cadena de eventos por path | No existe |
 | US-11 | Baseline con el hash actual del filesystem | Decisión D2 en contra: se usa `event.hash_detected` |
 | US-12 | `ruleset_version` en `restore_file` / `quarantine_file` | Excluido por diseño |
@@ -760,8 +766,6 @@ salió del rastreo de código, no del texto de las historias, y se reverificó e
 | US-22 | Selección de paths para el re-scan | `AgentRescanRequest` sólo tiene `force` |
 | US-22 | `ruleset_version++` en `rescan_baseline` y guard en el agente | No implementados |
 | US-23 | Contexto de proceso, `received_at` y acción en el payload del webhook | `_build_payload` no los incluye |
-| US-25 | Acción única aplicada a todo el lote | El contrato lleva acción **por ítem**. Actualizado 2026-08-21: la UI **sí** ofrece una elección única en el modal (`BulkActionBar.tsx`) y el mapeo sobre cada ítem ocurre en el cliente — la divergencia es de la historia respecto del contrato que el backend implementa, no del código respecto de la historia |
-| US-25 | Detalle expandible del resumen bulk | Implementado en `BulkActionBar.tsx`; falta aceptación visual e integración contra backend real |
 | US-26 | Navegación numerada e input "ir a página" | Sólo "Anterior"/"Siguiente" |
 | US-27 | Reglas de complejidad de la contraseña | Sólo se valida longitud ≥ 12 |
 | US-27 | `audit_log` de `login` / `logout` / `change_password` | La llamada existe para `change_password`; no hay filas verificadas para login/logout |

@@ -13,8 +13,8 @@ Cubre:
     distinguible de un 422 de validación de Pydantic.
   - `require_admin` en los cuatro endpoints: 401 sin token, 403 con usuario no admin.
   - Forma de `ActionResponse` y de `BulkResultResponse`.
-  - Contrato real de los endpoints bulk: `items[]` con `{event_id, version, ...}`,
-    no `event_ids[]`.
+  - Contrato canónico de endpoints bulk: `event_ids[]` y acción compartida en reject;
+    la forma legacy `items[]` se rechaza con 422.
 
 Postgres real (el engine de conftest) y autenticación real: los tokens se
 firman para usuarios que existen en la base, sin sobreescribir `get_current_user`.
@@ -365,39 +365,39 @@ async def test_reject_with_invalid_action_returns_422(client, session, agent, ad
 # ── POST /actions/bulk-approve y /actions/bulk-reject ────────────────────────
 
 
-async def test_bulk_approve_uses_items_contract_and_partitions_results(
+async def test_bulk_approve_uses_event_ids_contract_and_partitions_results(
     client, session, agent, admin_id
 ) -> None:
     """
-    El contrato real es `items[]` con `{event_id, version}` (no `event_ids[]`).
+    El contrato canónico usa `event_ids[]`; el servicio captura la versión actual.
     La respuesta parte los resultados en `succeeded` / `failed` con el motivo.
     """
     ok1 = _pending_event(session, agent)
     ok2 = _pending_event(session, agent)
-    stale = _pending_event(session, agent)
+    already_done = _pending_event(session, agent)
+    already_done.status = EventStatus.approved
+    session.add(already_done)
+    session.commit()
 
     resp = await client.post(
         "/actions/bulk-approve",
-        json={
-            "items": [
-                {"event_id": ok1.id, "version": 0},
-                {"event_id": stale.id, "version": 77},  # conflicto
-                {"event_id": ok2.id, "version": 0},
-            ]
-        },
+        json={"event_ids": [ok1.id, already_done.id, ok2.id, 999999999]},
         headers=_headers(admin_id),
     )
 
     assert resp.status_code == 200
     body = resp.json()
-    assert set(body) == {"succeeded", "failed", "baseline_absent"}
+    assert set(body) == {"succeeded", "failed"}
     assert sorted(body["succeeded"]) == sorted([ok1.id, ok2.id])
-    assert body["failed"] == [{"event_id": stale.id, "reason": "conflict"}]
+    assert body["failed"] == [
+        {"event_id": already_done.id, "reason": "not_pending"},
+        {"event_id": 999999999, "reason": "not_found"},
+    ]
 
     session.expire_all()
     assert session.get(Event, ok1.id).status == EventStatus.approved
     assert session.get(Event, ok2.id).status == EventStatus.approved
-    assert session.get(Event, stale.id).status == EventStatus.pending
+    assert session.get(Event, already_done.id).status == EventStatus.approved
 
 
 async def test_bulk_approve_reports_absent_confirmation_as_failed_item(
@@ -409,12 +409,7 @@ async def test_bulk_approve_reports_absent_confirmation_as_failed_item(
 
     resp = await client.post(
         "/actions/bulk-approve",
-        json={
-            "items": [
-                {"event_id": ok.id, "version": 0},
-                {"event_id": absent.id, "version": 0},
-            ]
-        },
+        json={"event_ids": [ok.id, absent.id]},
         headers=_headers(admin_id),
     )
 
@@ -422,47 +417,41 @@ async def test_bulk_approve_reports_absent_confirmation_as_failed_item(
     body = resp.json()
     assert body["succeeded"] == [ok.id]
     assert body["failed"] == [
-        {"event_id": absent.id, "reason": "absent_confirmation_required"}
+        {"event_id": absent.id, "reason": "baseline_absent"}
     ]
 
 
-async def test_bulk_reject_uses_items_contract_with_per_item_action(
+async def test_bulk_reject_uses_event_ids_contract_with_shared_action(
     client, session, agent, admin_id
 ) -> None:
-    """Cada ítem de `bulk-reject` lleva su propia acción; la respuesta mapea `baseline_absent`."""
+    """`bulk-reject` aplica una acción canónica al conjunto de IDs."""
     restored = _pending_event(session, agent)
-    quarantined = _pending_event(session, agent)
-    stale = _pending_event(session, agent)
+    restored2 = _pending_event(session, agent)
 
     resp = await client.post(
         "/actions/bulk-reject",
-        json={
-            "items": [
-                {"event_id": restored.id, "version": 0, "action": "restore"},
-                {"event_id": quarantined.id, "version": 0, "action": "quarantine"},
-                {"event_id": stale.id, "version": 13, "action": "restore"},  # conflicto
-            ]
-        },
+        json={"event_ids": [restored.id, restored2.id, 999999999], "action": "restore"},
         headers=_headers(admin_id),
     )
 
     assert resp.status_code == 200
     body = resp.json()
-    assert sorted(body["succeeded"]) == sorted([restored.id, quarantined.id])
-    assert body["failed"] == [{"event_id": stale.id, "reason": "conflict"}]
-    # `baseline_absent` está poblado por cada evento exitoso (M8).
-    assert body["baseline_absent"] == {str(restored.id): False, str(quarantined.id): False}
+    assert sorted(body["succeeded"]) == sorted([restored.id, restored2.id])
+    assert body["failed"] == [{"event_id": 999999999, "reason": "not_found"}]
+    assert set(body) == {"succeeded", "failed"}
 
     session.expire_all()
     assert session.get(Event, restored.id).status == EventStatus.rejected
-    assert session.get(Event, quarantined.id).status == EventStatus.rejected
-    assert session.get(Event, stale.id).status == EventStatus.pending
+    assert session.get(Event, restored2.id).status == EventStatus.rejected
 
 
 async def test_bulk_endpoints_accept_an_empty_batch(client, admin_id) -> None:
     """Un lote vacío es válido y devuelve la estructura vacía, no un 500."""
     for endpoint in ("/actions/bulk-approve", "/actions/bulk-reject"):
-        resp = await client.post(endpoint, json={"items": []}, headers=_headers(admin_id))
+        payload = {"event_ids": []}
+        if endpoint.endswith("bulk-reject"):
+            payload["action"] = "restore"
+        resp = await client.post(endpoint, json=payload, headers=_headers(admin_id))
         assert resp.status_code == 200, endpoint
         assert resp.json()["succeeded"] == []
         assert resp.json()["failed"] == []
@@ -498,20 +487,15 @@ async def test_bulk_reject_request_fixture_is_accepted_by_the_real_endpoint(clie
     assert resp.status_code == 200
     body = resp.json()
     assert body["succeeded"] == []
-    assert len(body["failed"]) == len(fixture["items"])
+    assert len(body["failed"]) == len(fixture["event_ids"])
 
 
-async def test_bulk_reject_superseded_shape_is_rejected_with_422_naming_the_missing_field(
+async def test_bulk_reject_legacy_items_shape_is_rejected_with_422(
     client, admin_id
 ) -> None:
-    """Caso negativo obligatorio (7.11): la forma vieja —acción arriba, ausente
-    por ítem— sigue siendo 422, y el error nombra el campo que falta.
-
-    Afirmar sólo "422" dejaría pasar un 422 por cualquier otro motivo, que es
-    la misma clase de aserción laxa que dejó vivo el defecto original.
-    """
+    """La representación legacy `items[]` se rechaza sin alias silencioso."""
     old_shape_body = {
-        "items": [{"event_id": 999001, "version": 0}, {"event_id": 999002, "version": 0}],
+        "items": [{"event_id": 999001, "version": 0, "action": "restore"}],
         "action": "restore",
     }
 
@@ -519,7 +503,5 @@ async def test_bulk_reject_superseded_shape_is_rejected_with_422_naming_the_miss
 
     assert resp.status_code == 422
     detail = resp.json()["detail"]
-    assert any(
-        err.get("type") == "missing" and err.get("loc") == ["body", "items", 0, "action"]
-        for err in detail
-    ), detail
+    assert any(err.get("type") == "missing" and err.get("loc") == ["body", "event_ids"] for err in detail), detail
+    assert any(err.get("type") == "extra_forbidden" and err.get("loc") == ["body", "items"] for err in detail), detail

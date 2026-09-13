@@ -9,8 +9,7 @@ import {
   bulkReject,
   type ApproveParams,
   type RejectParams,
-  type BulkItem,
-  type BulkRejectItem,
+  type RejectAction,
 } from '@/api/actions'
 
 /**
@@ -82,7 +81,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   })
 
   const bulkApproveMutation = useMutation({
-    mutationFn: (items: BulkItem[]) => bulkApprove(items),
+    mutationFn: (eventIds: number[]) => bulkApprove(eventIds),
     onError: (err: unknown) => {
       const message = bulkActionErrorMessage(err, 'aprobar')
       if (message) toast.error(message)
@@ -100,7 +99,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   })
 
   const bulkRejectMutation = useMutation({
-    mutationFn: (items: BulkRejectItem[]) => bulkReject(items),
+    mutationFn: ({ eventIds, action }: { eventIds: number[]; action: RejectAction }) => bulkReject(eventIds, action),
     onError: (err: unknown) => {
       const message = bulkActionErrorMessage(err, 'rechazar')
       if (message) toast.error(message)

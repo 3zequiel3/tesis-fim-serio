@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class RejectAction(str, Enum):
@@ -44,29 +44,17 @@ class ActionResponse(BaseModel):
 # ── Bulk operations ───────────────────────────────────────────────────────────
 
 
-class BulkApproveItem(BaseModel):
-    event_id: int
-    version: int
-    confirm_absent: bool = False
-
-
 class BulkApproveRequest(BaseModel):
-    items: list[BulkApproveItem]
-
-
-class BulkRejectItem(BaseModel):
-    event_id: int
-    version: int
-    action: RejectAction
+    model_config = ConfigDict(extra="forbid")
+    event_ids: list[int]
 
 
 class BulkRejectRequest(BaseModel):
-    items: list[BulkRejectItem]
+    model_config = ConfigDict(extra="forbid")
+    event_ids: list[int]
+    action: RejectAction
 
 
 class BulkResultResponse(BaseModel):
     succeeded: list[int]
     failed: list[dict]
-    # M8: solo poblado por reject_bulk — event_id -> baseline_absent.
-    # approve_bulk lo deja vacío (no aplica).
-    baseline_absent: dict[int, bool] = {}

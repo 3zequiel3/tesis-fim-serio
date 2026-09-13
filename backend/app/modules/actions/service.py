@@ -345,7 +345,7 @@ def _reject_single(
 def approve_bulk(
     db: Session,
     valkey_client: Any,
-    items: list[dict[str, Any]],
+    event_ids: list[int],
     user_id: int,
 ) -> dict[str, Any]:
     """
@@ -356,21 +356,28 @@ def approve_bulk(
     succeeded: list[int] = []
     failed: list[dict[str, Any]] = []
 
-    for item in items:
-        event_id = item["event_id"]
+    for event_id in event_ids:
+        event = _get_event(db, event_id)
+        if event is None:
+            failed.append({"event_id": event_id, "reason": "not_found"})
+            continue
+        if event.status != EventStatus.pending:
+            failed.append({"event_id": event_id, "reason": "not_pending"})
+            continue
+        version = event.version
         try:
             _approve_single(
                 db,
                 valkey_client,
                 event_id=event_id,
-                version=item["version"],
-                confirm_absent=item.get("confirm_absent", False),
+                version=version,
+                confirm_absent=False,
                 user_id=user_id,
             )
             succeeded.append(event_id)
         except AbsentConfirmationRequired:
             db.rollback()
-            failed.append({"event_id": event_id, "reason": "absent_confirmation_required"})
+            failed.append({"event_id": event_id, "reason": "baseline_absent"})
         except ConflictError:
             db.rollback()
             failed.append({"event_id": event_id, "reason": "conflict"})
@@ -385,33 +392,37 @@ def approve_bulk(
 def reject_bulk(
     db: Session,
     valkey_client: Any,
-    items: list[dict[str, Any]],
+    event_ids: list[int],
+    action: RejectAction,
     user_id: int,
 ) -> dict[str, Any]:
     """
     Rechaza múltiples eventos de forma independiente.
     Error en un ítem no aborta el resto.
-    Retorna {"succeeded": [...], "failed": [...], "baseline_absent": {event_id: bool}}.
-    M8: baseline_absent mapea cada evento exitoso a si hubo no-op por baseline absent.
+    Retorna {"succeeded": [...], "failed": [...]}. El no-op de baseline absent
+    sigue siendo un éxito (RN-74) y no se expone como representación paralela.
     """
     succeeded: list[int] = []
     failed: list[dict[str, Any]] = []
-    baseline_absent_by_event: dict[int, bool] = {}
-
-    for item in items:
-        event_id = item["event_id"]
+    for event_id in event_ids:
+        event = _get_event(db, event_id)
+        if event is None:
+            failed.append({"event_id": event_id, "reason": "not_found"})
+            continue
+        if event.status != EventStatus.pending:
+            failed.append({"event_id": event_id, "reason": "not_pending"})
+            continue
+        version = event.version
         try:
-            action = RejectAction(item["action"])
-            _, baseline_absent = _reject_single(
+            _reject_single(
                 db,
                 valkey_client,
                 event_id=event_id,
-                version=item["version"],
+                version=version,
                 action=action,
                 user_id=user_id,
             )
             succeeded.append(event_id)
-            baseline_absent_by_event[event_id] = baseline_absent
         except ConflictError:
             db.rollback()
             failed.append({"event_id": event_id, "reason": "conflict"})
@@ -420,4 +431,4 @@ def reject_bulk(
             log.error("service.actions.reject_bulk.unexpected", event_id=event_id, error=str(exc))
             failed.append({"event_id": event_id, "reason": "internal_error"})
 
-    return {"succeeded": succeeded, "failed": failed, "baseline_absent": baseline_absent_by_event}
+    return {"succeeded": succeeded, "failed": failed}

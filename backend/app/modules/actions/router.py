@@ -102,14 +102,10 @@ async def bulk_approve_events(
     current_user: User = Depends(require_admin),
 ) -> BulkResultResponse:
     """Aprueba múltiples eventos. Resultado parcial por ítem. Requiere JWT admin."""
-    items = [
-        {"event_id": item.event_id, "version": item.version, "confirm_absent": item.confirm_absent}
-        for item in body.items
-    ]
     result = approve_bulk(
         db=session,
         valkey_client=valkey_client,
-        items=items,
+        event_ids=body.event_ids,
         user_id=current_user.id,  # type: ignore[arg-type]
     )
     return BulkResultResponse(**result)
@@ -123,14 +119,11 @@ async def bulk_reject_events(
     current_user: User = Depends(require_admin),
 ) -> BulkResultResponse:
     """Rechaza múltiples eventos. Resultado parcial por ítem. Requiere JWT admin."""
-    items = [
-        {"event_id": item.event_id, "version": item.version, "action": item.action.value}
-        for item in body.items
-    ]
     result = reject_bulk(
         db=session,
         valkey_client=valkey_client,
-        items=items,
+        event_ids=body.event_ids,
+        action=body.action,
         user_id=current_user.id,  # type: ignore[arg-type]
     )
     return BulkResultResponse(**result)
