@@ -23,11 +23,23 @@ PERMISSION_DENIED = "permission_denied"
 MISSING = "missing"
 
 
+def _effective_access(path: str, mode: int) -> bool:
+    """access(2) with AT_EACCESS: evaluated with effective ids and capabilities.
+
+    Plain access(2) checks the real uid and, for a non-root uid, the kernel drops
+    the effective capabilities during the check. The systemd service runs as
+    fim-agent holding CAP_DAC_OVERRIDE as an ambient capability (D36/RN-130), so
+    a plain check reports root-owned watch_paths as not writable even though the
+    remediation writes succeed.
+    """
+    return os.access(path, mode, effective_ids=True)
+
+
 def classify_path_writability(
     path: str,
     *,
     statvfs_fn: Callable[[str], object] = os.statvfs,
-    access_fn: Callable[[str, int], bool] = os.access,
+    access_fn: Callable[[str, int], bool] = _effective_access,
     exists_fn: Callable[[str], bool] = os.path.exists,
 ) -> str:
     """Clasifica un watch_path: writable | read_only_mount | permission_denied | missing.

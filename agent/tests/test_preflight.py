@@ -108,6 +108,31 @@ def test_file_path_evaluates_parent_directory(tmp_path) -> None:
     assert seen_paths == [str(tmp_path)]
 
 
+# ── probe por defecto: ids efectivos (capabilities del servicio) ─────────────
+
+
+def test_default_access_probe_uses_effective_ids(monkeypatch) -> None:
+    """Sin access_fn inyectado, el chequeo DAC debe usar AT_EACCESS: el servicio
+    corre como fim-agent con CAP_DAC_OVERRIDE ambiental, y access(2) con ids
+    reales descarta esa capability para un uid distinto de root."""
+    calls: list[tuple[str, int, dict]] = []
+
+    def _fake_access(path: str, mode: int, **kwargs) -> bool:
+        calls.append((path, mode, kwargs))
+        return kwargs.get("effective_ids") is True
+
+    monkeypatch.setattr("agent.preflight.os.access", _fake_access)
+
+    result = classify_path_writability(
+        "/fake/root-owned",
+        statvfs_fn=_statvfs(read_only=False),
+        exists_fn=lambda p: True,
+    )
+
+    assert result == WRITABLE
+    assert calls == [("/fake/root-owned", os.W_OK, {"effective_ids": True})]
+
+
 # ── run_preflight ──────────────────────────────────────────────────────────
 
 
