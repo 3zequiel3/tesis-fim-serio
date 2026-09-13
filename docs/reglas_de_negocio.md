@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-151 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-156 |
 
 ---
 
@@ -784,7 +784,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1758,6 +1758,258 @@ con `CERT_REQUIRED`.
 **Nota de proceso:** esta decisión y su implementación se ejecutaron inline, sin change de OpenSpec,
 por decisión explícita del responsable del proyecto — es una corrección de seguridad acotada sobre un
 incumplimiento ya normado (RN-114), no una feature nueva del roadmap.
+
+#### D53 / RN-147: Identidad pública del servidor en los certificados (SAN configurable)
+
+**Descripción:** El `.env` del servidor SHALL declarar `FIM_PUBLIC_HOSTS`: la lista, separada por
+comas, de nombres DNS y direcciones IP por las que los agentes remotos alcanzan el servidor. El
+certificado de servidor del backend (listeners 8443 y 8444) y el de Valkey (6380) SHALL incluir en su
+SAN los nombres internos fijos (`backend`, `fim-backend`, `localhost` para el backend; `valkey`,
+`localhost` para Valkey) más cada entrada de `FIM_PUBLIC_HOSTS`, un nombre como `DNSName` y una IP
+como `IPAddress`. Si el certificado existente no cubre el conjunto requerido, SHALL reemitirse con la
+misma CA, con el mismo criterio idempotente que ya aplica `_ensure_backend_cert`. La emisión del
+certificado de servidor de Valkey y la del certificado de cliente del backend ante Valkey
+(`CN=fim-backend-valkey`) SHALL dejar de ser pasos manuales y ejecutarse automáticamente antes de
+que Valkey arranque con TLS.
+
+**Motivo:** Los SAN estaban fijos en código (`backend/app/core/pki.py:161`,
+`scripts/emitir_cert_valkey.py:72`). Un agente que apunta a la IP o al dominio del servidor falla la
+verificación de hostname que RN-114 y RN-115 exigen. El ensayo multi-host A-3 lo resolvió mapeando
+`backend` y `valkey` en `/etc/hosts` del host monitoreado y emitiendo a mano el certificado de
+cliente del backend desde la carpeta de evidencia: funciona, pero traslada al host monitoreado un
+mapeo de nombres frágil y no documentado, y deja fuera del producto un paso sin el cual el backend no
+se autentica ante Valkey.
+
+**Por qué no desactivar la verificación de hostname:** es la garantía contra un intermediario que
+presente un certificado válido de la misma CA para otro nombre. RN-114 prohíbe relajarla.
+
+**Condición:** Arranque del stack del servidor.
+
+**Resultado:** Con `FIM_PUBLIC_HOSTS` vacío, los certificados cubren sólo los nombres internos
+(despliegue en un único host, comportamiento previo). Con valores, un agente remoto verifica el
+hostname contra el nombre o la IP que usa en su configuración, sin tocar `/etc/hosts`.
+
+**Excepciones:** Ninguna. No se agrega una bandera para desactivar la verificación de hostname.
+
+**Reglas afectadas:** completa RN-114 y RN-115 para despliegues con agentes fuera del host Docker; no
+altera la vigencia de RN-78.
+
+#### D54 / RN-148: Topología de despliegue en un servidor remoto
+
+**Descripción:** El servidor SHALL desplegarse con `docker-compose.yml` + `docker-compose.tls.yml` y
+el perfil `app`. Todo valor específico de un despliegue SHALL vivir en `.env`; el YAML no se edita por
+despliegue. Cuando exista al menos un agente fuera del host Docker, el override TLS de Valkey es
+obligatorio y SHALL publicar el puerto 6380. Los puertos publicados SHALL ser: los de la consola web
+(según D55/RN-149), 8443, 8444 y 6380. SHALL NOT publicarse: 8000 (API en claro, accesible sólo a
+través del proxy de la consola; se admite bind a loopback para diagnóstico), 5432, 6379 y 5678. El
+servicio `agent` del compose es de laboratorio y SHALL NOT ser el mecanismo para monitorear hosts:
+los hosts se monitorean con el agente nativo (D56/RN-150). Un script de preparación del servidor
+SHALL generar `.env` —secretos aleatorios, `FIM_PUBLIC_HOSTS`, credenciales del admin, clave de
+cifrado y owner de n8n (D45/RN-139) y URLs productivas de n8n (D43/RN-137)— sin sobrescribir un
+`.env` existente.
+
+**Motivo:** El compose publicaba 8000 en `0.0.0.0`, con lo que la API quedaba expuesta salteando el
+proxy. El 6380 sólo se publicaba en un override de evidencia del ensayo A-3. Y los valores por
+despliegue estaban repartidos entre `.env`, el YAML y pasos manuales, así que reproducir el sistema
+en otro equipo exigía conocer esos pasos.
+
+**Condición:** Todo despliegue del servidor destinado a monitorear hosts distintos del host Docker.
+
+**Resultado:** Un operador prepara el servidor generando `.env` y levantando el stack con los dos
+archivos de compose, sin editar YAML. Desde fuera del servidor sólo son alcanzables la consola y los
+tres canales TLS de los agentes.
+
+**Excepciones:** Los compose de laboratorio de aceptación conservan su configuración propia. El
+puerto 6379 en claro no se publica en ningún caso.
+
+**Reglas afectadas:** refina RN-76 (despliegue single-instance) para el caso multi-host; no modifica
+D-04 (5678 sin publicar).
+
+#### D55 / RN-149: HTTPS de la consola web opcional, con la cookie de refresh atada al esquema real
+
+**Descripción:** La consola web SHALL poder servirse por HTTP o por HTTPS según configuración
+explícita en `.env`, con tres modos: sin TLS (HTTP), certificado autofirmado generado al arranque, o
+certificado provisto por el operador (por ejemplo, emitido por Let's Encrypt). Con HTTPS, el puerto
+80 SHALL redirigir al 443. El atributo `Secure` de la cookie de refresh SHALL derivarse de esa
+configuración explícita y SHALL NOT derivarse de `ENVIRONMENT`. El encabezado HSTS SHALL emitirse
+sólo cuando la consola se sirve por HTTPS. En modo HTTP, la documentación y el arranque SHALL
+advertir que credenciales y tokens viajan en claro.
+
+**Motivo — HTTPS no puede ser prerrequisito para ejecutar el sistema.** Un servidor de prueba puede
+no tener dominio, y la tesis tiene que poder reproducirse sin uno. A la vez, el comportamiento
+previo era frágil: `secure=settings.environment != "dev"` (`auth/router.py:66`). Un operador que
+fijara `ENVIRONMENT=prod` sirviendo por HTTP perdía el refresh de sesión en silencio (el navegador
+descarta la cookie `Secure` fuera de HTTPS), y uno que dejara `dev` detrás de HTTPS emitía la cookie
+sin `Secure`. Además, nginx emitía HSTS sobre HTTP.
+
+**Alcance:** sólo la consola web. Los canales de los agentes —8443, 8444 y 6380— SHALL permanecer con
+TLS obligatorio y la CA propia (RN-78, RN-114, RN-115, D52/RN-146), sin dependencia de dominio ni de
+una CA pública.
+
+**Condición:** Arranque del servicio de la consola y emisión de la cookie de refresh.
+
+**Resultado:** El sistema funciona completo por HTTP en un servidor sin dominio. Con HTTPS
+configurado, la cookie lleva `Secure` y el navegador recibe HSTS. El modo elegido es visible y no se
+infiere de otra variable.
+
+**Excepciones:** Ninguna para los canales de los agentes.
+
+**Reglas afectadas:** ninguna regla previa se deroga; corrige el acoplamiento entre `ENVIRONMENT` y la
+seguridad de la cookie.
+
+#### D56 / RN-150: Instalador del agente parametrizable, con ancla de confianza verificada
+
+**Descripción:** `agent/install.sh` SHALL aceptar sus valores por flags o variables de entorno, y SHALL
+preguntar interactivamente los que falten: host del servidor, del que deriva
+`backend_url=https://<host>:8444`, `mtls_backend_url=https://<host>:8443` y
+`valkey_url=valkeys://<host>:6380`; `agent_id` (por defecto, el hostname); `watch_paths` (rutas
+absolutas existentes); ruta del `ca.pem` y su huella SHA-256 esperada, abortando si no coincide; y el
+secreto de bootstrap, **sólo** por prompt oculto o archivo, nunca como argumento. SHALL NOT
+sobrescribir `config.yaml` ni `env` existentes salvo pedido explícito de reconfiguración. Re-ejecutarlo
+SHALL reemplazar el código instalado. Antes de habilitar el servicio SHALL verificar el alcance
+TCP/TLS a 8444 y 6380 e informar el resultado. SHALL informar que, tras el primer bootstrap, la
+configuración autoritativa vive en el backend. Del lado del servidor, un único paso SHALL registrar
+el agente y entregar al operador el host, la huella de la CA y el secreto de un solo uso.
+
+**Motivo:** En el ensayo A-3, instalar un agente remoto exigió editar `config.yaml` a mano, copiar
+`ca.pem` y comparar su hash manualmente, tipear el secreto y registrar el agente con un script ad hoc
+guardado en la carpeta de evidencia (`registrar_agente_a3.sh`). Además, re-ejecutar el instalador
+anidaba el código nuevo en `/opt/fim-agent/agent/agent/` (`cp -r`) y el servicio seguía corriendo el
+anterior, pese a que el propio script recomienda re-ejecutarse.
+
+**Por qué el secreto nunca va como argumento:** los argumentos de un proceso son visibles en `ps`
+para otros usuarios del host y quedan en el historial del shell.
+
+**Condición:** Instalación o reinstalación del agente en un host monitoreado, y registro del agente en
+el servidor.
+
+**Resultado:** Un operador instala un agente remoto con un comando y los datos que entrega el
+servidor, sin editar archivos; la confianza en el servidor queda anclada a una huella verificada, y
+una reinstalación actualiza efectivamente el código.
+
+**Excepciones:** Ninguna para el secreto por argumento.
+
+**Reglas afectadas:** operacionaliza RN-114 (ancla de confianza del bootstrap) y D52/RN-146; compone
+con D36/RN-130 (drop-in de `watch_paths`), que no se modifica.
+
+#### D58 / RN-152: Canales de n8n y sus credenciales declarados en `.env`
+
+**Descripción:** Los canales que el enrutador de n8n abanica y las credenciales de cada uno SHALL
+declararse en el `.env` del servidor: `N8N_FIM_CHANNELS` con la lista de canales habilitados y las
+variables propias de cada canal. El servicio de provisioning de n8n SHALL importar esas credenciales
+en cada arranque y fijar en el enrutador el conjunto de canales habilitados. El entorno del contenedor
+SHALL NOT exponerse a las expresiones de los workflows (`N8N_BLOCK_ENV_ACCESS_IN_NODE` conserva su
+default). Sin ningún canal habilitado, el enrutador SHALL responder con un código no-2xx.
+
+**Motivo:** D44/RN-138 fija que el enrutador abanica «por configuración del administrador» sin decir
+dónde vive esa configuración, y el 5678 no se publica (D-04). La alternativa —crear credenciales desde
+la UI por un túnel SSH— exige `N8N_SECURE_COOKIE=false` y reintroduce un paso manual en el camino
+crítico que D45/RN-139 eliminó para el owner.
+
+**Condición:** Arranque del stack y cada alerta entregada a n8n.
+
+**Resultado:** Un servidor se configura de punta a punta desde `.env`. Una alerta sin canal
+habilitado no se marca entregada por n8n y el backend aplica su cascada (D43/RN-137).
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** concreta D44/RN-138 (configuración del enrutador) y RN-52; coherente con
+D43/RN-137 (un canal sin configurar no se reporta como sano).
+
+#### D59 / RN-153: Orígenes permitidos de la consola derivados de `FIM_PUBLIC_HOSTS`
+
+**Descripción:** El script de preparación del servidor (D54/RN-148) SHALL derivar
+`CORS_ALLOWED_ORIGINS` de cada entrada de `FIM_PUBLIC_HOSTS` más `localhost`, con el esquema del modo
+de la consola (D55/RN-149) y el puerto sólo cuando no es el default de ese esquema. El valor SHALL
+quedar editable en `.env`. No se introduce una variable separada para los nombres de la consola.
+
+**Motivo:** El middleware de CORS del backend responde 403 a todo origen no listado, y el default
+`http://localhost` hace fallar el login de una consola accedida por la IP o el dominio del servidor.
+En el despliegue objetivo la consola y los agentes alcanzan el servidor por los mismos nombres; una
+segunda variable duplicaría la configuración sin un caso que la justifique.
+
+**Condición:** Generación del `.env` del servidor.
+
+**Resultado:** La consola funciona por los nombres declarados en `FIM_PUBLIC_HOSTS` sin editar
+`CORS_ALLOWED_ORIGINS`. Si se accede por otro nombre, se agrega a mano en `.env`.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** ninguna regla previa se modifica.
+
+#### D60 / RN-154: Valor de HSTS según el modo de la consola
+
+**Descripción:** El encabezado `Strict-Transport-Security` de la consola SHALL depender del modo de
+D55/RN-149: en `provided`, `max-age=63072000; includeSubDomains`; en `self_signed`, `max-age=300`
+**sin** `includeSubDomains`; en `off`, no se emite.
+
+**Motivo:** Mientras HSTS está vigente, el navegador vuelve **no omisible** el error de certificado
+(RFC 6797 §12.1). Con un certificado autofirmado accedido por nombre DNS, dos años de HSTS dejarían al
+operador sin forma de aceptar el certificado durante ese período, y `includeSubDomains` extendería el
+bloqueo a otros servicios del dominio. Un `max-age` corto conserva la redirección a HTTPS durante la
+sesión sin atrapar al navegador. Las IPs literales están exentas de HSTS por la misma RFC, así que en
+un servidor accedido por IP el valor es indiferente.
+
+**Condición:** Toda respuesta de la consola servida por HTTPS.
+
+**Resultado:** Con un certificado de CA pública, HSTS completo. Con autofirmado, el operador puede
+reemplazar el certificado o volver a `off` sin quedar bloqueado.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** precisa D55/RN-149, que fijaba HSTS con HTTPS sin fijar su valor.
+
+#### D61 / RN-155: Reemisión por vencimiento de los certificados del servidor
+
+**Descripción:** El paso de emisión de certificados del servidor SHALL reemitir cada certificado que
+administra —servidor del backend, servidor de Valkey, cliente del backend ante Valkey y, en modo
+`self_signed`, el de la consola— cuando su SAN no cubre el conjunto requerido (D53/RN-147) **o**
+cuando le quedan menos de `_CERT_RENEWAL_THRESHOLD_DAYS` (15) días de vigencia. La reemisión sólo
+ocurre al arrancar o reiniciar el stack. La CA no se rota.
+
+**Motivo:** Los certificados del servidor duran 90 días y D53/RN-147 sólo fijaba la reemisión por
+SAN. Un servidor que llegara al vencimiento dejaría a todos los agentes sin canal (8443, 8444, 6380)
+aunque sus propios certificados siguieran vigentes. El umbral ya existe en `pki.py` y es el mismo que
+usan los agentes para su renovación (RN-78).
+
+**Condición:** Arranque o reinicio del stack del servidor.
+
+**Resultado:** Reiniciar el stack dentro de los últimos 15 días de vigencia renueva los certificados
+sin intervención. La guía de despliegue documenta la limitación: un servidor que no se reinicia en 75
+días debe reiniciarse, o forzarse la emisión, antes del vencimiento.
+
+**Excepciones:** Los certificados de los agentes no se ven afectados: se renuevan por `/agents/renew`
+(RN-78, change 50).
+
+**Reglas afectadas:** complementa D53/RN-147 y RN-78; no altera el período de validez.
+
+#### D62 / RN-156: Certificado autofirmado de la consola en ECDSA P-256, independiente de la CA
+
+**Descripción:** En el modo `self_signed` de D55/RN-149, el certificado de la consola SHALL ser un
+certificado **autofirmado** con clave ECDSA P-256 y firma ECDSA-SHA256, SHALL NOT estar firmado por la
+CA propia y SHALL NOT usar Ed25519. Conserva el SAN (`localhost` ∪ `FIM_PUBLIC_HOSTS`), el EKU
+`serverAuth` y los criterios de reemisión de D61/RN-155. `certs-init` SHALL imprimir su huella SHA-256
+para que el operador la compare con la que muestra el navegador. La CA Ed25519 y los certificados de
+los canales de agentes no cambian.
+
+**Motivo:** Chrome y Firefox no aceptan certificados Ed25519 en TLS, aunque BoringSSL y NSS soporten
+el algoritmo. Verificado al aplicar D55: la navegación del Chromium de Playwright contra el
+certificado Ed25519 falla con `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`, mientras `curl` completa el
+handshake. Firmarlo con la CA propia tampoco sirve: la firma de la CA también es Ed25519 y el
+verificador del navegador no puede validarla. El modo `self_signed` resultaba inutilizable
+justamente en el cliente para el que existe.
+
+**Por qué no una CA intermedia ECDSA:** agrega un segundo árbol de confianza que ningún navegador
+confía de todos modos; el operador acepta el certificado por su huella en ambos casos.
+
+**Condición:** Emisión del certificado de la consola con `CONSOLE_TLS_MODE=self_signed`.
+
+**Resultado:** La consola en modo `self_signed` abre en navegadores reales tras aceptar la
+advertencia de certificado no confiable, verificable por huella.
+
+**Excepciones:** Ninguna. El modo `provided` usa el certificado que entrega el operador.
+
+**Reglas afectadas:** precisa D55/RN-149 y D60/RN-154; no modifica RN-78, RN-114 ni RN-115.
 
 #### D57 / RN-151: `diff_text` redactado en logs y detalle de evento restringido a admin
 

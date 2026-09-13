@@ -2619,3 +2619,75 @@ La firma prueba origen, no legitimidad del contenido.
 Esa distinción es la que **evita** que un bump de esquema exija desplegar el backend antes que los agentes. Con un `invalid_schema` terminal indiscriminado, un agente adelantado contra un backend viejo habría **borrado sus propios eventos**: un bump se habría vuelto una operación con pérdida de datos si el orden se invertía. Con `unsupported` retenible, el agente adelantado conserva sus eventos y espera; el orden de despliegue vuelve a ser una buena práctica y no un requisito bajo pena de pérdida.
 
 Se mantiene la recomendación de desplegar backend primero, por tiempo de convergencia, no por corrección.
+
+### D53–D56 / RN-147 a RN-150: Despliegue en un servidor remoto
+
+Contraparte técnica de las decisiones normativas homónimas de [reglas_de_negocio.md](reglas_de_negocio.md). Se agregaron el 2026-09-12, a partir de los hallazgos del ensayo multi-host A-3. La implementación vive en el change `vps-deployment-readiness` de [CHANGES.md](../CHANGES.md).
+
+#### Topología
+
+```
+Servidor (host Docker)                                Host monitoreado (N)
+─────────────────────────────────────────             ─────────────────────────────
+docker-compose.yml + docker-compose.tls.yml           agente nativo (systemd)
+perfil `app`, valores sólo en `.env`                  instalado con agent/install.sh
+certs-init: CA → backend → Valkey → cliente
+  Valkey → consola (sólo self_signed) — one-shot,
+  corre antes de que valkey/backend/frontend arranquen
+
+  consola  :80 (HTTP) | :443 (HTTPS, D55) ◄────────── navegador del operador
+  backend  :8444 bootstrap TLS server-auth ◄───────── agente (primer arranque)
+  backend  :8443 mTLS                      ◄───────── agente (renovación)
+  valkey   :6380 mTLS                      ◄───────── agente (eventos, heartbeat)
+  no publicados: 8000, 5432, 6379, 5678
+```
+
+`certs-init` (`python -m app.core.certs_init`, imagen del backend) es el
+servicio one-shot que emite toda la cadena de certificados del servidor
+antes de que ningún otro servicio dependiente arranque (D53/RN-147, design
+D-1 del change `vps-deployment-readiness`) — ver `backend/app/core/certs_init.py`.
+
+#### Variables de `.env` que introduce el despliegue remoto
+
+| Variable | Decisión | Efecto |
+|---|---|---|
+| `FIM_PUBLIC_HOSTS` | D53 | Nombres DNS e IPs agregados al SAN de los certificados de backend y Valkey. Vacía ⇒ sólo nombres internos. |
+| `CONSOLE_TLS_MODE` (`off` \| `self_signed` \| `provided`) | D55 | Determina puertos publicados, HSTS y `Secure` de la cookie de refresh. Default `off`. |
+| `CONSOLE_HTTP_PORT` (default `80`) | D55 | Puerto publicado del host para el listener HTTP de la consola: sirve la SPA en claro en modo `off`, redirige 301 a HTTPS en `self_signed`/`provided`. |
+| `CONSOLE_HTTPS_PORT` (default `443`) | D55 | Puerto publicado del host para el listener HTTPS de la consola. Sin efecto en modo `off`. |
+| `CONSOLE_TLS_DIR` (default `./deploy/console-tls`) | D55 | Directorio montado en modo `provided` — se monta completo (no archivos sueltos) para admitir el patrón `live/` → `archive/` de Let's Encrypt. |
+| `CONSOLE_TLS_CERT_FILE` (default `fullchain.pem`) | D55 | Ruta del certificado, relativa a `CONSOLE_TLS_DIR`. Sólo en `provided`. |
+| `CONSOLE_TLS_KEY_FILE` (default `privkey.pem`) | D55 | Ruta de la clave privada, relativa a `CONSOLE_TLS_DIR`. Sólo en `provided`. |
+
+Estos son los nombres definitivos, fijados al implementar el change; ver
+`scripts/prepare_server_env.py` y `docs/despliegue_servidor_remoto.md` para
+su generación y uso operativo.
+
+#### Certificados
+
+- El SAN requerido se calcula como nombres internos ∪ `FIM_PUBLIC_HOSTS`. Una entrada que parsea como IP se emite como `IPAddress`; el resto, como `DNSName`.
+- La reemisión es idempotente: si el certificado existente cubre el conjunto requerido, no se toca. Mismo criterio que `_ensure_backend_cert` ya aplica para los nombres internos.
+- El certificado de servidor de Valkey y el de cliente del backend ante Valkey (`CN=fim-backend-valkey`) se emiten antes de que Valkey arranque con TLS; ningún operador ejecuta scripts dentro de contenedores para obtenerlos.
+- La consola web no usa la CA propia en ningún modo (D62/RN-156): en `self_signed` es un certificado autofirmado ECDSA P-256, porque los navegadores no aceptan Ed25519; en `provided`, el del operador.
+
+#### Cookie de refresh
+
+`Secure` se deriva del modo TLS de la consola, no de `ENVIRONMENT`. Motivo: en un navegador, una cookie `Secure` servida por HTTP en un host que no es `localhost` se descarta en silencio, y el síntoma —la sesión expira al vencer el access token— no apunta a la causa.
+
+#### Instalador del agente
+
+- Entradas: host del servidor, `agent_id`, `watch_paths`, `ca.pem` + huella SHA-256, secreto de bootstrap (prompt oculto o archivo).
+- Derivadas: `backend_url=https://<host>:8444`, `mtls_backend_url=https://<host>:8443`, `valkey_url=valkeys://<host>:6380`.
+- Reinstalación: reemplaza el árbol de código en lugar de copiar dentro de él.
+- Verificación previa a habilitar: alcance TCP/TLS a 8444 y 6380.
+- Tras el primer bootstrap, `config.yaml` deja de ser autoritativo: la configuración vive en el backend y se modifica desde la consola.
+
+#### D58–D62 / RN-152 a RN-156: decisiones cerradas al diseñar y aplicar, 2026-09-13
+
+| Decisión | Resolución técnica |
+|---|---|
+| D58 | `N8N_FIM_CHANNELS` + variables por canal en `.env`; `n8n-provision` importa credenciales con `import:credentials` y fija el conjunto habilitado en el enrutador; `N8N_BLOCK_ENV_ACCESS_IN_NODE` en su default; sin canal habilitado ⇒ respuesta no-2xx. |
+| D59 | `CORS_ALLOWED_ORIGINS` = `FIM_PUBLIC_HOSTS` ∪ `localhost`, con esquema del modo de consola y puerto sólo si no es el default; editable en `.env`. |
+| D60 | HSTS: `provided` ⇒ `max-age=63072000; includeSubDomains`; `self_signed` ⇒ `max-age=300`; `off` ⇒ sin encabezado. |
+| D61 | `certs-init` reemite si el SAN no cubre el conjunto requerido **o** si faltan menos de `_CERT_RENEWAL_THRESHOLD_DAYS` (15) días; sólo al arrancar; la CA no se rota. |
+| D62 | Certificado `self_signed` de la consola: autofirmado ECDSA P-256 / ECDSA-SHA256, sin la CA propia; `certs-init` imprime su huella SHA-256. Cerrada el 2026-09-13 al aplicar D55. |
