@@ -5,8 +5,11 @@ D54/RN-148 — topología de servidor en `docker-compose.yml` +
 Renderiza la composición real con `docker compose ... config --format json`
 contra un `.env` de prueba (no arranca nada, no publica puertos reales).
 
-`test_certs_init_presente` verifica el servicio one-shot `certs-init`
-(D53/RN-147).
+Tarea 3.4 completa (grupo 6 ya implementado): `test_certs_init_presente`
+verifica `n8n-provision` además de `certs-init`, y
+`test_n8n_provision_misma_imagen_que_n8n` verifica la paridad de imagen
+(D-6/D45/RN-139, requirement "Versiones del stack pinneadas" de
+`infra-compose`).
 """
 
 from __future__ import annotations
@@ -125,6 +128,13 @@ def test_agent_presente_con_perfil_app_y_lab(rendered_app_lab) -> None:
 
 def test_certs_init_presente(rendered_app) -> None:
     assert "certs-init" in rendered_app["services"]
+    assert "n8n-provision" in rendered_app["services"]
+
+
+def test_n8n_provision_misma_imagen_que_n8n(rendered_app) -> None:
+    services = rendered_app["services"]
+    assert services["n8n-provision"]["image"] == services["n8n"]["image"]
+    assert services["n8n"]["image"] == "n8nio/n8n:2.17.8"
 
 
 def test_parametros_tls_del_valkey_url(rendered_app) -> None:

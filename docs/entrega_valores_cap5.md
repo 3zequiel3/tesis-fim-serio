@@ -211,7 +211,7 @@ Filas cualitativas de la misma tabla, ya cerradas: baseline separada y cifrada (
 |---|---|---|---|
 | PostgreSQL | 18.3 — `docs/arquitectura_stack.md:41,1688` | `postgres:18.3` — `docker-compose.yml:35` | ✅ |
 | Valkey | 9.0.3 — `docs/arquitectura_stack.md:43,1689` | `valkey/valkey:9.0.3` — `docker-compose.yml:65` | ✅ |
-| n8n | 2.16.1 — `docs/arquitectura_stack.md:44,1690` | `n8nio/n8n:2.16.1` — `docker-compose.yml:85` | ✅ |
+| n8n | 2.17.8 — `docs/arquitectura_stack.md:44` | `n8nio/n8n:2.17.8` — `docker-compose.yml:100,148` | ✅ (pin subido de 2.16.1 a 2.17.8 por D45/RN-139 en el change `vps-deployment-readiness`; las mediciones de este capítulo se corrieron contra 2.16.1 y sus valores no se recalcularon) |
 
 *Inconsistencia menor — ya corregida*: `docs/arquitectura_stack.md:1513,1536` mostraba un compose de ejemplo con `postgres:18` / `valkey:9.0` sin patch version; hoy dice `postgres:18.3` / `valkey/valkey:9.0.3`.
 

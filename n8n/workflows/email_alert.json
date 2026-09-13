@@ -1,63 +1,116 @@
 {
-  "__meta": {
-    "n8n_version": "2.16.1",
-    "description": "FIM Platform — Email alert workflow. Triggered via webhook when a FIM alert fires. Sends a formatted email with alert details.",
-    "credentials_required": [
-      "SMTP credentials configured in n8n as 'FIM SMTP' (host, port, user, password, from address)"
-    ],
-    "import_instructions": "Import via n8n UI > Workflows > Import from file. Configure the 'FIM SMTP' credential with your SMTP server settings before activating."
-  },
-  "name": "FIM — Email Alert",
+  "id": "9d42f98a-d16c-4224-9c9b-8c7a8593bff8",
+  "name": "FIM - Email Alert",
+  "active": true,
   "nodes": [
     {
-      "id": "1",
-      "name": "Webhook Trigger",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [240, 300],
-      "webhookId": "fim-email-alert",
-      "parameters": {
-        "path": "fim/alert/email",
-        "httpMethod": "POST",
-        "responseMode": "onReceived",
-        "responseData": "firstEntryJson"
-      }
+      "id": "e95b7fd8-368f-41e1-b7d1-a27a14e3e756",
+      "name": "When called by router",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
     },
     {
-      "id": "2",
-      "name": "Send Alert Email",
+      "id": "bbc4854f-80f7-45e9-a18b-343b4e271a26",
+      "name": "Send alert email",
       "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2,
-      "position": [460, 300],
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        0
+      ],
+      "onError": "continueRegularOutput",
       "credentials": {
         "smtp": {
-          "id": "fim-smtp",
-          "name": "FIM SMTP"
+          "id": "n8n-fim-email-smtp",
+          "name": "FIM Email SMTP"
         }
       },
       "parameters": {
-        "fromEmail": "={{ $credentials.smtp.from }}",
-        "toEmail": "={{ $json.body.recipient || 'security@example.com' }}",
-        "subject": "=[FIM Alert] {{ $json.body.severity | upper }} — {{ $json.body.path }}",
+        "fromEmail": "__FIM_ENV_N8N_EMAIL_FROM__",
+        "toEmail": "__FIM_ENV_N8N_EMAIL_TO__",
+        "subject": "=[FIM Alert] {{ ($json.payload.severity || 'notice').toUpperCase() }} \u2014 {{ $json.payload.path || $json.payload.component || 'n/a' }}",
         "emailFormat": "html",
-        "message": "=<h2>FIM Platform Alert</h2><table><tr><th>Field</th><th>Value</th></tr><tr><td>Event ID</td><td>{{ $json.body.event_id }}</td></tr><tr><td>Severity</td><td>{{ $json.body.severity }}</td></tr><tr><td>Path</td><td>{{ $json.body.path }}</td></tr><tr><td>Status</td><td>{{ $json.body.status }}</td></tr><tr><td>Agent ID</td><td>{{ $json.body.agent_id }}</td></tr><tr><td>Detected At</td><td>{{ $json.body.detected_at }}</td></tr></table>"
+        "message": "=<h2>FIM Platform Alert</h2><table><tr><th>Field</th><th>Value</th></tr><tr><td>Notification ID</td><td>{{ $json.payload.notification_id || '' }}</td></tr><tr><td>Type</td><td>{{ $json.payload.type || '' }}</td></tr><tr><td>Event ID</td><td>{{ $json.payload.event_id || '' }}</td></tr><tr><td>Severity</td><td>{{ ($json.payload.severity || '').toUpperCase() }}</td></tr><tr><td>Path</td><td>{{ $json.payload.path || '' }}</td></tr><tr><td>Status</td><td>{{ $json.payload.status || '' }}</td></tr><tr><td>Action Taken</td><td>{{ $json.payload.action_taken || '' }}</td></tr><tr><td>Agent ID</td><td>{{ $json.payload.agent_id || '' }}</td></tr><tr><td>Detected At</td><td>{{ $json.payload.detected_at || '' }}</td></tr><tr><td>Component</td><td>{{ $json.payload.component || '' }}</td></tr><tr><td>Old Status</td><td>{{ $json.payload.old_status || '' }}</td></tr><tr><td>New Status</td><td>{{ $json.payload.new_status || '' }}</td></tr></table>",
+        "options": {}
+      }
+    },
+    {
+      "id": "5f394e4b-4af6-43b3-96c0-38494c4860a5",
+      "name": "Build email result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9e1f3829-25af-47e1-b5e1-d0f4de475593",
+              "name": "channel",
+              "type": "string",
+              "value": "email"
+            },
+            {
+              "id": "2e522cd8-4770-491b-bd64-82267f8eae71",
+              "name": "delivered",
+              "type": "boolean",
+              "value": "={{ !$json.error }}"
+            },
+            {
+              "id": "7ebe63f9-0999-4e53-9cb1-f5d2b38fcf8f",
+              "name": "error",
+              "type": "string",
+              "value": "={{ $json.error ? String($json.error) : null }}"
+            }
+          ]
+        },
+        "options": {}
       }
     }
   ],
   "connections": {
-    "Webhook Trigger": {
+    "When called by router": {
       "main": [
         [
-          {"node": "Send Alert Email", "type": "main", "index": 0}
+          {
+            "node": "Send alert email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send alert email": {
+      "main": [
+        [
+          {
+            "node": "Build email result",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": true,
-    "errorWorkflow": ""
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
   },
   "staticData": null,
-  "pinData": {}
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
 }

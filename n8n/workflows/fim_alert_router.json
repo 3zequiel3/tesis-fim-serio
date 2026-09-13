@@ -1,15 +1,17 @@
 {
-  "id": "5c01d9b8-702f-4de8-9672-7a515d62f10a",
-  "name": "FIM - Controlled Alert Router",
-  "active": false,
-  "versionId": "729d4b36-e4b3-41b1-8da4-0429865b32f4",
+  "id": "2c8651c9-e8dc-45ef-88af-c805760ff919",
+  "name": "FIM - Alert Router",
+  "active": true,
   "nodes": [
     {
-      "id": "15122c50-03dc-4e63-85e1-75f172610977",
+      "id": "d7b4654d-c2f4-4d36-90e8-3cf0856472e7",
       "name": "Receive FIM alert",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "webhookId": "fim-alert",
       "parameters": {
         "path": "fim-alert",
@@ -19,21 +21,30 @@
       }
     },
     {
-      "id": "77cd89f0-6456-460d-b65b-e326a62c2737",
-      "name": "Add acceptance timestamp",
+      "id": "61148ffa-24de-4e9b-b94f-2de998bb90b6",
+      "name": "Add enabled channels",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [240, 0],
+      "position": [
+        240,
+        0
+      ],
       "parameters": {
         "mode": "manual",
         "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
-              "id": "5af0de60-ec44-4664-8425-b8191a676120",
-              "name": "n8n_accepted_at",
+              "id": "fcca87f7-6cc7-4a57-962f-306318e81ba0",
+              "name": "enabled_channels",
               "type": "string",
-              "value": "={{ $now.toISO() }}"
+              "value": "__FIM_ENV_N8N_FIM_CHANNELS__"
+            },
+            {
+              "id": "27eac0ca-e32f-494f-872c-a34e99f413db",
+              "name": "results",
+              "type": "array",
+              "value": "={{ [] }}"
             }
           ]
         },
@@ -41,54 +52,667 @@
       }
     },
     {
-      "id": "194002d2-30a5-4935-8699-4686eec40f55",
-      "name": "Deliver to controlled receiver",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [500, 0],
-      "onError": "continueRegularOutput",
+      "id": "e320b7c6-48d5-489c-b9c9-69fd4efb35a1",
+      "name": "Route by type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        480,
+        0
+      ],
       "parameters": {
-        "method": "POST",
-        "url": "http://controlled-receiver:8080/fim-alert",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ ...$json.body, n8n_accepted_at: $json.n8n_accepted_at }) }}",
-        "options": {
-          "timeout": 10000,
-          "response": {
-            "response": {
-              "fullResponse": true,
-              "neverError": true
-            }
-          }
-        }
+        "mode": "expression",
+        "numberOutputs": 2,
+        "output": "={{ $json.body.type === 'health_change' ? 1 : 0 }}"
       }
     },
     {
-      "id": "3d8742d2-b9b4-4d48-8329-b5e86daadd1d",
-      "name": "Confirm durable receipt",
+      "id": "d195eb28-95e9-4c57-b68a-1c0f574c40d7",
+      "name": "Email enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "18dd7dae-69a7-4d2e-b746-3668188f7531",
+              "leftValue": "={{ $('Add enabled channels').item.json.enabled_channels }}",
+              "rightValue": "email",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3a52ec73-38fa-4c7f-9a4b-94efab053d4c",
+      "name": "Wrap payload (email)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        -60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d87a97f6-80e6-46c4-9dd1-6b571c1bb67d",
+              "name": "payload",
+              "type": "object",
+              "value": "={{ $('Receive FIM alert').item.json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "08ced81e-b463-4ac9-a1bf-533ff428bb0b",
+      "name": "Call email subflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "source": "database",
+        "workflowId": "9d42f98a-d16c-4224-9c9b-8c7a8593bff8"
+      },
+      "position": [
+        1200,
+        -60
+      ]
+    },
+    {
+      "id": "7f1b06ca-6c47-4f58-bb56-969d8cd4cffb",
+      "name": "Append email result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        -60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "10637e76-5cb1-4031-b87b-b0188bf6bcb5",
+              "name": "results",
+              "type": "array",
+              "value": "={{ $('Email enabled?').item.json.results.concat([{ channel: $json.channel, delivered: $json.delivered, error: $json.error }]) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "11077c57-cd2a-4804-b42e-8420811f67a6",
+      "name": "Append email disabled",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3fcf7099-42a6-4b46-bd32-6dea62274d32",
+              "name": "results",
+              "type": "array",
+              "value": "={{ $json.results.concat([{ channel: 'email', delivered: false, error: 'channel_disabled' }]) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "61f5c150-bcdf-4b50-9f7a-811dcf36016a",
+      "name": "Slack enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2403aabf-73f2-4fee-bc82-7a8a7d1fffa3",
+              "leftValue": "={{ $('Add enabled channels').item.json.enabled_channels }}",
+              "rightValue": "slack",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f827954a-96fd-4f5a-9986-4d667b72dbd1",
+      "name": "Wrap payload (slack)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1920,
+        -60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4bebb41d-df6c-4fa5-8853-c97879e60eba",
+              "name": "payload",
+              "type": "object",
+              "value": "={{ $('Receive FIM alert').item.json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5e99b1a6-bcdd-4c23-8ebc-621628027055",
+      "name": "Call slack subflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "source": "database",
+        "workflowId": "00100d40-0e73-4762-9b79-9a030f7b46f7"
+      },
+      "position": [
+        2160,
+        -60
+      ]
+    },
+    {
+      "id": "19a7e256-fb01-4458-9acc-7bfc21f43431",
+      "name": "Append slack result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2400,
+        -60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4bfd5f79-b277-41d5-be69-dc8ee9979f10",
+              "name": "results",
+              "type": "array",
+              "value": "={{ $('Slack enabled?').item.json.results.concat([{ channel: $json.channel, delivered: $json.delivered, error: $json.error }]) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a6950246-8c47-4455-a8da-7dcfa7eebee6",
+      "name": "Append slack disabled",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1920,
+        60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4300a7e3-c100-4457-b796-d525e2a94067",
+              "name": "results",
+              "type": "array",
+              "value": "={{ $json.results.concat([{ channel: 'slack', delivered: false, error: 'channel_disabled' }]) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "00ee069d-50d3-40bc-bbbf-224492a4cba0",
+      "name": "Ticketing enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "76fe5460-ad4d-4509-9233-f1176d4a5f99",
+              "leftValue": "={{ $('Add enabled channels').item.json.enabled_channels }}",
+              "rightValue": "jira",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "d1b83410-93e6-44be-99e8-da52b2322f8f",
+              "leftValue": "={{ $('Add enabled channels').item.json.enabled_channels }}",
+              "rightValue": "linear",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c516ef69-ce3a-437f-bb60-b2fa408d918c",
+      "name": "Wrap payload (ticketing)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2880,
+        -60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f548bf78-2367-43af-aa07-8479450e64a0",
+              "name": "payload",
+              "type": "object",
+              "value": "={{ $('Receive FIM alert').item.json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0d5c7ba8-1d8f-43c7-9831-8ad75a19622d",
+      "name": "Call ticketing subflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "source": "database",
+        "workflowId": "dc8458ed-b9a2-4c05-bf95-824f068abf7f"
+      },
+      "position": [
+        3120,
+        -60
+      ]
+    },
+    {
+      "id": "921530de-a9f1-49b1-a624-3920edee0cf8",
+      "name": "Append ticketing result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3360,
+        -60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "141a112a-f80a-4048-9673-d66d0399f49c",
+              "name": "results",
+              "type": "array",
+              "value": "={{ $('Ticketing enabled?').item.json.results.concat([{ channel: $json.channel, delivered: $json.delivered, error: $json.error }]) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "45637970-99b7-44cb-bb9b-18207ad7c2ae",
+      "name": "Append ticketing disabled",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2880,
+        60
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e851c23-4f95-4439-8490-2b11d940f539",
+              "name": "results",
+              "type": "array",
+              "value": "={{ $json.results.concat([{ channel: 'ticketing', delivered: false, error: 'channel_disabled' }]) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8ab7036c-cd02-4749-a9a0-f01cbc43ce26",
+      "name": "Build response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = $json.results || [];\nconst accepted = results.some((r) => r.delivered === true);\nreturn [{ json: { accepted, results } }];\n"
+      }
+    },
+    {
+      "id": "e2fb247f-de19-45dc-bcaf-e4cefbd68615",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [760, 0],
+      "position": [
+        3840,
+        0
+      ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { accepted: !$json.error && $json.statusCode >= 200 && $json.statusCode < 300, notification_id: $json.body?.notification_id || null, receiver_received_at: $json.body?.receiver_received_at || null, error: $json.error ? 'controlled_receiver_unavailable' : (($json.statusCode >= 200 && $json.statusCode < 300) ? null : 'controlled_receiver_rejected') } }}",
+        "responseBody": "={{ { accepted: $json.accepted, results: $json.results } }}",
         "options": {
-          "responseCode": "={{ (!$json.error && $json.statusCode >= 200 && $json.statusCode < 300) ? 202 : 502 }}"
+          "responseCode": "={{ $json.accepted ? 202 : 502 }}"
         }
       }
     }
   ],
   "connections": {
     "Receive FIM alert": {
-      "main": [[{"node": "Add acceptance timestamp", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Add enabled channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Add acceptance timestamp": {
-      "main": [[{"node": "Deliver to controlled receiver", "type": "main", "index": 0}]]
+    "Add enabled channels": {
+      "main": [
+        [
+          {
+            "node": "Route by type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Deliver to controlled receiver": {
-      "main": [[{"node": "Confirm durable receipt", "type": "main", "index": 0}]]
+    "Route by type": {
+      "main": [
+        [
+          {
+            "node": "Email enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email enabled?": {
+      "main": [
+        [
+          {
+            "node": "Wrap payload (email)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append email disabled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap payload (email)": {
+      "main": [
+        [
+          {
+            "node": "Call email subflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call email subflow": {
+      "main": [
+        [
+          {
+            "node": "Append email result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append email result": {
+      "main": [
+        [
+          {
+            "node": "Slack enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append email disabled": {
+      "main": [
+        [
+          {
+            "node": "Slack enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack enabled?": {
+      "main": [
+        [
+          {
+            "node": "Wrap payload (slack)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append slack disabled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap payload (slack)": {
+      "main": [
+        [
+          {
+            "node": "Call slack subflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call slack subflow": {
+      "main": [
+        [
+          {
+            "node": "Append slack result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append slack result": {
+      "main": [
+        [
+          {
+            "node": "Ticketing enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append slack disabled": {
+      "main": [
+        [
+          {
+            "node": "Ticketing enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ticketing enabled?": {
+      "main": [
+        [
+          {
+            "node": "Wrap payload (ticketing)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append ticketing disabled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap payload (ticketing)": {
+      "main": [
+        [
+          {
+            "node": "Call ticketing subflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call ticketing subflow": {
+      "main": [
+        [
+          {
+            "node": "Append ticketing result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append ticketing result": {
+      "main": [
+        [
+          {
+            "node": "Build response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append ticketing disabled": {
+      "main": [
+        [
+          {
+            "node": "Build response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

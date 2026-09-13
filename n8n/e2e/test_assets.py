@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-WORKFLOW = ROOT / "n8n" / "workflows" / "fim_alert_router.json"
+WORKFLOW = ROOT / "n8n" / "e2e" / "workflows" / "fim_alert_router.json"
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("JWT_SECRET_CURRENT", "test-secret-current-32-chars-xxxxx")

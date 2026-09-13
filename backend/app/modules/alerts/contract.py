@@ -66,6 +66,30 @@ ALERT_DATA_FIELDS: tuple[str, ...] = (
 
 ALERT_FIELDS: frozenset[str] = frozenset(ENVELOPE_FIELDS + ALERT_DATA_FIELDS)
 
+# Data fields of a `health_change` notification (`app/core/health.py`,
+# `change_payload`). Kept here — even though `health.py` builds the dict
+# inline rather than importing this tuple — so the n8n workflow contract test
+# (change 52, D44/RN-138) has one place to validate both notification shapes
+# against, per this module's own single-source-of-truth rationale. `event` is
+# kept for backward compatibility with any consumer that read it before
+# `type` existed (see `health.py`'s own comment).
+HEALTH_CHANGE_DATA_FIELDS: tuple[str, ...] = (
+    "event",
+    "component",
+    "old_status",
+    "new_status",
+    "checked_at",
+)
+
+HEALTH_CHANGE_FIELDS: frozenset[str] = frozenset(ENVELOPE_FIELDS + HEALTH_CHANGE_DATA_FIELDS)
+
+# Union of every field either notification type may carry — what an n8n
+# workflow is allowed to read via `$json.body.<field>` (router) or
+# `$json.payload.<field>` / `.json.payload.<field>` (sub-flows), since the
+# same webhook and the same `Execute Workflow` calls carry both types
+# (change 52, D44/RN-138).
+NOTIFICATION_FIELDS: frozenset[str] = ALERT_FIELDS | HEALTH_CHANGE_FIELDS
+
 # The canonical name for the monitored path is `path` — that is what RN-53
 # states, what the code has always emitted and what all three workflows read.
 # `file_path` appeared only in an architecture-doc example and was the outlier;

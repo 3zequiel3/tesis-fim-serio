@@ -1,127 +1,785 @@
 {
-  "__meta": {
-    "n8n_version": "2.16.1",
-    "description": "FIM Platform — Ticketing alert workflow (Jira / Linear). Triggered via webhook when a FIM alert fires. Creates an issue with severity, path and event_id.",
-    "credentials_required": [
-      "For Jira: Jira API token configured in n8n as 'FIM Jira' (base_url, email, api_token, project_key)",
-      "For Linear: HTTP Header Auth with 'Authorization: Bearer <LINEAR_API_KEY>' configured as 'FIM Linear'"
-    ],
-    "import_instructions": "Import via n8n UI > Workflows > Import from file. Select the target system (Jira or Linear) by enabling the corresponding branch node. Configure the relevant credential before activating."
-  },
-  "name": "FIM — Ticketing Alert",
+  "id": "dc8458ed-b9a2-4c05-bf95-824f068abf7f",
+  "name": "FIM - Ticketing Alert",
+  "active": true,
   "nodes": [
     {
-      "id": "1",
-      "name": "Webhook Trigger",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [240, 300],
-      "webhookId": "fim-ticketing-alert",
-      "parameters": {
-        "path": "fim/alert/ticket",
-        "httpMethod": "POST",
-        "responseMode": "onReceived",
-        "responseData": "firstEntryJson"
-      }
+      "id": "3707ea02-80fd-47dd-8495-9dfe4c27fd10",
+      "name": "When called by router",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
     },
     {
-      "id": "2",
-      "name": "Route by System",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
-      "position": [460, 300],
+      "id": "aa0a761c-9bb4-4fcb-86a3-8e7d1c0bc6a6",
+      "name": "Load ticketing config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ],
       "parameters": {
-        "mode": "expression",
-        "output": "={{ $json.body.ticketing_system || 'jira' }}"
-      }
-    },
-    {
-      "id": "3",
-      "name": "Create Jira Issue",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [680, 200],
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $credentials.jiraBaseUrl }}/rest/api/3/issue",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpBasicAuth",
-        "sendBody": true,
-        "contentType": "json",
-        "body": {
-          "fields": {
-            "project": {"key": "={{ $credentials.jiraProjectKey }}"},
-            "summary": "[FIM] {{ $json.body.severity | upper }}: {{ $json.body.path }}",
-            "description": {
-              "type": "doc",
-              "version": 1,
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "FIM Alert Details\n\nEvent ID: {{ $json.body.event_id }}\nSeverity: {{ $json.body.severity }}\nPath: {{ $json.body.path }}\nAgent: {{ $json.body.agent_id }}\nDetected At: {{ $json.body.detected_at }}"
-                    }
-                  ]
-                }
-              ]
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0a39ad5c-7699-4f52-a0bb-3970d204603d",
+              "name": "jira_enabled",
+              "type": "string",
+              "value": "__FIM_ENV_N8N_TICKETING_JIRA_ENABLED__"
             },
-            "issuetype": {"name": "Bug"}
-          }
-        }
+            {
+              "id": "8621ad37-3006-48c1-acc6-182bb9f32819",
+              "name": "jira_domain",
+              "type": "string",
+              "value": "__FIM_ENV_N8N_JIRA_DOMAIN__"
+            },
+            {
+              "id": "1ea30f1d-f4cd-4a22-ae91-804b523209ff",
+              "name": "jira_project_key",
+              "type": "string",
+              "value": "__FIM_ENV_N8N_JIRA_PROJECT_KEY__"
+            },
+            {
+              "id": "460ef31c-8031-446d-aeac-40d659c11edb",
+              "name": "linear_enabled",
+              "type": "string",
+              "value": "__FIM_ENV_N8N_TICKETING_LINEAR_ENABLED__"
+            },
+            {
+              "id": "89b82514-3326-426b-a6f1-b57e2e847288",
+              "name": "linear_api_url",
+              "type": "string",
+              "value": "__FIM_ENV_N8N_LINEAR_API_URL__"
+            },
+            {
+              "id": "c7eba5e2-e8ba-4152-9de7-1d0c6fb92c45",
+              "name": "linear_team_id",
+              "type": "string",
+              "value": "__FIM_ENV_N8N_LINEAR_TEAM_ID__"
+            }
+          ]
+        },
+        "options": {}
       }
     },
     {
-      "id": "4",
-      "name": "Create Linear Issue",
+      "id": "51694cd7-1a7a-4485-a6ce-685df3d9710f",
+      "name": "Jira enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c7a460a0-e825-447f-a7df-07deb2a25786",
+              "leftValue": "={{ $('Load ticketing config').item.json.jira_enabled }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7d629abb-6ece-4eb7-a4ae-7cb579e3332a",
+      "name": "Search Jira for marker",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [680, 400],
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        -80
+      ],
+      "onError": "continueRegularOutput",
       "parameters": {
         "method": "POST",
-        "url": "https://api.linear.app/graphql",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "contentType": "json",
-        "body": {
-          "query": "mutation IssueCreate($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id title } } }",
-          "variables": {
-            "input": {
-              "title": "[FIM] {{ $json.body.severity | upper }}: {{ $json.body.path }}",
-              "description": "**Event ID**: {{ $json.body.event_id }}\n**Severity**: {{ $json.body.severity }}\n**Path**: {{ $json.body.path }}\n**Agent**: {{ $json.body.agent_id }}\n**Detected At**: {{ $json.body.detected_at }}",
-              "priority": 1
+        "url": "={{ $('Load ticketing config').item.json.jira_domain + '/rest/api/3/search/jql' }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
             }
           }
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ jql: 'labels = \"fim-event-' + $json.payload.event_id + '\"', maxResults: 1 }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "jiraSoftwareCloudApi"
+      },
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "n8n-fim-jira-api",
+          "name": "FIM Jira API"
         }
+      }
+    },
+    {
+      "id": "16b9ee2f-c857-4e9e-9aae-fe355098e5cf",
+      "name": "Jira ticket exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        -80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3412714d-5ad0-4c27-9b74-de3aa6b4a555",
+              "leftValue": "={{ ($json.body.issues || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "056c0137-4619-4c8a-9c65-392c5c132250",
+      "name": "Jira existing result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        -140
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4b2857c7-0406-4b59-a3c6-8381b78e5de7",
+              "name": "jira_result",
+              "type": "object",
+              "value": "={{ { channel: 'jira', delivered: true, error: null } }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "10407df3-a9db-4fa2-bc51-13f2c696917d",
+      "name": "Create Jira issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        -20
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Load ticketing config').item.json.jira_domain + '/rest/api/3/issue' }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ fields: { project: { key: $('Load ticketing config').item.json.jira_project_key }, summary: '[FIM] ' + (($('Load ticketing config').item.json.payload.severity || 'notice').toUpperCase()) + ': ' + ($('Load ticketing config').item.json.payload.path || $('Load ticketing config').item.json.payload.component || 'n/a'), issuetype: { name: 'Bug' }, labels: ['fim-event-' + $('Load ticketing config').item.json.payload.event_id], description: { type: 'doc', version: 1, content: [ { type: 'paragraph', content: [ { type: 'text', text: 'FIM Alert. Event ID: ' + $('Load ticketing config').item.json.payload.event_id + ' | Severity: ' + $('Load ticketing config').item.json.payload.severity + ' | Path: ' + $('Load ticketing config').item.json.payload.path } ] } ] } } }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "jiraSoftwareCloudApi"
+      },
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "n8n-fim-jira-api",
+          "name": "FIM Jira API"
+        }
+      }
+    },
+    {
+      "id": "99d31933-29c7-4274-bbfe-5b9c71ac601e",
+      "name": "Jira create result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        -20
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "53613230-0bd2-4a45-845b-04fe373e4655",
+              "name": "jira_result",
+              "type": "object",
+              "value": "={{ { channel: 'jira', delivered: (!$json.error && $json.statusCode >= 200 && $json.statusCode < 300), error: ($json.error ? String($json.error) : ($json.statusCode >= 300 ? ('jira_http_error_' + $json.statusCode) : null)) } }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4085508a-f7a4-458d-9744-d822ce9d1bc8",
+      "name": "Jira disabled result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        80
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d45619f0-cc4c-4d31-b89c-4d9b29ef5b52",
+              "name": "jira_result",
+              "type": "object",
+              "value": "={{ { channel: 'jira', delivered: false, error: 'channel_disabled' } }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "28bfc09a-2794-4175-8139-2a95c5dc9422",
+      "name": "Jira stage done",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        80
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2623a45d-0fdc-43b7-a750-ca00c11040f3",
+              "name": "jira_result",
+              "type": "object",
+              "value": "={{ $json.jira_result }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "eb42a11f-7ae1-4337-b13a-32dac5735e1a",
+      "name": "Linear enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "86ff978c-f257-4d37-be46-750e3ce2181f",
+              "leftValue": "={{ $('Load ticketing config').item.json.linear_enabled }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0e7b8d09-f82c-42c3-8fa5-b0db64308874",
+      "name": "Search Linear for marker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        -80
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Load ticketing config').item.json.linear_api_url }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ query: 'query($filter: IssueFilter) { issues(filter: $filter) { nodes { id } } }', variables: { filter: { description: { contains: 'fim-event-' + $('Load ticketing config').item.json.payload.event_id } } } }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-fim-linear-api",
+          "name": "FIM Linear API"
+        }
+      }
+    },
+    {
+      "id": "166ede87-d1c5-478a-8377-11218f6e076c",
+      "name": "Linear ticket exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2160,
+        -80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fb368085-8319-4f86-b3fe-9a5502e4c4aa",
+              "leftValue": "={{ (($json.body || {}).data && $json.body.data.issues && $json.body.data.issues.nodes || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c21617be-3a48-45c4-bba9-00565fab5f89",
+      "name": "Linear existing result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2400,
+        -140
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "27e0c2fe-edc8-4dc8-9cac-74f24e08e91c",
+              "name": "linear_result",
+              "type": "object",
+              "value": "={{ { channel: 'linear', delivered: true, error: null } }}"
+            },
+            {
+              "id": "0d84475a-ef7d-43c1-bd35-3a6e71c5c508",
+              "name": "jira_result",
+              "type": "object",
+              "value": "={{ $('Jira stage done').item.json.jira_result }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c9db5227-d412-4b8c-aa5d-fef242742ba5",
+      "name": "Create Linear issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        -20
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Load ticketing config').item.json.linear_api_url }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ query: 'mutation IssueCreate($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id } } }', variables: { input: { teamId: $('Load ticketing config').item.json.linear_team_id, title: '[FIM] ' + (($('Load ticketing config').item.json.payload.severity || 'notice').toUpperCase()) + ': ' + ($('Load ticketing config').item.json.payload.path || $('Load ticketing config').item.json.payload.component || 'n/a'), description: 'fim-event-' + $('Load ticketing config').item.json.payload.event_id + '\\n\\nSeverity: ' + $('Load ticketing config').item.json.payload.severity + '\\nPath: ' + $('Load ticketing config').item.json.payload.path } } }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "n8n-fim-linear-api",
+          "name": "FIM Linear API"
+        }
+      }
+    },
+    {
+      "id": "d3551a90-9c0b-49de-b5bf-e119683a272e",
+      "name": "Linear create result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        -20
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "24732cc7-c3a4-46a5-9521-b0aef8f3f938",
+              "name": "linear_result",
+              "type": "object",
+              "value": "={{ { channel: 'linear', delivered: (!$json.error && $json.statusCode >= 200 && $json.statusCode < 300 && $json.body?.data?.issueCreate?.success === true), error: ($json.error ? String($json.error) : ($json.body?.data?.issueCreate?.success === false ? 'linear_create_failed' : ($json.statusCode >= 300 ? ('linear_http_error_' + $json.statusCode) : null))) } }}"
+            },
+            {
+              "id": "90d73dad-99e1-4ff1-bd79-25f437183d27",
+              "name": "jira_result",
+              "type": "object",
+              "value": "={{ $('Jira stage done').item.json.jira_result }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "516def5a-4193-48ea-8e5c-6135c4145c6e",
+      "name": "Linear disabled result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1920,
+        80
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "767a1c78-c2f3-4eac-b898-9ff77a2190e3",
+              "name": "linear_result",
+              "type": "object",
+              "value": "={{ { channel: 'linear', delivered: false, error: 'channel_disabled' } }}"
+            },
+            {
+              "id": "7880491a-761f-4fb7-8aa0-ad2a10b688c4",
+              "name": "jira_result",
+              "type": "object",
+              "value": "={{ $('Jira stage done').item.json.jira_result }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9d83a12c-7dad-4719-801e-06e6a1d6ce49",
+      "name": "Aggregate ticketing result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const jira = $json.jira_result;\nconst linear = $json.linear_result;\nconst results = [jira, linear].filter(Boolean);\nconst delivered = results.some((r) => r.delivered === true);\nconst errors = results.filter((r) => !r.delivered).map((r) => r.error).filter(Boolean);\nreturn [{ json: { channel: 'ticketing', delivered, error: delivered ? null : (errors.join('; ') || 'no_ticketing_system_enabled') } }];\n"
       }
     }
   ],
   "connections": {
-    "Webhook Trigger": {
+    "When called by router": {
       "main": [
         [
-          {"node": "Route by System", "type": "main", "index": 0}
+          {
+            "node": "Load ticketing config",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Route by System": {
+    "Load ticketing config": {
       "main": [
         [
-          {"node": "Create Jira Issue", "type": "main", "index": 0}
+          {
+            "node": "Jira enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira enabled?": {
+      "main": [
+        [
+          {
+            "node": "Search Jira for marker",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          {"node": "Create Linear Issue", "type": "main", "index": 0}
+          {
+            "node": "Jira disabled result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Jira for marker": {
+      "main": [
+        [
+          {
+            "node": "Jira ticket exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira ticket exists?": {
+      "main": [
+        [
+          {
+            "node": "Jira existing result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Jira issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira issue": {
+      "main": [
+        [
+          {
+            "node": "Jira create result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira existing result": {
+      "main": [
+        [
+          {
+            "node": "Jira stage done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira create result": {
+      "main": [
+        [
+          {
+            "node": "Jira stage done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira disabled result": {
+      "main": [
+        [
+          {
+            "node": "Jira stage done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira stage done": {
+      "main": [
+        [
+          {
+            "node": "Linear enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear enabled?": {
+      "main": [
+        [
+          {
+            "node": "Search Linear for marker",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Linear disabled result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Linear for marker": {
+      "main": [
+        [
+          {
+            "node": "Linear ticket exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear ticket exists?": {
+      "main": [
+        [
+          {
+            "node": "Linear existing result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Linear issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Linear issue": {
+      "main": [
+        [
+          {
+            "node": "Linear create result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear existing result": {
+      "main": [
+        [
+          {
+            "node": "Aggregate ticketing result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear create result": {
+      "main": [
+        [
+          {
+            "node": "Aggregate ticketing result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear disabled result": {
+      "main": [
+        [
+          {
+            "node": "Aggregate ticketing result",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": true,
-    "errorWorkflow": ""
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
   },
   "staticData": null,
-  "pinData": {}
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
 }

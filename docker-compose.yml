@@ -87,14 +87,67 @@ services:
       start_period: 5s
 
   # ---------------------------------------------------------------------------
-  # n8n — n8nio/n8n 2.16.1 (notificaciones)
+  # n8n — n8nio/n8n 2.17.8 (notificaciones, D45/RN-139)
   # Usa la base fim_n8n con el usuario fim (D-03).
   # Puerto 5678 (UI de n8n) NO expuesto al host — acceso solo por exec (D-04).
-  # Change 13 (integration-n8n-notifications) configura los workflows.
+  # Owner declarativo (N8N_INSTANCE_OWNER_MANAGED_BY_ENV) para que el primer
+  # arranque no deje pendiente el wizard de setup manual. `n8n-provision`
+  # (one-shot, más abajo) importa y publica los workflows ANTES de que este
+  # proceso arranque, así que `backend` recién depende de `n8n` cuando ya
+  # tiene el enrutador y los sub-flujos activos (change 52, D-6).
   # ---------------------------------------------------------------------------
   n8n:
-    image: n8nio/n8n:2.16.1
+    image: n8nio/n8n:2.17.8
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      n8n-provision:
+        condition: service_completed_successfully
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: fim_n8n
+      DB_POSTGRESDB_USER: fim
+      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD}
+      N8N_RUNNERS_ENABLED: "true"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env — see .env.example}
+      N8N_INSTANCE_OWNER_MANAGED_BY_ENV: "true"
+      N8N_INSTANCE_OWNER_EMAIL: ${N8N_INSTANCE_OWNER_EMAIL}
+      N8N_INSTANCE_OWNER_FIRST_NAME: ${N8N_INSTANCE_OWNER_FIRST_NAME}
+      N8N_INSTANCE_OWNER_LAST_NAME: ${N8N_INSTANCE_OWNER_LAST_NAME}
+      N8N_INSTANCE_OWNER_PASSWORD_HASH: ${N8N_INSTANCE_OWNER_PASSWORD_HASH}
+      WEBHOOK_URL: http://n8n:5678/
+      N8N_HOST: n8n
+      N8N_PROTOCOL: http
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - fim_internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:5678/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # n8n-provision — importa y publica los workflows de n8n/workflows/ y las
+  # credenciales de los canales habilitados en N8N_FIM_CHANNELS, ANTES de que
+  # `n8n` arranque (D44/RN-138, D58/RN-152, D-6 del design de
+  # vps-deployment-readiness). Sin perfil: arranca con `docker compose up`
+  # a secas (igual que `n8n`, criterio Done del change 01) y con --profile
+  # app. Misma imagen que `n8n`, misma base fim_n8n, mismo owner y clave de
+  # cifrado — import:credentials y publish:workflow necesitan la clave para
+  # descifrar/cifrar las credenciales que ya existan.
+  # ---------------------------------------------------------------------------
+  n8n-provision:
+    image: n8nio/n8n:2.17.8
+    restart: "no"
+    entrypoint: ["/bin/sh", "/provision/provision.sh"]
     depends_on:
       db:
         condition: service_healthy
@@ -105,9 +158,39 @@ services:
       DB_POSTGRESDB_DATABASE: fim_n8n
       DB_POSTGRESDB_USER: fim
       DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD}
-      N8N_RUNNERS_ENABLED: "true"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env — see .env.example}
+      N8N_INSTANCE_OWNER_MANAGED_BY_ENV: "true"
+      N8N_INSTANCE_OWNER_EMAIL: ${N8N_INSTANCE_OWNER_EMAIL}
+      N8N_INSTANCE_OWNER_FIRST_NAME: ${N8N_INSTANCE_OWNER_FIRST_NAME}
+      N8N_INSTANCE_OWNER_LAST_NAME: ${N8N_INSTANCE_OWNER_LAST_NAME}
+      N8N_INSTANCE_OWNER_PASSWORD_HASH: ${N8N_INSTANCE_OWNER_PASSWORD_HASH}
+      # D58/RN-152 — canales habilitados y sus credenciales/config, ninguno
+      # con default: un canal ausente de N8N_FIM_CHANNELS simplemente no se
+      # provisiona ni se invoca desde el enrutador.
+      N8N_FIM_CHANNELS: ${N8N_FIM_CHANNELS:-}
+      N8N_EMAIL_FROM: ${N8N_EMAIL_FROM:-}
+      N8N_EMAIL_TO: ${N8N_EMAIL_TO:-}
+      N8N_EMAIL_SMTP_HOST: ${N8N_EMAIL_SMTP_HOST:-}
+      N8N_EMAIL_SMTP_PORT: ${N8N_EMAIL_SMTP_PORT:-587}
+      N8N_EMAIL_SMTP_USER: ${N8N_EMAIL_SMTP_USER:-}
+      N8N_EMAIL_SMTP_PASSWORD: ${N8N_EMAIL_SMTP_PASSWORD:-}
+      N8N_EMAIL_SMTP_SECURE: ${N8N_EMAIL_SMTP_SECURE:-false}
+      N8N_SLACK_ACCESS_TOKEN: ${N8N_SLACK_ACCESS_TOKEN:-}
+      N8N_SLACK_CHANNEL: ${N8N_SLACK_CHANNEL:-}
+      N8N_SLACK_API_URL: ${N8N_SLACK_API_URL:-https://slack.com/api/chat.postMessage}
+      N8N_TICKETING_JIRA_ENABLED: ${N8N_TICKETING_JIRA_ENABLED:-false}
+      N8N_JIRA_EMAIL: ${N8N_JIRA_EMAIL:-}
+      N8N_JIRA_API_TOKEN: ${N8N_JIRA_API_TOKEN:-}
+      N8N_JIRA_DOMAIN: ${N8N_JIRA_DOMAIN:-}
+      N8N_JIRA_PROJECT_KEY: ${N8N_JIRA_PROJECT_KEY:-}
+      N8N_TICKETING_LINEAR_ENABLED: ${N8N_TICKETING_LINEAR_ENABLED:-false}
+      N8N_LINEAR_API_KEY: ${N8N_LINEAR_API_KEY:-}
+      N8N_LINEAR_API_URL: ${N8N_LINEAR_API_URL:-https://api.linear.app/graphql}
+      N8N_LINEAR_TEAM_ID: ${N8N_LINEAR_TEAM_ID:-}
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+      - ./n8n/provision:/provision:ro
     networks:
       - fim_internal
 
@@ -176,6 +259,8 @@ services:
         condition: service_healthy
       certs-init:
         condition: service_completed_successfully
+      n8n:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://fim:${DB_PASSWORD}@db:5432/fim
       VALKEY_URL: valkey://valkey:6379
