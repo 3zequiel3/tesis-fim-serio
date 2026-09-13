@@ -1,0 +1,37 @@
+## MODIFIED Requirements
+
+### Requirement: nginx.conf con headers de seguridad y SPA fallback
+
+El sistema SHALL servir el build estático de Vite con nginx, con `try_files $uri /index.html` para SPA routing y con proxy de `/api/` y `/auth/refresh` hacia `backend:8000` idéntico en todos los modos. Todas las respuestas MUST incluir `Content-Security-Policy` (script-src self), `X-Frame-Options: DENY` y `X-Content-Type-Options: nosniff`. El `Dockerfile` del frontend MUST usar nginx para servir el build en producción y MUST exponer 80 y 443.
+
+El modo de servicio MUST seleccionarse al arrancar el contenedor a partir de `CONSOLE_TLS_MODE` (D55/RN-149):
+- `off`: escucha sólo en 80, MUST NOT emitir `Strict-Transport-Security`, y MUST registrar al arrancar una advertencia de que credenciales y tokens viajan en claro.
+- `self_signed`: escucha en 443 con el certificado autofirmado que emite `certs-init`.
+- `provided`: escucha en 443 con el certificado y la clave indicados por `CONSOLE_TLS_CERT_FILE` y `CONSOLE_TLS_KEY_FILE`, relativos a `CONSOLE_TLS_DIR` montado.
+
+En los dos modos HTTPS, el puerto 80 MUST responder `301` hacia `https://` con el mismo host y URI, y las respuestas servidas por HTTPS MUST incluir `Strict-Transport-Security` con el valor del modo (D60/RN-154): `max-age=63072000; includeSubDomains` en `provided`, y `max-age=300` sin `includeSubDomains` en `self_signed`. Un valor de modo desconocido, o un certificado o clave ausente en un modo HTTPS, MUST terminar el contenedor con exit distinto de 0 y un mensaje que nombre el problema; nginx MUST NOT degradar en silencio a HTTP.
+
+#### Scenario: SPA routing funciona en rutas anidadas
+- **WHEN** el usuario navega directamente a `/events` en el browser
+- **THEN** nginx sirve `index.html` y React Router maneja la ruta
+
+#### Scenario: Headers de seguridad presentes en respuestas
+- **WHEN** se hace cualquier request al frontend en cualquiera de los tres modos
+- **THEN** los headers `X-Frame-Options`, `X-Content-Type-Options` y `Content-Security-Policy` están presentes en la respuesta
+
+#### Scenario: Modo HTTP sin HSTS
+- **WHEN** `CONSOLE_TLS_MODE=off` y se hace `GET http://<host>/`
+- **THEN** la respuesta es 200 y no incluye `Strict-Transport-Security`
+
+#### Scenario: Modo HTTPS con redirección y HSTS
+- **WHEN** `CONSOLE_TLS_MODE=self_signed` y se hace `GET http://<host>/events?x=1`
+- **THEN** la respuesta es 301 con `Location: https://<host>/events?x=1`
+- **AND** `GET https://<host>/` incluye `Strict-Transport-Security`
+
+#### Scenario: Certificado ausente en modo HTTPS
+- **WHEN** `CONSOLE_TLS_MODE=provided` y el archivo indicado por `CONSOLE_TLS_CERT_FILE` no existe en el montaje
+- **THEN** el contenedor termina con exit distinto de 0 y el log nombra el archivo faltante
+
+#### Scenario: Refresh de sesión operativo en ambos esquemas
+- **WHEN** el operador inicia sesión por la consola en modo `off` y, en otro despliegue, en modo `self_signed`, y el access token vence
+- **THEN** en ambos casos el navegador conserva la cookie de refresh y `POST /auth/refresh` responde 200
