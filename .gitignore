@@ -20,6 +20,7 @@ backend/.vscode/
 # Frontend
 node_modules/
 frontend/dist/
+frontend/coverage/
 frontend/.env.development
 frontend/.env.local
 frontend/.env.*.local

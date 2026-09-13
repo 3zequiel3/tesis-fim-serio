@@ -8,6 +8,7 @@ export default defineConfig({
   // componente (Fast Refresh queda inerte fuera de `vite dev`).
   plugins: [react()],
   test: {
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     // jsdom sobre happy-dom: implementacion de referencia que usa la doc de
     // Testing Library, con soporte completo de eventos de puntero/teclado que
     // necesita user-event. La suite es chica, la diferencia de velocidad no pesa.
@@ -24,6 +25,13 @@ export default defineConfig({
     // punto ciego que dejó pasar el defecto original en producción.
     env: {
       TZ: 'America/Argentina/Buenos_Aires',
+    },
+    coverage: {
+      provider: 'v8',
+      reportsDirectory: './coverage',
+      reporter: ['text', 'json', 'json-summary', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.{test,spec}.{ts,tsx}', 'src/test/**', 'src/**/*.d.ts'],
     },
   },
   resolve: {
