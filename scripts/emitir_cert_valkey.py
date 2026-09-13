@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """Emite el certificado de servidor de Valkey firmado por la CA del backend.
 
-POR QUÉ EXISTE
+DEPRECADO PARA EL DESPLIEGUE DE SERVIDOR (change 52, D53/RN-147)
+    El servicio one-shot `certs-init` (`backend/app/core/certs_init.py`,
+    `docker-compose.yml`) emite este mismo certificado automáticamente antes
+    de que Valkey y el backend arranquen — ningún operador ejecuta más este
+    script a mano dentro de un contenedor. Se conserva porque lo citan
+    procedimientos del Cap. 5 (arnés de medición), no porque el despliegue lo
+    requiera.
+
+POR QUÉ EXISTE (arnés de medición, uso histórico)
     El laboratorio corre `valkey://` (texto plano), pero RN-115 y D17 exigen
     `valkeys://` con verificación de hostname. Sin un certificado de servidor
     para Valkey, el canal no se puede cifrar y el ítem 55 del Cap. 5 (captura

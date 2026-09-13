@@ -51,9 +51,25 @@ bootstrap_app = FastAPI(title="FIM Agent Bootstrap API", docs_url=None, redoc_ur
 bootstrap_app.include_router(bootstrap_router)
 
 
+def _log_console_tls_mode() -> None:
+    """D55/RN-149 (change 52): log the console TLS mode at startup. `off`
+    logs at `warning` — credentials and tokens travel unencrypted — every
+    other mode logs at `info`. Extracted as its own function so tests can
+    exercise the branch without running the full lifespan."""
+    if settings.console_tls_mode == "off":
+        log.warning(
+            "backend.console_tls_mode",
+            console_tls_mode=settings.console_tls_mode,
+            warning="credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)",
+        )
+    else:
+        log.info("backend.console_tls_mode", console_tls_mode=settings.console_tls_mode)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     log.info("backend.startup", environment=settings.environment)
+    _log_console_tls_mode()
     init_valkey(settings.valkey_url)
     init_async_valkey(settings.valkey_url)
     ensure_ca(
@@ -61,6 +77,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
         key_path=settings.ca_key_path,
         backend_cert_path=settings.backend_cert_path,
         backend_key_path=settings.backend_key_path,
+        fim_public_hosts=settings.fim_public_hosts,
     )
     SQLModel.metadata.create_all(engine)
     seed_admin()

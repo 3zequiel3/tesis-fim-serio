@@ -10,6 +10,8 @@ conexiones (fail-fast por diseño — D-CHANGE-04).
 (ej. DB_PASSWORD para `db`, variables de n8n, etc.) sin causar fallo al arranque.
 """
 
+from typing import Literal
+
 from pydantic import PostgresDsn
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
@@ -42,6 +44,24 @@ class Settings(BaseSettings):
     ca_key_path: str = ""
     backend_cert_path: str = ""
     backend_key_path: str = ""
+
+    # Hosts públicos del servidor (D53/RN-147, change 52). Lista separada por
+    # comas de IPs y/o nombres DNS por los que los agentes remotos alcanzan
+    # este backend. Extiende el SAN del certificado de servidor del backend
+    # (8443/8444) y el de Valkey (6380) más allá de los nombres internos del
+    # compose. Vacío ⇒ sólo los nombres internos ({backend, fim-backend,
+    # localhost} / {valkey, localhost}), que es el comportamiento previo.
+    fim_public_hosts: str = ""
+
+    # Modo TLS de la consola web (D55/RN-149, change 52). Determina si
+    # `_set_refresh_cookie` agrega `Secure` y qué certificado sirve nginx.
+    # `off` ⇒ HTTP en claro (credenciales y tokens viajan sin cifrar);
+    # `self_signed` ⇒ HTTPS con el certificado autofirmado ECDSA P-256 que
+    # emite `certs-init`, sin la CA propia (D62/RN-156); `provided` ⇒ HTTPS
+    # con un certificado provisto por el
+    # operador (p. ej. Let's Encrypt). Un valor fuera de este dominio aborta
+    # el arranque con ValidationError.
+    console_tls_mode: Literal["off", "self_signed", "provided"] = "off"
 
     # Comportamiento del backend.
     environment: str = "dev"
