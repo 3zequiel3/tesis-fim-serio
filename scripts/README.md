@@ -17,7 +17,13 @@ Ninguno requiere root ni dependencias externas: solo Python 3 de la stdlib
 | [`bateria_reversion.py`](bateria_reversion.py) | agente andando sobre el directorio | ítem 9 — dirime los 7 sin evento (Batería 9) |
 | [`analisis_mmap.py`](analisis_mmap.py) | (cierre de las Baterías 8 y 9) | Tabla 17 · ítem 9 |
 | [`seed-reglas-lab.sh`](seed-reglas-lab.sh) | **P6** | 11-22 (sin esto la Batería 4 mide cero) |
-| [`setup-agent.sh`](setup-agent.sh) | — | registro del agente de test contra el backend |
+| [`setup-agent.sh`](setup-agent.sh) | — | registro del agente de **laboratorio** (`--profile lab`) contra el backend |
+
+> `setup-agent.sh` es solo para el agente de laboratorio del arnés de
+> medición. Para un despliegue real en un servidor remoto, el registro de
+> agentes usa [`register-agent.sh`](register-agent.sh) — ver
+> [`docs/despliegue_servidor_remoto.md`](../docs/despliegue_servidor_remoto.md),
+> no forma parte de este arnés.
 
 > `analisis_mmap.py` es la única excepción a lo de "solo stdlib": lee la tabla `events`
 > directamente y necesita `psycopg` (`pip install 'psycopg[binary]'`). Sin él sale con
@@ -31,7 +37,7 @@ Ninguno requiere root ni dependencias externas: solo Python 3 de la stdlib
 mkdir -p resultados
 
 # 0. Laboratorio arriba y agente registrado.
-docker compose --profile app up -d
+docker compose --profile app --profile lab up -d
 scripts/setup-agent.sh <password_admin>
 
 # P6 — reglas de severidad. Sin esto no hay Alerts y la Batería 4 mide cero.

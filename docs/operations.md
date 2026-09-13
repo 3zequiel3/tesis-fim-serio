@@ -208,22 +208,41 @@ y reiniciar el backend.
 
 ### Instalación recomendada: `agent/install.sh`
 
-El script es la fuente de verdad operativa — instala el unit, el usuario de
-servicio, el árbol de `/var/lib/fim-agent`, copia `config.yaml.example` si no
-hay config, genera el drop-in de `ReadWritePaths` a partir de los
-`watch_paths` configurados, y aplica la propiedad correcta (D36/RN-130 D-11):
+> Actualizado 2026-09-13 (D56/RN-150, design D-7 de `vps-deployment-readiness`,
+> change 52). El instalador ahora toma sus parámetros por flags/variables de
+> entorno o por prompt en vez de exigir editar `config.yaml` a mano — ver la
+> guía completa de enrolamiento remoto en
+> [`docs/despliegue_servidor_remoto.md`](despliegue_servidor_remoto.md)
+> §"Registro del agente" y §"Instalación del agente en el host monitoreado".
+> Lo que sigue es la referencia rápida para un host ya provisto con los datos
+> de un `scripts/register-agent.sh` corrido en el servidor.
+
+El script sigue siendo la fuente de verdad operativa — instala el unit, el
+usuario de servicio, el árbol de `/var/lib/fim-agent`, renderiza
+`config.yaml` desde `config.yaml.example` con los valores resueltos, escribe
+el secreto de bootstrap en `/etc/fim-agent/env`, genera el drop-in de
+`ReadWritePaths` a partir de los `watch_paths` configurados, verifica que el
+servidor sea alcanzable por 8444 y 6380 antes de habilitar el servicio, y
+aplica la propiedad correcta (D36/RN-130 D-11):
 
 ```bash
-sudo bash agent/install.sh
-# Editar /etc/fim-agent/config.yaml (agent_id, watch_paths) antes de arrancar
-sudo systemctl start fim-agent
+sudo bash agent/install.sh --non-interactive \
+  --server-host <host-del-servidor> --agent-id <agent_id> \
+  --watch-path /etc --watch-path /bin --watch-path /usr/bin \
+  --ca-cert ./fim-ca.pem --ca-fingerprint <huella-sha256-de-la-ca> \
+  --bootstrap-secret-file <archivo-con-el-secreto>
 sudo systemctl status fim-agent
 ```
 
-Es idempotente: correrlo de nuevo no pisa un `config.yaml` ya editado, y
-regenera el drop-in desde el `config.yaml` vigente — por eso también es el
-procedimiento para aplicar un cambio de `watch_paths` hecho en caliente
-(ver "Regenerar el drop-in tras cambiar watch_paths" más abajo).
+Sin `--non-interactive`, pregunta por cualquier valor faltante (el secreto de
+bootstrap siempre por un prompt oculto, nunca como argumento — D56/RN-150).
+Es idempotente y **reemplaza** el código instalado en vez de fusionarlo:
+correrlo de nuevo no pisa un `config.yaml`/`env` ya escritos (salvo
+`--reconfigure`, que guarda una copia `.bak-<timestamp>`), y regenera el
+drop-in desde el `config.yaml` vigente — por eso también es el procedimiento
+para aplicar un cambio de `watch_paths` hecho en caliente (ver "Regenerar el
+drop-in tras cambiar watch_paths" más abajo) y para actualizar el código tras
+un `git pull`.
 
 ### Unit file real (`agent/deploy/fim-agent.service`)
 
@@ -273,10 +292,14 @@ detalle de por qué cada capability está y cómo se deriva el drop-in.
 
 `/etc/fim-agent/env`, permisos `0600` propiedad `root:root` (systemd lo lee
 como root antes de bajar privilegios; el usuario del servicio no necesita
-acceso). `install.sh` instala una plantilla desde `agent/deploy/env.example`
-**solo si el archivo no existe**. La única variable que va acá es el secreto
-de bootstrap — todo lo demás (`agent_id`, `watch_paths`, `valkey_url`, rutas
-de certificados) vive en `/etc/fim-agent/config.yaml`, no en el environment:
+acceso). `agent/installer.py apply` (invocado por `install.sh`) escribe este
+archivo con el secreto de bootstrap resuelto (prompt oculto o
+`--bootstrap-secret-file`, nunca un argumento — D56/RN-150) **solo si el
+archivo no existe**, salvo `--reconfigure`. `agent/deploy/env.example` queda
+como referencia para una instalación manual fuera de `install.sh`. La única
+variable que va acá es el secreto de bootstrap — todo lo demás (`agent_id`,
+`watch_paths`, `valkey_url`, rutas de certificados) vive en
+`/etc/fim-agent/config.yaml`, no en el environment:
 
 ```bash
 # /etc/fim-agent/env — de un solo uso, se recomienda borrar tras el primer
@@ -326,7 +349,13 @@ Para habilitar remediación sobre el path nuevo:
 ```bash
 # config.yaml ya refleja los watch_paths nuevos (el agente los persiste solo
 # tras un update_config exitoso) — install.sh regenera el drop-in desde ahí.
-sudo bash agent/install.sh
+# Sin --reconfigure, config.yaml y env quedan intactos: los mismos flags de
+# la instalación original son solo para que installer.py resuelva las
+# entradas y pase la verificación de alcance; no vuelven a escribirse.
+sudo bash agent/install.sh --non-interactive \
+  --server-host <host-del-servidor> --agent-id <agent_id> \
+  --watch-path /etc --ca-cert ./fim-ca.pem \
+  --ca-fingerprint <huella> --bootstrap-secret-file <archivo>
 sudo systemctl daemon-reload
 sudo systemctl restart fim-agent
 ```

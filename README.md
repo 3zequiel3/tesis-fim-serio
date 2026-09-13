@@ -9,4 +9,5 @@ File Integrity Monitoring (FIM) Platform — tesis de grado.
 - [docs/historias_de_usuario.md](docs/historias_de_usuario.md) — historias priorizadas
 - [docs/reglas_de_negocio.md](docs/reglas_de_negocio.md) — reglas de negocio (RN-01 a RN-108)
 - [docs/operations.md](docs/operations.md) — guía operativa: variables de entorno, logs, retención, instalación del agente
+- [docs/despliegue_servidor_remoto.md](docs/despliegue_servidor_remoto.md) — despliegue en un servidor remoto: `.env`, modo de consola, registro e instalación del agente, verificación
 - [CHANGES.md](CHANGES.md) — roadmap de changes (M1 → M4)
