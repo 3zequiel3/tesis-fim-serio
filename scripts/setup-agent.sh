@@ -30,9 +30,9 @@ curl -fsS -X POST "$API/agents/register" \
 echo ""
 
 echo "3) Reiniciando el contenedor del agente para que haga bootstrap ..."
-docker compose --profile app restart agent 2>/dev/null || \
-  echo "   (reiniciá manualmente: docker compose --profile app restart agent)"
+docker compose --profile app --profile lab restart agent 2>/dev/null || \
+  echo "   (reiniciá manualmente: docker compose --profile app --profile lab restart agent)"
 
 echo ""
 echo "Listo. Agente '$AGENT_ID' registrado y reiniciado."
-echo "Seguí los logs con:  docker compose --profile app logs -f agent"
+echo "Seguí los logs con:  docker compose --profile app --profile lab logs -f agent"

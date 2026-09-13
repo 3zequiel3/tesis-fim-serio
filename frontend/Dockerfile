@@ -15,8 +15,14 @@ RUN pnpm build
 FROM nginx:alpine AS serve
 
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+# Plantillas versionadas por modo de CONSOLE_TLS_MODE (D55/RN-149, change 52):
+# el hook de abajo decide en tiempo de arranque cuál se copia como
+# /etc/nginx/conf.d/default.conf — NO se copia ninguna acá, para no dejar un
+# default.conf obsoleto si el hook falla antes de reemplazarlo.
+COPY nginx/ /etc/nginx/fim-console/
+COPY docker-entrypoint.d/40-fim-console-tls.sh /docker-entrypoint.d/40-fim-console-tls.sh
+
+EXPOSE 80 443
 
 CMD ["nginx", "-g", "daemon off;"]

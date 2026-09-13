@@ -1,4 +1,4 @@
-# Override que habilita TLS en el canal Valkey (RN-115, D17).
+# Override que habilita TLS en el canal Valkey (RN-115, D17, D53/RN-147).
 #
 # POR QUÉ EXISTE
 #   El compose base corre `valkey://` en texto plano. La arquitectura declara
@@ -7,29 +7,48 @@
 #   realmente cifrado: una captura sobre texto plano evidencia lo contrario de
 #   lo que el capítulo afirma.
 #
-# PRECONDICIÓN
-#   El certificado de servidor de Valkey tiene que existir en el volumen
-#   backend_certs. Emitirlo con:
-#     docker compose exec -T backend python /tmp/emitir_cert_valkey.py
-#   (ver scripts/emitir_cert_valkey.py — el SAN debe incluir `valkey`, porque
-#   el agente conecta con ssl_check_hostname=True.)
+# SIN PRECONDICIÓN MANUAL (change 52)
+#   El servicio one-shot `certs-init` (`docker-compose.yml`) emite el
+#   certificado de servidor de Valkey y el certificado de cliente del backend
+#   ante Valkey ANTES de que `valkey` y `backend` arranquen — ningún operador
+#   ejecuta más `scripts/emitir_cert_valkey.py` a mano dentro de un
+#   contenedor. `valkey` depende de `certs-init` con
+#   `service_completed_successfully` y monta el volumen aislado `valkey_tls`
+#   (certificado, clave y una copia de `ca.pem`; NUNCA la clave privada de la
+#   CA — `backend_certs` no se monta acá).
 #
 # USO
-#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d
 #
 #   Para volver a texto plano, basta con omitir este archivo.
 #
 # QUÉ CAMBIA
-#   - Valkey escucha TLS en 6380 y deja de escuchar en claro (`--port 0`).
+#   - Valkey escucha TLS en 6380 (publicado al host) y deja de escuchar en
+#     claro (`--port 0`).
 #   - Se exige certificado de cliente (`--tls-auth-clients yes`): es mTLS, no
-#     sólo cifrado de transporte.
-#   - Backend y agente pasan a `valkeys://valkey:6380`.
+#     sólo cifrado de transporte. El backend se autentica con su propio
+#     certificado de cliente (`CN=fim-backend-valkey`, `backend-valkey.pem`),
+#     nunca con `backend.pem` (sólo `serverAuth`).
+#   - Backend pasa a `valkeys://valkey:6380` con los parámetros TLS en la
+#     query string — valkey-py los toma de ahí (forma probada en A-3),
+#     `ssl_check_hostname=true` explícito porque el default de valkey-py
+#     6.1.0 es `False`.
+#   - `valkey` recibe `FIM_PUBLIC_HOSTS` sin uso funcional propio: sólo para
+#     que Compose recree el contenedor cuando cambia, de modo que cargue el
+#     certificado reemitido con el SAN ampliado (D-1).
 
 services:
   valkey:
     volumes:
       - valkey_data:/data
-      - backend_certs:/certs:ro
+      - valkey_tls:/certs:ro
+    environment:
+      FIM_PUBLIC_HOSTS: ${FIM_PUBLIC_HOSTS:-}
+    depends_on:
+      certs-init:
+        condition: service_completed_successfully
+    ports:
+      - "6380:6380"
     command: >
       valkey-server
       --port 0
@@ -59,7 +78,8 @@ services:
 
   backend:
     environment:
-      VALKEY_URL: valkeys://valkey:6380
+      VALKEY_URL: >-
+        valkeys://valkey:6380?ssl_certfile=/certs/backend-valkey.pem&ssl_keyfile=/certs/backend-valkey-key.pem&ssl_ca_certs=/certs/ca.pem&ssl_check_hostname=true
 
   agent:
     environment:

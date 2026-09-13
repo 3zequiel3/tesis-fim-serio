@@ -5,12 +5,17 @@
 # Uso básico (infra sola — Done criterion de Change 01):
 #   docker compose up -d db valkey n8n
 #
-# Uso completo (cuando backend y frontend existan en Change 02/14):
-#   docker compose --profile app up -d
+# Uso completo — topología de servidor (D54/RN-148, change 52):
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d
 #
 # Servicios con profiles: ["app"] (backend, frontend) NO arrancan con
 # `docker compose up` sin el flag --profile app. Esto evita errores de build
 # en tanto sus Dockerfiles no existan (D-05).
+#
+# El servicio `agent` es de laboratorio: profile "lab", no "app" (D54/RN-148,
+# change 52). Con sólo --profile app NO arranca — usar
+# `--profile app --profile lab` para levantarlo junto al resto (ver
+# scripts/setup-agent.sh, scripts/README.md).
 
 networks:
   fim_internal:
@@ -21,6 +26,12 @@ volumes:
   valkey_data:
   n8n_data:
   backend_certs:
+  # Material TLS propio de Valkey (certificado de servidor, clave y una copia
+  # de ca.pem) — NUNCA la clave privada de la CA (D53/RN-147, change 52).
+  valkey_tls:
+  # Certificado autofirmado de la consola, emitido por `certs-init` sólo con
+  # CONSOLE_TLS_MODE=self_signed (D55/RN-149, change 52).
+  console_tls_generated:
   agent_state:
 
 services:
@@ -101,12 +112,56 @@ services:
       - fim_internal
 
   # ---------------------------------------------------------------------------
+  # certs-init — emisión de certificados previa al arranque (D53/RN-147, D-1
+  # del design de vps-deployment-readiness, change 52).
+  # Sin perfil (arranca con `docker compose up` a secas Y con --profile app):
+  # backend, frontend y, con el override TLS, valkey dependen de él con
+  # service_completed_successfully. Corre como root ("0:0") para poder fijar
+  # dueño y modo final por archivo en los tres volúmenes de material TLS;
+  # nunca escribe la clave privada de la CA fuera de backend_certs.
+  # ---------------------------------------------------------------------------
+  certs-init:
+    build: ./backend
+    image: fim-backend:dev
+    user: "0:0"
+    restart: "no"
+    environment:
+      # DATABASE_URL/VALKEY_URL/JWT_SECRET_CURRENT no se usan funcionalmente:
+      # se requieren sólo porque certs_init.py importa app.core.config
+      # transitivamente (Settings() falla al import si faltan). Mismos
+      # valores que backend, nunca conectados.
+      DATABASE_URL: postgresql+psycopg://fim:${DB_PASSWORD}@db:5432/fim
+      VALKEY_URL: valkey://valkey:6379
+      JWT_SECRET_CURRENT: ${JWT_SECRET_CURRENT}
+      CA_CERT_PATH: ${CA_CERT_PATH}
+      CA_KEY_PATH: ${CA_KEY_PATH}
+      BACKEND_CERT_PATH: ${BACKEND_CERT_PATH}
+      BACKEND_KEY_PATH: ${BACKEND_KEY_PATH}
+      BACKEND_VALKEY_CERT_PATH: /certs/backend-valkey.pem
+      BACKEND_VALKEY_KEY_PATH: /certs/backend-valkey-key.pem
+      VALKEY_TLS_DIR: /valkey-certs
+      CONSOLE_TLS_GENERATED_DIR: /console-certs
+      FIM_PUBLIC_HOSTS: ${FIM_PUBLIC_HOSTS:-}
+      CONSOLE_TLS_MODE: ${CONSOLE_TLS_MODE:-off}
+    volumes:
+      - backend_certs:/certs
+      - valkey_tls:/valkey-certs
+      - console_tls_generated:/console-certs
+    networks:
+      - fim_internal
+    command: ["python", "-m", "app.core.certs_init"]
+
+  # ---------------------------------------------------------------------------
   # backend — FastAPI (placeholder, Change 02)
   # profiles: ["app"] → no arranca con `docker compose up` sin --profile app.
-  # Puertos: 8000 (API HTTP), 8443 (mTLS para agentes FIM, RN-78),
-  # 8444 (bootstrap de agentes por TLS server-auth, sin client cert, D52/RN-146).
+  # Puertos: 8443 (mTLS para agentes FIM, RN-78), 8444 (bootstrap de agentes
+  # por TLS server-auth, sin client cert, D52/RN-146). 8000 (API HTTP en
+  # claro) sólo en loopback (127.0.0.1) para diagnóstico — la consola la
+  # alcanza por la red interna (D54/RN-148, D-04, change 52; BREAKING: antes
+  # publicaba 0.0.0.0:8000).
   # deploy.replicas: 1 (RN-76 — single-instance, sin HA en M1-M4).
-  # El volumen backend_certs se popula en Change 04 (agent-mtls-ca).
+  # El volumen backend_certs se popula en Change 04 (agent-mtls-ca);
+  # `certs-init` lo puebla antes de que este servicio arranque (change 52).
   # ---------------------------------------------------------------------------
   backend:
     build: ./backend
@@ -119,6 +174,8 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      certs-init:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql+psycopg://fim:${DB_PASSWORD}@db:5432/fim
       VALKEY_URL: valkey://valkey:6379
@@ -130,6 +187,11 @@ services:
       CA_KEY_PATH: ${CA_KEY_PATH}
       BACKEND_CERT_PATH: ${BACKEND_CERT_PATH}
       BACKEND_KEY_PATH: ${BACKEND_KEY_PATH}
+      # Hosts públicos del servidor (D53/RN-147) y modo TLS de la consola
+      # (D55/RN-149) — misma entrada de .env que certs-init y frontend, para
+      # que SAN, cookie Secure y esquema de nginx no puedan divergir.
+      FIM_PUBLIC_HOSTS: ${FIM_PUBLIC_HOSTS:-}
+      CONSOLE_TLS_MODE: ${CONSOLE_TLS_MODE:-off}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1}
       # Notificaciones (D43/RN-137). NINGUNA de estas variables lleva default.
       #
@@ -164,7 +226,7 @@ services:
     ports:
       - "8443:8443"
       - "8444:8444"
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     networks:
       - fim_internal
     deploy:
@@ -173,7 +235,12 @@ services:
   # ---------------------------------------------------------------------------
   # frontend — React 19 + Vite + nginx (C17: frontend-shell-auth)
   # profiles: ["app"] → no arranca sin --profile app.
-  # Puerto 80: nginx sirve el SPA compilado con headers de seguridad.
+  # Puertos de consola configurables (D55/RN-149, change 52): defaults 80 y
+  # 443, siempre publicados — en CONSOLE_TLS_MODE=off nada escucha en 443
+  # dentro del contenedor y la conexión se rechaza (costo aceptado para no
+  # editar YAML al cambiar de modo). El volumen console_tls_generated trae el
+  # certificado autofirmado (self_signed); CONSOLE_TLS_DIR trae el provisto
+  # por el operador (provided) — ver frontend/docker-entrypoint.d (grupo 5).
   # ---------------------------------------------------------------------------
   frontend:
     build: ./frontend
@@ -181,16 +248,33 @@ services:
     profiles:
       - app
     ports:
-      - "80:80"
+      - "${CONSOLE_HTTP_PORT:-80}:80"
+      - "${CONSOLE_HTTPS_PORT:-443}:443"
     restart: unless-stopped
+    environment:
+      CONSOLE_TLS_MODE: ${CONSOLE_TLS_MODE:-off}
+      CONSOLE_TLS_CERT_FILE: ${CONSOLE_TLS_CERT_FILE:-fullchain.pem}
+      CONSOLE_TLS_KEY_FILE: ${CONSOLE_TLS_KEY_FILE:-privkey.pem}
+    volumes:
+      - console_tls_generated:/run/fim-console-tls/self-signed:ro
+      - ${CONSOLE_TLS_DIR:-./deploy/console-tls}:/run/fim-console-tls/provided:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      certs-init:
+        condition: service_completed_successfully
     networks:
       - fim_internal
 
   # ---------------------------------------------------------------------------
-  # agent — FIM Agent (detección fanotify, contenedor de test)
-  # profiles: ["app"]. Corre como root con cap_add para fanotify.
+  # agent — FIM Agent (detección fanotify, contenedor de test/laboratorio)
+  # profiles: ["lab"] (D54/RN-148, change 52; BREAKING: antes "app"). Un
+  # servidor real monitorea hosts con el agente NATIVO instalado por
+  # agent/install.sh (RN-68, D56/RN-150), no con este contenedor — levantarlo
+  # con --profile app arrancaría en un VPS un agente de laboratorio con
+  # secreto por defecto en bucle de reinicios. Usar
+  # `--profile app --profile lab` para levantarlo junto al resto.
+  # Corre como root con cap_add para fanotify.
   # Editá archivos en ./fim-watch (host) → /watch (agente) para disparar eventos.
   # Requiere registro previo del agente: scripts/setup-agent.sh
   # ---------------------------------------------------------------------------
@@ -198,7 +282,7 @@ services:
     build: ./agent
     image: fim-agent:dev
     profiles:
-      - app
+      - lab
     restart: unless-stopped
     depends_on:
       - backend

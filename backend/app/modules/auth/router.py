@@ -52,9 +52,12 @@ _REFRESH_GRACE_TTL_S = 10
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
-    # secure=True exige HTTPS: el navegador descarta la cookie en HTTP. En dev
-    # (HTTP local) se desactiva para que login/refresh funcionen; en prod (HTTPS)
-    # queda activo.
+    # secure=True exige HTTPS: el navegador descarta la cookie en HTTP.
+    # Derivado de CONSOLE_TLS_MODE (D55/RN-149, change 52), NO de ENVIRONMENT:
+    # lo que determina si la conexión es HTTPS es el modo TLS de la consola,
+    # no si el backend corre en "dev" o "prod" — un prod detrás de HTTP en
+    # claro (CONSOLE_TLS_MODE=off) no debe llevar Secure, y un dev probando
+    # HTTPS local (self_signed) sí.
     # Delete the legacy broad-path cookie before issuing the canonical cookie.
     # Both Set-Cookie headers are intentional: they prevent path shadowing during
     # the migration from Path=/ to Path=/auth/refresh.
@@ -63,7 +66,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         key=_REFRESH_COOKIE,
         value=token,
         httponly=True,
-        secure=settings.environment != "dev",
+        secure=settings.console_tls_mode != "off",
         samesite="strict",
         path="/auth/refresh",
         max_age=_REFRESH_MAX_AGE,

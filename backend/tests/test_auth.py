@@ -174,12 +174,16 @@ async def test_access_15min_refresh_7d(auth_client):
     assert refresh_payload["exp"] - refresh_payload["iat"] == 604800
 
 
-async def test_cookie_refresh_secure_fuera_de_dev(monkeypatch, auth_client):
+async def test_cookie_refresh_secure_fuera_de_modo_off(monkeypatch, auth_client):
     """
-    US-01 criterio 5: fuera de `environment=dev` la cookie de refresh agrega
-    `Secure` a los atributos ya cubiertos por otro test (`HttpOnly`,
-    `SameSite=strict`, `Path=/auth/refresh`), y fija `Max-Age` en los 7 días
-    de `REFRESH_TOKEN_EXPIRE_DAYS`.
+    US-01 criterio 5: con `console_tls_mode` distinto de `off` la cookie de
+    refresh agrega `Secure` a los atributos ya cubiertos por otro test
+    (`HttpOnly`, `SameSite=strict`, `Path=/auth/refresh`), y fija `Max-Age` en
+    los 7 días de `REFRESH_TOKEN_EXPIRE_DAYS`.
+
+    D55/RN-149 (change 52): `Secure` se deriva de `CONSOLE_TLS_MODE`, no de
+    `ENVIRONMENT` — ver `test_auth_cookie_console_mode.py` para la cobertura
+    completa de la matriz de modos.
     """
     from app.core.security import REFRESH_TOKEN_EXPIRE_DAYS
     from app.modules.auth import router as auth_router_module
@@ -193,7 +197,7 @@ async def test_cookie_refresh_secure_fuera_de_dev(monkeypatch, auth_client):
     # app.core.config import settings` hecho acá apuntaría a esa instancia
     # nueva — mientras que `auth/router.py` sigue usando la instancia vieja
     # importada al cargar el módulo — y el monkeypatch quedaría mudo.
-    monkeypatch.setattr(auth_router_module.settings, "environment", "prod")
+    monkeypatch.setattr(auth_router_module.settings, "console_tls_mode", "self_signed")
 
     resp = await _login(auth_client)
     assert resp.status_code == 200
