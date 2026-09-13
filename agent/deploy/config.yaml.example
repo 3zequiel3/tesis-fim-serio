@@ -3,7 +3,17 @@
 # After first bootstrap via mTLS (Change 06), the authoritative configuration
 # lives in PostgreSQL; config.yaml is only read on first startup.
 #
-# Copy to /etc/fim-agent/config.yaml and fill in the values before starting.
+# `agent/install.sh` renders /etc/fim-agent/config.yaml from THIS file
+# automatically (D56/RN-150, design D-7 of vps-deployment-readiness):
+# `agent/installer.py apply` resolves agent_id, backend_url,
+# mtls_backend_url, valkey_url, ca_cert_path and watch_paths from its flags,
+# environment variables or interactive prompts (see `install.sh --help`'s
+# subcommands, or the `agent-core` spec), substitutes only those fields, and
+# leaves every comment and every other default below untouched. It never
+# overwrites an existing config.yaml unless invoked with --reconfigure.
+# Editing this file by hand is only needed for a manual install outside
+# install.sh, or to change a default the installer does not expose (storage
+# paths, publisher tuning, allow_plaintext_valkey).
 
 # Unique identifier for this agent instance. Must match the agent_id registered
 # in the backend via POST /agents/register (Change 06). Use hostname or a

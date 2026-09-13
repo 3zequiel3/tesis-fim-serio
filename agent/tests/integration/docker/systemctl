@@ -1,0 +1,36 @@
+#!/bin/sh
+# Disposable-container shim for systemctl (design D-7 of
+# vps-deployment-readiness): logs every invocation and tracks a trivial
+# "active" state per unit so install.sh's is-active / enable / start /
+# restart logic can be exercised without real systemd.
+LOG=/var/log/fim-systemctl-shim.log
+STATE_DIR=/var/lib/fim-systemctl-shim
+mkdir -p "${STATE_DIR}"
+echo "systemctl $*" >> "${LOG}"
+
+case "$1" in
+  is-active)
+    unit="$3"
+    if [ -f "${STATE_DIR}/${unit}.active" ]; then
+      exit 0
+    else
+      exit 3
+    fi
+    ;;
+  start|restart)
+    unit="$2"
+    touch "${STATE_DIR}/${unit}.active"
+    exit 0
+    ;;
+  stop)
+    unit="$2"
+    rm -f "${STATE_DIR}/${unit}.active"
+    exit 0
+    ;;
+  enable|daemon-reload|disable)
+    exit 0
+    ;;
+  *)
+    exit 0
+    ;;
+esac

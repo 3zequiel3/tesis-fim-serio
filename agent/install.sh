@@ -1,25 +1,68 @@
 #!/usr/bin/env bash
-# install.sh — FIM Agent installation script
-# Idempotent: safe to run multiple times.
-# Must be run as root. Run from the repository root:
-#   sudo bash agent/install.sh
+# install.sh — FIM Agent installation script (D56/RN-150, design D-7 of
+# vps-deployment-readiness).
+#
+# Thin bash: only what requires root and systemd lives here (user/directory
+# creation, the venv, the unit file, daemon-reload, enable/start/restart, and
+# the ownership rules from change 41, D36/RN-130). Argument parsing, prompts,
+# the CA fingerprint check, config.yaml rendering, the bootstrap secret write
+# and the network scope check live in agent/installer.py — pure functions
+# testable with pytest and no root privileges (same split agent/deployment.py
+# already uses for the systemd drop-in).
+#
+# This script never interprets its own arguments: it forwards them to
+# installer.py unchanged ("$@"), so no secret value ever sits in a shell
+# variable or shows up in `ps`. See agent/installer.py --help (via its
+# subcommands) and openspec/changes/vps-deployment-readiness/design.md (D-7)
+# for the full flag/env-var reference.
+#
+# Idempotent: safe to re-run. Re-running REPLACES the installed code (never
+# merges into it — a previous bug nested it at agent/agent/) and never
+# overwrites an operator-edited config.yaml/env unless --reconfigure is
+# passed.
+#
+# Must run as root, from the repository root, e.g.:
+#   sudo bash agent/install.sh --non-interactive \
+#     --server-host 203.0.113.10 --agent-id web-01 --watch-path /srv/app \
+#     --ca-cert ./fim-ca.pem --ca-fingerprint <fingerprint> \
+#     --bootstrap-secret-file ./secret
 set -euo pipefail
 
 AGENT_USER="fim-agent"
 AGENT_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_DEST="/opt/fim-agent"
+AGENT_LIVE="${AGENT_DEST}/agent"
+AGENT_STAGING="${AGENT_DEST}/agent.staging"
+AGENT_PREVIOUS="${AGENT_DEST}/agent.previous"
 VENV_DIR="${AGENT_DEST}/venv"
 SYSTEMD_UNIT="/etc/systemd/system/fim-agent.service"
 SYSTEMD_DROPIN_DIR="/etc/systemd/system/fim-agent.service.d"
 SYSTEMD_DROPIN="${SYSTEMD_DROPIN_DIR}/10-watchpaths.conf"
 CONFIG_DEST="/etc/fim-agent/config.yaml"
-CONFIG_EXAMPLE="${AGENT_SRC}/deploy/config.yaml.example"
 ENV_DEST="/etc/fim-agent/env"
-ENV_EXAMPLE="${AGENT_SRC}/deploy/env.example"
+CA_CERT_DEST="/etc/fim-agent/certs/ca.pem"
+AGENT_CERT_PATH="/var/lib/fim-agent/certs/agent-cert.pem"
 
 echo "[fim-agent] Installing FIM Agent from ${AGENT_SRC}"
 
-# --- 8.1: Create fim-agent user if not exists ---
+# --- Capture state BEFORE any change: needed for the enable/start/restart
+# decision at the very end (D-7 step 10). ---
+WAS_ACTIVE=false
+if systemctl is-active --quiet fim-agent 2>/dev/null; then
+    WAS_ACTIVE=true
+fi
+ENV_EXISTED_BEFORE=false
+if [ -f "${ENV_DEST}" ]; then
+    ENV_EXISTED_BEFORE=true
+fi
+RECONFIGURE=false
+for arg in "$@"; do
+    if [ "${arg}" = "--reconfigure" ]; then
+        RECONFIGURE=true
+    fi
+done
+
+# --- Create fim-agent user if not exists (unchanged, change 41) ---
 if ! id "${AGENT_USER}" &>/dev/null; then
     useradd --system --no-create-home --shell /sbin/nologin "${AGENT_USER}"
     echo "[fim-agent] Created system user: ${AGENT_USER}"
@@ -27,7 +70,7 @@ else
     echo "[fim-agent] User ${AGENT_USER} already exists, skipping"
 fi
 
-# --- 8.2: Create /var/lib/fim-agent/ directory tree ---
+# --- Create /var/lib/fim-agent/ directory tree (unchanged, change 41) ---
 # 'discarded' (Change 42, D37/RN-131): terminal local destination for events
 # that exhausted the retry ceiling or received a terminal event_nack.
 for dir in baseline quarantine queue journal secrets certs discarded; do
@@ -37,7 +80,6 @@ done
 chmod 0700 /var/lib/fim-agent
 echo "[fim-agent] Created /var/lib/fim-agent/ layout with 0700"
 
-# --- 8.3: Create log and config directories ---
 mkdir -p /var/log/fim-agent
 chmod 0750 /var/log/fim-agent
 
@@ -45,55 +87,68 @@ mkdir -p /etc/fim-agent
 chmod 0750 /etc/fim-agent
 echo "[fim-agent] Created /var/log/fim-agent/ and /etc/fim-agent/"
 
-# --- 8.4: Create venv and install dependencies ---
+# --- D-7 step 2: create venv (first run only) and stage the new code into a
+# side directory. Never copy straight into agent/: cp -r into an existing
+# directory nests the source one level deeper (the change-41 follow-up this
+# change resolves) and would leave stale files from a previous version around.
 mkdir -p "${AGENT_DEST}"
 if [ ! -x "${VENV_DIR}/bin/python" ]; then
     python3 -m venv "${VENV_DIR}"
     echo "[fim-agent] Created venv at ${VENV_DIR}"
 fi
 
-# Copy agent source to destination
-cp -r "${AGENT_SRC}" "${AGENT_DEST}/agent"
+rm -rf "${AGENT_STAGING}"
+cp -r "${AGENT_SRC}" "${AGENT_STAGING}"
 
 "${VENV_DIR}/bin/pip" install --quiet --upgrade pip
-"${VENV_DIR}/bin/pip" install --quiet -r "${AGENT_SRC}/requirements.txt"
+"${VENV_DIR}/bin/pip" install --quiet -r "${AGENT_STAGING}/requirements.txt"
 echo "[fim-agent] Installed Python dependencies into ${VENV_DIR}"
 
-# --- 8.5: Install systemd unit (base unit left byte-identical, D36/RN-130 D-2) ---
-cp "${AGENT_SRC}/deploy/fim-agent.service" "${SYSTEMD_UNIT}"
+# --- D-7 step 3: `installer.py plan` — resolve and validate every input
+# (precedence, watch paths, CA fingerprint, bootstrap secret) against the
+# CODE BEING INSTALLED, before touching anything under /etc/fim-agent or
+# replacing the currently-installed (working) code. A bad fingerprint or an
+# invalid watch path aborts here and leaves the host exactly as it was.
+#
+# `agent.staging` cannot be imported as package `agent` by name, so a
+# throwaway PYTHONPATH entry symlinks it under the right name for this one
+# invocation only.
+PLAN_PYTHONPATH_DIR="$(mktemp -d)"
+ln -s "${AGENT_STAGING}" "${PLAN_PYTHONPATH_DIR}/agent"
+PYTHONPATH="${PLAN_PYTHONPATH_DIR}" "${VENV_DIR}/bin/python" -m agent.installer plan "$@"
+rm -rf "${PLAN_PYTHONPATH_DIR}"
+echo "[fim-agent] Plan validated"
+
+# --- D-7 step 4: replace the installed code (never merge). ---
+if [ -d "${AGENT_LIVE}" ]; then
+    rm -rf "${AGENT_PREVIOUS}"
+    mv "${AGENT_LIVE}" "${AGENT_PREVIOUS}"
+fi
+mv "${AGENT_STAGING}" "${AGENT_LIVE}"
+rm -rf "${AGENT_PREVIOUS}"
+echo "[fim-agent] Replaced installed code at ${AGENT_LIVE}"
+
+# --- D-7 step 5: install systemd unit (base unit left byte-identical, D36/RN-130 D-2) ---
+cp "${AGENT_LIVE}/deploy/fim-agent.service" "${SYSTEMD_UNIT}"
 chmod 0644 "${SYSTEMD_UNIT}"
 echo "[fim-agent] Installed fim-agent.service"
 
-# --- 8.6: Copy example config only if no config exists ---
-if [ ! -f "${CONFIG_DEST}" ]; then
-    cp "${CONFIG_EXAMPLE}" "${CONFIG_DEST}"
-    chmod 0640 "${CONFIG_DEST}"
-    echo "[fim-agent] Copied example config to ${CONFIG_DEST} — edit before starting"
-else
-    echo "[fim-agent] Config already exists at ${CONFIG_DEST}, skipping"
-fi
+# --- D-7 step 6: `installer.py apply` — writes config.yaml (only if absent
+# or --reconfigure, with a .bak-<timestamp> copy), the verified ca.pem, and
+# env with FIM_BOOTSTRAP_SECRET (0600 root:root). Runs against the
+# NOW-INSTALLED code, same WorkingDirectory/import as ExecStart. ---
+(
+    cd "${AGENT_DEST}"
+    "${VENV_DIR}/bin/python" -m agent.installer apply "$@"
+)
+echo "[fim-agent] Applied configuration"
 
-# --- 8.6.5: Install environment file template only if it does not exist ---
-# (D36/RN-130 D-10) — the bootstrap secret is single-use, expected to be
-# removed after first boot; installer never overwrites an operator-edited file.
-if [ ! -f "${ENV_DEST}" ]; then
-    cp "${ENV_EXAMPLE}" "${ENV_DEST}"
-    chmod 0600 "${ENV_DEST}"
-    chown root:root "${ENV_DEST}"
-    echo "[fim-agent] Installed environment file template at ${ENV_DEST}"
-else
-    echo "[fim-agent] Environment file already exists at ${ENV_DEST}, skipping"
-fi
-
-# --- 8.6.6: Generate the ReadWritePaths drop-in from the installed config ---
-# (D36/RN-130 D-2) — must run AFTER the config exists and BEFORE daemon-reload,
-# since the reload has to observe both the unit and the drop-in together.
-# Rejects malformed paths (agent/deployment.py) and aborts the install
-# (set -euo pipefail) rather than installing a truncated drop-in.
+# --- D-7 step 7: generate the ReadWritePaths drop-in from the installed
+# config (D36/RN-130 D-2) — must run AFTER config.yaml exists and BEFORE
+# daemon-reload, since the reload has to observe both the unit and the
+# drop-in together. Rejects malformed paths (agent/deployment.py) and aborts
+# the install (set -euo pipefail) rather than installing a truncated drop-in.
 mkdir -p "${SYSTEMD_DROPIN_DIR}"
-# Se invoca desde AGENT_DEST — mismo WorkingDirectory e importación que usa
-# ExecStart (`python -m agent ...`), para que `agent.deployment` resuelva
-# igual en ambos casos.
 (
     cd "${AGENT_DEST}"
     "${VENV_DIR}/bin/python" -m agent.deployment \
@@ -103,12 +158,23 @@ mkdir -p "${SYSTEMD_DROPIN_DIR}"
 chmod 0644 "${SYSTEMD_DROPIN}"
 echo "[fim-agent] Generated ${SYSTEMD_DROPIN} from ${CONFIG_DEST}"
 
-# --- 8.7: Reload systemd and enable the service ---
+# --- D-7 step 8: reload systemd (enable/start/restart come after the scope
+# check below). ---
 systemctl daemon-reload
-systemctl enable fim-agent
-echo "[fim-agent] Reloaded systemd and enabled fim-agent.service"
+echo "[fim-agent] Reloaded systemd"
 
-# --- 8.8: Apply final ownership (D36/RN-130 D-11) ---
+# --- D-7 step 9: `installer.py check` — verifies 8444 and 6380 are
+# reachable, TLS-trusted, and cover the configured host before the service is
+# ever enabled. ---
+CHECK_STATUS=0
+(
+    cd "${AGENT_DEST}"
+    "${VENV_DIR}/bin/python" -m agent.installer check "$@"
+) || CHECK_STATUS=$?
+
+# --- D-7 step 11: apply final ownership regardless of the check outcome, so
+# the host is left in a consistent state either way.
+#
 # The service process holds CAP_DAC_OVERRIDE and can still write under
 # /opt/fim-agent and /etc/fim-agent — update_config needs to write
 # config.yaml. What root ownership removes is the OTHER vector: a shell
@@ -119,20 +185,50 @@ echo "[fim-agent] Reloaded systemd and enabled fim-agent.service"
 # why /opt/fim-agent and /etc/fim-agent are NOT chowned to fim-agent.
 chown -R root:root "${AGENT_DEST}"
 find "${AGENT_DEST}" -type d -exec chmod 0755 {} +
-# /etc/fim-agent is addressed file-by-file (not -R) so config.yaml and env
-# each keep the distinct owner/mode the table above requires.
+# /etc/fim-agent is addressed file-by-file (not -R) so config.yaml, env and
+# certs/ca.pem each keep the distinct owner/mode the table above requires.
 chown root:"${AGENT_USER}" /etc/fim-agent
 chmod 0750 /etc/fim-agent
-chown root:"${AGENT_USER}" "${CONFIG_DEST}"
-chmod 0640 "${CONFIG_DEST}"
-chown root:root "${ENV_DEST}"
-chmod 0600 "${ENV_DEST}"
+if [ -f "${CONFIG_DEST}" ]; then
+    chown root:"${AGENT_USER}" "${CONFIG_DEST}"
+    chmod 0640 "${CONFIG_DEST}"
+fi
+if [ -f "${ENV_DEST}" ]; then
+    chown root:root "${ENV_DEST}"
+    chmod 0600 "${ENV_DEST}"
+fi
+if [ -f "${CA_CERT_DEST}" ]; then
+    chown root:root "${CA_CERT_DEST}"
+    chmod 0644 "${CA_CERT_DEST}"
+fi
 chown -R "${AGENT_USER}:${AGENT_USER}" /var/lib/fim-agent /var/log/fim-agent
 echo "[fim-agent] Applied ownership: /opt+/etc root-owned, /var/lib+/var/log owned by ${AGENT_USER}"
 
+if [ "${CHECK_STATUS}" -ne 0 ]; then
+    echo "" >&2
+    echo "[fim-agent] Scope check failed (see diagnostics above) — service NOT enabled." >&2
+    exit 3
+fi
+
+# --- D-7 step 10: enable, then start or restart. ---
+systemctl enable fim-agent
+echo "[fim-agent] Enabled fim-agent.service"
+
+ENV_WRITTEN=false
+if [ "${ENV_EXISTED_BEFORE}" = false ] || [ "${RECONFIGURE}" = true ]; then
+    ENV_WRITTEN=true
+fi
+
+if [ "${WAS_ACTIVE}" = true ]; then
+    systemctl restart fim-agent
+    echo "[fim-agent] Restarted fim-agent.service to load the new code"
+elif [ "${ENV_WRITTEN}" = true ] && [ ! -f "${AGENT_CERT_PATH}" ]; then
+    systemctl start fim-agent
+    echo "[fim-agent] Started fim-agent.service (bootstrap secret provided, no certificate yet)"
+else
+    echo "[fim-agent] Service enabled but not started — run 'systemctl start fim-agent' when ready"
+fi
+
 echo ""
 echo "[fim-agent] Installation complete."
-echo "  Edit ${CONFIG_DEST} with your agent_id and watch_paths, then run:"
-echo "    sudo bash agent/install.sh   # re-run to regenerate the watch_paths drop-in"
-echo "    systemctl start fim-agent"
-echo "    systemctl status fim-agent"
+echo "  systemctl status fim-agent"
