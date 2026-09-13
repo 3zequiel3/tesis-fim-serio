@@ -55,6 +55,10 @@ _EXTENDED_KEYS: frozenset[str] = frozenset(
         "csrf_token",
         "jwt",
         "private_key",
+        # Privacy hardening M4: diff_text carries file content that may
+        # include secrets — never logged today (grep-verified), but not
+        # structurally guaranteed without this key in the redaction list.
+        "diff_text",
     }
 )
 

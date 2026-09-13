@@ -16,7 +16,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.core.database import get_session
-from app.core.deps import require_full_access
+from app.core.deps import require_admin, require_full_access
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus
 from app.modules.rules.models import PublishedCommand, RuleSeverity
@@ -139,7 +139,10 @@ async def list_events(
 async def get_event(
     event_id: int,
     session: Session = Depends(get_session),
-    _user: User = Depends(require_full_access),
+    # Admin-only (privacy hardening M4): el detalle expone diff_text y
+    # hash_expected — require_full_access solo bloquea password_change_only,
+    # no verifica rol. US-09 ya enmarca el diff viewer como feature de admin.
+    _user: User = Depends(require_admin),
 ) -> EventDetailOut:
     event = session.exec(select(Event).where(Event.id == event_id)).first()
     if event is None:

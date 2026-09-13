@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-146 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-151 |
 
 ---
 
@@ -784,7 +784,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1758,6 +1758,37 @@ con `CERT_REQUIRED`.
 **Nota de proceso:** esta decisión y su implementación se ejecutaron inline, sin change de OpenSpec,
 por decisión explícita del responsable del proyecto — es una corrección de seguridad acotada sobre un
 incumplimiento ya normado (RN-114), no una feature nueva del roadmap.
+
+#### D57 / RN-151: `diff_text` redactado en logs y detalle de evento restringido a admin
+
+**Descripción:** Los logs estructurados del backend SHALL redactar el campo `diff_text` — se agrega a
+la lista de claves sensibles de `sanitize_secrets` (`app/core/logging.py`). El `payload_dump` truncado
+que persiste `RejectedEventAudit` SHALL reemplazar `diff_text` por un marcador
+(`[REDACTED:diff_text]`) antes de truncar, en lugar de conservar el payload crudo. `GET /events/{id}`
+SHALL exigir rol admin (`require_admin`), no sólo `require_full_access` — que sólo bloquea
+`scope=password_change_only` y no verifica rol.
+
+**Motivo:** El detalle de evento expone `diff_text` y `hash_expected` — contenido de archivos del host
+monitoreado, potencialmente con secretos. US-09 ya enmarca el visor de diff como una feature de admin,
+pero el endpoint sólo exigía `require_full_access`, alcanzable por cualquier usuario autenticado con
+password ya cambiada, sin distinguir rol. Y `diff_text` no estaba en la lista de redacción de
+`sanitize_secrets`, así que un log que lo incluyera lo habría dejado en texto plano.
+
+**Condición:** Cualquier log estructurado cuyo `event_dict` incluya `diff_text`; escritura de
+`RejectedEventAudit.payload_dump`; `GET /events/{id}`.
+
+**Resultado:** `diff_text` nunca aparece en texto plano en logs ni en `payload_dump`. El detalle de
+evento con diff completo sólo es accesible para admin.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** endurece la redacción de logs ya exigida por RN-89 y el rol admin ya enmarcado
+por US-09; no introduce un rol nuevo — hoy sólo existe el rol admin, así que no hay regresión
+funcional observable.
+
+**Nota de proceso:** esta decisión y su implementación se ejecutaron inline, sin change de OpenSpec,
+por decisión explícita del responsable del proyecto — es una corrección de privacidad acotada, no una
+feature nueva del roadmap.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

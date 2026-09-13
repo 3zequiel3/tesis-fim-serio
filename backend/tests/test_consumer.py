@@ -139,6 +139,34 @@ def test_reject_invalid_schema(mem_engine, agent) -> None:
     assert "retry_after" not in nack
 
 
+def test_rejection_audit_redacts_diff_text_from_payload_dump(mem_engine, agent) -> None:
+    """RN-105: payload_dump nunca debe conservar diff_text en texto plano.
+
+    Reusa el camino de rechazo invalid_schema (payload JSON-parseable, solo
+    schema_version es ilegible) para forzar una escritura de
+    RejectedEventAudit con un diff_text sensible en el payload original.
+    """
+    secret_diff = "--- a/etc/shadow\n+++ b/etc/shadow\n@@ -1 +1 @@\n-root:x\n+root:hacked\n"
+    payload = {
+        "event_id": str(uuid.uuid4()),
+        "agent_id": "agent-test",
+        "detected_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": "not-a-number",  # no parseable → invalid_schema
+        "path": "/etc/shadow",
+        "hash_detected": "h",
+        "diff_text": secret_diff,
+    }
+    _run_handle(mem_engine, payload)
+
+    with Session(mem_engine) as session:
+        rejections = session.exec(select(RejectedEventAudit)).all()
+    assert len(rejections) == 1
+    assert secret_diff not in rejections[0].payload_dump
+    assert "[REDACTED:diff_text]" in rejections[0].payload_dump
+    # El resto del payload (campos no sensibles) se conserva para diagnóstico.
+    assert "/etc/shadow" in rejections[0].payload_dump
+
+
 def test_reject_unknown_agent(mem_engine) -> None:
     from app.core.streams import SCHEMA_VERSION, sign_payload
     payload = {

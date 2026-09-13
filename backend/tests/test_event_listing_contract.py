@@ -454,6 +454,48 @@ async def test_get_event_by_id_returns_textual_diff_metadata(client, session, ag
     assert resp.json()["diff_text"] == diff
 
 
+async def test_get_event_by_id_requires_admin_role(client, session, agent) -> None:
+    """GET /events/{id} exposes diff_text/hash_expected — must be admin-only.
+
+    Seeds a non-admin user (role != "admin") and mints an access token for
+    it. require_full_access alone does not check role, only require_admin
+    does — this test proves the endpoint rejects a non-admin caller.
+    """
+    from app.modules.auth.models import User
+    from app.core.security import hash_password
+
+    viewer = User(
+        username="viewer-user",
+        email="viewer@fim.local",
+        password_hash=hash_password("ViewerPassword123!"),
+        role="viewer",
+        is_active=True,
+        must_change_password=False,
+    )
+    session.add(viewer)
+    session.commit()
+    session.refresh(viewer)
+
+    viewer_token = create_access_token(
+        user_id=viewer.id, username="viewer-user", must_change_password=False, jti="test-jti-viewer"
+    )
+
+    event = _new_event(agent, hash_expected="e" * 64, diff_text="--- a\n+++ b\n")
+    _persist(session, event)
+
+    resp = await client.get(
+        f"/events/{event.id}", headers={"Authorization": f"Bearer {viewer_token}"}
+    )
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "admin_required"
+
+    # Admin still gets 200 with diff_text — the fix must not regress the
+    # happy path already covered by test_get_event_by_id_returns_textual_diff_metadata.
+    admin_resp = await client.get(f"/events/{event.id}", headers=_auth_headers())
+    assert admin_resp.status_code == 200
+    assert admin_resp.json()["diff_text"] == "--- a\n+++ b\n"
+
+
 async def test_list_events_does_not_expose_textual_diff(client, session, agent) -> None:
     event = _new_event(agent, diff_text="sensitive patch")
     _persist(session, event)

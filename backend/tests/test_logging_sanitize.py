@@ -101,6 +101,18 @@ def test_non_sensitive_keys_preserved():
     assert result["status"] == "ok"
 
 
+def test_diff_text_redacted_direct_kwarg():
+    """diff_text at top-level must be [REDACTED] — it carries file content
+    that can include secrets (RN-89 defense-in-depth, privacy hardening)."""
+    event_dict = {
+        "event": "event_detail",
+        "diff_text": "--- a/etc/shadow\n+++ b/etc/shadow\n@@ -1 +1 @@\n-root:x\n+root:hacked\n",
+    }
+    result = sanitize_secrets(None, "info", event_dict)
+    assert result["diff_text"] == "[REDACTED]"
+    assert "root:hacked" not in str(result)
+
+
 def test_sanitize_secrets_processor_direct():
     """Direct processor call: verifies signature (logger, method_name, event_dict)."""
     event_dict = {
