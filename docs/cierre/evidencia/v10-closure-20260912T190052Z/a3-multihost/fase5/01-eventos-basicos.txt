@@ -1,0 +1,8 @@
+== 2026-09-12T22:38:56-03:00 eventos de a3-pc-ubuntu (sin diff_text; solo su longitud)
+               event_id               |  event_type   |             path             |   status   | severity | process_exe | detected_utc | received_utc | recv_minus_detect_ms | diff_len 
+--------------------------------------+---------------+------------------------------+------------+----------+-------------+--------------+--------------+----------------------+----------
+ a4d211f8-1ec6-4a76-b2c2-551041a95197 | file_created  | /srv/fim-watch/a3-prueba.txt | alert_only | low      |             | 01:38:19.777 | 01:38:19.797 |                   20 |        0
+ c92fee7f-06e9-4378-b1cb-5a8c45a8bd6c | file_modified | /srv/fim-watch/a3-prueba.txt | alert_only | low      |             | 01:38:22.802 | 01:38:22.825 |                   22 |      104
+ d9ee8458-d211-41f5-8dbf-4fa08e6b33e9 | file_deleted  | /srv/fim-watch/a3-prueba.txt | alert_only | low      |             | 01:38:25.820 | 01:38:25.832 |                   12 |        0
+(3 rows)
+

@@ -1,0 +1,21 @@
+== 2026-09-12T23:07:18-03:00 captura en la laptop (wlp2s0, host 192.168.1.36, puertos 6380/8443/8444)
+paquetes: 413
+primer paquete: 2026-09-12 23:05:00.684230
+ultimo paquete: 2026-09-12 23:06:58.500865
+puerto destino:     237 58464
+puerto destino:     145 6380
+puerto destino:      12 32790
+puerto destino:      10 8444
+puerto destino:       8 43890
+puerto destino:       1 58462
+apariciones de 'A3-MARCADOR-7f3c9e': 0
+apariciones de 'a3-captura': 0
+apariciones de '/srv/fim-watch': 0
+apariciones de 'diff_text': 0
+apariciones de 'event_id': 0
+apariciones de 'a3-pc-ubuntu': 0
+apariciones de 'signature': 0
+== primeros paquetes hacia 6380 (encabezados)
+23:05:00.690427 IP 192.168.1.36.58464 > 192.168.1.43.6380: Flags [P.], seq 2074585040:2074585166, ack 3966936993, win 99, options [nop,nop,TS val 1252042555 ecr 3339925691], length 126
+23:05:01.725456 IP 192.168.1.36.58464 > 192.168.1.43.6380: Flags [P.], seq 126:252, ack 28, win 99, options [nop,nop,TS val 1252043590 ecr 3339926728], length 126
+23:05:02.733560 IP 192.168.1.36.58464 > 192.168.1.43.6380: Flags [P.], seq 252:378, ack 55, win 99, options [nop,nop,TS val 1252044597 ecr 3339927734], length 126

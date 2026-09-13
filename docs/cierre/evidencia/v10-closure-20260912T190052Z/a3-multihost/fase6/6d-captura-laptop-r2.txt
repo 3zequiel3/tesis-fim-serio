@@ -1,0 +1,14 @@
+== 2026-09-12T23:10:17-03:00 captura ronda 2 en la laptop
+paquetes: 297
+primer paquete: 2026-09-12 23:08:44.615467
+ultimo paquete: 2026-09-12 23:10:13.366397
+puerto destino:     178 58464
+puerto destino:     109 6380
+puerto destino:      10 32790
+apariciones de 'A3-MARCADOR-R2-4b81d0': 0
+apariciones de 'a3-captura': 0
+apariciones de '/srv/fim-watch': 0
+apariciones de 'diff_text': 0
+apariciones de 'event_id': 0
+apariciones de 'a3-pc-ubuntu': 0
+apariciones de 'signature': 0

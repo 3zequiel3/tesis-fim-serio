@@ -1,0 +1,24 @@
+== 2026-09-12T22:57:37-03:00 backend: ingesta tras el reinicio (desde 22:56:18 -03)
+consumer.event_persisted: 9
+consumer.event_dedup:     11
+consumer.rate_limited:    0
+"event_id": "ad4dabfd	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.338042Z"
+"event_id": "036ec38f	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.346746Z"
+"event_id": "2ab34ff5	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.365547Z"
+"event_id": "bb7cedf8	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.374178Z"
+"event_id": "a7274382	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.381621Z"
+"event_id": "a0df0350	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.391371Z"
+"event_id": "57f7eadd	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.399511Z"
+"event_id": "0f224a62	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.405801Z"
+"event_id": "7035f15d	"event": "consumer.event_persisted"	"timestamp": "2026-09-13T01:56:21.412664Z"
+"event_id": "ad4dabfd	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.416492Z"
+"event_id": "036ec38f	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.420439Z"
+"event_id": "2ab34ff5	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.424189Z"
+"event_id": "bb7cedf8	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.429002Z"
+"event_id": "a7274382	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.432674Z"
+"event_id": "a0df0350	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.436182Z"
+"event_id": "57f7eadd	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.439760Z"
+"event_id": "0f224a62	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.443645Z"
+"event_id": "7035f15d	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.447175Z"
+"event_id": "ad4dabfd	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.450643Z"
+"event_id": "036ec38f	"event": "consumer.event_dedup"	"timestamp": "2026-09-13T01:56:21.454141Z"

@@ -1,8 +1,13 @@
-# Runbook A-3 — Ensayo multianfitrión con mTLS y TLS de Valkey (agente en WSL2)
+# Runbook A-3 — Ensayo multianfitrión con mTLS y TLS de Valkey (agente nativo en Ubuntu, segunda PC física)
 
-**Estado:** Fases 0–2 ejecutadas (ver "Registro de ejecución"). Fase 3 escrita y **no ejecutada**. Fases 4–7
-pendientes. El carril L8 se resuelve por configuración (opción A: certificado de cliente propio del backend), sin
-cambios de código.
+**Nota sobre el nombre del archivo:** conserva "WSL2" sólo por trazabilidad con referencias anteriores (auditoría
+V10, carril L9). El ensayo ejecutado usó Ubuntu 26.04.1 LTS nativo, instalado en disco, en una segunda PC física.
+Las Fases 0–1 sobre WSL2 se conservan como registro histórico de un intento preliminar descartado (ver "Cambio de
+plataforma del anfitrión monitoreado").
+
+**Estado:** Fases 0–7 ejecutadas el 2026-09-12 (ver "Registro de ejecución" y la sección "FASE 7 — Cierre
+(registro)"). El carril L8 se resolvió por configuración (opción A: certificado de cliente propio del backend), sin
+cambios de código. Resumen del paquete y de lo afirmable/no afirmable: `README.md`.
 
 **Regla del ensayo:** no se modifica nada para "hacer pasar" una prueba. Todo intento fallido se conserva y se
 documenta. Ninguna salida con contraseñas, claves privadas o tokens se pega en chats ni se archiva.
@@ -39,9 +44,13 @@ sistema a Windows y no ofrece fanotify.
 **Por qué no un contenedor en la laptop:** comparte kernel y pila de red con el servidor. Sería un único
 anfitrión.
 
+**Plan original. Afirmación y topología efectivas: ver README.md.**
+
 ---
 
 # FASE 0 — Preparar Windows (PC monitoreada)
+
+**Registro histórico: plan WSL2 descartado; ver el cambio de plataforma en el registro de ejecución.**
 
 Todo se hace en la PC con Windows. Algunos pasos requieren **PowerShell como administrador**: menú Inicio,
 escribir "PowerShell", clic derecho y elegir "Ejecutar como administrador".
@@ -211,6 +220,8 @@ la IPv4 de la PC.
 ---
 
 # FASE 1 — Preparar Ubuntu dentro de WSL2
+
+**Registro histórico: plan WSL2 descartado; ver el cambio de plataforma en el registro de ejecución.**
 
 Abrir Ubuntu desde el menú Inicio ("Ubuntu 24.04"). Todos los comandos de esta fase van en esa terminal.
 
@@ -713,8 +724,354 @@ con `scanned: 0` se debe a que `/srv/fim-watch` estaba vacío, no a este hallazg
 **Corrección (antes de la Fase 5, inline como bug fix de una línea según `CLAUDE.md`):** `agent/preflight.py` usa
 por defecto `os.access(path, mode, effective_ids=True)`. Test nuevo en `agent/tests/test_preflight.py`
 (`test_default_access_probe_uses_effective_ids`); con el código anterior la clasificación da `permission_denied` y
-el test falla. Suite del agente en Python 3.13: 515 aprobados, 1 omitido. Pendiente: desplegar en la PC
-(`git pull`, `install.sh`, reinicio) y confirmar `watch_path_status` = `writable`.
+el test falla. Suite del agente en Python 3.13: 515 aprobados, 1 omitido. Commit `656b101`. Pendiente: desplegar en
+la PC y confirmar que el preflight clasifica `/srv/fim-watch` como `writable`.
+
+## Hallazgo en la Fase 4 — re-ejecutar `install.sh` no actualiza el código del agente (2026-09-12)
+
+`agent/install.sh:56` ejecuta `cp -r "${AGENT_SRC}" "${AGENT_DEST}/agent"`. En la primera instalación el destino no
+existe y `cp` crea `/opt/fim-agent/agent`. En una re-ejecución el destino ya existe y `cp -r` copia el directorio
+**dentro** de él: el código nuevo queda en `/opt/fim-agent/agent/agent/` y el servicio sigue ejecutando el anterior.
+Reproducido en un directorio temporal: tras la segunda copia, `opt/agent/preflight.py` conserva el contenido viejo
+y el nuevo aparece en `opt/agent/agent/preflight.py`.
+
+**Impacto:** el propio instalador recomienda re-ejecutarse para regenerar el drop-in de `watch_paths`, y el script
+declara ser idempotente; una actualización de código por esa vía no tiene efecto y no lo informa.
+
+**Procedimiento usado en el ensayo** (sin modificar el instalador): detener el servicio, borrar
+`/opt/fim-agent/agent` y re-ejecutar `install.sh`, que vuelve a copiar el código completo y conserva
+`config.yaml`, `env`, el venv y el estado en `/var/lib/fim-agent`.
+
+## Despliegue de la corrección del preflight en la PC — 2026-09-12 22:36 -03 (PASA)
+
+| Verificación | Resultado |
+|---|---|
+| Commit en la PC | `d0a90f6` |
+| Código instalado | `/opt/fim-agent/agent/preflight.py:35` contiene `effective_ids=True`; sin directorio `agent/agent` anidado |
+| Arranque | `agent.preflight.summary` con `"total": 1, "degraded": 0`; sin `agent.preflight.degraded` |
+| Bootstrap | no se repite (el agente ya tiene certificado y secretos); el secreto de un solo uso ya no está en `/etc/fim-agent/env` |
+| Servicio | `agent started`, `detector.started` con `/srv/fim-watch`, `systemctl is-active` → `active` |
+
+**Punto de control 4: PASA.** Agente nativo en la PC con bootstrap por TLS (8444), certificado de cliente emitido
+por la CA del proyecto, latido por Valkey mTLS y preflight correcto.
+
+## Fase 5 — paso 1: creación, modificación y borrado — 2026-09-12 22:38 -03 (PASA)
+
+Sin reglas que coincidan con `/srv/fim-watch` (las 5 reglas existentes apuntan a `/watch/*` del laboratorio en
+contenedor), el agente aplica la acción por defecto `alert_only` (`agent/rules.py:74`).
+
+En la PC, sobre `/srv/fim-watch/a3-prueba.txt`: crear (`tee`), agregar una línea (`tee -a`) y borrar (`rm`), con 3 s
+entre operaciones. Journal del agente: para cada operación, `detector.change_detected`, `decision.evaluated`
+(`alert_only`), `publisher.event_published` y `publisher.event_acked`, este último entre 15 y 26 ms después de la
+publicación.
+
+Base de datos del backend (`fase5/01-eventos-basicos.txt`, sin `diff_text`, sólo su longitud):
+
+| `event_type` | `status` | `severity` | recepción − detección | `diff_text` |
+|---|---|---|---|---|
+| `file_created` | `alert_only` | `low` | 20 ms | 0 caracteres |
+| `file_modified` | `alert_only` | `low` | 22 ms | 104 caracteres |
+| `file_deleted` | `alert_only` | `low` | 12 ms | 0 caracteres |
+
+La diferencia recepción − detección combina relojes de dos equipos (PC −0,28 ms y laptop +0,47 ms respecto de NTP en
+las Fases 1 y 2): es indicativa, no una medición de latencia. `process_exe` llega vacío en los tres eventos.
+
+## Fase 5 — paso 2: regla `manual_review` y aprobación desde la UI — 2026-09-12 22:41–22:43 -03 (PASA)
+
+| Momento (UTC) | Dónde | Hecho | Evidencia |
+|---|---|---|---|
+| 01:41:07.003 | laptop (UI `/rules`) | regla `id 28`: `/srv/fim-watch/manual/*`, `high`, `manual_review`; `ruleset_version` → 49; auditoría `rule_created` por `admin` | `fase5/02-regla-manual-review.txt`, `fase5/04-evento-aprobado.txt` |
+| 01:41:07.043 | laptop | outbox `rule_sync` `id 52` para `a3-pc-ubuntu` → `published` | `fase5/02-regla-manual-review.txt` |
+| 01:41:07.051 | PC | `publisher.rule_sync_received` (v49) y `rules_cache.updated` (6 reglas); sin `command_signature_invalid` | journal de la PC |
+| 01:42:05.867 | PC | `echo … > /srv/fim-watch/manual/app.conf`: `decision.evaluated` → `manual_review`; `event_published`; `event_acked` 45 ms después | journal de la PC |
+| — | laptop | evento `id 8481`: `pending`, `high`, `version 0` | `fase5/03-evento-pendiente.txt` |
+| 01:43:22.400 | laptop (UI `/events`) | aprobado por `admin`: `approved`, `version 1`; auditoría `approve` sobre `event 8481` | `fase5/04-evento-aprobado.txt` |
+| 01:43:22.434 | laptop | outbox `baseline_update` `id 53` para `a3-pc-ubuntu` → `published` | `fase5/04-evento-aprobado.txt` |
+| 01:43:22.459 | PC | `commands.baseline_update.done` para `/srv/fim-watch/manual/app.conf`, `ruleset_version` 50 (la aprobación incrementa la versión) | journal de la PC |
+| 01:43:22.470 | laptop ← PC | `ack_status = acked`: la PC aplicó el `baseline_update` y confirmó 36 ms después de la publicación | `fase5/04-evento-aprobado.txt` |
+
+**Observación:** el archivo `app.conf` era nuevo, pero el agente lo informó como `file_modified`, no `file_created`.
+En el paso 1 la creación con `tee` sí se informó como `file_created`; la diferencia es que en este caso el
+directorio `manual/` se creó 2 s antes. No se investiga durante el ensayo.
+
+## Fase 5 — paso 3: rechazo con restauración — 2026-09-12 22:46 -03 (PASA)
+
+| Momento (UTC) | Dónde | Hecho | Evidencia |
+|---|---|---|---|
+| 01:46:07.142 | PC | `tee -a` agrega `cambio no autorizado` a `app.conf` (baseline aprobado: `config original`); `decision.evaluated` → `manual_review`; `event_acked` a los 72 ms | journal de la PC |
+| — | laptop | evento `id 8482` `pending` | `fase5/05-evento-rechazado-restaurado.txt` |
+| 01:46:37.015 | laptop (UI `/events`) | rechazado por `admin` con acción `restore`: `rejected`, `version 1`; auditoría `reject` `{"version": 0, "action": "restore"}` | `fase5/05-evento-rechazado-restaurado.txt` |
+| 01:46:37.045 | laptop | outbox `restore_file` `id 54`, `command_id 7ca0aaa0-…` → `published` | `fase5/05-evento-rechazado-restaurado.txt` |
+| 01:46:37.064 | PC | `commands.restore_file.done` con el mismo `command_id` | journal de la PC |
+| 01:46:37.073 | laptop ← PC | `ack_status = acked` (28 ms después de la publicación) | `fase5/05-evento-rechazado-restaurado.txt` |
+| — | PC | `cat app.conf` → sólo `config original` | consola de la PC |
+
+La escritura de la restauración no generó un evento nuevo: `app.conf` tiene exactamente dos eventos en el backend
+(8481 aprobado y 8482 rechazado).
+
+## Fase 5 — paso 4: 100 modificaciones entre anfitriones — 2026-09-12 22:49:49–22:51:22 -03 (PASA)
+
+**Procedimiento (PC):** 100 escrituras `tee -a` sobre `/srv/fim-watch/a3-latencia.txt` (sin regla aplicable →
+`alert_only`), una cada 0,8 s. El ritmo se eligió para no superar el límite de ingesta del backend en ejecución
+(`RATE_LIMIT_INGEST_EVENTS=100` por ventana de 60 s y agente): ninguna ventana de 60 s recibe más de ≈75 eventos.
+
+**Relojes:**
+
+| Equipo | Inicio | Fin |
+|---|---|---|
+| PC | +0,64 ms respecto de NTP | +0,63 ms |
+| Laptop | −1,06 ms (22:48:34) | −0,79 ms |
+
+La diferencia entre relojes quedó por debajo de 2 ms durante toda la prueba.
+
+**Resultados:**
+
+| Métrica | Fuente | Reloj | n | mín | mediana | p95 | máx |
+|---|---|---|---|---|---|---|---|
+| publicación → confirmación (`event_published` → `event_acked`) | journal de la PC | sólo PC | 100/100 | 6,1 ms | 17,4 ms | 23,1 ms | 43,8 ms |
+| detección → recepción (`received_at − detected_at`) | base del backend | PC y laptop | 100 | 6,7 ms | 26,1 ms | 199,5 ms | 291,7 ms |
+
+- Eventos en el backend: 100 (1 `file_created`, 99 `file_modified`), todos `alert_only`; 0 filas en
+  `rejected_events_audit`; en el journal, sin `event_nack`, `rate_limited`, `discard` ni `publish_failed`.
+- La cola de la segunda métrica es mayor que la de la primera. Como la primera aísla transporte y procesamiento
+  del backend, la diferencia se ubica entre la detección y la publicación, del lado del agente. **No verificado:**
+  no se descompuso ese tramo.
+- La consola de la PC mostró dos veces la cadena `2615250845` durante el bucle, sin relación aparente con los
+  comandos ejecutados. No afecta los conteos, que se tomaron del journal y de la base.
+
+Evidencia: `fase5/06-reloj-laptop-inicio.txt`, `fase5/07-latencia-100-modificaciones.txt` y la salida de consola de
+la PC.
+
+**Límites de lo afirmable:** dos equipos en una LAN doméstica, la laptop por Wi-Fi, un único agente y una carga de
+≈1,25 eventos/s. No es una medición de rendimiento extrapolable.
+
+## Fase 5 — paso 5: corte del backend y drenaje — 2026-09-12 22:54–22:57 -03 (PASA)
+
+**Procedimiento:** en la PC, un script espera a que el puerto 8444 deje de responder, hace 10 escrituras `tee -a`
+sobre `/srv/fim-watch/a3-corte.txt` (una por segundo), espera a que el backend vuelva y 90 s más, y resume el journal.
+En la laptop: `docker compose stop backend` a las 22:54:17, 120 s de espera y `start` a las 22:56:18 (responde
+`/health` a las 22:56:23). Valkey permaneció activo durante todo el corte (`fase5/08-corte-backend-laptop.txt`).
+
+**Comportamiento esperado según el código:** el agente re-publica cada evento sin confirmación a los 60 s
+(`agent/publisher.py:595-620`, revisión cada 5 s, tope de 20 intentos). El backend reconoce una re-entrega por
+`event_id`, la confirma y no la vuelve a insertar (`consumer.event_dedup`, `backend/app/modules/events/consumer.py:430-433`).
+
+**Resultado en el backend:**
+
+| Verificación | Resultado | Evidencia |
+|---|---|---|
+| Filas de `a3-corte.txt` | 10 filas, 10 `event_id` distintos: sin pérdidas ni duplicados | `fase5/09-corte-backend-eventos.txt` |
+| Primer evento (`b1e4f795`) | detectado 22:54:17.338 y recibido 22:54:17.349: ingresó mientras el backend se detenía (el listener 8444 ya había cerrado, el consumidor todavía procesaba) | `fase5/09b-corte-backend-detalle.txt` |
+| Eventos 2 a 10 | detectados 22:54:18.359–22:54:26.528; recibidos 22:56:21.319–22:56:21.405, entre 114,9 y 123,0 s después | `fase5/09b-corte-backend-detalle.txt` |
+| Ingesta tras el reinicio | `consumer.started` a las 01:56:21.317 UTC; 9 `consumer.event_persisted` (uno por evento pendiente), 11 `consumer.event_dedup` y 0 `consumer.rate_limited` | `fase5/10-corte-backend-logs.txt` |
+| Agente | `online` en `/health/components` tras el reinicio | `fase5/09-corte-backend-eventos.txt` |
+
+Las 11 re-entregas deduplicadas coinciden con 9 re-publicaciones a los ≈60 s (una por evento pendiente) más 2 a
+los ≈120 s (`ad4dabfd` y `036ec38f`, los dos primeros, cuyo segundo plazo venció antes de que el backend volviera).
+**Resultado en la PC** (resumen del journal del agente; consola de la PC):
+
+```
+== corte detectado 2026-09-12T22:54:17-03:00
+== 10 cambios hechos con el backend caido 2026-09-12T22:54:27-03:00
+== backend de vuelta 2026-09-12T22:56:21-03:00; espero 90 s para el drenaje
+detectados 10 | publicados 0 | confirmados 10 | reintentos 11 | descartados 0
+```
+
+- **11 re-publicaciones** (`publisher.event_retried`): coincide con las 11 re-entregas deduplicadas del backend y
+  confirma la inferencia anterior.
+- **10 confirmaciones** (`publisher.event_acked`) y **0 descartes**.
+- **`publicados 0` es un defecto del script de conteo, no del agente.** El script asocia cada línea a
+  `a3-corte.txt` recién al leer `detector.change_detected`, pero el agente registra `publisher.event_published`
+  antes que esa línea para el mismo `event_id` (visible en el paso 1: `event_published` a las 01:38:19.808 y
+  `change_detected` a las 01:38:19.812). Las publicaciones iniciales quedaron fuera del conteo; las
+  re-publicaciones y confirmaciones, que se registran después, sí se contaron. Que el backend haya recibido los 10
+  eventos prueba que se publicaron.
+
+**Punto de control 5: PASA** (pasos 1 a 5).
+
+## Fase 6 — paso A: pruebas negativas desde la PC — 2026-09-12 23:01 -03
+
+Ejecutadas en la PC (salida en `~/a3-fase6/6a-negativas.txt` de la PC y en la consola). La CA ajena y su certificado
+de cliente (`CN=a3-pc-ubuntu`, EKU `clientAuth`, validez 1 día) se generaron en ese momento con `openssl` en
+`~/a3-fase6`, fuera del repositorio. Las pruebas con usuario común usan `fase3/ca.pem` del repositorio (misma huella
+que la CA del agente); las que usan el material del agente corren como `fim-agent`.
+
+| Caso | Prueba | Resultado | Veredicto |
+|---|---|---|---|
+| V1 | Valkey `valkey:6380` sin certificado de cliente | servidor verificado (`verify return:1` ×2); `tlsv13 alert certificate required` (alerta 116); sin `PONG` | PASA |
+| V2 | Valkey con certificado de cliente de una CA ajena | servidor verificado; `tlsv1 alert unknown ca` (alerta 48); sin `PONG` | PASA |
+| V3 | cliente valkey-py del agente, material real del agente, host `valkey` (control positivo) | `PING True` | PASA |
+| V4 | mismo cliente y material, host `192.168.1.43` (IP fuera del SAN) | `CERTIFICATE_VERIFY_FAILED ... IP address mismatch, certificate is not valid for '192.168.1.43'` | PASA |
+| B1 | backend mTLS `backend:8443` sin certificado de cliente, `GET /` | sin respuesta HTTP | PASA (ver nota) |
+| B2 | backend mTLS con certificado de una CA ajena, `GET /` | sin respuesta HTTP | PASA (ver nota) |
+| B3 | backend mTLS con el certificado real del agente, `GET /` (control positivo) | `HTTP/1.1 404 Not Found`: la solicitud superó el handshake mTLS | PASA |
+
+**Nota B1/B2:** el filtro de salida (`alert|HTTP/`) no mostró el error de TLS de estos dos casos; la conclusión se
+apoya en la ausencia de respuesta HTTP junto con el control positivo B3, que sólo difiere en el certificado
+presentado. El mensaje de error se registra en el paso B.
+
+## Fase 6 — paso B: detalle de B1/B2 y certificado vencido — 2026-09-12 23:02 -03
+
+**B1/B2 sin filtro** (`~/a3-fase6/6b-b1-b2-sin-filtro.txt` de la PC):
+
+| Caso | Salida de `openssl s_client` |
+|---|---|
+| B1 sin certificado de cliente | certificado del servidor `CN=fim-backend` verificado; `unexpected eof while reading`: el servidor cierra la conexión |
+| B2 certificado de CA ajena | certificado del servidor verificado; `read:errno=104` (conexión reiniciada por el servidor) |
+
+A diferencia de Valkey, el listener uvicorn del backend no envía una alerta TLS legible por el cliente: corta la
+conexión. En ambos casos no hay respuesta HTTP.
+
+**Certificado vencido — procedimiento:** la PC generó una clave Ed25519 nueva y un CSR (`CN=a3-pc-ubuntu`); la clave
+no salió de la PC. El CSR (público) se firmó en la laptop, dentro del contenedor del backend, con la **CA real del
+proyecto**, EKU `clientAuth`, `notBefore` = ahora − 3 días y `notAfter` = ahora − 1 día. Así el vencimiento es la
+única diferencia con un certificado aceptable. Archivos públicos: `fase6/vencido-cli.csr`, `fase6/vencido-cli.pem`.
+
+Verificación en la laptop: `notBefore=Sep 10 02:02:35 2026 GMT`, `notAfter=Sep 12 02:02:35 2026 GMT`, EKU
+`TLS Web Client Authentication`; `openssl verify` contra la CA del proyecto falla sólo con `error 10 ... certificate has
+expired`.
+
+**Certificado vencido — resultados en la PC** (23:03 -03; `~/a3-fase6/6c-certificado-vencido.txt` de la PC):
+
+| Caso | Prueba | Resultado | Veredicto |
+|---|---|---|---|
+| — | clave pública del certificado = clave generada en la PC | `clave y certificado coinciden`; `openssl verify` en la PC: `certificate has expired` | control |
+| E1 | Valkey `valkey:6380` con el certificado vencido | servidor verificado; `ssl/tls alert certificate expired` (alerta 45); sin `PONG` | PASA |
+| E2 | backend mTLS `backend:8443` con el certificado vencido, `GET /` | servidor verificado; `unexpected eof while reading`; sin respuesta HTTP | PASA |
+
+Con B3 (certificado vigente del agente → `HTTP/1.1 404`) como control, E2 muestra que el listener mTLS rechaza un
+certificado de la CA correcta cuando está vencido.
+
+## Fase 6 — paso D: captura de tráfico en ambos equipos — ronda 1 — 2026-09-12 23:05–23:07 -03
+
+**Procedimiento:** captura `tcpdump -s 0` en la laptop (`wlp2s0`, 120 s, filtro `host 192.168.1.36` y puertos
+6380/8443/8444) y en la PC (`enp6s0`, 60 s, filtro `host 192.168.1.43` y los mismos puertos). Durante la captura, la
+PC escribió una línea con el marcador `A3-MARCADOR-7f3c9e` en `/srv/fim-watch/a3-captura.txt` y abrió un handshake TLS
+contra `backend:8444`. Luego se buscaron cadenas en los `.pcap` con `grep -a -o`.
+
+| Captura | Paquetes | Tráfico observado | Evidencia |
+|---|---|---|---|
+| Laptop | 413 (0 descartados por el kernel), 23:05:00.684–23:06:58.501 | 145 paquetes hacia 6380, 10 hacia 8444, resto respuestas a puertos efímeros de la PC | `fase6/a3-laptop.pcap`, `fase6/6d-captura-laptop.txt` |
+| PC | 220 | 75 paquetes hacia 6380, 9 hacia 8444, resto respuestas | `~/a3-fase6/a3-pc.pcap` y `6d-captura-pc.txt` en la PC |
+
+| Cadena buscada | Laptop | PC | ¿Viajó por el canal capturado? |
+|---|---|---|---|
+| `a3-captura` (nombre del archivo del evento) | 0 | 0 | sí: el evento `9921feea` (`file_created`, 23:05:12.862) está en la base con esa ruta |
+| `/srv/fim-watch` | 0 | 0 | sí: misma ruta |
+| `event_id` (campo JSON del evento) | 0 | 0 | sí: el evento se persistió desde el stream |
+| `a3-pc-ubuntu` y `signature` (campos del latido firmado, cada 10 s) | 0 | no buscadas | sí: ≈12 latidos en la ventana de la laptop; el agente siguió `online` |
+| `diff_text` | 0 | 0 | sí, como nombre de campo del evento |
+| `A3-MARCADOR-7f3c9e` | 0 | 0 | **no concluyente:** el evento fue `file_created` y su `diff_text` quedó vacío (0 caracteres), así que el marcador no formó parte del payload |
+
+**Nota:** en la PC quedaron dos procesos `tcpdump` simultáneos escribiendo `a3-pc.pcap` (el bloque se ejecutó dos
+veces); en la base hay un solo evento de `a3-captura.txt`, de modo que el marcador se escribió una vez.
+
+**Pendiente:** ronda 2 con una **modificación** de un archivo existente, para que el marcador viaje dentro de
+`diff_text` y el control positivo sea directo.
+
+## Fase 6 — paso D: captura de tráfico — ronda 2 — 2026-09-12 23:08:44–23:10:13 -03 (PASA)
+
+**Procedimiento:** mismas capturas y filtros (laptop 90 s, PC 40 s). La PC agregó a `a3-captura.txt`, que ya
+existía, la línea `segunda linea con A3-MARCADOR-R2-4b81d0 dentro del diff`: es una modificación, así que el
+marcador forma parte del `diff_text` del evento.
+
+**Control positivo en la base** (`fase6/6e-control-positivo-db.txt`; sólo booleanos y longitudes, sin contenido):
+
+| Evento | Tipo | Detectado | `diff_text` contiene `A3-MARCADOR-R2-4b81d0` | Ruta contiene `a3-captura` | Longitud de `diff_text` |
+|---|---|---|---|---|---|
+| `9921feea` (ronda 1) | `file_created` | 23:05:12.862 | no | sí | 0 |
+| `fa481579` (ronda 2) | `file_modified` | 23:08:53.279 | **sí** | sí | 212 |
+
+El marcador llegó al backend dentro del `diff_text`, a través de Valkey y dentro de la ventana de ambas capturas.
+
+**Búsqueda en las capturas:**
+
+| Captura | Paquetes | `A3-MARCADOR-R2-4b81d0` | `a3-captura` | `/srv/fim-watch` | `diff_text` | `event_id` | `a3-pc-ubuntu` | `signature` |
+|---|---|---|---|---|---|---|---|---|
+| Laptop (`fase6/a3-laptop-r2.pcap`; 109 paquetes hacia 6380; 0 descartados) | 297 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| PC (`~/a3-fase6/a3-pc-r2.pcap` en la PC; 0 descartados) | 135 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+**Conclusión:** una cadena que se sabe presente en el `diff_text` transmitido no aparece en el tráfico capturado
+en ninguno de los dos extremos, ni tampoco la ruta, los nombres de campo del evento ni los del latido firmado.
+Límite: la búsqueda es por coincidencia literal de bytes; no descarta codificaciones alternativas, pero ninguna
+de las cadenas estructurales del protocolo (claves JSON) aparece, lo que es consistente con cifrado del canal.
+
+**Punto de control 6: PASA** (V1–V4, B1–B3, E1–E2 y capturas en ambos extremos).
+
+# FASE 7 — Cierre (registro)
+
+## 7.1 Evidencia de la PC — 2026-09-12 23:17 -03
+
+- La PC copió a `fase6-pc/` sus resultados de pruebas negativas (`6a`, `6b`, `6c`), los resúmenes de captura
+  (`6d`, `6d-r2`), las dos capturas (`a3-pc.pcap`, `a3-pc-r2.pcap`) y los certificados **públicos** de prueba
+  (`ajena-ca.pem`, `ajena-cli.pem`, `vencido-cli.csr`, `vencido-cli.pem`). Verificación previa: sin material de
+  clave privada. Commit desde la PC `78e8275`, push a `origin/devel`.
+- En la laptop: `git merge --ff-only` a `78e8275`; los 11 SHA-256 calculados en la PC coinciden con los archivos
+  recibidos (`sha256sum -c`); sin claves privadas.
+- **Claves privadas de prueba** (`ajena-ca.key`, `ajena-cli.key`, `vencido-cli.key`): al intentar el borrado seguro
+  ya no existían en `~/a3-fase6`, ni en ningún lugar de `~` o `/tmp` (`find`). La fecha de modificación del
+  directorio (23:14) indica que se eliminaron antes del paso de borrado; no se pudo determinar cómo. Nunca se
+  copiaron a `fase6-pc/` ni se commitearon. Eran claves sin valor fuera del ensayo: una CA ajena de un día y un
+  certificado ya vencido.
+- En la raíz del repositorio de la PC quedó un `a3-pc.pcap` sin seguimiento: es el segundo proceso `tcpdump` de la
+  ronda 1, que corrió desde el directorio del repositorio. No se usa como evidencia y se elimina.
+
+## 7.2 Teardown de la PC — 2026-09-12 ~23:19 -03
+
+| Acción | Resultado |
+|---|---|
+| `a3-pc.pcap` sin seguimiento en la raíz del repositorio de la PC | eliminado; `git status --porcelain` quedó vacío |
+| `~/a3-fase6` | eliminado: su contenido útil ya estaba commiteado como `fase6-pc/` en `78e8275` y verificado por hash en la laptop (ver 7.1) |
+| `systemctl stop fim-agent` | `inactive` |
+| `systemctl disable fim-agent` | `disabled` |
+
+El agente sigue instalado (configuración, venv y certificados en `/var/lib/fim-agent`); es reversible con
+`sudo systemctl enable --now fim-agent`. Evidencia: salida de consola de la PC (no archivada como archivo).
+
+## 7.3 Laptop: stack de vuelta en texto plano — 2026-09-12 23:20:36 -03
+
+```bash
+docker compose --profile app up -d
+```
+
+Sin los overrides TLS/A3. Evidencia: `fase7/02-stack-texto-plano.txt`.
+
+| Verificación | Resultado |
+|---|---|
+| `VALKEY_URL` efectiva del backend | `valkey://valkey:6379` |
+| Valkey | sin el puerto 6380 publicado |
+| `docker-agent` | `online` |
+| `a3-pc-ubuntu` | `offline` |
+| Puertos publicados del backend | `8443` y `8444` siguen publicados: ahora son parte del código (D52/RN-146), no del override del ensayo |
+
+## 7.4 Firewall: reglas quitadas — 2026-09-12 23:21:39 -03
+
+```bash
+./aplicar_firewall_a3.sh --remove
+```
+
+Evidencia: `fase3/07-firewall-quitado-20260912T232139.txt` — ambas cadenas `DOCKER-USER` (IPv4 e IPv6) vacías tras
+la remoción.
+
+## 7.5 Laptop: Wi-Fi de vuelta a DHCP — 2026-09-12 23:22:20–23:22:37 -03
+
+Conexión "Jessica" reconfigurada de IP fija a DHCP. Evidencia: `fase7/03-laptop-ip-dhcp.txt`.
+
+| Verificación | Resultado |
+|---|---|
+| Método | `auto` |
+| Ruta por defecto | `proto dhcp`, `192.168.1.43` (el router reasignó la misma IP) |
+| Internet | responde (`rtt min/avg/max/mdev = 49.267/49.595/49.924/0.328 ms`) |
+
+La guía de restauración del operador (`~/Escritorio/VOLVER_IP_DHCP_LAPTOP.md`, ver 2.1) vivía fuera del
+repositorio; no se referencia su contenido más allá de constatar que existió.
+
+## 7.6 Estado final
+
+El laboratorio volvió a su configuración de un solo anfitrión en texto plano: agente de la PC detenido y
+deshabilitado pero instalado (reversible), reglas de firewall del ensayo removidas, y la laptop de nuevo en DHCP.
+
+**Punto de control 7: PASA.**
 
 ---
 
@@ -913,7 +1270,12 @@ Las reglas no persisten tras reiniciar la laptop. Para quitarlas antes: `sudo ip
 
 ---
 
-# FASES 4–7 — Pendientes
+# FASES 4–7 — plan original (histórico)
+
+Esta tabla se escribió antes de ejecutar las Fases 4–7 y quedó superada por el registro de ejecución de las
+secciones anteriores ("Fase 4 — instalación, registro y bootstrap del agente", "Fase 5 — paso 1" a "paso 5",
+"Fase 6 — paso A" a "paso D" y "FASE 7 — Cierre (registro)"). Se conserva sin editar, como plan original
+(histórico).
 
 | Fase | Contenido previsto |
 |---|---|

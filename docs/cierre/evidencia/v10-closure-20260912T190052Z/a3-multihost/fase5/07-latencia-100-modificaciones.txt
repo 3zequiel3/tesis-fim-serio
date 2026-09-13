@@ -1,0 +1,14 @@
+== 2026-09-12T22:51:52-03:00 100 modificaciones sobre /srv/fim-watch/a3-latencia.txt (PC 22:49:49-22:51:22 -03)
+ eventos | created | modified |  estados   | min_ms | mediana_ms | p95_ms | max_ms 
+---------+---------+----------+------------+--------+------------+--------+--------
+     100 |       1 |       99 | alert_only |    6.7 |       26.1 |  199.5 |  291.7
+(1 row)
+
+ rechazados_auditados 
+----------------------
+                    0
+(1 row)
+
+== reloj laptop al final
+System time     : 0.000789339 seconds slow of NTP time
+Last offset     : -0.000884690 seconds

@@ -1,0 +1,11 @@
+== 2026-09-12T23:22:20-03:00 antes: IP fija del ensayo
+manual
+192.168.1.43/24
+192.168.1.1
+Conexión activada con éxito (ruta activa D-Bus: /org/freedesktop/NetworkManager/ActiveConnection/77)
+gateway OK con DHCP
+== 2026-09-12T23:22:37-03:00 despues
+metodo: auto
+wlp2s0           UP             192.168.1.43/24 fe80::661e:2cf7:141a:8b0c/64 
+default via 192.168.1.1 dev wlp2s0 proto dhcp src 192.168.1.43 metric 600 
+rtt min/avg/max/mdev = 49.267/49.595/49.924/0.328 ms

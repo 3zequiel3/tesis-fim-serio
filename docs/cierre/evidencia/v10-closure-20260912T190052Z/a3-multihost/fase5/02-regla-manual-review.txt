@@ -1,0 +1,17 @@
+== 2026-09-12T22:41:43-03:00 regla y propagacion (sin payload firmado)
+ id |         pattern         | severity |    action     |          created_at          
+----+-------------------------+----------+---------------+------------------------------
+ 28 | /srv/fim-watch/manual/* | high     | manual_review | 2026-09-13 01:41:07.00329+00
+(1 row)
+
+ version |          updated_at           
+---------+-------------------------------
+      49 | 2026-09-13 01:41:07.007038+00
+(1 row)
+
+ id | command_type | target_agent_id | ruleset_version |  status   |         published_at          | ack_status | acked_at | error 
+----+--------------+-----------------+-----------------+-----------+-------------------------------+------------+----------+-------
+ 51 | rule_sync    | docker-agent    |              49 | published | 2026-09-13 01:41:07.03525+00  |            |          | 
+ 52 | rule_sync    | a3-pc-ubuntu    |              49 | published | 2026-09-13 01:41:07.042879+00 |            |          | 
+(2 rows)
+

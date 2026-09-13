@@ -1,0 +1,15 @@
+== 2026-09-12T22:57:24-03:00 detalle por evento de a3-corte.txt (hora local -03)
+ event_id |  event_type   |   status   |  detectado   |   recibido   | espera_s 
+----------+---------------+------------+--------------+--------------+----------
+ b1e4f795 | file_created  | alert_only | 22:54:17.338 | 22:54:17.349 |    0.011
+ ad4dabfd | file_modified | alert_only | 22:54:18.359 | 22:56:21.319 |  122.960
+ 036ec38f | file_modified | alert_only | 22:54:19.380 | 22:56:21.338 |  121.958
+ 2ab34ff5 | file_modified | alert_only | 22:54:20.401 | 22:56:21.346 |  120.945
+ bb7cedf8 | file_modified | alert_only | 22:54:21.422 | 22:56:21.365 |  119.943
+ a7274382 | file_modified | alert_only | 22:54:22.442 | 22:56:21.374 |  118.932
+ a0df0350 | file_modified | alert_only | 22:54:23.463 | 22:56:21.381 |  117.918
+ 57f7eadd | file_modified | alert_only | 22:54:24.486 | 22:56:21.391 |  116.905
+ 0f224a62 | file_modified | alert_only | 22:54:25.509 | 22:56:21.399 |  115.890
+ 7035f15d | file_modified | alert_only | 22:54:26.528 | 22:56:21.405 |  114.878
+(10 rows)
+

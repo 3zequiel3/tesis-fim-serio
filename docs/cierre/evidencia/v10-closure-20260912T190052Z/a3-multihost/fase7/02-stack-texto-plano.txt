@@ -1,0 +1,25 @@
+== 2026-09-12T23:20:36-03:00 restauracion del laboratorio en texto plano (compose base, sin overrides TLS/A3)
+ Container tesis-fim-serio-valkey-1 Starting 
+ Container tesis-fim-serio-db-1 Waiting 
+ Container tesis-fim-serio-valkey-1 Started 
+ Container tesis-fim-serio-valkey-1 Waiting 
+ Container tesis-fim-serio-db-1 Waiting 
+ Container tesis-fim-serio-db-1 Healthy 
+ Container tesis-fim-serio-db-1 Healthy 
+ Container tesis-fim-serio-valkey-1 Healthy 
+ Container tesis-fim-serio-backend-1 Starting 
+ Container tesis-fim-serio-backend-1 Started 
+ Container tesis-fim-serio-agent-1 Starting 
+ Container tesis-fim-serio-agent-1 Started 
+backend respondiendo
+== servicios
+agent	running	Up 23 seconds	
+backend	running	Up 23 seconds	0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp, 0.0.0.0:8443-8444->8443-8444/tcp, [::]:8443-8444->8443-8444/tcp
+db	running	Up 5 days (healthy)	5432/tcp
+frontend	running	Up 2 days	0.0.0.0:80->80/tcp, [::]:80->80/tcp
+n8n	running	Up 2 days	5678/tcp
+valkey	running	Up 29 seconds (healthy)	6379/tcp
+== VALKEY_URL efectiva del backend
+VALKEY_URL=valkey://valkey:6379
+== health/components
+{"postgres":"ok","valkey":"ok","agents":{"status":"ok","items":[{"agent_id":"a3-pc-ubuntu","hostname":"a3-pc-ubuntu","status":"offline"},{"agent_id":"docker-agent","hostname":"docker-agent","status":"online"}]}}

@@ -1,0 +1,7 @@
+== 2026-09-12T23:10:12-03:00 control positivo: el marcador R2 dentro del diff_text persistido (solo booleano y longitud)
+ event_id |  event_type   |   status   |  detectado   | diff_contiene_marcador_r2 | path_contiene_a3_captura | diff_len 
+----------+---------------+------------+--------------+---------------------------+--------------------------+----------
+ 9921feea | file_created  | alert_only | 23:05:12.862 | f                         | t                        |        0
+ fa481579 | file_modified | alert_only | 23:08:53.279 | t                         | t                        |      212
+(2 rows)
+

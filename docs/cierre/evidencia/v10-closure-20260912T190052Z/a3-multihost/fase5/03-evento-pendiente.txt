@@ -1,0 +1,6 @@
+== 2026-09-12T22:42:23-03:00 evento manual_review antes de aprobar
+  id  |               event_id               |  event_type   |              path              | status  | severity | version | resolved_at | resolved_by | diff_len 
+------+--------------------------------------+---------------+--------------------------------+---------+----------+---------+-------------+-------------+----------
+ 8481 | 52ef81a1-9625-4de2-beac-d8db538261bf | file_modified | /srv/fim-watch/manual/app.conf | pending | high     |       0 |             |             |        0
+(1 row)
+

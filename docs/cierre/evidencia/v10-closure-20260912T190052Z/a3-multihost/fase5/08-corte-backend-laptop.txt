@@ -1,0 +1,8 @@
+== 2026-09-12T22:54:17-03:00 stop backend
+ Container tesis-fim-serio-backend-1 Stopping 
+ Container tesis-fim-serio-backend-1 Stopped 
+== 2026-09-12T22:54:18-03:00 backend caido; espera 120 s
+== 2026-09-12T22:56:18-03:00 start backend
+ Container tesis-fim-serio-backend-1 Starting 
+ Container tesis-fim-serio-backend-1 Started 
+== 2026-09-12T22:56:23-03:00 backend respondiendo

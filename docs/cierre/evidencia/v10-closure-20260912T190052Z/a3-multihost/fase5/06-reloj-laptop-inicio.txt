@@ -1,0 +1,10 @@
+== 2026-09-12T22:48:34-03:00 laptop antes de la prueba de 100 modificaciones
+Reference ID    : 5BBD5B70 (ntp-nts-2.ps6.canonical.com)
+Stratum         : 3
+Ref time (UTC)  : Sun Sep 13 01:36:07 2026
+System time     : 0.001062878 seconds slow of NTP time
+Last offset     : -0.000884690 seconds
+RMS offset      : 0.013151092 seconds
+Frequency       : 8.124 ppm fast
+5:System clock synchronized: yes
+6:              NTP service: active

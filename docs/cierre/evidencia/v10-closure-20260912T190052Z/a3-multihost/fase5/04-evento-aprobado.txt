@@ -1,0 +1,19 @@
+== 2026-09-12T22:43:58-03:00 evento aprobado y comando al agente (sin payload firmado)
+  id  |               event_id               |  status  | version |          resolved_at          | resolved_by 
+------+--------------------------------------+----------+---------+-------------------------------+-------------
+ 8481 | 52ef81a1-9625-4de2-beac-d8db538261bf | approved |       1 | 2026-09-13 01:43:22.400469+00 | admin
+(1 row)
+
+ id |  command_type   | target_agent_id | event_id |  status   |         published_at          | ack_status |           acked_at            | error 
+----+-----------------+-----------------+----------+-----------+-------------------------------+------------+-------------------------------+-------
+ 53 | baseline_update | a3-pc-ubuntu    |     8481 | published | 2026-09-13 01:43:22.433525+00 | acked      | 2026-09-13 01:43:22.469659+00 | 
+(1 row)
+
+          created_at           | username |    action    | target_type | target_id |     detail     
+-------------------------------+----------+--------------+-------------+-----------+----------------
+ 2026-09-13 01:40:19.741073+00 | admin    | login        |             |           | ip=172.19.0.3
+ 2026-09-13 01:40:42.631046+00 | admin    | login        |             |           | ip=172.19.0.3
+ 2026-09-13 01:41:07.01721+00  | admin    | rule_created | rule        |        28 | 
+ 2026-09-13 01:43:22.41641+00  | admin    | approve      | event       |      8481 | {"version": 0}
+(4 rows)
+

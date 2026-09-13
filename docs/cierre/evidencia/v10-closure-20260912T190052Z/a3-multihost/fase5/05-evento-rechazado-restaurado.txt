@@ -1,0 +1,18 @@
+== 2026-09-12T22:47:46-03:00 rechazo con restauracion (sin payload firmado)
+  id  |               event_id               |  event_type   |  status  | version |          resolved_at          | resolved_by 
+------+--------------------------------------+---------------+----------+---------+-------------------------------+-------------
+ 8481 | 52ef81a1-9625-4de2-beac-d8db538261bf | file_modified | approved |       1 | 2026-09-13 01:43:22.400469+00 | admin
+ 8482 | 5270fad2-6595-41fc-a055-aceb0af969fc | file_modified | rejected |       1 | 2026-09-13 01:46:37.015379+00 | admin
+(2 rows)
+
+ id |  command_type   | target_agent_id | event_id |              command_id              |  status   |         published_at          | ack_status |           acked_at            | error 
+----+-----------------+-----------------+----------+--------------------------------------+-----------+-------------------------------+------------+-------------------------------+-------
+ 53 | baseline_update | a3-pc-ubuntu    |     8481 | cb23c360-30de-405f-94ba-d2d5cc15d125 | published | 2026-09-13 01:43:22.433525+00 | acked      | 2026-09-13 01:43:22.469659+00 | 
+ 54 | restore_file    | a3-pc-ubuntu    |     8482 | 7ca0aaa0-e558-4c1f-8779-a9233c05c117 | published | 2026-09-13 01:46:37.044832+00 | acked      | 2026-09-13 01:46:37.073051+00 | 
+(2 rows)
+
+          created_at           | username | action | target_type | target_id |               detail                
+-------------------------------+----------+--------+-------------+-----------+-------------------------------------
+ 2026-09-13 01:46:37.023311+00 | admin    | reject | event       |      8482 | {"version": 0, "action": "restore"}
+(1 row)
+
