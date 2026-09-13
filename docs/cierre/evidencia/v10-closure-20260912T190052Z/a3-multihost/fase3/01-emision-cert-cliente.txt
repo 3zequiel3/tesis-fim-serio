@@ -1,0 +1,14 @@
+time="2026-09-12T21:16:08-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T21:16:08-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T21:16:08-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T21:16:08-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T21:16:08-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T21:16:08-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T21:16:08-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T21:16:08-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+CA     : O=FIM Platform,CN=FIM Platform CA
+cert   : CN=fim-backend-valkey  EKU=clientAuth
+serial : 7fec759be5135436f59b4e28dac2bec64d1ac470
+vence  : 2026-10-13T00:16:09+00:00
+sha256 : 44f8b298fa54207d47706dfecbc0d0df2278a260e943909a38c0dccf4e5dea0f
+salida : /certs/backend-valkey.pem (0644) + /certs/backend-valkey-key.pem (0400)

@@ -1,0 +1,13 @@
+== 2026-09-12T21:49:10-03:00
+== 8444 TLS sin cert de cliente (debe completar handshake y verificar backend)
+26:subject=CN=fim-backend
+37:New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+38:Protocol: TLSv1.3
+45:Verify return code: 0 (ok)
+== 8444 POST /agents/bootstrap con secreto invalido (debe responder por TLS, 401/403/404 de negocio)
+http=404
+== 8000 POST /agents/bootstrap (debe ser 404/405)
+http=405
+== 8443 sin cert de cliente (debe fallar)
+00311CBDD2730000:error:0A000126:SSL routines::unexpected eof while reading:ssl/record/rec_layer_s3.c:698:
+00311CBDD2730000:error:0A000197:SSL routines:SSL_shutdown:shutdown while in init:ssl/ssl_lib.c:2804:

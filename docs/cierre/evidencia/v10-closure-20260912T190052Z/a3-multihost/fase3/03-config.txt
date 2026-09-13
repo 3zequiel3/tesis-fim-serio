@@ -1,0 +1,6 @@
+23:      FIM_VALKEY_URL: valkeys://valkey:6380
+89:      VALKEY_URL: valkeys://valkey:6380?ssl_certfile=/certs/backend-valkey.pem&ssl_keyfile=/certs/backend-valkey-key.pem&ssl_ca_certs=/certs/ca.pem&ssl_check_hostname=true
+183:      - "6380"
+190:      - --tls-auth-clients
+198:        - "6380"
+216:        published: "6380"

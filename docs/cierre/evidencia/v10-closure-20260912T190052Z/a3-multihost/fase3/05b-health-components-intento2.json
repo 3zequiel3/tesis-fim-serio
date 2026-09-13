@@ -1,0 +1,16 @@
+{
+  "postgres": "ok",
+  "valkey": "ok",
+  "n8n": "degraded",
+  "agents": {
+    "status": "degraded",
+    "items": [
+      {
+        "agent_id": "docker-agent",
+        "hostname": "docker-agent",
+        "status": "offline"
+      }
+    ]
+  },
+  "checked_at": "2026-09-13T00:19:14.372424+00:00"
+}

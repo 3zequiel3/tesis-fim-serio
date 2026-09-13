@@ -1,0 +1,10 @@
+== 2026-09-12T21:19:23-03:00 handshake sin certificado de cliente
+Connecting to 127.0.0.1
+Can't use SSL_get_servername
+depth=1 CN=FIM Platform CA, O=FIM Platform
+verify return:1
+depth=0 CN=valkey
+verify return:1
+00D1CFC7A0720000:error:0A00045C:SSL routines:ssl3_read_bytes:tlsv13 alert certificate required:ssl/record/rec_layer_s3.c:918:SSL alert number 116
+00D1CFC7A0720000:error:0A000197:SSL routines:SSL_shutdown:shutdown while in init:ssl/ssl_lib.c:2804:
+exit=1

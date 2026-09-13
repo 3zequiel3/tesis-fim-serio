@@ -1,0 +1,18 @@
+== valkey
+subject=CN=valkey
+issuer=CN=FIM Platform CA, O=FIM Platform
+notBefore=Sep 10 20:14:39 2026 GMT
+notAfter=Dec  9 20:19:39 2026 GMT
+X509v3 Subject Alternative Name: 
+    DNS:valkey, DNS:localhost
+X509v3 Extended Key Usage: 
+    TLS Web Server Authentication, TLS Web Client Authentication
+docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/fase3/valkey.pem: OK
+== backend-valkey
+subject=CN=fim-backend-valkey
+issuer=CN=FIM Platform CA, O=FIM Platform
+notBefore=Sep 13 00:11:09 2026 GMT
+notAfter=Oct 13 00:16:09 2026 GMT
+X509v3 Extended Key Usage: 
+    TLS Web Client Authentication
+docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/fase3/backend-valkey.pem: OK

@@ -1,0 +1,25 @@
+# Override del ensayo A-3 (multianfitrión). Se aplica DESPUÉS de docker-compose.tls.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml \
+#     -f docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/docker-compose.a3.yml \
+#     --profile app <comando>
+#
+# QUÉ CAMBIA RESPECTO DE docker-compose.tls.yml
+#   - Valkey publica 6380 en el host, para que el agente de la PC lo alcance por la LAN.
+#     El filtrado por IP de origen NO se hace acá: Docker evita las reglas de ufw para los
+#     puertos publicados, así que se aplica en la cadena DOCKER-USER (runbook, paso 3.7).
+#   - El backend conecta a Valkey con su propio certificado de cliente (carril L8).
+#     valkey-py pasa los parámetros desconocidos de la query como kwargs de la conexión.
+#     ssl_check_hostname va explícito porque su valor por defecto en valkey-py 6.1.0 es False.
+#
+# No modifica código ni imágenes. Para volver al laboratorio en texto plano:
+#   docker compose --profile app up -d
+
+services:
+  valkey:
+    ports:
+      - "6380:6380"
+
+  backend:
+    environment:
+      VALKEY_URL: "valkeys://valkey:6380?ssl_certfile=/certs/backend-valkey.pem&ssl_keyfile=/certs/backend-valkey-key.pem&ssl_ca_certs=/certs/ca.pem&ssl_check_hostname=true"

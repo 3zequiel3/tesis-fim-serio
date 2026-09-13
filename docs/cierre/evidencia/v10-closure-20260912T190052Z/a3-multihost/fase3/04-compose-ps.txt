@@ -1,0 +1,5 @@
+backend	running	Up 3 seconds	0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp, 0.0.0.0:8443->8443/tcp, [::]:8443->8443/tcp
+db	running	Up 5 days (healthy)	5432/tcp
+frontend	running	Up 2 days	0.0.0.0:80->80/tcp, [::]:80->80/tcp
+n8n	running	Up 2 days	5678/tcp
+valkey	running	Up 9 seconds (healthy)	6379/tcp, 0.0.0.0:6380->6380/tcp, [::]:6380->6380/tcp
