@@ -216,7 +216,7 @@ def test_consumer_invalid_transition_xacks_and_does_not_persist(mem_engine, agen
 
     with patch.object(consumer_mod, "engine", mem_engine), \
          patch.object(svc_mod, "engine", mem_engine), \
-         patch.object(consumer_mod, "ingest_event",
+         patch.object(consumer_mod, "_ingest",
                       side_effect=InvalidTransitionError(EventStatus.approved, EventStatus.pending)):
         asyncio.run(consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload)))
 

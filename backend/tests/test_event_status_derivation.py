@@ -66,6 +66,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 from agent.decision import DecisionEngine  # noqa: E402
 from agent.detector import DetectedChange  # noqa: E402
 from agent.journal import JournalManager  # noqa: E402
+from agent.quarantine import QuarantineStore  # noqa: E402
 from agent.rules import RulesCache  # noqa: E402
 
 
@@ -118,6 +119,9 @@ def _make_decision_engine(tmp_path: Path, action: str) -> tuple[DecisionEngine, 
         journal=journal,
         baseline=baseline,
         quarantine_dir=quarantine_dir,
+        quarantine_store=QuarantineStore(
+            quarantine_dir, b"q" * 32, "agent-status-test"
+        ),
     )
     return decision_engine, baseline
 
@@ -196,8 +200,8 @@ def test_row_auto_restore_success_yields_auto_restored(mem_engine, tmp_path: Pat
     assert event is not None
     assert event.status == EventStatus.auto_restored
     assert event.action_failed is False
-    # SQLite (mem_engine) no preserva tzinfo en el roundtrip; comparar naive.
-    assert event.resolved_at == now.replace(tzinfo=None)
+    assert event.resolved_at == now
+    assert event.resolved_at.tzinfo is not None
     assert event.resolved_by is None
     assert target.read_bytes() == content
 
@@ -216,8 +220,8 @@ def test_row_quarantine_success_yields_quarantined(mem_engine, tmp_path: Path) -
     assert event is not None
     assert event.status == EventStatus.quarantined
     assert event.action_failed is False
-    # SQLite (mem_engine) no preserva tzinfo en el roundtrip; comparar naive.
-    assert event.resolved_at == now.replace(tzinfo=None)
+    assert event.resolved_at == now
+    assert event.resolved_at.tzinfo is not None
     assert event.resolved_by is None
     assert not target.exists()  # movido a cuarentena
 
@@ -233,8 +237,8 @@ def test_row_alert_only_yields_alert_only(mem_engine, tmp_path: Path) -> None:
     assert event is not None
     assert event.status == EventStatus.alert_only
     assert event.action_failed is False
-    # SQLite (mem_engine) no preserva tzinfo en el roundtrip; comparar naive.
-    assert event.resolved_at == now.replace(tzinfo=None)
+    assert event.resolved_at == now
+    assert event.resolved_at.tzinfo is not None
     assert event.resolved_by is None
 
 

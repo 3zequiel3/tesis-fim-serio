@@ -226,7 +226,7 @@ def test_invalid_transition_xack_audits_and_terminal_nack(mem_engine, agent, sha
     with patch.object(consumer_mod, "engine", mem_engine):
         with patch.object(
             consumer_mod,
-            "ingest_event",
+            "_ingest",
             side_effect=InvalidTransitionError(EventStatus.approved, EventStatus.pending),
         ):
             asyncio.run(consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload)))
@@ -257,7 +257,7 @@ def test_sqlalchemy_error_no_xack_stays_in_pel(mem_engine, agent, shared_secret)
     with patch.object(consumer_mod, "engine", mem_engine):
         with patch.object(
             consumer_mod,
-            "ingest_event",
+            "_ingest",
             side_effect=SQLAlchemyError("connection refused"),
         ):
             asyncio.run(consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload)))
