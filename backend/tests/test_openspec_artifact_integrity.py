@@ -91,3 +91,18 @@ def test_delta_header_detection_is_anchored() -> None:
         "El sistema SHALL NOT contener `## ADDED Requirements` dentro de una main spec.\n"
     )
     assert mod.DELTA_H2.findall("## ADDED Requirements\n")
+
+
+def test_confirmed_rename_applies_without_a_later_delta(tmp_path: Path) -> None:
+    """A documented direct-main rename must supersede its archived name."""
+    mod = _load()
+    delta = tmp_path / "spec.md"
+    delta.write_text(
+        "## ADDED Requirements\n"
+        "### Requirement: Acción quarantine — movimiento a directorio de cuarentena\n",
+        encoding="utf-8",
+    )
+
+    assert mod.expected_for("agent-decision-engine", [delta]) == [
+        "Acción quarantine — aislamiento cifrado local"
+    ]

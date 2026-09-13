@@ -53,6 +53,12 @@ MERGED_INTO = {
 # Este proyecto nunca uso `## RENAMED Requirements`, asi que sin este mapa la
 # guarda exigiria requisitos que fueron legitimamente renombrados.
 CONFIRMED_RENAMES: dict[str, dict[str, str]] = {
+    "agent-decision-engine": {
+        # b060e5f replaced plaintext movement with the encrypted quarantine
+        # store and renamed the requirement in the same cohesive change.
+        "Acción quarantine — movimiento a directorio de cuarentena":
+            "Acción quarantine — aislamiento cifrado local",
+    },
     "backend-event-consumer": {
         "Cadena superseded en ingesta con optimistic locking":
             "Cadena superseded en ingesta con optimistic locking y re-consulta ante race",
@@ -109,7 +115,16 @@ def expected_for(cap: str, deltas: list[Path]) -> list[str]:
                 order = [hdr if h == src else h for h in order]
             elif hdr not in order:
                 order.append(hdr)
-    return order
+    # Some legitimate renames predate the integrity guard and changed the main
+    # spec directly, so no later archived delta repeats the new header.  Apply
+    # the audited rename map to the final expectation as well as while folding
+    # deltas; otherwise adding a correct map entry still reports the old name.
+    canonical: list[str] = []
+    for header in order:
+        renamed = rmap.get(header, header)
+        if renamed not in canonical:
+            canonical.append(renamed)
+    return canonical
 
 
 def check() -> dict:
