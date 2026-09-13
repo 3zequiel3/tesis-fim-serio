@@ -77,6 +77,13 @@ def main() -> int:
             x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]),
             critical=False,
         )
+        # AKI obligatorio: ssl.create_default_context() de Python 3.13 activa
+        # VERIFY_X509_STRICT, que rechaza certificados no raíz sin esta extensión
+        # (backend y agente fallan con "Missing Authority Key Identifier").
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),  # type: ignore[arg-type]
+            critical=False,
+        )
         .sign(ca_key, None)  # Ed25519 no lleva algoritmo de hash explícito
     )
 
