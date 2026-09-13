@@ -548,11 +548,20 @@ Valkey reiniciado para cargar el certificado. El certificado del intento 1 se co
 
 | Prueba | Resultado | Evidencia |
 |---|---|---|
-| Estado previo | `DOCKER-USER` vacía en IPv4 e IPv6 | `fase3/07-firewall-antes.txt` |
-| Reglas aplicadas | IPv4: `DROP` en 8443 y 6380 desde `wlp2s0` si el origen no es `192.168.1.36`. IPv6: `DROP` en 8443 y 6380 desde `wlp2s0` | `fase3/07-firewall-despues.txt` |
+| Estado previo (21:22) | `DOCKER-USER` vacía en IPv4 e IPv6 (`-N DOCKER-USER`) | salida de consola; ver nota de evidencia |
+| Reglas aplicadas (21:22) | IPv4: `DROP` en 8443 y 6380 desde `wlp2s0` si el origen no es `192.168.1.36`. IPv6: `DROP` en 8443 y 6380 desde `wlp2s0` | salida de consola; ver nota de evidencia |
 | Positiva (PC permitida) | `nc` desde la PC a `valkey:6380` y `backend:8443` → `succeeded` | salida en consola de la PC |
 | Negativa (IP permitida cambiada a `192.168.1.250`, contadores en cero) | `nc` desde la PC → `timed out` en ambos puertos. Contadores: 3 paquetes / 180 bytes descartados por regla (SYN y reintentos) | `fase3/07-firewall-negativo.txt` |
 | Restauración | reglas de nuevo con `!192.168.1.36` | `fase3/07-firewall-restaurado.txt` |
+
+**Nota de evidencia — archivos sobrescritos:** `aplicar_firewall_a3.sh` escribe en los mismos nombres
+`07-firewall-antes.txt` y `07-firewall-despues.txt` que el bloque manual de las 21:22. Al ejecutarse a las 21:50
+para agregar el puerto 8444, los sobrescribió antes del commit `34611dd`, así que las capturas de las 21:22 no se
+conservan como archivo; su contenido se registra arriba desde la salida de consola. Los archivos actuales
+corresponden a la ejecución de las 21:50: antes, reglas para 8443 y 6380; después, además 8444. La re-ejecución de
+las 22:05 no cambió nada (idempotente) y quedó en `07b-firewall-8444-antes.txt` / `07b-firewall-8444-despues.txt`.
+Las capturas de la prueba negativa (`07-firewall-negativo.txt`) y de la restauración (`07-firewall-restaurado.txt`)
+no se vieron afectadas.
 
 **Nota de operación:** un primer intento de aplicar las reglas se ejecutó por error en la PC. No tuvo efecto
 (las reglas exigían la interfaz `wlp2s0`, inexistente en la PC) y la cadena `DOCKER-USER` de la PC quedó vacía.
@@ -622,6 +631,90 @@ Evidencia: `fase3b/01-listeners-bootstrap.txt`.
 
 **Desvío de specs:** `openspec/specs/{backend-agents,agent-bootstrap,backend-pki,infra-compose}/spec.md` describen
 el comportamiento anterior y no se editaron (guardia de integridad).
+
+## Fase 4 — instalación, registro y bootstrap del agente — 2026-09-12 21:55–22:04 -03
+
+Commits en ambos equipos: `34611dd` (PC con `git pull`).
+
+| Paso | Dónde | Resultado |
+|---|---|---|
+| Integridad de la CA transferida | PC | huella SHA-256 de `fase3/ca.pem` en la PC = la calculada en la laptop (`96:7A:63:1E:…:03:5E`), comparada por un canal distinto de git |
+| Aprovisionamiento | PC | `/etc/fim-agent/certs/ca.pem` (0644); `config.yaml` con `agent_id: a3-pc-ubuntu`, `backend_url: https://backend:8444`, `mtls_backend_url: https://backend:8443`, `valkey_url: valkeys://valkey:6380`, `watch_paths: [/srv/fim-watch]` |
+| `agent/install.sh` | PC | reutiliza el venv de Python 3.13; respeta `config.yaml`; drop-in con `ReadWritePaths` `/etc/fim-agent` y `/srv/fim-watch`; servicio habilitado sin arrancar |
+| Lectura de la configuración como `fim-agent` | PC | `config OK: a3-pc-ubuntu https://backend:8444 valkeys://valkey:6380 ['/srv/fim-watch']` |
+| TLS al listener de bootstrap | PC | `openssl s_client` como `fim-agent`: `Verification: OK`, `Verified peername: backend`, `TLSv1.3`, `TLS_AES_256_GCM_SHA384`, `No client certificate CA names sent`, grupo `X25519MLKEM768`. Como usuario común falla con `Permission denied` sobre la CA (`/etc/fim-agent` es 0750 `root:fim-agent`), lo esperado |
+| Registro | laptop | `registrar_agente_a3.sh` contra `127.0.0.1:8000`: primer intento `401` en login (contraseña de admin incorrecta; nada registrado); segundo intento `http_code=201`, `{"agent_id":"a3-pc-ubuntu","status":"offline"}` (`fase4/02-registro-agente.txt`) |
+| Bootstrap | PC → laptop | log del backend: `192.168.1.36 - "POST /agents/bootstrap HTTP/1.1" 200 OK` (sólo servible por 8444) |
+| Material criptográfico | PC | `/var/lib/fim-agent/certs`: `agent-cert.pem`, `agent-key.pem`, `ca.pem` (0600 `fim-agent`); `/var/lib/fim-agent/secrets`: `master_secret`, `shared_secret` (0400 `fim-agent`) |
+| Latido por Valkey mTLS | laptop | `/health/components`: `a3-pc-ubuntu` → `online` (`fase4/03-backend-agente-online.txt`) |
+
+**Notas de operación:**
+
+- El secreto de bootstrap se tipeó a mano (no hay copia entre equipos): 24 caracteres hex agrupados de a 4, con
+  confirmación visual antes de enviar. El valor quedó escrito en el chat de asistencia; por decisión del responsable
+  se mantuvo, dado que es de un solo uso y el entorno es un laboratorio aislado de dos equipos propios.
+- En `fase4/03-backend-agente-online.txt`, las líneas `404` y `405` desde `172.19.0.1` corresponden a las
+  verificaciones locales del listener de bootstrap hechas desde la laptop, no al agente.
+
+## Hallazgo en la Fase 4 — avalancha de comandos ajenos al primer arranque (2026-09-12)
+
+Observado en el journal de la PC durante los primeros 20 s: más de 22 000 `detector.out_of_scope_drop` sobre
+`/state.tmp` y `/state.json`, intercalados con `publisher.command_signature_invalid`.
+
+**Causa verificada en código y en Valkey:**
+
+- El stream `commands` es único para todos los agentes y tenía **38 794 mensajes** históricos de agentes de
+  laboratorio anteriores (`XLEN commands`).
+- Un agente nuevo recorre el stream desde el principio (`agent/publisher.py:381-411`). Cada mensaje pasa por
+  `_verify_and_parse` (`:415-431`), que verifica la firma HMAC con el `shared_secret` propio **antes** de mirar a
+  qué agente va dirigido: todo comando ajeno registra `command_signature_invalid`. El rechazo es correcto; el
+  registro como advertencia genera ruido.
+- Tras cada mensaje, ajeno o propio, se guarda `last_stream_command_id` con `save_state` (`:404-406`): una
+  escritura de `state.json` por mensaje.
+- Esas escrituras generan eventos fanotify que el detector descarta por estar fuera de `watch_paths`. Que la ruta
+  aparezca como `/state.json` y no como `/var/lib/fim-agent/state.json` es consistente con que el servicio resuelve
+  las rutas dentro de su espacio de montaje (`ProtectSystem=strict` con `ReadWritePaths`); **no verificado**.
+
+**Impacto:** ruido en el journal y consumo de CPU al primer arranque de un agente nuevo en un despliegue con
+historial de comandos. No compromete la seguridad (los comandos ajenos se rechazan) ni el funcionamiento (el
+agente quedó `online`). No se corrige durante el ensayo; queda registrado como limitación.
+
+**Confirmación posterior (≈22:10):** en el último minuto, 0 `command_signature_invalid`: el recorrido del historial
+terminó. Durante el recorrido journald suprimió ≈5 400–5 700 mensajes por ventana de 30 s. Persisten ≈65
+`detector.out_of_scope_drop` por minuto: la marca fanotify es `FAN_MARK_FILESYSTEM` sobre el filesystem raíz de la
+PC (`agent/detector.py:390-397`), y como el directorio de trabajo comparte filesystem con `/srv/fim-watch` se omite la
+máscara de exclusión (`detector.mark_exclusion_skipped_same_fs`). Cualquier escritura de otro proceso del escritorio
+en ese filesystem genera un evento que el filtro de alcance descarta y registra como advertencia.
+
+## Hallazgo en la Fase 4 — el preflight de escritura da falso `permission_denied` (2026-09-12)
+
+**Observado:** al arrancar, `agent.preflight.degraded` con `"path": "/srv/fim-watch", "classification":
+"permission_denied"`. `/srv/fim-watch` es `root:root 0755` y el servicio corre como `fim-agent` con
+`CAP_DAC_OVERRIDE` como capability ambiental.
+
+**Causa verificada en la PC** (`setpriv` como `fim-agent`, sólo con `CAP_DAC_OVERRIDE`; `CapEff: 0000000000000002`):
+
+| Prueba | Resultado |
+|---|---|
+| `os.access('/srv/fim-watch', W_OK)` (usado por `agent/preflight.py:30,64`) | `False` |
+| `os.access('/srv/fim-watch', W_OK, effective_ids=True)` | `True` |
+| Crear y borrar un archivo en `/srv` (`root:root 0755`) | OK |
+
+`access(2)` evalúa con el uid real y, para un uid distinto de root, el kernel descarta las capabilities efectivas
+durante la comprobación; con `AT_EACCESS` (`effective_ids=True`) se respetan. El preflight informa sin permiso de
+escritura un directorio sobre el que el agente sí puede escribir. En el despliegue en contenedor no se manifestaba
+porque ese agente corre como root.
+
+**Impacto:** sólo informativo. La clasificación viaja en `watch_path_status` del latido (`agent/heartbeat.py:111-112`)
+y no condiciona la detección ni la remediación (`detector.started` con `/srv/fim-watch`). Afecta a cualquier
+`watch_path` propiedad de root (`/etc`, `/usr/bin`), que es el caso normal de un FIM. `baseline.init_scan.complete`
+con `scanned: 0` se debe a que `/srv/fim-watch` estaba vacío, no a este hallazgo.
+
+**Corrección (antes de la Fase 5, inline como bug fix de una línea según `CLAUDE.md`):** `agent/preflight.py` usa
+por defecto `os.access(path, mode, effective_ids=True)`. Test nuevo en `agent/tests/test_preflight.py`
+(`test_default_access_probe_uses_effective_ids`); con el código anterior la clasificación da `permission_denied` y
+el test falla. Suite del agente en Python 3.13: 515 aprobados, 1 omitido. Pendiente: desplegar en la PC
+(`git pull`, `install.sh`, reinicio) y confirmar `watch_path_status` = `writable`.
 
 ---
 

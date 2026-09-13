@@ -17,6 +17,8 @@ LAN_IF="wlp2s0"
 ALLOWED_SRC="192.168.1.36"
 PORTS=(6380 8443 8444)
 OUT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/fase3"
+# Timestamped names: a re-run must never overwrite the evidence of a previous run.
+RUN_TS="$(date +%Y%m%dT%H%M%S)"
 
 if [[ "$(hostname)" != "${LAPTOP_HOSTNAME}" ]]; then
     echo "ERROR: this is not the laptop ($(hostname)); nothing was applied" >&2
@@ -46,11 +48,11 @@ if [[ "${1:-}" == "--remove" ]]; then
         # shellcheck disable=SC2046
         while ip6tables -C $(v6_rule "$p") 2>/dev/null; do ip6tables -D $(v6_rule "$p"); done
     done
-    snapshot "${OUT_DIR}/07-firewall-quitado.txt"
+    snapshot "${OUT_DIR}/07-firewall-quitado-${RUN_TS}.txt"
     exit 0
 fi
 
-snapshot "${OUT_DIR}/07-firewall-antes.txt"
+snapshot "${OUT_DIR}/07-firewall-antes-${RUN_TS}.txt"
 for p in "${PORTS[@]}"; do
     # Idempotent: insert only when the rule is not already present.
     # shellcheck disable=SC2046
@@ -60,4 +62,4 @@ for p in "${PORTS[@]}"; do
         ip6tables -C $(v6_rule "$p") 2>/dev/null || ip6tables -I $(v6_rule "$p")
     fi
 done
-snapshot "${OUT_DIR}/07-firewall-despues.txt"
+snapshot "${OUT_DIR}/07-firewall-despues-${RUN_TS}.txt"

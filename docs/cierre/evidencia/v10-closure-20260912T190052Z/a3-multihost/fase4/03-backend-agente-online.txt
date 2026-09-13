@@ -1,0 +1,29 @@
+== 2026-09-12T22:04:12-03:00 health/components
+{
+  "postgres": "ok",
+  "valkey": "ok",
+  "n8n": "degraded",
+  "agents": {
+    "status": "ok",
+    "items": [
+      {
+        "agent_id": "docker-agent",
+        "hostname": "docker-agent",
+        "status": "dead"
+      },
+      {
+        "agent_id": "a3-pc-ubuntu",
+        "hostname": "a3-pc-ubuntu",
+        "status": "online"
+      }
+    ]
+  },
+  "checked_at": "2026-09-13T01:04:12.091171+00:00"
+}
+== backend: bootstrap desde la PC
+backend-1  | INFO:     172.19.0.1:57062 - "POST /agents/bootstrap HTTP/1.1" 404 Not Found
+backend-1  | INFO:     172.19.0.1:50640 - "POST /agents/bootstrap HTTP/1.1" 405 Method Not Allowed
+backend-1  | INFO:     172.19.0.1:45636 - "POST /agents/register HTTP/1.1" 201 Created
+backend-1  | INFO:     192.168.1.36:35298 - "POST /agents/bootstrap HTTP/1.1" 200 OK
+== XLEN commands
+38794

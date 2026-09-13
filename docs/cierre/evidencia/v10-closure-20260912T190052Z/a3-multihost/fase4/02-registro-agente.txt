@@ -1,0 +1,4 @@
+date=2026-09-12T22:02:28-03:00
+agent_id=a3-pc-ubuntu
+http_code=201
+response={"agent_id":"a3-pc-ubuntu","status":"offline"}
