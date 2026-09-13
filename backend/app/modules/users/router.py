@@ -7,6 +7,8 @@ GET  /users                 — listado paginado de admins (require_admin, C20).
 POST /users                 — crear admin adicional (require_admin, C20).
 """
 
+import time
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from jose import JWTError
 from sqlmodel import Session, func, select
@@ -14,10 +16,17 @@ from sqlmodel import Session, func, select
 from app.core.audit import write_audit_log
 from app.core.database import get_session
 from app.core.deps import get_current_user, require_admin
-from app.core.security import blacklist_token, decode_token, hash_password, verify_password
+from app.core.security import (
+    REFRESH_TOKEN_EXPIRE_DAYS,
+    blacklist_token,
+    decode_token,
+    hash_password,
+    verify_password,
+)
 from app.core.valkey import get_valkey_client
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import User
+from app.modules.auth.router import clear_refresh_cookies
 from app.modules.users.schemas import (
     ChangePasswordRequest,
     ChangePasswordResponse,
@@ -71,14 +80,22 @@ async def change_password(
         blacklist_token(jti, exp, valkey_client)
 
     # Revoke refresh token and clear cookie
+    refresh_jti = payload.get("refresh_jti")
+    refresh_exp = None
     if refresh_token:
         try:
             rp = decode_token(refresh_token)
-            if rjti := rp.get("jti"):
-                blacklist_token(rjti, rp.get("exp", 0), valkey_client)
+            refresh_jti = rp.get("jti") or refresh_jti
+            refresh_exp = rp.get("exp")
         except JWTError:
             pass
-    response.delete_cookie(key=_REFRESH_COOKIE, path="/auth/refresh")
+    if refresh_jti:
+        blacklist_token(
+            refresh_jti,
+            refresh_exp or time.time() + REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
+            valkey_client,
+        )
+    clear_refresh_cookies(response)
 
     write_audit_log(session, "change_password", user.id)  # type: ignore[arg-type]
 

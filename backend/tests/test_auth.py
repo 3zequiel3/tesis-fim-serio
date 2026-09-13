@@ -141,6 +141,71 @@ async def _full_access_login(client) -> tuple[str, dict]:
     return full.json()["access_token"], dict(full.cookies)
 
 
+# ─── Tests: Argon2id y duración exacta de tokens (US-01 criterios 2 y 6) ────
+
+def test_hash_password_usa_argon2id_c9():
+    """
+    US-01 criterio 6 (C9): el hash almacenado debe llevar el prefijo Argon2id
+    con los parámetros exactos time_cost=3, memory_cost=65536, parallelism=4.
+    Falla si `_ph` cambiara de algoritmo o de cualquiera de esos parámetros,
+    porque el prefijo codifica ambos.
+    """
+    from app.core.security import hash_password
+
+    hashed = hash_password("SomePlainPassword1!")
+    assert hashed.startswith("$argon2id$v=19$m=65536,t=3,p=4$"), hashed
+
+
+async def test_access_15min_refresh_7d(auth_client):
+    """
+    US-01 criterio 2: access token de 15 min (900s) + refresh de 7 días
+    (604800s). Se decodifican ambos tokens con `decode_token` (las propias
+    settings JWT dual-key del proyecto), nunca asumiendo el secreto/algoritmo.
+    """
+    from app.core.security import decode_token
+
+    login_resp = await _login(auth_client)
+    assert login_resp.status_code == 200
+
+    access_payload = decode_token(login_resp.json()["access_token"])
+    assert access_payload["exp"] - access_payload["iat"] == 900
+
+    refresh_payload = decode_token(login_resp.cookies["refresh_token"])
+    assert refresh_payload["exp"] - refresh_payload["iat"] == 604800
+
+
+async def test_cookie_refresh_secure_fuera_de_dev(monkeypatch, auth_client):
+    """
+    US-01 criterio 5: fuera de `environment=dev` la cookie de refresh agrega
+    `Secure` a los atributos ya cubiertos por otro test (`HttpOnly`,
+    `SameSite=strict`, `Path=/auth/refresh`), y fija `Max-Age` en los 7 días
+    de `REFRESH_TOKEN_EXPIRE_DAYS`.
+    """
+    from app.core.security import REFRESH_TOKEN_EXPIRE_DAYS
+    from app.modules.auth import router as auth_router_module
+
+    # Se monkeypatchea el objeto `settings` que el router realmente lee
+    # (`app.modules.auth.router.settings`), no un `from app.core.config import
+    # settings` fresco: `backend/tests/core/test_notification_settings.py` hace
+    # `importlib.reload(app.core.config)`, que REBINDEA el nombre de módulo
+    # `app.core.config.settings` a una instancia nueva. Cuando esa suite corre
+    # antes que ésta (orden real de la suite completa), un `from
+    # app.core.config import settings` hecho acá apuntaría a esa instancia
+    # nueva — mientras que `auth/router.py` sigue usando la instancia vieja
+    # importada al cargar el módulo — y el monkeypatch quedaría mudo.
+    monkeypatch.setattr(auth_router_module.settings, "environment", "prod")
+
+    resp = await _login(auth_client)
+    assert resp.status_code == 200
+
+    headers = resp.headers.get_list("set-cookie")
+    canonical = next(v for v in headers if "Path=/auth/refresh" in v)
+    assert "Secure" in canonical, canonical
+    assert "HttpOnly" in canonical
+    assert "SameSite=strict" in canonical
+    assert f"Max-Age={REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600}" in canonical
+
+
 # ─── Tests: login ────────────────────────────────────────────────────────────
 
 async def test_login_exitoso_retorna_200(auth_client):
@@ -150,6 +215,23 @@ async def test_login_exitoso_retorna_200(auth_client):
     assert "access_token" in body
     assert body["token_type"] == "bearer"
     assert "must_change_password" in body
+
+
+async def test_login_migra_cookie_legacy_y_emite_cookie_canonica(auth_client):
+    resp = await _login(auth_client)
+    assert resp.status_code == 200
+    headers = resp.headers.get_list("set-cookie")
+    assert any(
+        "refresh_token=" in value
+        and "Path=/auth/refresh" in value
+        and "SameSite=strict" in value
+        and "HttpOnly" in value
+        for value in headers
+    )
+    assert any(
+        "refresh_token=" in value and "Path=/" in value and "Max-Age=0" in value
+        for value in headers
+    ), headers
 
 
 async def test_login_primer_admin_must_change_password_true(auth_client):
@@ -283,14 +365,95 @@ async def test_refresh_concurrente_dentro_de_gracia_reusa_la_sesion_rotada(
     assert winner.status_code == 200
     winning_refresh = winner.cookies["refresh_token"]
 
+    from app.core.security import BLACKLIST_PREFIX, decode_token
+
+    old_jti = decode_token(login_resp.cookies["refresh_token"])["jti"]
+
     # Segundo refresh con el token VIEJO, dentro de la ventana de gracia.
-    mock_valkey.exists.return_value = 1
+    # El predecesor R0 está revocado, pero el ganador R1 no: la comprobación
+    # independiente evita que un mock global oculte el límite de seguridad.
+    mock_valkey.exists.side_effect = lambda key: int(key == f"{BLACKLIST_PREFIX}{old_jti}")
     mock_valkey.get.return_value = winning_refresh.encode()
 
     loser = await auth_client.post("/auth/refresh", cookies=login_resp.cookies)
     assert loser.status_code == 200
     assert loser.cookies["refresh_token"] == winning_refresh
     assert "access_token" in loser.json()
+
+
+async def test_gracia_no_resucita_refresh_ganador_revocado_por_logout(
+    blacklist_client, blacklist_valkey, blacklist_store
+):
+    """R0→R1, logout linked to R1, then replay R0 inside grace must be 401."""
+    from app.core.security import BLACKLIST_PREFIX, decode_token
+
+    login_resp = await _login(blacklist_client)
+    assert login_resp.status_code == 200
+    r0 = login_resp.cookies["refresh_token"]
+
+    winner = await blacklist_client.post(
+        "/auth/refresh", cookies={"refresh_token": r0}
+    )
+    assert winner.status_code == 200
+    r1 = winner.cookies["refresh_token"]
+    winner_access = winner.json()["access_token"]
+
+    # Model real Valkey reads for the grace record written through setex.
+    blacklist_valkey.get.side_effect = lambda key: (
+        blacklist_store[key][1] if key in blacklist_store else None
+    )
+    logout = await blacklist_client.post(
+        "/auth/logout", headers={"Authorization": f"Bearer {winner_access}"}
+    )
+    assert logout.status_code == 200
+    assert f"{BLACKLIST_PREFIX}{decode_token(r1)['jti']}" in blacklist_store
+
+    replay = await blacklist_client.post(
+        "/auth/refresh", cookies={"refresh_token": r0}
+    )
+    assert replay.status_code == 401
+    assert replay.json()["detail"] == "Refresh token revoked"
+
+
+async def test_gracia_no_resucita_refresh_ganador_revocado_por_change_password_sin_cookie(
+    blacklist_client, blacklist_valkey, blacklist_store
+):
+    """Password change receives no scoped cookie and revokes R1 through access.refresh_jti."""
+    from app.core.security import BLACKLIST_PREFIX, decode_token
+
+    login_resp = await _login(blacklist_client)
+    assert login_resp.status_code == 200
+    r0 = login_resp.cookies["refresh_token"]
+    winner = await blacklist_client.post(
+        "/auth/refresh", cookies={"refresh_token": r0}
+    )
+    assert winner.status_code == 200
+    r1 = winner.cookies["refresh_token"]
+    winner_access = winner.json()["access_token"]
+    r1_jti = decode_token(r1)["jti"]
+
+    blacklist_valkey.get.side_effect = lambda key: (
+        blacklist_store[key][1] if key in blacklist_store else None
+    )
+    # No cookies argument: Path=/auth/refresh prevents the canonical cookie
+    # from travelling to /users/change-password.
+    changed = await blacklist_client.post(
+        "/users/change-password",
+        json={"new_password": "GraceReplayClosed42!"},
+        headers={"Authorization": f"Bearer {winner_access}"},
+    )
+    assert changed.status_code == 200
+    assert "refresh_token" not in changed.request.headers.get("cookie", "")
+    assert f"{BLACKLIST_PREFIX}{r1_jti}" in blacklist_store
+
+    direct_r1 = await blacklist_client.post(
+        "/auth/refresh", cookies={"refresh_token": r1}
+    )
+    replay_r0 = await blacklist_client.post(
+        "/auth/refresh", cookies={"refresh_token": r0}
+    )
+    assert direct_r1.status_code == 401
+    assert replay_r0.status_code == 401
 
 
 async def test_refresh_sin_cookie_retorna_401(auth_client):
@@ -369,6 +532,30 @@ async def test_logout_invalida_tambien_el_refresh_token(blacklist_client, blackl
         "/auth/refresh", cookies={"refresh_token": refresh_token}
     )
     assert reuse.status_code == 401
+
+
+async def test_logout_revoca_refresh_jti_sin_recibir_cookie_canonica(
+    blacklist_client, blacklist_store
+):
+    """Path=/auth/refresh prevents the cookie reaching logout; the access claim closes the session."""
+    from app.core.security import BLACKLIST_PREFIX, decode_token
+
+    access_token, refresh_cookies = await _full_access_login(blacklist_client)
+    access_payload = decode_token(access_token)
+    refresh_jti = decode_token(refresh_cookies["refresh_token"])["jti"]
+    assert access_payload["refresh_jti"] == refresh_jti
+
+    # No explicit cookies: the client's cookie jar obeys Path and does not send
+    # the canonical refresh cookie to /auth/logout.
+    response = await blacklist_client.post(
+        "/auth/logout", headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert response.status_code == 200
+    assert "refresh_token" not in response.request.headers.get("cookie", "")
+    assert f"{BLACKLIST_PREFIX}{refresh_jti}" in blacklist_store
+    clear_headers = response.headers.get_list("set-cookie")
+    assert any("Path=/auth/refresh" in value and "Max-Age=0" in value for value in clear_headers)
+    assert any("Path=/" in value and "Max-Age=0" in value for value in clear_headers)
 
 
 # ─── Tests: scope password_change_only ──────────────────────────────────────

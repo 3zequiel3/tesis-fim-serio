@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+const REFRESH_URL = import.meta.env.VITE_REFRESH_URL ?? '/auth/refresh'
 
 // Instancia propia para rutas de auth — no usa apiClient para evitar ciclos ESM.
 // Para requests que necesitan Bearer token (changePassword) se adjunta
@@ -9,6 +10,10 @@ const authAxios = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
 })
+
+// Refresh is deliberately outside BASE_URL (/api in production). This exact
+// same-origin path must match the HttpOnly cookie's Path attribute.
+const refreshAxios = axios.create({ withCredentials: true })
 
 export interface LoginCredentials {
   username: string
@@ -52,8 +57,8 @@ let inFlightRefresh: Promise<RefreshResponse> | null = null
 
 export async function refreshApi(): Promise<RefreshResponse> {
   if (inFlightRefresh) return inFlightRefresh
-  inFlightRefresh = authAxios
-    .post<RefreshResponse>('/auth/refresh')
+  inFlightRefresh = refreshAxios
+    .post<RefreshResponse>(REFRESH_URL)
     .then((r) => r.data)
     .finally(() => {
       inFlightRefresh = null
@@ -61,8 +66,10 @@ export async function refreshApi(): Promise<RefreshResponse> {
   return inFlightRefresh
 }
 
-export async function logoutApi(): Promise<void> {
-  await authAxios.post('/auth/logout')
+export async function logoutApi(accessToken: string): Promise<void> {
+  await authAxios.post('/auth/logout', undefined, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
 }
 
 export interface ChangePasswordPayload {

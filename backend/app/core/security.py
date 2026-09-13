@@ -30,6 +30,7 @@ def create_access_token(
     username: str,
     must_change_password: bool,
     jti: str,
+    refresh_jti: str | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
     payload: dict = {
@@ -40,6 +41,8 @@ def create_access_token(
         "iat": now,
         "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
+    if refresh_jti:
+        payload["refresh_jti"] = refresh_jti
     if must_change_password:
         payload["scope"] = "password_change_only"
     return jwt.encode(payload, settings.jwt_secret_current, algorithm="HS256")

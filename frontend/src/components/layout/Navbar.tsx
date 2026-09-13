@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth.store'
 
 export function Navbar() {
@@ -6,8 +7,11 @@ export function Navbar() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    const revoked = await logout()
+    if (!revoked) {
+      toast.error('La sesión local se cerró, pero no se pudo confirmar la revocación en el servidor')
+    }
     navigate('/login', { replace: true })
   }
 

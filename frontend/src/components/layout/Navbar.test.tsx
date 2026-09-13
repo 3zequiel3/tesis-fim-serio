@@ -3,10 +3,13 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
-const { logoutApi, navigate } = vi.hoisted(() => ({
+const { logoutApi, navigate, toastError } = vi.hoisted(() => ({
   logoutApi: vi.fn(),
   navigate: vi.fn(),
+  toastError: vi.fn(),
 }))
+
+vi.mock('sonner', () => ({ toast: { error: toastError } }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>()
@@ -27,6 +30,7 @@ describe('Navbar — US-02 logout del cliente', () => {
     logoutApi.mockReset()
     logoutApi.mockResolvedValue(undefined)
     navigate.mockReset()
+    toastError.mockReset()
     useAuthStore.setState({
       accessToken: 'access-token-in-memory',
       user: { id: 7, username: 'admin', role: 'admin', must_change_password: false },
@@ -48,6 +52,21 @@ describe('Navbar — US-02 logout del cliente', () => {
     expect(useAuthStore.getState().user).toBeNull()
     expect(navigate).toHaveBeenCalledTimes(1)
     expect(navigate).toHaveBeenCalledWith('/login', { replace: true })
-    await waitFor(() => expect(logoutApi).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(logoutApi).toHaveBeenCalledWith('access-token-in-memory'))
+    expect(toastError).not.toHaveBeenCalled()
+  })
+
+  it('limpia el cliente pero informa cuando no puede confirmar la revocación remota', async () => {
+    logoutApi.mockRejectedValue(new Error('unauthorized'))
+    const user = userEvent.setup()
+    renderWithProviders(<Navbar />, { route: '/events' })
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith(
+      'La sesión local se cerró, pero no se pudo confirmar la revocación en el servidor',
+    ))
+    expect(useAuthStore.getState().accessToken).toBeNull()
+    expect(navigate).toHaveBeenCalledWith('/login', { replace: true })
   })
 })

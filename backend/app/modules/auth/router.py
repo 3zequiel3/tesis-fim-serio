@@ -6,6 +6,7 @@ POST /auth/refresh — rota el refresh token
 POST /auth/logout  — revoca ambos tokens en la blacklist Valkey
 """
 
+import time
 from uuid import uuid4
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
@@ -54,27 +55,24 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
     # secure=True exige HTTPS: el navegador descarta la cookie en HTTP. En dev
     # (HTTP local) se desactiva para que login/refresh funcionen; en prod (HTTPS)
     # queda activo.
-    # path="/": el frontend consume la API detrás del proxy nginx bajo /api/, así
-    # que el navegador pide /api/auth/refresh. Un path acotado a /auth/refresh no
-    # coincidiría y la cookie no viajaría.
-    # samesite="lax": elección estándar para cookies de sesión. Viaja en requests
-    # same-origin (el frontend consume /api same-origin) y en navegaciones
-    # top-level same-site, y se bloquea en POST cross-site, manteniendo la
-    # protección CSRF de /auth/refresh (POST). httponly evita el acceso desde JS.
-    # (El deslogueo al recargar NO era por SameSite —la cookie viajaba también con
-    # Strict— sino por la race de refresh concurrente; ver la ventana de gracia.)
+    # Delete the legacy broad-path cookie before issuing the canonical cookie.
+    # Both Set-Cookie headers are intentional: they prevent path shadowing during
+    # the migration from Path=/ to Path=/auth/refresh.
+    response.delete_cookie(key=_REFRESH_COOKIE, path="/")
     response.set_cookie(
         key=_REFRESH_COOKIE,
         value=token,
         httponly=True,
         secure=settings.environment != "dev",
-        samesite="lax",
-        path="/",
+        samesite="strict",
+        path="/auth/refresh",
         max_age=_REFRESH_MAX_AGE,
     )
 
 
-def _clear_refresh_cookie(response: Response) -> None:
+def clear_refresh_cookies(response: Response) -> None:
+    """Expire canonical and legacy cookies so neither can shadow the other."""
+    response.delete_cookie(key=_REFRESH_COOKIE, path="/auth/refresh")
     response.delete_cookie(key=_REFRESH_COOKIE, path="/")
 
 
@@ -115,6 +113,7 @@ async def login(
         username=user.username,
         must_change_password=user.must_change_password,
         jti=jti_access,
+        refresh_jti=jti_refresh,
     )
     refresh_token = create_refresh_token(user_id=user.id, jti=jti_refresh)  # type: ignore[arg-type]
     _set_refresh_cookie(response, refresh_token)
@@ -157,6 +156,19 @@ async def refresh(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked"
             )
         winning_refresh = grace.decode() if isinstance(grace, (bytes, bytearray)) else grace
+        try:
+            winning_payload = decode_token(winning_refresh)
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked"
+            )
+        winning_jti = winning_payload.get("jti")
+        # Grace only reconciles concurrent uses of R0. It must never resurrect
+        # its winner R1 after logout or password change has revoked R1.
+        if not winning_jti or valkey_client.exists(f"{BLACKLIST_PREFIX}{winning_jti}"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked"
+            )
         user = session.exec(select(User).where(User.id == int(payload["sub"]))).first()
         if user is None or not user.is_active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
@@ -165,6 +177,7 @@ async def refresh(
             username=user.username,
             must_change_password=user.must_change_password,
             jti=str(uuid4()),
+            refresh_jti=winning_jti,
         )
         # Devolver el MISMO refresh que emitió el ganador → ambos clientes quedan
         # con una sesión coherente.
@@ -186,6 +199,7 @@ async def refresh(
         username=user.username,
         must_change_password=user.must_change_password,
         jti=jti_access,
+        refresh_jti=jti_refresh,
     )
     new_refresh = create_refresh_token(user_id=user.id, jti=jti_refresh)  # type: ignore[arg-type]
     # Guardar el refresh "ganador" para que un refresh concurrente con el token
@@ -211,15 +225,22 @@ async def logout(
     if jti and exp:
         blacklist_token(jti, exp, valkey_client)
 
+    refresh_jti = payload.get("refresh_jti")
+    refresh_exp = None
     if refresh_token:
         try:
             rp = decode_token(refresh_token)
-            if rjti := rp.get("jti"):
-                blacklist_token(rjti, rp.get("exp", 0), valkey_client)
+            refresh_jti = rp.get("jti") or refresh_jti
+            refresh_exp = rp.get("exp")
         except JWTError:
             pass
+    if refresh_jti:
+        # Access and refresh tokens are minted together. The access token carries
+        # the refresh JTI because the canonical cookie is intentionally scoped to
+        # /auth/refresh and therefore cannot travel to /auth/logout.
+        blacklist_token(refresh_jti, refresh_exp or time.time() + _REFRESH_MAX_AGE, valkey_client)
 
-    _clear_refresh_cookie(response)
+    clear_refresh_cookies(response)
     write_audit_log(session, "logout", user.id)  # type: ignore[arg-type]
 
     return LogoutResponse(message="logged_out")

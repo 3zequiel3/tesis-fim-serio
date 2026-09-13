@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { refreshApi, logoutApi } = vi.hoisted(() => ({
+const { refreshApi, logoutApi, loginApi } = vi.hoisted(() => ({
   refreshApi: vi.fn(),
   logoutApi: vi.fn(),
+  loginApi: vi.fn(),
 }))
 
 vi.mock('@/api/auth', () => ({
-  loginApi: vi.fn(),
+  loginApi,
   refreshApi,
   logoutApi,
 }))
@@ -20,10 +21,10 @@ const user = {
   must_change_password: false,
 }
 
-function tokenExpiringAt(epochSeconds: number): string {
-  const payload = btoa(JSON.stringify({ exp: epochSeconds }))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
+function tokenExpiringAt(epochSeconds: number, issuedAt = Math.floor(Date.now() / 1000)): string {
+  const payload = btoa(JSON.stringify({ iat: issuedAt, exp: epochSeconds }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
     .replace(/=+$/, '')
   return `header.${payload}.signature`
 }
@@ -46,8 +47,9 @@ describe('auth store — US-03 refresh anticipado', () => {
 
   it('renueva una vez sesenta segundos antes de expirar y reemplaza el token en memoria', async () => {
     const expiresAt = Math.floor(Date.now() / 1000) + 5 * 60
+    const nextToken = tokenExpiringAt(expiresAt + 15 * 60)
     refreshApi.mockResolvedValue({
-      access_token: tokenExpiringAt(expiresAt + 15 * 60),
+      access_token: nextToken,
       token_type: 'bearer',
       user,
     })
@@ -60,7 +62,7 @@ describe('auth store — US-03 refresh anticipado', () => {
     await vi.advanceTimersByTimeAsync(1)
 
     expect(refreshApi).toHaveBeenCalledTimes(1)
-    expect(useAuthStore.getState().accessToken).toBe(tokenExpiringAt(expiresAt + 15 * 60))
+    expect(useAuthStore.getState().accessToken).toBe(nextToken)
   })
 
   it('si el refresh anticipado falla limpia la sesión local', async () => {
@@ -75,11 +77,62 @@ describe('auth store — US-03 refresh anticipado', () => {
     expect(useAuthStore.getState().user).toBeNull()
   })
 
+  it('agenda desde la duración exp-iat y no entra en loop cuando el reloj cliente está adelantado', async () => {
+    const issuerNow = Math.floor(Date.parse('2026-09-10T12:00:00Z') / 1000)
+    vi.setSystemTime(new Date('2026-09-10T20:00:00Z'))
+    refreshApi.mockResolvedValue({
+      access_token: tokenExpiringAt(issuerNow + 16 * 60, issuerNow + 60),
+      token_type: 'bearer',
+      user,
+    })
+
+    useAuthStore.getState().setToken(tokenExpiringAt(issuerNow + 15 * 60, issuerNow), user)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(refreshApi).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(14 * 60 * 1000 - 1)
+    expect(refreshApi).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(refreshApi).toHaveBeenCalledTimes(1)
+  })
+
   it('un token ilegible no dispara refresh basado en claims no verificadas', async () => {
     useAuthStore.getState().setToken('not-a-jwt', user)
 
     await vi.runAllTimersAsync()
 
     expect(refreshApi).not.toHaveBeenCalled()
+  })
+})
+
+describe('auth store — US-01 access token nunca en storage persistente (W9)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T12:00:00Z'))
+    loginApi.mockReset()
+    useAuthStore.getState().logout()
+  })
+
+  afterEach(() => {
+    useAuthStore.getState().logout()
+    vi.useRealTimers()
+  })
+
+  it('login() nunca escribe en localStorage ni sessionStorage (spy en Storage.prototype.setItem)', async () => {
+    // Storage.prototype es compartido por localStorage y sessionStorage en
+    // jsdom: un único spy cubre ambos storages sin instanciar cada uno.
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+    const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60
+    loginApi.mockResolvedValue({
+      access_token: tokenExpiringAt(expiresAt),
+      token_type: 'bearer',
+      user,
+    })
+
+    await useAuthStore.getState().login({ username: 'admin', password: 'AdminPassword123!' })
+
+    expect(useAuthStore.getState().accessToken).not.toBeNull()
+    expect(setItemSpy).not.toHaveBeenCalled()
+    setItemSpy.mockRestore()
   })
 })

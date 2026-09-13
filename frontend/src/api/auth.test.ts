@@ -8,7 +8,7 @@ vi.mock('axios', () => ({
   },
 }))
 
-import { refreshApi } from './auth'
+import { logoutApi, refreshApi } from './auth'
 
 const refreshResponse = {
   access_token: 'rotated-access-token',
@@ -47,5 +47,21 @@ describe('refreshApi — US-03 renovación single-flight del cliente', () => {
     await refreshApi()
 
     expect(authPost).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('logoutApi — US-02 invalidación de la sesión', () => {
+  beforeEach(() => {
+    authPost.mockReset()
+  })
+
+  it('envía el access token al endpoint autenticado de logout', async () => {
+    authPost.mockResolvedValue({ data: { message: 'logged_out' } })
+
+    await logoutApi('active-access-token')
+
+    expect(authPost).toHaveBeenCalledWith('/auth/logout', undefined, {
+      headers: { Authorization: 'Bearer active-access-token' },
+    })
   })
 })

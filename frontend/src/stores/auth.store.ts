@@ -12,11 +12,13 @@ export interface AuthState {
   // Acciones
   setToken: (token: string, user: AuthUser | null) => void
   login: (credentials: LoginCredentials) => Promise<void>
-  logout: () => void
+  logout: () => Promise<boolean>
   refreshToken: () => Promise<void>
 }
 
 const REFRESH_EARLY_MS = 60_000
+const MIN_REFRESH_DELAY_MS = 1_000
+const MAX_REFRESH_DELAY_MS = 60 * 60 * 1_000
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
 function cancelScheduledRefresh() {
@@ -26,16 +28,22 @@ function cancelScheduledRefresh() {
   }
 }
 
-function tokenExpirationMs(token: string): number | null {
+function tokenRefreshDelayMs(token: string): number | null {
   try {
     const encoded = token.split('.')[1]
     if (!encoded) return null
-    const base64 = encoded.replaceAll('-', '+').replaceAll('_', '/')
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
     const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
-    const payload = JSON.parse(atob(padded)) as { exp?: unknown }
-    return typeof payload.exp === 'number' && Number.isFinite(payload.exp)
-      ? payload.exp * 1000
-      : null
+    const payload = JSON.parse(atob(padded)) as { iat?: unknown; exp?: unknown }
+    if (
+      typeof payload.iat !== 'number' || !Number.isFinite(payload.iat) ||
+      typeof payload.exp !== 'number' || !Number.isFinite(payload.exp) ||
+      payload.exp <= payload.iat
+    ) return null
+
+    const hintedLifetimeMs = (payload.exp - payload.iat) * 1_000
+    const hintedDelayMs = hintedLifetimeMs - REFRESH_EARLY_MS
+    return Math.min(MAX_REFRESH_DELAY_MS, Math.max(MIN_REFRESH_DELAY_MS, hintedDelayMs))
   } catch {
     return null
   }
@@ -43,12 +51,14 @@ function tokenExpirationMs(token: string): number | null {
 
 function scheduleRefresh(token: string) {
   cancelScheduledRefresh()
-  const expiration = tokenExpirationMs(token)
-  if (expiration == null) return
+  const delay = tokenRefreshDelayMs(token)
+  if (delay == null) return
 
-  // `exp` sin verificar sólo decide CUÁNDO intentar el refresh. Nunca concede
-  // acceso: la autorización sigue dependiendo del JWT validado por el backend.
-  const delay = Math.max(0, expiration - Date.now() - REFRESH_EARLY_MS)
+  // `exp - iat` sin verificar sólo aporta una DURACIÓN desde la recepción.
+  // Así el clock skew del cliente no convierte cada token nuevo en un timer
+  // inmediato. El clamp evita loops y timers absurdamente largos; si los
+  // hints son inválidos, queda el fallback reactivo ante 401. Ningún claim
+  // local concede acceso: la autorización sigue dependiendo del backend.
   refreshTimer = setTimeout(() => {
     refreshTimer = null
     void useAuthStore.getState().refreshToken().catch(() => undefined)
@@ -77,11 +87,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout() {
+  async logout() {
+    const accessToken = get().accessToken
     cancelScheduledRefresh()
-    // Fire-and-forget: el backend invalida la cookie de refresh; errores de red se ignoran
-    logoutApi().catch(() => undefined)
     set({ accessToken: null, user: null, isLoading: false })
+    if (!accessToken) return true
+    try {
+      await logoutApi(accessToken)
+      return true
+    } catch {
+      // La sesión local se elimina aunque la red falle, pero el llamador recibe
+      // un resultado explícito para no presentar la revocación remota como exitosa.
+      return false
+    }
   },
 
   async refreshToken() {
@@ -97,7 +115,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       // Un refresh expirado, revocado o fallido no deja una sesión fantasma.
       // ProtectedRoute observa la pérdida del token y navega a login.
-      get().logout()
+      await get().logout()
       throw err
     }
   },
