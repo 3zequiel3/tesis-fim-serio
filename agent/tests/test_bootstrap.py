@@ -76,7 +76,9 @@ def _bootstrap_response(cert: x509.Certificate, ca_cert: x509.Certificate) -> di
     }
 
 
-def _make_config(tmp_path: Path, agent_id: str = "test-agent-001") -> AgentConfig:
+def _make_config(
+    tmp_path: Path, agent_id: str = "test-agent-001", backend_url: str = "https://localhost:8444"
+) -> AgentConfig:
     certs_dir = tmp_path / "certs"
     secrets_dir = tmp_path / "secrets"
     certs_dir.mkdir(parents=True)
@@ -85,7 +87,7 @@ def _make_config(tmp_path: Path, agent_id: str = "test-agent-001") -> AgentConfi
     (certs_dir / "ca.pem").write_bytes(b"dummy-ca-for-tests")
     return AgentConfig(
         agent_id=agent_id,
-        backend_url="http://localhost:8000",
+        backend_url=backend_url,
         valkey_url="redis://localhost:6379",
         ca_cert_path=str(certs_dir / "ca.pem"),
         watch_paths=["/tmp"],
@@ -196,4 +198,18 @@ def test_bootstrap_pubkey_mismatch_raises_runtime_error(tmp_path: Path) -> None:
         with pytest.raises(RuntimeError, match="public key does not match"):
             run(config, "bootstrap-secret")
 
+    assert not (Path(config.storage.certs_dir) / "agent-cert.pem").exists()
+
+
+def test_bootstrap_rejects_non_https_backend_url(tmp_path: Path) -> None:
+    """RN-114/D52: a plaintext backend_url must abort before any HTTP call —
+    bootstrap responses carry shared_secret_hex/master_secret_hex in the clear."""
+    config = _make_config(tmp_path, backend_url="http://localhost:8444")
+
+    with patch("httpx.post") as mock_post:
+        with pytest.raises(SystemExit) as exc_info:
+            run(config, "bootstrap-secret")
+
+    assert exc_info.value.code == 1
+    mock_post.assert_not_called()
     assert not (Path(config.storage.certs_dir) / "agent-cert.pem").exists()

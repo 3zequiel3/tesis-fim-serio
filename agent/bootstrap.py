@@ -15,6 +15,7 @@ import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 import httpx
 import structlog
@@ -131,6 +132,21 @@ def verify_cert(
 
 
 def run(config: "AgentConfig", bootstrap_secret: str) -> None:
+    # D52/RN-114: bootstrap carries shared_secret_hex/master_secret_hex in the
+    # response body — refuse a plaintext backend_url before any network call.
+    scheme = urlsplit(config.backend_url).scheme
+    if scheme != "https":
+        log.error(
+            "agent.bootstrap.insecure_backend_url",
+            backend_url=config.backend_url,
+            scheme=scheme,
+        )
+        print(
+            f"backend_url must use https (RN-114) — got '{config.backend_url}'",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     # D16: CA cert must be pre-provisioned by the operator before first bootstrap
     ca_cert_path = Path(config.ca_cert_path)
     if not ca_cert_path.exists():

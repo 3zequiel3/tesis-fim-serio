@@ -25,11 +25,11 @@ from app.core.health import check_components
 from app.core.logging import configure_logging, log
 from app.core.middleware.cors import CORSOriginMiddleware
 from app.core.middleware.trace_id import TraceIdMiddleware
-from app.core.pki import ensure_ca, start_mtls_server
+from app.core.pki import ensure_ca, start_bootstrap_server, start_mtls_server
 from app.core.valkey import close_async_valkey, close_valkey, get_valkey_client, init_async_valkey, init_valkey
 from app.modules.agents.command_ack_consumer import run_command_ack_consumer
 from app.modules.agents.heartbeat_consumer import run_heartbeat_consumer
-from app.modules.agents.router import renew_router, router as agents_router
+from app.modules.agents.router import bootstrap_router, renew_router, router as agents_router
 from app.modules.auth.router import router as auth_router
 from app.modules.auth.service import seed_admin
 from app.modules.events.consumer import run_consumer
@@ -46,6 +46,9 @@ configure_logging()
 
 mtls_app = FastAPI(title="FIM Agent mTLS API", docs_url=None, redoc_url=None, openapi_url=None)
 mtls_app.include_router(renew_router)
+
+bootstrap_app = FastAPI(title="FIM Agent Bootstrap API", docs_url=None, redoc_url=None, openapi_url=None)
+bootstrap_app.include_router(bootstrap_router)
 
 
 @asynccontextmanager
@@ -68,6 +71,11 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
         cert_path=settings.backend_cert_path,
         key_path=settings.backend_key_path,
     )
+    bootstrap_server = start_bootstrap_server(
+        bootstrap_app,
+        cert_path=settings.backend_cert_path,
+        key_path=settings.backend_key_path,
+    )
 
     # Consumers asyncio — conexiones Valkey dedicadas (no bloquean el cliente HTTP)
     stop_event = asyncio.Event()
@@ -79,6 +87,9 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     outbox_publisher_handle = asyncio.create_task(outbox_publisher_task())  # H6
     notification_recovery_handle = asyncio.create_task(recover_pending_notifications())
     mtls_task = asyncio.create_task(mtls_server.serve()) if mtls_server is not None else None
+    bootstrap_task = (
+        asyncio.create_task(bootstrap_server.serve()) if bootstrap_server is not None else None
+    )
 
     yield
 
@@ -98,6 +109,9 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     if mtls_task is not None:
         mtls_task.cancel()
         tasks_to_gather.append(mtls_task)
+    if bootstrap_task is not None:
+        bootstrap_task.cancel()
+        tasks_to_gather.append(bootstrap_task)
     await asyncio.gather(*tasks_to_gather, return_exceptions=True)
     await async_valkey.aclose()
 

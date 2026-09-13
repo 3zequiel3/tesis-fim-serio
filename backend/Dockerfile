@@ -66,5 +66,6 @@ USER app
 
 EXPOSE 8000
 EXPOSE 8443
+EXPOSE 8444
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

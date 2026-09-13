@@ -1205,6 +1205,18 @@ La obtención del primer certificado no puede asumir mTLS ya existente. El flujo
    - master_secret en /var/lib/fim-agent/secrets/master_secret (0400)
 ```
 
+**Listener dedicado del bootstrap — puerto 8444 (D52/RN-146).** El paso 2 no puede hablar con el
+listener mTLS de 8443: ese listener exige `ssl.CERT_REQUIRED`, y el agente en su primer arranque
+todavía no tiene certificado propio. Servir `POST /agents/bootstrap` en la app HTTP plana del puerto
+8000 —como quedó documentado en versiones previas de este flujo— dejaba viajar
+`shared_secret_hex`/`master_secret_hex` sin cifrar por la LAN, incumpliendo RN-114. El backend
+levanta en cambio un **tercer listener uvicorn en el puerto 8444**, con el mismo certificado de
+servidor que 8443 pero **sin exigir certificado de cliente** (`ssl.CERT_NONE`, TLS 1.3 mínimo) — el
+canal queda cifrado y el backend autenticado, que es todo lo que el agente puede verificar antes de
+tener su propio certificado. `bootstrap_router` es el único router montado ahí; la app principal
+(8000) ya no lo expone. `agent/bootstrap.py` valida que `backend_url` use `https://` antes de generar
+el CSR o abrir cualquier conexión — un esquema distinto termina el proceso con `sys.exit(1)`.
+
 ### Rotación y revocación
 
 - **Rotación**: 15 días antes de expirar, el agente inicia renovación presentando el cert actual (ya sobre mTLS).
@@ -1612,8 +1624,9 @@ services:
     volumes:
       - backend_certs:/certs:ro
     ports:
-      - "8443:8443"  # HTTPS + mTLS para agentes
-      - "8000:8000"  # HTTPS para frontend
+      - "8443:8443"  # mTLS para agentes (CERT_REQUIRED, solo /agents/renew)
+      - "8444:8444"  # bootstrap de agentes (server-auth, sin cert cliente — D52/RN-146)
+      - "8000:8000"  # API HTTP para frontend/admin
     deploy:
       replicas: 1  # Single-instance (C4)
 

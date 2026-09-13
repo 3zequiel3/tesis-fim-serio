@@ -103,7 +103,8 @@ services:
   # ---------------------------------------------------------------------------
   # backend — FastAPI (placeholder, Change 02)
   # profiles: ["app"] → no arranca con `docker compose up` sin --profile app.
-  # Puertos: 8000 (API HTTP), 8443 (mTLS para agentes FIM, RN-78).
+  # Puertos: 8000 (API HTTP), 8443 (mTLS para agentes FIM, RN-78),
+  # 8444 (bootstrap de agentes por TLS server-auth, sin client cert, D52/RN-146).
   # deploy.replicas: 1 (RN-76 — single-instance, sin HA en M1-M4).
   # El volumen backend_certs se popula en Change 04 (agent-mtls-ca).
   # ---------------------------------------------------------------------------
@@ -162,6 +163,7 @@ services:
       - backend_certs:/certs
     ports:
       - "8443:8443"
+      - "8444:8444"
       - "8000:8000"
     networks:
       - fim_internal

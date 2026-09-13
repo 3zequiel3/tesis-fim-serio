@@ -10,10 +10,14 @@
 # descriptive slug (e.g., "host-prod-webserver-01").
 agent_id: host-prod-01
 
-# Base URL of the FIM backend (HTTP, no trailing slash). Used for the initial
-# bootstrap request (POST /agents/bootstrap) before mTLS is established.
-# Example: http://192.168.1.10:8000
-backend_url: http://localhost:8000
+# Base URL of the FIM backend's dedicated bootstrap listener (HTTPS, no
+# trailing slash). Used for the initial bootstrap request
+# (POST /agents/bootstrap) before mTLS is established — this listener
+# authenticates only the backend's server certificate (no client cert yet,
+# D52/RN-146). RN-114 requires https: a non-https backend_url makes the agent
+# exit before sending any request.
+# Example: https://192.168.1.10:8444
+backend_url: https://localhost:8444
 mtls_backend_url: https://localhost:8443
 
 # URL of the Valkey (Redis-compatible) server running in Docker Compose.

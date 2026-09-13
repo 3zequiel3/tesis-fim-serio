@@ -1,7 +1,7 @@
 # Test config for local smoke test (9.1)
 # Run from repo root: python -m agent --config agent/deploy/config.yaml.test --log-format console
 agent_id: test-agent
-backend_url: http://localhost:8000
+backend_url: https://localhost:8444
 mtls_backend_url: https://localhost:8443
 valkey_url: redis://localhost:6379
 ca_cert_path: /tmp/ca.pem

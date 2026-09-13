@@ -320,6 +320,20 @@ def is_revoked(serial: int, session: "Session") -> bool:
     return result is not None
 
 
+def _finalize_tls_server(config: "uvicorn.Config") -> "uvicorn.Server":
+    """Shared hardening for every agent-facing TLS listener (8443 and 8444):
+    load the config, pin TLS 1.3 as the floor, and disable uvicorn's own
+    signal handlers so it can run as a cooperative asyncio task inside the
+    backend's lifespan instead of owning the process (C10)."""
+    import uvicorn
+
+    config.load()
+    assert config.ssl is not None
+    config.ssl.minimum_version = ssl.TLSVersion.TLSv1_3
+    config.install_signal_handlers = False
+    return uvicorn.Server(config)
+
+
 def start_mtls_server(
     app: object,
     ca_cert_path: str,
@@ -370,10 +384,51 @@ def start_mtls_server(
         log_level="info",
         lifespan="off",
     )
-    config.load()
-    assert config.ssl is not None
-    config.ssl.minimum_version = ssl.TLSVersion.TLSv1_3
-    config.install_signal_handlers = False
-    server = uvicorn.Server(config)
+    server = _finalize_tls_server(config)
     log.info("pki.mtls_server.configured", port=port)
+    return server
+
+
+def start_bootstrap_server(
+    app: object,
+    cert_path: str,
+    key_path: str,
+    host: str = "0.0.0.0",
+    port: int = 8444,
+) -> "uvicorn.Server | None":
+    """
+    Construye un servidor uvicorn dedicado para `POST /agents/bootstrap` en el
+    puerto 8444 (D52/RN-146). Autentica solo el certificado de SERVIDOR del
+    backend (TLS 1.3, sin exigir cert de cliente — `ssl.CERT_NONE`): un agente
+    que recién arranca todavía no tiene certificado propio, así que no puede
+    completar el handshake CERT_REQUIRED del listener 8443. El canal queda
+    igualmente cifrado y con el backend autenticado, cerrando el hueco de
+    RN-114 (bootstrap en texto plano por el puerto 8000 sin TLS).
+
+    Mismo contrato que start_mtls_server: retorna None cuando los certs no
+    están disponibles y no arranca el servidor — el caller lanza
+    asyncio.create_task(server.serve()) en el lifespan.
+    """
+    import uvicorn
+
+    if not cert_path or not key_path:
+        log.warning("pki.bootstrap_tls_server.skipped", reason="cert paths not configured")
+        return None
+
+    if not Path(cert_path).exists() or not Path(key_path).exists():
+        log.warning("pki.bootstrap_tls_server.skipped", reason="cert or key file not found")
+        return None
+
+    config = uvicorn.Config(
+        app,
+        host=host,
+        port=port,
+        ssl_keyfile=key_path,
+        ssl_certfile=cert_path,
+        ssl_cert_reqs=ssl.CERT_NONE,
+        log_level="info",
+        lifespan="off",
+    )
+    server = _finalize_tls_server(config)
+    log.info("pki.bootstrap_tls_server.configured", port=port)
     return server

@@ -1,5 +1,11 @@
 """
-Router de agentes FIM — registro (admin), bootstrap (público) y gestión operacional (C06, C14).
+Router de agentes FIM — registro (admin) y gestión operacional (C06, C14).
+
+Bootstrap (`bootstrap_router`) y renovación (`renew_router`) viven en routers
+separados porque cada uno se monta en una app/listener TLS distinto: bootstrap
+en el puerto 8444 (server-auth, D52/RN-146) y renovación en 8443 (mTLS,
+`CERT_REQUIRED`). Ninguno de los dos se monta en la app HTTP plana (`router`,
+puerto 8000).
 """
 
 from datetime import datetime, timedelta, timezone
@@ -46,6 +52,7 @@ from app.modules.agents.service import (
 
 router = APIRouter(tags=["agents"])
 renew_router = APIRouter(tags=["agent-certificate-renewal"])
+bootstrap_router = APIRouter(tags=["agent-bootstrap"])
 
 
 def _renewal_forbidden(detail: str) -> HTTPException:
@@ -107,11 +114,14 @@ async def register(
     return {"agent_id": agent.agent_id, "status": agent.status.value}
 
 
-@router.post("/agents/bootstrap", response_model=AgentBootstrapResponse)
+@bootstrap_router.post("/agents/bootstrap", response_model=AgentBootstrapResponse)
 async def bootstrap(
     req: AgentBootstrapRequest,
     session: Session = Depends(get_session),
 ) -> AgentBootstrapResponse:
+    """Served only on the dedicated bootstrap TLS listener (8444, D52/RN-146) —
+    the plain-HTTP app on 8000 no longer mounts this route, so bootstrap
+    secrets never travel unencrypted on the LAN."""
     return bootstrap_agent(
         req,
         session,

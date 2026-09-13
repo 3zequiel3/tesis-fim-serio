@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-145 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-146 |
 
 ---
 
@@ -784,7 +784,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1710,6 +1710,54 @@ vencido, la recuperación exige verificar administrativamente la identidad y pre
 
 **Reglas afectadas:** complementa RN-78 (rotación de certificados) definiendo qué ocurre cuando la
 rotación no llegó a tiempo. No altera el período de validez.
+
+#### D52 / RN-146: Bootstrap de agentes en un listener TLS dedicado (8444), sin certificado de cliente
+
+**Descripción:** `POST /agents/bootstrap` SHALL dejar de exponerse en el listener HTTP plano de la
+API (puerto 8000). El backend SHALL levantar un tercer listener uvicorn en el puerto 8444,
+autenticado únicamente con el certificado de servidor del backend (TLS 1.3, sin exigir certificado
+de cliente), y SHALL montar allí el único router que sirve `/agents/bootstrap`. El listener 8443
+(`CERT_REQUIRED`) SHALL seguir sirviendo exclusivamente `/agents/renew`. El agente SHALL rechazar,
+con `sys.exit(1)` y sin abrir conexión de red, cualquier `backend_url` cuyo esquema no sea `https`.
+
+**Motivo — RN-114 exigía HTTPS, pero el despliegue real servía bootstrap en claro.** `POST
+/agents/bootstrap` sólo vivía en el `router` montado sobre la app principal, servida por
+`uvicorn app.main:app --port 8000` sin TLS (`backend/Dockerfile`). El listener 8443 exige
+`ssl.CERT_REQUIRED`: un agente que recién arranca todavía no tiene certificado propio y no puede
+completar ese handshake, así que no podía bootstrapear ahí. Detectado por lectura de código al
+preparar el ensayo multi-host A-3, antes de ejecutar ningún bootstrap entre equipos: la respuesta de
+bootstrap —que lleva `shared_secret_hex` y `master_secret_hex` (`AgentBootstrapResponse`)— habría
+viajado sin cifrar por la LAN. RN-114 exige TLS con `ca_cert_path` como
+trust anchor y prohíbe `verify=False`; nada en el código lo hacía cumplir mientras `backend_url`
+siguiera apuntando a `http://`.
+
+**Por qué un listener nuevo y no reusar 8443.** Exigir certificado de cliente en el mismo handshake
+que emite el primer certificado es circular — el agente todavía no lo tiene. Relajar 8443 a
+`CERT_OPTIONAL` degradaría la garantía de RN-78 para `/agents/renew`, que sí debe seguir exigiendo
+identidad criptográfica del agente ya enrolado. Un listener separado en 8444, autenticado solo por el
+certificado de **servidor**, resuelve la asimetría sin tocar la política de 8443: el canal queda
+cifrado y con el backend autenticado —evita MITM pasivo e inyección de un CA ajeno en la respuesta,
+mismo razonamiento que D16—, aunque el agente todavía no pueda presentar credencial propia.
+
+**Condición:** Arranque del backend (levanta el listener 8444 si `backend_cert_path` /
+`backend_key_path` existen, mismo criterio que 8443) y cada `POST /agents/bootstrap` del agente.
+
+**Resultado:** La app principal (puerto 8000) responde 404/405 a `POST /agents/bootstrap`. La app de
+bootstrap (puerto 8444, TLS 1.3, sin certificado de cliente) es la única que la sirve.
+`agent/bootstrap.py` valida el esquema de `backend_url` antes de generar el CSR o intentar cualquier
+request; con un esquema distinto de `https` termina con `sys.exit(1)` y un mensaje explícito, sin
+llamar a `httpx.post`.
+
+**Excepciones:** Ninguna. No se agrega una bandera para reactivar bootstrap en el puerto 8000 ni para
+aceptar un `backend_url` que no sea `https`.
+
+**Reglas afectadas:** cierra el incumplimiento de RN-114 (trust anchor TLS del bootstrap) detectado en
+el despliegue real; no modifica RN-78 (rotación/mTLS de `/agents/renew`), que sigue en el puerto 8443
+con `CERT_REQUIRED`.
+
+**Nota de proceso:** esta decisión y su implementación se ejecutaron inline, sin change de OpenSpec,
+por decisión explícita del responsable del proyecto — es una corrección de seguridad acotada sobre un
+incumplimiento ya normado (RN-114), no una feature nueva del roadmap.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

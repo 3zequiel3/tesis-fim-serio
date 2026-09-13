@@ -3,9 +3,10 @@
 # resuelven dentro de la red fim_internal del compose.
 agent_id: docker-agent
 
-# Bootstrap mTLS va por HTTP al backend (pre-cert). El shared_secret y el cert
-# se obtienen en POST /agents/bootstrap.
-backend_url: http://backend:8000
+# Bootstrap va por TLS al listener dedicado 8444 (server-auth, sin cert de
+# cliente — el agente todavía no tiene uno, D52/RN-146). El shared_secret y el
+# cert se obtienen en POST /agents/bootstrap.
+backend_url: https://backend:8444
 mtls_backend_url: https://backend:8443
 
 # Valkey del stack es plaintext (VALKEY_URL: valkey://valkey:6379). Los mensajes
