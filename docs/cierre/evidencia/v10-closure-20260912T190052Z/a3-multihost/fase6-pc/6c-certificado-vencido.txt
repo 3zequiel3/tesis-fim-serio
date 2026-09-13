@@ -1,0 +1,12 @@
+== 2026-09-12T23:03:16-03:00 el certificado corresponde a la clave generada en la PC
+clave y certificado coinciden
+error 10 at 0 depth lookup: certificate has expired
+error vencido-cli.pem: verification failed
+== E1 Valkey con certificado vencido firmado por la CA real
+depth=0 CN=valkey
+verify return:1
+40272B980D730000:error:0A000415:SSL routines:ssl3_read_bytes:ssl/tls alert certificate expired:../ssl/record/rec_layer_s3.c:918:SSL alert number 45
+== E2 backend mTLS 8443 con certificado vencido firmado por la CA real
+depth=0 CN=fim-backend
+verify return:1
+40E781AAC07C0000:error:0A000126:SSL routines::unexpected eof while reading:../ssl/record/rec_layer_s3.c:698:

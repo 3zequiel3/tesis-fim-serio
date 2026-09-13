@@ -1,0 +1,9 @@
+== 2026-09-12T23:09:28-03:00 captura ronda 2 en la PC
+paquetes: 135
+apariciones de 'A3-MARCADOR-R2-4b81d0': 0
+apariciones de 'a3-captura': 0
+apariciones de '/srv/fim-watch': 0
+apariciones de 'diff_text': 0
+apariciones de 'event_id': 0
+apariciones de 'a3-pc-ubuntu': 0
+apariciones de 'signature': 0

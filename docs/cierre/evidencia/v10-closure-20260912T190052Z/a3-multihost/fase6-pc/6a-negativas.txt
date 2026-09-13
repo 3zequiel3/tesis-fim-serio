@@ -1,0 +1,15 @@
+== 2026-09-12T23:01:04-03:00 V1 Valkey sin certificado de cliente
+verify return:1
+verify return:1
+40C711F63A790000:error:0A00045C:SSL routines:ssl3_read_bytes:tlsv13 alert certificate required:../ssl/record/rec_layer_s3.c:918:SSL alert number 116
+== V2 Valkey con certificado de una CA ajena
+verify return:1
+verify return:1
+4077A31DC6780000:error:0A000418:SSL routines:ssl3_read_bytes:tlsv1 alert unknown ca:../ssl/record/rec_layer_s3.c:918:SSL alert number 48
+== V3/V4 Valkey con el cliente real del agente: hostname valido vs IP no incluida en el SAN
+valkey -> PING True
+192.168.1.43 -> ConnectionError Error 1 connecting to 192.168.1.43:6380. [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: IP address mismatch, certificate is not valid for '192.168.1.43'. (_s
+== B1 backend mTLS 8443 sin certificado de cliente
+== B2 backend mTLS 8443 con certificado de una CA ajena
+== B3 control positivo: backend mTLS 8443 con el certificado real del agente
+HTTP/1.1 404 Not Found
