@@ -3,23 +3,28 @@
 ### Requirement: POST /users/change-password
 
 El endpoint `POST /users/change-password` SHALL requerir autenticación (acepta tanto scope normal como `password_change_only`) y aceptar `{current_password: str, new_password: str}`:
-1. Si el token tiene scope `password_change_only`, omitir la verificación de `current_password` (primer login forzado — el admin no tiene password "anterior" que valide el flujo normal).
-2. Si el scope es normal, verificar `current_password` contra el hash actual; si falla, 401 sin modificar `password_hash`.
-3. Validar `new_password` contra la política de RN-100: mínimo 12 caracteres y al menos una letra mayúscula, una letra minúscula y un dígito decimal. Si no cumple, MUST responder 422 con `detail` string que nombra el requisito incumplido, sin modificar `password_hash` ni `must_change_password`. El largo se evalúa antes que la complejidad.
-4. Actualizar `password_hash` con `hash_password(new_password)` (Argon2id con parámetros C9: `time_cost=3`, `memory_cost=65536`, `parallelism=4`) y `must_change_password=False`.
-5. Revocar el access token actual en la blacklist (forzar nuevo login).
-6. Limpiar la cookie `refresh_token` con `Max-Age=0`.
-7. Escribir `audit_log` con `action="change_password"`, `user_id`.
-8. Responder 200 con `{message: "password_changed"}`.
+1. Independientemente del scope del token (normal o `password_change_only`), verificar `current_password` contra el hash actual; si falla o está ausente, 401 sin modificar `password_hash`. El admin de seed conoce su contraseña actual: es la que usó para obtener el token, incluido el de scope `password_change_only` del primer login (D-2).
+2. Validar `new_password` contra la política de RN-100: mínimo 12 caracteres y al menos una letra mayúscula, una letra minúscula y un dígito decimal. Si no cumple, MUST responder 422 con `detail` string que nombra el requisito incumplido, sin modificar `password_hash` ni `must_change_password`. El largo se evalúa antes que la complejidad.
+3. Actualizar `password_hash` con `hash_password(new_password)` (Argon2id con parámetros C9: `time_cost=3`, `memory_cost=65536`, `parallelism=4`) y `must_change_password=False`.
+4. Revocar el access token actual en la blacklist (forzar nuevo login).
+5. Limpiar la cookie `refresh_token` con `Max-Age=0`.
+6. Escribir `audit_log` con `action="change_password"`, `user_id`.
+7. Responder 200 con `{message: "password_changed"}`.
 
 La política de complejidad MUST evaluarse por carácter con clases Unicode: mayúscula (`str.isupper`), minúscula (`str.islower`) y dígito decimal (`str.isdecimal`), de modo que letras como `Ñ` o `á` cuenten en su clase.
 
 #### Scenario: Primer login — cambio forzado con scope password_change_only
-- **WHEN** el admin recién creado hace `POST /users/change-password` con un token de scope `password_change_only`
+- **WHEN** el admin recién creado hace `POST /users/change-password` con un token de scope `password_change_only`, provee `current_password` correcto (la password de seed)
 - **AND** provee un `new_password` que cumple la política (≥ 12 caracteres, con mayúscula, minúscula y dígito)
 - **THEN** responde 200
 - **AND** un login posterior con la nueva password es exitoso
 - **AND** el access token anterior ya no es válido (401)
+
+#### Scenario: Cambio forzado con current_password incorrecto — 401
+- **WHEN** el admin recién creado hace `POST /users/change-password` con un token de scope `password_change_only` y `current_password` incorrecto o ausente
+- **THEN** responde 401
+- **AND** `password_hash` no cambia
+- **AND** `must_change_password` sigue en `True`
 
 #### Scenario: Cambio normal con current_password correcto
 - **WHEN** un usuario autenticado (scope normal) hace `POST /users/change-password` con `current_password` correcto y un `new_password` que cumple la política

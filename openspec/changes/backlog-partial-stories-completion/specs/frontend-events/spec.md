@@ -23,3 +23,25 @@ El frontend SHALL permitir aprobar (`POST /actions/approve` con `{event_id, vers
 - **WHEN** el aviso de archivo ausente está visible y el admin elige Cancelar
 - **THEN** el aviso desaparece
 - **AND** no se envía ningún `POST /actions/approve` adicional
+
+### Requirement: RejectModal con branch baseline_absent
+
+El frontend SHALL proveer `frontend/src/components/ui/RejectModal.tsx` que, para un reject normal, ofrece elegir la acción `restore` o `quarantine` y llama `POST /actions/reject` con `{event_id, version, action}`. `RejectModal` (abierto desde `EventDetail`) MUST leer `baseline_status` del evento (`GET /events/{event_id}`, capability `backend-events-api`) en lugar de `hash_detected === null` — `hash_detected` describe el evento, no el baseline, y puede estar vacío con el baseline todavía `present` (ver D2/"hash actual"). Cuando `baseline_status === "absent"`, el modal SHALL ocultar el `fieldset` de elección de acción correctiva ("Restaurar archivo" / "Poner en cuarentena") y SHALL mostrar el texto "No hay archivo a restaurar (baseline ausente). Confirmar rechazará el evento sin acción en filesystem." (US-12, C10), conservando los botones Confirmar / Cancelar. Cuando `baseline_status` es `"present"` o `null`, el modal SHALL mostrar el `fieldset` de acción correctiva como en un reject normal. Al confirmar con `baseline_status === "absent"`, el frontend llama `POST /actions/reject` con `action:"restore"` (el backend hace no-op del comando y retorna `200`, RN-74), transicionando el evento a `rejected`. Si la respuesta de `POST /actions/reject` trae `baseline_absent: true` sobre un evento cuyo modal mostró las opciones correctivas (condición de carrera entre el fetch del detalle y la confirmación), el frontend SHALL mostrar un toast informativo en lugar del toast de éxito genérico. Este requisito no alcanza al rechazo masivo (`BulkActionBar` / `POST /actions/bulk-reject`), que no invoca `RejectModal` y no expone `baseline_absent` por ítem (ver design.md → Non-Goals).
+
+#### Scenario: Baseline absent oculta las opciones correctivas
+- **WHEN** el admin abre el modal de rechazo de un evento cuyo `baseline_status` es `"absent"`
+- **THEN** no se muestran los radios "Restaurar archivo" ni "Poner en cuarentena"
+- **AND** se muestra el texto "No hay archivo a restaurar (baseline ausente). Confirmar rechazará el evento sin acción en filesystem."
+
+#### Scenario: Baseline present muestra las opciones correctivas
+- **WHEN** el admin abre el modal de rechazo de un evento cuyo `baseline_status` es `"present"`
+- **THEN** se muestran los radios "Restaurar archivo" y "Poner en cuarentena" como hoy
+
+#### Scenario: Baseline null (evento sin path) muestra las opciones correctivas
+- **WHEN** el admin abre el modal de rechazo de un evento cuyo `baseline_status` es `null`
+- **THEN** se muestran los radios "Restaurar archivo" y "Poner en cuarentena" como hoy
+
+#### Scenario: Condición de carrera — baseline_absent en la respuesta muestra un toast informativo
+- **WHEN** el admin confirma el rechazo desde un modal que mostraba las opciones correctivas
+- **AND** la respuesta de `POST /actions/reject` trae `baseline_absent: true`
+- **THEN** se muestra un toast informativo indicando que el rechazo no ejecutó ninguna acción sobre el filesystem, en vez del toast de éxito genérico

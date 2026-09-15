@@ -2,11 +2,11 @@
 
 ### Requirement: GET /alerts/failed/count — conteo de la DLQ para el banner
 
-El sistema SHALL exponer `GET /alerts/failed/count` (requiere JWT admin) que responde `{"count": int}` con la cantidad de alertas que cumplen `delivered_at IS NULL AND failed_at IS NOT NULL AND retry_count >= 3` (US-29, US-05). El umbral MUST definirse como una constante única del módulo `alerts`, no repetida en el frontend. La ruta MUST resolverse antes que cualquier ruta con parámetro `/{alert_id}`.
+El sistema SHALL exponer `GET /alerts/failed/count` (requiere JWT admin) que responde `{"count": int}` con la cantidad de alertas que cumplen `delivered_at IS NULL AND failed_at IS NOT NULL` (US-29, US-05, D6/RN-102) — la misma definición de fallo terminal que `list_failed_alerts`, **sin** umbral adicional de `retry_count`: una alerta agotada con `retry_count = 0` (n8n sin configurar) MUST contarse igual que una con `retry_count = 3`. La ruta MUST resolverse antes que cualquier ruta con parámetro `/{alert_id}`.
 
-#### Scenario: Cuenta sólo alertas en fallo terminal sobre el umbral
-- **WHEN** existen una alerta entregada, una alerta fallida con `retry_count = 3`, una alerta fallida con `retry_count = 2` y una alerta pendiente
-- **THEN** `GET /alerts/failed/count` responde `{"count": 1}`
+#### Scenario: Cuenta alertas en fallo terminal, sin importar retry_count
+- **WHEN** existen una alerta entregada, una alerta fallida con `retry_count = 3`, una alerta fallida con `retry_count = 0` (n8n sin configurar) y una alerta pendiente
+- **THEN** `GET /alerts/failed/count` responde `{"count": 2}`
 
 #### Scenario: DLQ vacía cuenta cero
 - **WHEN** no hay alertas con `failed_at IS NOT NULL`
