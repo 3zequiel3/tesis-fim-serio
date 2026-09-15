@@ -71,7 +71,7 @@
 - [ ] El refresh token se persiste como cookie `httpOnly` + `Secure` + `SameSite=Strict` + `Path=/auth/refresh` (W9).
 - [ ] Las contraseñas se hashean con Argon2id (parámetros C9: `time_cost=3, memory_cost=65536, parallelism=4`).
 - [ ] Existe rate limiting: 5 intentos / 15 minutos por `(username + IP)` (W5).
-- [ ] Si el admin tiene el flag `must_change_password = true` (primer login del seed), la respuesta emite tokens con scope `password_change_only` y el frontend redirige a `/account/change-password` (W20, detalle en US-27).
+- [ ] Si el admin tiene el flag `must_change_password = true` (primer login del seed), la respuesta emite tokens con scope `password_change_only` y el frontend redirige a `/change-password` (W20, detalle en US-27).
 
 > **Nota:** El primer usuario admin se crea automáticamente como seed al inicializar la base de datos (credenciales desde variables de entorno). No existe registro público de usuarios. Admins adicionales se crean desde la interfaz por un admin existente.
 
@@ -134,7 +134,7 @@
 - [ ] Se muestra el estado de conectividad de los agentes registrados (`online` / `offline` / `draining` / `dead`).
 - [ ] Se destacan visualmente las situaciones críticas (eventos `pending` con severidad `critical` o `high`).
 - [ ] Si hay componentes degradados (`postgres`, `valkey`, `n8n` o algún agente en estado `down` / `degraded`), se muestra banner rojo persistente (ver US-28).
-- [ ] Si hay notificaciones externas fallidas (`failed_notifications` con `retry_count >= 3`), se muestra banner amarillo persistente (ver US-29).
+- [ ] Si hay notificaciones externas en fallo terminal (`alerts` con `delivered_at IS NULL AND failed_at IS NOT NULL`, D6/RN-102), se muestra banner amarillo persistente (ver US-29).
 
 **Prioridad:** Media
 **Módulo:** Frontend / Backend (Dashboard)
@@ -439,7 +439,7 @@
 - [ ] n8n procesa el webhook y reencamina la notificación por el canal configurado (correo, mensajería corporativa, SIEM).
 - [ ] Si el webhook a n8n falla, se aplica retry con delays exponenciales 5 s / 30 s / 120 s (W11).
 - [ ] Si fallan los 3 intentos, el backend aplica **cascada de fallbacks automáticos**: SMTP directo → webhook directo pre-configurado → log crítico.
-- [ ] Si ningún canal externo pudo entregar, se persiste una fila en `failed_notifications(event_id, payload_json, last_error, failed_at, retry_count)` (W11) y la UI muestra banner amarillo (ver US-29).
+- [ ] Si ningún canal externo pudo entregar, la fila de `alerts` queda en fallo terminal con `failed_at`, `last_error` y `retry_count` (W11, tabla unificada por D6/RN-107) y la UI muestra banner amarillo (ver US-29).
 - [ ] La indisponibilidad de n8n no compromete la operación del sistema: los fallbacks garantizan continuidad del alertado.
 
 **Prioridad:** Media
@@ -516,7 +516,7 @@
 **Criterios de aceptación:**
 - [ ] El seed del primer admin crea el usuario con `must_change_password: true`.
 - [ ] En el primer login exitoso, el backend retorna tokens con scope `password_change_only` y la respuesta incluye `must_change_password: true`.
-- [ ] El frontend redirige forzosamente a `/account/change-password` (sin posibilidad de acceder al dashboard).
+- [ ] El frontend redirige forzosamente a `/change-password` (sin posibilidad de acceder al dashboard).
 - [ ] El formulario de cambio pide: password actual, password nuevo (>= 12 caracteres, al menos 1 mayúscula, 1 minúscula, 1 número), confirmación.
 - [ ] El backend valida la contraseña actual y las reglas de complejidad antes de aceptar.
 - [ ] La nueva contraseña se hashea con Argon2id con parámetros C9.
@@ -550,8 +550,8 @@
 **Como** administrador, **quiero** ver las notificaciones externas que fallaron y poder reintentarlas o descartarlas, **para** no perder alertas críticas cuando n8n está caído.
 
 **Criterios de aceptación:**
-- [ ] Cuando la tabla `failed_notifications` tiene al menos 1 fila con `retry_count >= 3`, el frontend muestra un banner amarillo en el header: "Notificaciones pendientes: N alertas no pudieron ser enviadas".
-- [ ] El banner incluye un link que abre la vista `/notifications/failed`.
+- [ ] Cuando `alerts` tiene al menos 1 fila en fallo terminal (`delivered_at IS NULL AND failed_at IS NOT NULL`, D6/RN-102), el frontend muestra un banner amarillo en el header: "Notificaciones pendientes: N alertas no pudieron ser enviadas".
+- [ ] El banner incluye un link que abre la vista `/alerts/failed`.
 - [ ] La vista muestra tabla con: `event_id` (link al evento), timestamp del primer intento, último error, `retry_count`.
 - [ ] Por cada fila, el admin puede: "Reintentar" (dispara un intento inmediato contra la cascada de fallbacks) o "Descartar" (elimina la fila).
 - [ ] Bulk "Reintentar todos" disponible.
@@ -672,7 +672,7 @@ Las siguientes decisiones resultan de la auditoría de consistencia, lifecycle, 
 **Aplicación**: US-09.
 
 #### W11: Retry de webhook n8n + DLQ + fallbacks
-**Decisión**: 3 intentos con delays 5 s / 30 s / 120 s. Cascada de fallbacks: n8n → SMTP directo → webhook directo → log crítico. Si ningún canal entrega: fila en `failed_notifications`.
+**Decisión**: 3 intentos con delays 5 s / 30 s / 120 s. Cascada de fallbacks: n8n → SMTP directo → webhook directo → log crítico. Si ningún canal entrega: la fila de `alerts` queda en fallo terminal (D6/RN-107).
 **Aplicación**: US-23, US-29.
 
 #### W12: Endpoint de salud por componente + UI

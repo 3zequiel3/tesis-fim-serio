@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-159 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-160 |
 
 ---
 
@@ -784,7 +784,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D65 (RN-157 a RN-159) se agregaron el 2026-09-15. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -2119,6 +2119,28 @@ conservación y hoy crece sin límite.
 **Excepciones:** Ninguna.
 
 **Reglas afectadas:** completa D4 con un período de retención; ratifica W18/RN-94.
+
+#### D66 / RN-160: Los comandos de acción sobre eventos no llevan `ruleset_version`
+
+**Descripción:** Los comandos que el backend emite al agente para ejecutar la decisión sobre un evento
+(`reject` con restauración o cuarentena, y los reintentos de esas acciones) SHALL NOT incrementar ni
+transportar `ruleset_version`. `ruleset_version` y `ruleset_version_applied` (D5/RN-106) SHALL quedar
+reservados a los comandos que cambian la configuración del agente (`update_config` y equivalentes).
+
+**Motivo:** US-12 pedía integrar `ruleset_version` en los comandos de rechazo, pero D5 definió ese contador
+como versión del conjunto de reglas: un rechazo no cambia reglas, sólo ejecuta una acción puntual sobre un
+archivo. Incrementarlo por cada rechazo haría que `ruleset_version_applied` dejara de indicar qué
+configuración tiene aplicada un agente, que es justamente para lo que existe. La idempotencia y el orden de
+estos comandos ya los cubren el `event_id` y el cursor de comandos (D37/RN-131).
+
+**Condición:** Emisión de comandos de acción sobre eventos.
+
+**Resultado:** El criterio de US-12 que pedía `ruleset_version` en estos comandos queda superado por esta
+decisión; `ruleset_version_applied` sigue reflejando sólo la configuración.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** precisa D5/RN-106; no la modifica.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

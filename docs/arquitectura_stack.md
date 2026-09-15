@@ -2701,4 +2701,5 @@ Contraparte técnica de las decisiones homónimas de [reglas_de_negocio.md](regl
 | D63 | Cola offline y descarte del agente: AES-256-GCM con clave `HKDF(master_secret, info=b"queue-v1")`, nonce aleatorio de 12 bytes por archivo, datos asociados ligados al identificador del archivo. Archivos en claro preexistentes se leen una vez y se reescriben cifrados. Límite de 100 MB y contrato D37 sin cambios. |
 | D64 | `POST /alerts/stream-ticket` (JWT + admin) devuelve un ticket opaco de 30 s guardado en Valkey; `GET /alerts/stream?ticket=` lo consume de forma atómica (un solo uso). Cada reconexión pide un ticket nuevo; la continuidad de D-EV-6 se preserva. El JWT deja de viajar en la URL y el ticket se redacta de los logs. |
 | D65 | Proceso periódico del lifespan que elimina en lotes filas de `rejected_events_audit` más antiguas que `REJECTED_EVENTS_RETENTION_DAYS` (90 por defecto). `audit_log` nunca se purga (W18/RN-94). |
+| D66 | Los comandos de acción sobre eventos (rechazo con restauración o cuarentena y sus reintentos) no transportan ni incrementan `ruleset_version`; D5 lo reserva para cambios de configuración. |
 

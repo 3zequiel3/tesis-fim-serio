@@ -986,14 +986,14 @@ Capacidades:
 - **`retry_count` acumula el total histórico.** Hoy se sobrescribe con el índice del intento actual y un reintento manual desde la DLQ lo resetea a 0. RN-86 pide el total.
 - **`last_error` dice qué falló.** Hoy es `"All channels failed on attempt N"` y el error real de cada canal se pierde en el log. RN-86 define `last_error` como **el** dato accionable de la DLQ; un mensaje que no nombra el canal ni el error no lo es.
 - **La notificación de cambio de salud pasa por la cascada.** Hoy `check_components` llama `send_n8n` directo: sin retry, sin fallback, sin fila en `alerts`, sin DLQ. El modo de falla es exactamente el peor: **si n8n está caído —el escenario que motiva la alerta— la alerta de que n8n está caído se pierde.**
-- **RN-92 por agente, no por agregado.** «Sin heartbeat 5 min → `dead` + webhook n8n» no tiene implementación: la única emisión por cambio de salud opera sobre el agregado «ok si alguno online», así que un agente que muere en una flota de dos no mueve el agregado y **no notifica nada**.
+- **~~RN-92 por agente~~ — implementado el 2026-09-12** (`7f62348`): `_sweep_offline` devuelve cada agente que recién pasó a `dead` y `_notify_agent_dead` envía un webhook por agente. **Lo que queda para este change**: esa notificación sale directo con `send_n8n`, sin cascada, reintentos, fila en `alerts` ni DLQ —el mismo defecto que el cambio de salud—, y el enrutador de n8n decide por `type === 'health_change' ? 1 : 0`, así que un payload `agent_dead` entra por la rama de alerta y sale como una alerta de archivo con campos vacíos. Agregar la rama `agent_dead` al enrutador (con su plantilla) y hacer pasar la notificación por la cascada.
 - **`POST /alerts/test` (admin).** Dispara la cascada con un payload sintético y devuelve por qué canal salió y con qué error por canal. Hoy la única forma de verificar la configuración es esperar un evento `critical`/`high` real — que es también la razón por la que nadie notó nada durante siete semanas.
 
 Reglas: RN-86 (retry + DLQ — se cumple `retry_count` y `last_error` por primera vez), RN-87 (health check), RN-92 (transiciones de agente), RN-102 (visibilidad de DLQ), RN-54. Decisiones nuevas: **D42/RN-136**.
 
 > **Follow-up declarado**: las **3.885 filas marcadas `delivered` con `channel="n8n"`** durante el período en que el webhook apuntaba a `/healthz` son falsas. El mecanismo está verificado en código; el conteo viene del documento de origen. No es deuda técnica sino **integridad de dato de tesis**: el Cap. 5 afirma entregas que no ocurrieron. Decidir si se anotan, se purgan o se declara la limitación — y hacerlo antes de la defensa, no después.
 
-**Done**: matar el backend a mitad de la escalera y levantarlo de nuevo termina entregando la notificación o la deja en la DLQ, nunca en limbo; `retry_count` de una fila reintentada manualmente es mayor que antes del reintento; `last_error` nombra canal y error concreto; con n8n caído, la alerta de que n8n está caído llega por SMTP o queda en la DLQ; un agente sin heartbeat 5 min en una flota de dos dispara notificación; `POST /alerts/test` reporta el resultado por canal.
+**Done**: matar el backend a mitad de la escalera y levantarlo de nuevo termina entregando la notificación o la deja en la DLQ, nunca en limbo; `retry_count` de una fila reintentada manualmente es mayor que antes del reintento; `last_error` nombra canal y error concreto; con n8n caído, la alerta de que n8n está caído llega por SMTP o queda en la DLQ; la notificación de un agente sin heartbeat 5 min pasa por la cascada y llega por la rama `agent_dead` del enrutador con su plantilla, o queda en la DLQ; `POST /alerts/test` reporta el resultado por canal.
 
 ---
 
@@ -1113,7 +1113,7 @@ Capacidades:
 
 Reglas: RN-50, RN-82, RN-131. Decisiones nuevas: **D63/RN-157**.
 
-**Done**: ningún archivo de `queue/` ni del descarte contiene `diff_text` legible; una cola en claro preexistente se drena y queda cifrada; alterar un byte de un archivo produce el tratamiento de corrupto de D37; la suite de durabilidad de la cola sigue verde.
+**Done** ✅ (2026-09-15, implementado; archivar después del change 42): ningún archivo de `queue/` ni del descarte contiene `diff_text` legible; una cola en claro preexistente se drena y queda cifrada; alterar un byte de un archivo produce el tratamiento de corrupto de D37; la suite de durabilidad de la cola sigue verde.
 
 ---
 
@@ -1135,18 +1135,20 @@ Reglas: RN-94 (ratificada), D4, contrato C16 (reemplazado en autenticación). De
 
 ### Change 55 — `backlog-partial-stories-completion`
 
-**Capa**: backend + frontend + tests · **Depende de**: 17 (`frontend-shell-auth`) y 15 (`backend-notifications`) · **Paralelizable con**: 53; con 54 comparte el módulo `alerts` (aplicar en serie) · **Origen**: auditoría de la tesis V10, riesgo A-4 (backlog 23/8/0) · **Decisiones**: ninguna nueva — los criterios ya están en `docs/historias_de_usuario.md`
+**Capa**: backend + frontend + tests + trazabilidad · **Depende de**: 17 (`frontend-shell-auth`) y 15 (`backend-notifications`) · **Paralelizable con**: 53; con 54 comparte el módulo `alerts` y la UI de alertas (aplicar en serie: primero 55, después 54) · **Origen**: auditoría de la tesis V10, riesgo A-4 (backlog 23/8/0) · **Decisiones**: D66/RN-160; aplica D6/RN-102/RN-107
 
-> **Nota**: de las 8 historias parciales, US-11 y US-12 ya tienen el comportamiento implementado y sólo carecen de tests dedicados; US-27 no exige la complejidad de contraseña que su criterio pide (mayúscula, minúscula y número); US-29 y US-05 muestran el banner de alertas fallidas con cualquier total, sin el umbral `retry_count >= 3`, con el enlace a `/alerts` en lugar de la vista de fallidas, y los reintentos no se registran en `audit_log`. US-21 (webhook al pasar a `dead`, `queue_size` en UI) queda en el change 48; US-01 y US-23 son correcciones de texto.
+> **Nota**: cierra en un solo change las 8 historias parciales. US-11 y US-12 ya tienen el comportamiento y les faltan tests (y en US-11, alinear los textos del aviso 409 y de archivo ausente con la historia); US-27 no exige la complejidad de contraseña ni pide la contraseña actual en el cambio forzado; US-29 y US-05 muestran el banner con cualquier total y enlazan a `/alerts`, y los reintentos no quedan en `audit_log`; US-01 y US-23 sólo arrastraban textos previos a D6 y a la ruta real. **US-21 también entra** (incorporada el 2026-09-15): `queue_size`, el webhook al pasar a `dead` y el banner W3 ya estaban implementados desde el 2026-09-12 (`7f62348`, `1226ed9`); faltaban tests de `ruleset_version` en la vista, del realce de no-ok y del intervalo de heartbeat de 10 s.
 
 Capacidades:
-- **US-27**: regla de complejidad en el cambio de contraseña (backend y formulario), con tests de contraseña actual, largo, complejidad, Argon2id y `audit_log`.
-- **US-29 / US-05**: umbral `retry_count >= 3` en el banner, enlace a la vista de alertas fallidas y `audit_log` en reintentos individuales y masivos.
-- **US-11 / US-12**: tests dedicados del toast 409, del aviso de archivo ausente y del estado final del journal de cuarentena.
+- **US-27**: complejidad (mayúscula, minúscula, número) en backend y formulario, contraseña actual exigida también en el flujo forzado, tests de contraseña actual, largo, complejidad, Argon2id y `audit_log`.
+- **US-29 / US-05**: banner ante al menos una alerta en fallo terminal según D6/RN-102 (`delivered_at IS NULL AND failed_at IS NOT NULL`), sin umbral de `retry_count`; enlace a `/alerts/failed`; `audit_log` en reintentos y descartes individuales y masivos.
+- **US-11 / US-12**: textos alineados y tests del aviso 409, del archivo ausente y del estado final del journal; `ruleset_version` excluido de los comandos de acción por D66/RN-160; criterio C10 del modal de rechazo verificado contra el código.
+- **US-21**: tests de `ruleset_version` y realce de no-ok en `AgentCard`, test del intervalo de heartbeat de 10 s y trazabilidad a completa.
+- **US-01 / US-23**: filas de trazabilidad actualizadas (ruta `/change-password`, tabla `alerts`); para el SMTP real, la entrega por n8n con Gmail de la evidencia A-4 y la verificación del fallback SMTP directo del backend con un SMTP de captura.
 
-Reglas: RN-94, RN-102, RN-62. Decisiones nuevas: ninguna.
+Reglas: RN-94, RN-102, RN-107, RN-62. Decisiones nuevas: **D66/RN-160**.
 
-**Done**: cada criterio listado tiene un test que lo ejercita y pasa; la contraseña sin mayúscula, minúscula o número se rechaza con 422; el banner no aparece con alertas fallidas de `retry_count < 3` y enlaza a la vista de fallidas; cada reintento deja una fila en `audit_log`.
+**Done**: cada criterio de las 8 historias tiene un test que lo ejercita y pasa, o una fila de trazabilidad con evidencia; la contraseña sin mayúscula, minúscula o número se rechaza con 422 también en el flujo forzado; el banner aparece con una alerta en fallo terminal y enlaza a `/alerts/failed`; cada reintento o descarte deja una fila en `audit_log`.
 
 ---
 
