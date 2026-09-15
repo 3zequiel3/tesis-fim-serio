@@ -12,7 +12,7 @@ Estado actual verificado en el código:
 - `RejectedEventAudit` (`backend/app/modules/events/models.py`, tabla `rejected_events_audit`) tiene `received_at` (aware, NOT NULL, reloj del backend) y `detected_at` (nullable, reloj del agente). No hay índice sobre `received_at` ni herramienta de migraciones: el esquema se crea con `create_all`.
 - `retention_task()` (`backend/app/modules/events/service.py`) es el precedente: loop con `asyncio.sleep(3600)`, lanzado y cancelado en `backend/app/main.py`.
 
-Restricción de coordinación: el Change 55 (`backlog-partial-stories-completion`) también modifica `backend/app/modules/alerts/` (auditoría de reintentos de la DLQ). **Los applies de los changes 54 y 55 deben ejecutarse en serie**, no en paralelo, para evitar conflictos en `router.py` y en los tests del módulo.
+Restricción de coordinación: el Change 55 (`backlog-partial-stories-completion`) también modifica `backend/app/modules/alerts/` (auditoría de reintentos de la DLQ). **Los applies de los changes 54 y 55 deben ejecutarse en serie**, no en paralelo, para evitar conflictos en `router.py` y en los tests del módulo. Orden y razones resueltos: ver "Orden de apply con el Change 55" al final de este documento.
 
 ## Goals / Non-Goals
 
@@ -87,6 +87,7 @@ La elección del backoff (1 s a 30 s) se alinea con el keepalive de 15 s: un pro
 - Tarea separada de `retention_task` para aislar fallos y no alterar la semántica ni los tests de RN-98.
 - *Alternativa descartada — un único `DELETE … WHERE received_at < cutoff`*: tras meses de acumulación puede bloquear la tabla y generar una transacción larga mientras el consumer inserta rechazos.
 - `audit_log` no se toca: la tarea sólo referencia `RejectedEventAudit`; un test verifica el conteo de `audit_log` antes y después.
+- **Resuelto (aprobación del usuario, 2026-09-15)**: se agrega un índice sobre `received_at` mediante una migración SQL manual idempotente, siguiendo la convención existente en `backend/db/migrations/` (scripts numerados, `NNN_descripcion.sql`, aplicados a mano con `psql -f`). El último número en el repositorio al momento de esta decisión es `016`; esta change introduce `017_add_rejected_events_audit_received_at_index.sql` con `CREATE INDEX IF NOT EXISTS ix_rejected_events_audit_received_at ON rejected_events_audit (received_at);`, ejecutable dos veces sin error. La tarea de retención pasa a apoyarse en ese índice para el filtro `WHERE received_at < :cutoff` de cada lote, en vez de un recorrido secuencial.
 
 ## Risks / Trade-offs
 
@@ -95,16 +96,31 @@ La elección del backoff (1 s a 30 s) se alinea con el keepalive de 15 s: un pro
 - [Clientes que todavía usen `?token=` (por ejemplo, un bundle de frontend cacheado) dejan de recibir alertas] → Cambio **BREAKING** coordinado: backend y frontend se despliegan juntos en el mismo compose; el bundle usa hashes de contenido e `index.html` no se cachea de forma inmutable.
 - [Cada reconexión agrega un `POST` y consume rate limit de API (100/min por usuario)] → El backoff mínimo de 1 s con duplicación limita los intentos a unos pocos por minuto en un corte sostenido.
 - [Valkey caído impide emitir o consumir tickets] → El stream ya depende de Valkey (rate limit, blacklist); el frontend reintenta con backoff y el resto de la consola sigue por polling.
-- [Sin índice sobre `received_at`, cada lote hace un recorrido secuencial] → Con cadencia horaria y la tabla acotada a 90 días el costo es bajo; ver Open Questions.
-- [Conflictos con el Change 55 en `backend/app/modules/alerts/`] → Applies en serie.
+- [Conflictos con el Change 55 en `backend/app/modules/alerts/`] → Applies en serie. **Resuelto (aprobación del usuario, 2026-09-15)**: ver "Orden de apply con el Change 55" al final de este documento.
+- [Corte antes de recibir la primera alerta: no hay toast para las alertas creadas mientras la conexión SSE está caída] → **Limitación conocida, documentada** (aprobación del usuario, 2026-09-15): sin un `last_event_id` previo no hay replay posible, por lo que ninguna alerta creada antes del primer evento recibido produce un toast retroactivo. La consistencia de datos no se ve afectada porque `onopen` invalida `['alerts']`, `['dashboard']` y `['alerts-failed-count']` en cada reapertura que no sea la primera: listados, dashboard y banner reflejan el estado real apenas se reabre la conexión, aunque el toast puntual de esa alerta no aparezca. No se introduce ningún evento nuevo para cerrar esta brecha (cerrarla exigiría que el backend informe un cursor inicial, lo que D64 excluye explícitamente). Ver "Open Questions" para el registro formal del cierre.
 
 ## Migration Plan
 
-1. Desplegar backend y frontend juntos (`docker compose --profile app up -d --build backend frontend`). No hay migración de datos: `rejected_events_audit` y `audit_log` no cambian de esquema.
-2. La primera corrida de la retención (una hora después del arranque) elimina en lotes el histórico de más de 90 días. Para conservar más historia, fijar `REJECTED_EVENTS_RETENTION_DAYS` antes de desplegar.
-3. Rollback: revertir ambas imágenes a la versión anterior. Los tickets en Valkey vencen solos en 30 s; las filas ya purgadas de `rejected_events_audit` no se recuperan (sin obligación normativa de conservación, D65).
+1. Aplicar `backend/db/migrations/017_add_rejected_events_audit_received_at_index.sql` (`psql $DATABASE_URL -f backend/db/migrations/017_add_rejected_events_audit_received_at_index.sql`), antes o después del despliegue indistintamente: es idempotente (`CREATE INDEX IF NOT EXISTS`) y no bloquea escrituras concurrentes de forma relevante para el tamaño esperado de la tabla.
+2. Desplegar backend y frontend juntos (`docker compose --profile app up -d --build backend frontend`). No hay otra migración de datos: `rejected_events_audit` no cambia de columnas y `audit_log` no cambia de esquema.
+3. La primera corrida de la retención (una hora después del arranque) elimina en lotes el histórico de más de 90 días, ya apoyada en el índice de received_at. Para conservar más historia, fijar `REJECTED_EVENTS_RETENTION_DAYS` antes de desplegar.
+4. Rollback: revertir ambas imágenes a la versión anterior. Los tickets en Valkey vencen solos en 30 s; las filas ya purgadas de `rejected_events_audit` no se recuperan (sin obligación normativa de conservación, D65); el índice agregado por la migración 017 es inocuo de dejar en su lugar y no requiere revertirse.
 
 ## Open Questions
 
-- **Índice sobre `rejected_events_audit.received_at`**: el proyecto crea el esquema con `create_all`, que no agrega índices a tablas existentes. ¿Se acepta el recorrido secuencial por lote, o se agrega un `CREATE INDEX IF NOT EXISTS` idempotente en el lifespan? Ninguna decisión cerrada establece una convención para cambios de esquema sobre tablas existentes; el diseño asume sin índice hasta que se cierre.
-- **Brecha de replay previa a la primera alerta**: cerrarla por completo requeriría que el backend informe un cursor inicial (por ejemplo, un `id` en un evento de apertura), lo que cambia los eventos emitidos y choca con D64 ("no cambia qué eventos se emiten"). ¿Se acepta la mitigación por invalidación de queries o se abre una decisión nueva?
+Ninguna abierta. Ambas preguntas planteadas durante el diseño fueron resueltas por el usuario el 2026-09-15:
+
+- **Resuelto — Índice sobre `rejected_events_audit.received_at`** (aprobación del usuario, 2026-09-15): se agrega mediante una migración SQL manual idempotente (`017_add_rejected_events_audit_received_at_index.sql`, `CREATE INDEX IF NOT EXISTS`), siguiendo la convención numerada existente en `backend/db/migrations/`. Detalle en la Decisión 5 de esta sección.
+- **Resuelto — Brecha de replay previa a la primera alerta** (aprobación del usuario, 2026-09-15): se documenta como limitación conocida; no se abre una decisión nueva ni se agrega un evento de cursor inicial. La consistencia de datos queda preservada por la invalidación de queries al reabrir la conexión. Detalle en "Risks / Trade-offs".
+
+## Orden de apply con el Change 55 (`backlog-partial-stories-completion`)
+
+**Resuelto (aprobación del usuario, 2026-09-15).** Los Changes 54 (este) y 55 modifican en simultáneo `backend/app/modules/alerts/` y la UI de alertas del frontend; sus applies MUST ejecutarse en serie, nunca en paralelo, para evitar conflictos en `router.py`, en la UI de alertas y en los tests de ambos módulos.
+
+Orden recomendado: **primero el Change 55, después el Change 54** (este change). Razones:
+
+1. El Change 55 cierra un riesgo de auditoría de severidad alta (A-4); su aplicación no debe esperar a la de este change.
+2. El Change 55 introduce cambios en el banner y en las query keys de alertas del frontend. Aplicar primero el 55 evita que este change (54) tenga que rehacer su parte de frontend (`useAlertsSSE.ts`, invalidación de queries en `onopen`) sobre una base que todavía va a cambiar.
+3. Al aplicar el Change 54 después, sus tareas de frontend (sección 4 y 6 de `tasks.md`) MUST rebasarse sobre el estado ya modificado por el Change 55 (banner y query keys), en vez de asumir el estado previo descrito en la sección "Context" de este documento.
+
+Si en la práctica el Change 54 se aplica primero por otra razón operativa, el Change 55 es el que debe rebasar sus cambios de `router.py` y de UI de alertas sobre el resultado de este change; en cualquier orden, ambos applies permanecen serializados.

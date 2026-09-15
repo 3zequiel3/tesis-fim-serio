@@ -11,6 +11,7 @@ La auditoría V10 de la tesis (riesgo M-4) dejó dos pendientes de privacidad en
 - `useAlertsSSE` pide un ticket nuevo antes de cada conexión y reconexión, desactiva la reconexión nativa de `EventSource` (que reutilizaría un ticket ya consumido) y reabre manualmente con backoff, pasando el último id recibido.
 - Redacción del valor del ticket (y de cualquier `token=` residual) en los logs: procesador del pipeline structlog para los strings de uvicorn access y `log_format` redactado en nginx.
 - Nueva tarea periódica del lifespan que elimina en lotes filas de `rejected_events_audit` con `received_at` anterior a `REJECTED_EVENTS_RETENTION_DAYS` (90 por defecto). `audit_log` no se purga (W18/RN-94 ratificada).
+- Nueva migración SQL manual idempotente `backend/db/migrations/017_add_rejected_events_audit_received_at_index.sql` que agrega un índice sobre `rejected_events_audit.received_at`, del cual se beneficia el filtro de cada lote de la tarea de retención (resuelto por aprobación del usuario, 2026-09-15; ver design.md).
 
 ## Capabilities
 
@@ -29,8 +30,8 @@ Ninguna.
 ## Impact
 
 - **Reglas y decisiones**: D64/RN-158 y D65/RN-159 (nuevas, ya cerradas); RN-94 (ratificada); D4 (completada con retención); RN-89 (sanitización, extendida); D-EV-6 (continuidad preservada); contrato C16 (reemplazado en autenticación).
-- **Backend**: `backend/app/modules/alerts/router.py` (dependencia de auth del stream, nuevo endpoint), nuevo módulo de tickets bajo `backend/app/modules/alerts/`, `backend/app/core/logging.py`, `backend/app/core/config.py` (`rejected_events_retention_days`), `backend/app/modules/events/service.py` (nueva tarea de retención), `backend/app/main.py` (registro y cancelación de la tarea).
+- **Backend**: `backend/app/modules/alerts/router.py` (dependencia de auth del stream, nuevo endpoint), nuevo módulo de tickets bajo `backend/app/modules/alerts/`, `backend/app/core/logging.py`, `backend/app/core/config.py` (`rejected_events_retention_days`), `backend/app/modules/events/service.py` (nueva tarea de retención), `backend/app/main.py` (registro y cancelación de la tarea), `backend/db/migrations/017_add_rejected_events_audit_received_at_index.sql` (índice, aplicación manual).
 - **Frontend**: `frontend/src/hooks/useAlertsSSE.ts`, `frontend/src/api/alerts.ts`, tests del hook; `frontend/nginx/` (formato de log).
 - **Configuración**: nueva variable `REJECTED_EVENTS_RETENTION_DAYS` en `.env.example`.
-- **Dependencias del DAG**: 16 (`backend-sse-alerts`) y 32 (`backend-sse-security-fixes`), ambas archivadas. Comparte el módulo `alerts` con el Change 55 (`backlog-partial-stories-completion`): los applies deben ejecutarse en serie.
+- **Dependencias del DAG**: 16 (`backend-sse-alerts`) y 32 (`backend-sse-security-fixes`), ambas archivadas. Comparte el módulo `alerts` con el Change 55 (`backlog-partial-stories-completion`): los applies deben ejecutarse en serie, orden recomendado 55 luego 54 (resuelto por aprobación del usuario, 2026-09-15; ver "Orden de apply con el Change 55" en design.md).
 - **Sin dependencias externas nuevas**: `GETDEL` está disponible en Valkey 9.0.3; `secrets` es stdlib.

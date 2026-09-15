@@ -1,4 +1,4 @@
-> **Coordinación**: el Change 55 (`backlog-partial-stories-completion`) también modifica `backend/app/modules/alerts/`. No aplicar este change en paralelo con el 55: los applies se ejecutan en serie.
+> **Coordinación**: el Change 55 (`backlog-partial-stories-completion`) también modifica `backend/app/modules/alerts/`. No aplicar este change en paralelo con el 55: los applies se ejecutan en serie, orden recomendado 55 primero y luego este change (resuelto por aprobación del usuario, 2026-09-15; ver "Orden de apply con el Change 55" en `design.md`).
 >
 > **Entorno de tests del backend**: desde `backend/`, con Postgres y Valkey aislados del laboratorio. No hay binario `python` en el PATH: usar `uv run --no-sync python -m pytest`. Plantilla:
 > `TEST_DATABASE_URL='postgresql+psycopg://fim:test@127.0.0.1:<pg_port>/fim_test' TEST_VALKEY_URL='valkey://127.0.0.1:<valkey_port>' uv run --no-sync python -m pytest <tests> -q`
@@ -21,9 +21,10 @@
 
 - [ ] 3.1 Agregar `rejected_events_retention_days: int = Field(default=90, ge=1)` a `Settings` en `backend/app/core/config.py`, con comentario que cite D65/RN-159 y W18/RN-94
 - [ ] 3.2 Documentar `REJECTED_EVENTS_RETENTION_DAYS=90` en `.env.example` con una línea explicativa
-- [ ] 3.3 Implementar en `backend/app/modules/events/service.py` la función `purge_rejected_events_audit(session_factory, now, days, batch_size=1000) -> int` (lotes por `id IN (SELECT … ORDER BY id LIMIT :batch)` con `received_at < cutoff`, commit por lote, hasta un lote incompleto) sin referenciar `AuditLog`
-- [ ] 3.4 Implementar `rejected_events_retention_task()` (sleep de 3600 s, llamada a la purga, `try/except` con `log.error` por corrida, `log.info("service.rejected_retention_run", deleted=n)` sólo si `n > 0`)
-- [ ] 3.5 Registrar la task en el lifespan de `backend/app/main.py` junto a `retention_task()`, cancelarla en el shutdown e incluirla en el `gather` de cierre
+- [ ] 3.3 Crear `backend/db/migrations/017_add_rejected_events_audit_received_at_index.sql` con `CREATE INDEX IF NOT EXISTS ix_rejected_events_audit_received_at ON rejected_events_audit (received_at);`, siguiendo el formato de comentario de cabecera de las migraciones existentes (propósito, idempotencia, comando `psql -f` de aplicación)
+- [ ] 3.4 Implementar en `backend/app/modules/events/service.py` la función `purge_rejected_events_audit(session_factory, now, days, batch_size=1000) -> int` (lotes por `id IN (SELECT … ORDER BY id LIMIT :batch)` con `received_at < cutoff`, commit por lote, hasta un lote incompleto) sin referenciar `AuditLog`
+- [ ] 3.5 Implementar `rejected_events_retention_task()` (sleep de 3600 s, llamada a la purga, `try/except` con `log.error` por corrida, `log.info("service.rejected_retention_run", deleted=n)` sólo si `n > 0`)
+- [ ] 3.6 Registrar la task en el lifespan de `backend/app/main.py` junto a `retention_task()`, cancelarla en el shutdown e incluirla en el `gather` de cierre
 
 ## 4. Frontend: conexión y reconexión con ticket
 
@@ -41,6 +42,7 @@
 - [ ] 5.6 Extender `backend/tests/test_logging_sanitize.py`: línea de `uvicorn.access` con `?ticket=abc123&last_event_id=9` ⇒ contiene `ticket=[REDACTED]&last_event_id=9` y no `abc123`; `?token=eyJ…` redactado; string anidado con `Ticket=` redactado; URL sin credenciales intacta
 - [ ] 5.7 Test end-to-end de redacción: `TestClient` con `configure_logging()` y captura de stdout haciendo `GET /alerts/stream?ticket=<valor>` ⇒ ninguna línea contiene `<valor>`
 - [ ] 5.8 Crear `backend/tests/test_rejected_events_retention.py`: fila de 91 días eliminada y de 89 conservada con default 90; período 7 elimina 8 días y conserva 6; 2500 filas vencidas ⇒ 3 lotes (1000, 1000, 500); conteo de `audit_log` (incluidas filas de 400 días) idéntico antes y después; `Settings` con `REJECTED_EVENTS_RETENTION_DAYS=0` ⇒ `ValidationError`; excepción de DB en una corrida no termina la task (sleep parcheado para dos iteraciones)
+- [ ] 5.8b Contra Postgres (`TEST_DATABASE_URL`), aplicar `backend/db/migrations/017_add_rejected_events_audit_received_at_index.sql` dos veces seguidas y confirmar que la segunda no produce error; verificar con una consulta a `pg_indexes` que el índice `ix_rejected_events_audit_received_at` existe una sola vez
 - [ ] 5.9 Test del lifespan: la task de retención de rechazos se crea en el startup y queda cancelada tras el shutdown
 
 ## 6. Tests del frontend
@@ -58,4 +60,5 @@
 - [ ] 7.5 Verificar que ningún request a `/alerts/stream` lleva JWT: `rg -n "stream\?token|token=\\$\{" frontend/src` sin resultados y, en la consola desplegada, la pestaña de red muestra sólo `?ticket=` (y `last_event_id` tras un corte)
 - [ ] 7.6 Prueba manual de reconexión: con la consola abierta, reiniciar el contenedor `backend`, crear una alerta durante el corte y confirmar que al reconectar llega el toast (si ya había alertas previas) y que listados y banner se actualizan
 - [ ] 7.7 Confirmar que ningún código del backend emite `DELETE` sobre `audit_log`: `rg -n "AuditLog" backend/app | rg -i "delete"` sin resultados
-- [ ] 7.8 `openspec validate backend-privacy-hardening --strict`
+- [ ] 7.8 Migración del índice: aplicar `backend/db/migrations/017_add_rejected_events_audit_received_at_index.sql` contra la base de destino, ejecutarla una segunda vez y confirmar que no falla; con `EXPLAIN` sobre la consulta del lote de purga (`WHERE received_at < :cutoff ORDER BY id LIMIT :batch`), confirmar que el plan usa `ix_rejected_events_audit_received_at`
+- [ ] 7.9 `openspec validate backend-privacy-hardening --strict`
