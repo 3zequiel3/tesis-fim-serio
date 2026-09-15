@@ -1,3 +1,7 @@
+## Current authority and supersession
+
+The canonical bulk work is complete as a breaking migration: approve `{event_ids:[...]}`, reject `{event_ids:[...], action:"restore"|"quarantine"}`, no `items` alias, and legacy requests receive 422. Checked `items[]` work from the original execution is preserved only as the historical supersession record in section 6; the tasks below describe the authoritative final state.
+
 ## 1. El helper compartido de severidad (`frontend/src/utils/severity.ts`)
 
 - [x] 1.1 Crear `frontend/src/utils/severity.ts` con su test al lado, siguiendo la convención que ya establecen `ackStatus.ts`, `actionFailed.ts` y `timeDisplay.ts`: un `Record` privado por nivel y una función de acceso que tolera lo desconocido. No exportar el `Record` — lo que se exporta es la función, para que el fallback no sea opcional en el sitio de uso.
@@ -47,29 +51,31 @@
 
 ## 6. El rechazo en lote (`api/actions.ts`, `BulkActionBar.tsx`, `useEventActions.ts`)
 
-- [x] 6.1 Agregar `action: RejectAction` a `BulkRejectItem` (`frontend/src/api/actions.ts:20-23`), espejando `BulkRejectItem` del backend (`backend/app/modules/actions/schemas.py:57-61`), donde es **obligatoria y sin default**. Con el campo en el tipo, omitirlo deja de compilar: es la garantía más barata disponible contra la reincidencia.
-- [x] 6.2 Cambiar la firma a `bulkReject(items: BulkRejectItem[])` y emitir `{ items }` (`:64-66`). La acción sale del nivel superior; no queda duplicada arriba "por compatibilidad" — Pydantic la ignora y dejarla solo documentaría el malentendido.
-- [x] 6.3 En `BulkActionBar.handleBulkReject` (`components/ui/BulkActionBar.tsx:45-58`), mapear la elección única del modal sobre cada ítem: `{ event_id, version, action: rejectAction }`. La elección única es la UX que pide US-25 y el mapeo por ítem es lo que exige el wire; las dos cosas valen a la vez y este es el punto donde se reconcilian.
-- [x] 6.4 Ajustar `bulkRejectMutation` (`hooks/useEventActions.ts:87-89`) a la firma nueva: la mutación recibe `items` y ya no `{items, action}`.
-- [x] 6.5 Hacer que el `onError` del lote (`:90-95`) distinga el **422** y lo rotule como petición rechazada, no como falla genérica. Un 422 en una acción masiva es una violación de contrato, no una falla operativa, y presentarlo con el mismo texto que un timeout es lo que mantuvo este defecto invisible durante toda la vida del proyecto. Aplicar el mismo tratamiento al `onError` de `bulkApprove` (`:73-79`), que tiene el mismo agujero aunque hoy no lo esté ejerciendo.
-- [x] 6.6 Confirmar con `rg 'bulkReject' frontend/src` que no queda ningún llamador con la firma vieja.
-- [ ] 6.7 Verificar a mano contra el backend vivo antes de dar la tarea por cerrada: seleccionar dos eventos `pending` reales, rechazarlos en lote y confirmar 200 más el toast de éxito con los conteos. El test de 7.x prueba la forma; esto prueba el circuito.
+> Supersession record: tasks 6.1–6.4 originally repaired one `items[]` variant by moving `action` per item. The canonical migration replaces that completed historical approach rather than maintaining it as an alias.
+
+- [x] 6.1 Replace item request types with canonical bulk arguments: approve receives event IDs; reject receives event IDs plus one shared `RejectAction`.
+- [x] 6.2 Emit approve `{event_ids:[...]}` and reject `{event_ids:[...], action}`. Do not serialize client versions, confirmation flags, per-item actions or bulk `baseline_absent`.
+- [x] 6.3 Keep the modal's single action as the top-level reject action; `BulkActionBar` passes selected IDs without mapping request objects per row.
+- [x] 6.4 Update `bulkRejectMutation` and `bulkApproveMutation` to the canonical signatures and invalidate the event list after the response.
+- [x] 6.5 Keep 422 distinguishable from an operational failure for both bulk endpoints.
+- [x] 6.6 Confirm no frontend caller emits `items` or supplies event versions to a bulk endpoint.
+- [x] 6.7 Verify through the real acceptance lab that a canonical bulk action returns 200 and produces the expected result summary.
 
 ## 7. El fixture de contrato y el arnés de captura
 
-- [x] 7.1 Crear `contracts/` en la **raíz del repositorio**, con un `README.md` corto que diga qué es, quién lo asserta desde cada lado y por qué no vive bajo `frontend/` ni bajo `backend/`. Ver D-5 del design: bajo cualquiera de los dos lados sería "la creencia de ese lado, que el otro consume", que es el problema original con un archivo compartido encima.
-- [x] 7.2 Crear `contracts/actions.bulk-reject.request.json` con la forma que el backend acepta — `{"items":[{"event_id":…,"version":…,"action":"restore"}]}` —, con al menos **dos** ítems y las **dos** acciones representadas, para que el fixture ejerza el caso real (varios ítems) y no solo el degenerado.
-- [x] 7.3 Crear `contracts/events.list-severity.request.json` con la query que el listado emite al filtrar por severidad, en la forma repetible que `router.py:73` acepta.
-- [x] 7.4 Crear el helper de captura en `frontend/src/test/`, que instala un adaptador sobre `apiClient.defaults.adapter` y devuelve la config de la petición emitida. Es API pública de axios y son unas pocas líneas; **no** agregar msw (D-5): sería una dependencia nueva y un service worker en jsdom para obtener exactamente el mismo dato.
-- [x] 7.5 El helper instala en `beforeEach` y **restaura en `afterEach`**. `apiClient.defaults` es estado global del módulo; si se filtra, el síntoma es ruidoso (todas las peticiones capturadas) y no silencioso, pero igual hay que cerrarlo.
-- [x] 7.6 Test de frontend que llama `bulkReject(...)` **sin mockear `@/api/client`**, captura la petición y compara `JSON.parse(config.data)` contra el fixture. Comparar el cuerpo **serializado** y no el objeto: el fixture es JSON porque Python tiene que leerlo, y comparar un objeto de JavaScript contra JSON parseado esconde justo la clase de diferencias que solo aparecen al serializar (claves `undefined` que desaparecen, enums que se estrechan, instancias que se colapsan).
-- [x] 7.7 Test de frontend equivalente para la query de severidad de 7.3, contra el `paramsSerializer` real.
-- [x] 7.8 **Caso negativo del lado del frontend**: afirmar que la comparación **falla** contra un cuerpo con la acción al nivel superior. Sin esto no hay evidencia de que la aserción sepa distinguir las dos formas, y una aserción que nunca se vio fallar no es evidencia de nada.
-- [x] 7.9 Test de backend que lee `contracts/actions.bulk-reject.request.json` y afirma que `BulkRejectRequest.model_validate(fixture)` no lanza.
-- [x] 7.10 Test de backend que postea el mismo fixture a `POST /actions/bulk-reject` con un JWT de admin y afirma que la respuesta **no es 422**. Que los `event_id` del fixture no existan es correcto y deseable: el resultado esperado es un 200 con esos ítems en `failed[]`, que es precisamente lo que prueba que el cuerpo fue aceptado y procesado.
-- [x] 7.11 **Caso negativo del lado del backend**: postear la forma vieja —acción arriba, ausente por ítem— y afirmar 422 **y** que el error nombra `["body","items",0,"action"]`. Afirmar solo "422" dejaría pasar un 422 por cualquier otro motivo, que es la misma clase de aserción laxa que dejó vivo el defecto.
-- [x] 7.12 Test de backend para el fixture de severidad de 7.3: la query se acepta y el filtro es selectivo (eventos de otra severidad quedan fuera). Sin la parte de selectividad, un parámetro ignorado en silencio pasaría — que es exactamente el defecto que D34 documenta como "problema base".
-- [x] 7.13 Verificar que vitest puede leer un archivo fuera de `frontend/` y que pytest lo resuelve desde su propio directorio de trabajo. Resolver ambas rutas desde la raíz del repo, nunca relativas al archivo de test, para que no dependan de desde dónde se invoque el runner.
+- [x] 7.1 Keep the shared fixture under root `contracts/`, asserted by both frontend and backend.
+- [x] 7.2 Make `contracts/actions.bulk-reject.request.json` canonical: `{"event_ids":[...],"action":"restore"}`. A bulk request has one shared action, not mixed per-item actions.
+- [x] 7.3 Keep the severity query fixture in its repeatable form.
+- [x] 7.4 Capture the serialized Axios request through the real adapter rather than a module-level belief.
+- [x] 7.5 Restore adapter state after every test.
+- [x] 7.6 Assert that serialized `bulkReject(eventIds, action)` deep-equals the canonical fixture.
+- [x] 7.7 Assert the real severity params serializer against its shared fixture.
+- [x] 7.8 Frontend negative case: demonstrate that any body containing `items` differs from the canonical fixture.
+- [x] 7.9 Backend schema accepts the canonical fixture.
+- [x] 7.10 The real backend endpoint accepts the fixture and processes missing IDs as domain failures rather than validation failures.
+- [x] 7.11 Backend negative case: every legacy `items` body receives 422 because `extra=forbid` leaves no compatibility alias.
+- [x] 7.12 Keep the backend severity query acceptance/selectivity test.
+- [x] 7.13 Resolve both fixture paths from repository root so runner cwd does not change the contract.
 
 ## 8. Tests de componente
 
@@ -79,7 +85,7 @@
 - [x] 8.4 `Dashboard`: la tarjeta de critical/high es un enlace **a** `/events?status=pending&severity=critical&severity=high`, con los dos `severity` presentes. Asertar el destino parseado como `URLSearchParams` y no la cadena literal, para que el orden de los parámetros no vuelva frágil al test — pero afirmar explícitamente que `getAll('severity')` tiene longitud 2.
 - [x] 8.5 `Dashboard`: ninguna etiqueta de estado de evento difiere de su valor canónico. Recorrer los siete estados en lugar de escribir siete aserciones sueltas, para que un estado nuevo entre solo en la cobertura.
 - [x] 8.6 `Events`: activar un checkbox de severidad deja el parámetro en la URL y dispara una petición con esa severidad; desactivar el último lo saca de las dos.
-- [x] 8.7 `BulkActionBar`: seleccionar tres eventos, elegir `quarantine` y confirmar produce una petición con tres ítems, **cada uno** con `action: "quarantine"`, y **sin** `action` al nivel superior del cuerpo. Este es el test que habría atrapado el defecto, y tiene que fallar si alguien revierte 6.2.
+- [x] 8.7 `BulkActionBar`: seleccionar tres eventos, elegir `quarantine` y confirmar produce `{event_ids:[id1,id2,id3], action:"quarantine"}`, sin `items`, versiones ni acciones por ítem. El test falla si reaparece el wire legacy.
 - [x] 8.8 Correr la suite entera y confirmar que los 78 tests actuales siguen en verde. La migración de la tarea 2 toca tres pantallas y `Dashboard.test.tsx` tiene 9 tests que asertan etiquetas: la tarea 5.5 los va a romper y **hay que actualizarlos, no relajarlos**.
 
 ## 9. Documentación y trazabilidad
@@ -87,7 +93,7 @@
 - [x] 9.1 Agregar la fila 45 a la tabla resumen de `CHANGES.md` (después de la 44, `:68`) y su sección detallada al final del bloque de changes (después de `:878-...`), con el formato de la 44: capa, dependencias, origen, decisiones, capacidades, reglas, "Done" y notas.
 - [x] 9.2 Actualizar `docs/trazabilidad_us_tests.md` en los seis puntos que este change mueve: la fila maestra de US-06 (`:113`), el criterio de contenido de fila en §5.6 (`:298`), la fila de US-06 en §6 (`:742`), los contadores del resumen (`:76-78`), la fila maestra de US-25 (`:132`) y el ítem de nivel 1 de §7 (`:799-802`), que este change cierra parcialmente.
 - [x] 9.3 Al actualizar US-06, aplicar la regla del propio documento (`:49-53`): el criterio se cierra solo si la fila lleva **path, estado, acción, severidad, fecha y proceso causante**. Si la implementación quedó más angosta que eso, la fila se anota como parcial y la diferencia va a §6 — no se declara cerrada porque el test de lo implementado pase.
-- [x] 9.4 Registrar en §6 que el criterio de US-25 "acción única aplicada a todo el lote" sigue divergiendo del contrato (acción por ítem), ahora con la nota de que la UI **sí** ofrece una acción única y el mapeo ocurre en el cliente: la divergencia es de la historia respecto del contrato implementado, no del código respecto de la historia.
+- [x] 9.4 Registrar que US-25 ya coincide con el contrato canónico: una acción top-level aplicada a todos los `event_ids`; la divergencia histórica por acción por ítem queda supersedida.
 - [x] 9.5 **No** tocar los appendices de decisiones. Este change no abre ninguna suposición: la severidad en la fila la pide US-06:151, el filtro lo habilita D34/RN-128 explícitamente, el proceso causante lo pide US-06:151 y ya viaja en el payload, y el léxico del dashboard es aplicación literal de C1/RN-71. Si durante la implementación aparece una suposición que no esté cerrada, **detener el flujo** y cerrarla en el appendix antes de seguir.
 - [x] 9.6 Registrar como observación —sin arreglarlo acá— que el appendix de `docs/arquitectura_stack.md` quedó rezagado: su párrafo introductorio (`:1928`) y su tabla de cierre (hasta `:2469`) se detienen en D34 mientras `reglas_de_negocio.md` va por D39/RN-133.
 
@@ -99,4 +105,4 @@
 - [ ] 10.4 La tarjeta "Pending critical + high" navega a la lista prefiltrada, y **el total que informa la lista coincide con el número de la tarjeta**. Si difieren, el enlace está mal construido: es la comprobación más barata de que el KPI y el deep-link hacen la misma consulta.
 - [ ] 10.5 Un rechazo en lote de dos eventos `pending` devuelve 200 y el toast de éxito.
 - [ ] 10.6 Ninguna etiqueta de estado del dashboard difiere de la que muestra la tabla de eventos para el mismo estado.
-- [x] 10.7 Confirmar que `backend/` no tiene cambios de producción: `git diff --stat backend/app` debe estar vacío. Si aparece algo, es una desviación del design y hay que justificarla o revertirla.
+- [x] 10.7 Confirmar que los cambios de producción backend quedan limitados al contrato bulk canónico (`schemas.py`, `router.py`, `service.py`) y que el legacy `items` recibe 422.

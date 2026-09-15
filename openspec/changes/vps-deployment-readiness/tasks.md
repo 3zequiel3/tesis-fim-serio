@@ -97,7 +97,7 @@
 - [x] 12.4 Consola por HTTP sin dominio: login y refresh de sesión operativos. Cambiar `CONSOLE_TLS_MODE=self_signed` en `.env` y `up -d`: 80 redirige a 443, HSTS presente, login y refresh operativos.
 - [x] 12.5 Modificar un módulo del agente y re-ejecutar `install.sh`: el código instalado se actualiza, el servicio se reinicia con el código nuevo y no existe `/opt/fim-agent/agent/agent`.
 - [x] 12.6 [VPS 2026-09-15: `n8n: ok`; POST real ⇒ 502 sin canales y 202 con email entregado por Gmail; la deduplicación de tickets queda cubierta por la verificación aislada del grupo 8, sin sistema de tickets controlado en el VPS] `GET /health/components` reporta `n8n: ok`; un `POST` real a `/webhook/fim-alert` ejecuta el enrutador; dos `POST` con el mismo `event_id` producen un ticket en el sistema controlado.
-- [ ] 12.7 Guardar la evidencia de la aceptación en una carpeta **nueva** bajo `docs/cierre/evidencia/` con su propio `SHA256SUMS`, sin modificar paquetes existentes.
+- [x] 12.7 [docs/cierre/evidencia/a4-vps-acceptance-20260915T153824Z con README y SHA256SUMS; re-verificación de 14.5/14.7 en el VPS va en una carpeta separada] Guardar la evidencia de la aceptación en una carpeta **nueva** bajo `docs/cierre/evidencia/` con su propio `SHA256SUMS`, sin modificar paquetes existentes.
 
 ## 14. Hallazgos de la aceptación en VPS (2026-09-14/15)
 

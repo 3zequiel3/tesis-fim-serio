@@ -104,33 +104,27 @@ The process context SHALL be presented as a secondary line under the path, in th
 
 ### Requirement: Bulk approve y bulk reject con modal de confirmación y resultado parcial
 
-The frontend SHALL provide `frontend/src/components/ui/BulkActionBar.tsx`, which appears when at least one event is selected and allows approving or rejecting the selection, always behind a confirmation modal (RN-99, W15). Bulk approve SHALL show the count and the first 10 paths and call `POST /actions/bulk-approve` with `{items:[{event_id, version, confirm_absent:false}]}`.
+The frontend SHALL provide `frontend/src/components/ui/BulkActionBar.tsx`, which appears when at least one event is selected and allows approving or rejecting the selection behind a confirmation modal (RN-99, W15). Bulk approve SHALL show the count and first 10 paths and issue `POST /actions/bulk-approve` with the single canonical body `{event_ids:[...]}`. Bulk reject SHALL ask for one shared action (`restore` | `quarantine`) and issue `POST /actions/bulk-reject` with `{event_ids:[...], action}`.
 
-**Bulk reject SHALL additionally ask for the action (`restore` | `quarantine`) applied to the whole selection, and SHALL call `POST /actions/bulk-reject` with `{items:[{event_id, version, action}]}` — the action inside each item.**
-
-This corrects the requirement, not only the code. The previous text prescribed `{items:[{event_id, version}], action}`, with the action at the top level, and the implementation complied with it. That body is rejected by the backend with 422 on every call: `BulkRejectItem` (`backend/app/modules/actions/schemas.py:57-61`) declares `action: RejectAction` as required, with no default, inside each element of `items`, and Pydantic ignores the surplus top-level key while failing on the missing per-item one. Verified live: the top-level form returns `422 {"loc":["body","items",0,"action"],"type":"missing"}` and the per-item form returns 200. Fixing the client without fixing this text would leave the defect alive in the artifact that governs the client.
-
-The single choice made in the modal is the UX that US-25 describes; mapping it onto every item is what the wire requires. Both hold at once. The frontend's `BulkRejectItem` type SHALL declare `action`, mirroring the backend schema, so that omitting it stops compiling.
-
-The `{succeeded[], failed[]}` response SHALL become a toast with the counts and SHALL invalidate the list query. A **422 on a bulk action SHALL be surfaced as a contract violation**, distinctly from an operational failure. Presenting a rejected body with the same generic text as a timeout is how this defect stayed invisible for the entire life of the project.
+This requirement supersedes the earlier `items[]` formulations in this change. The migration is intentionally breaking: neither endpoint accepts `items`, client-supplied `version`, `confirm_absent`, per-item actions or `baseline_absent`; there is no compatibility alias, and a legacy `items` body SHALL receive 422. The server loads each event and owns current-version capture. The response remains `{succeeded[], failed[]}`; the frontend SHALL present its counts in a toast and invalidate the list query. A 422 SHALL be surfaced as a contract violation, distinctly from an operational failure.
 
 #### Scenario: BulkActionBar aparece con selección
 - **WHEN** at least one event is selected
-- **THEN** the BulkActionBar shows the approve/reject actions and the selected count
+- **THEN** the BulkActionBar shows the approve/reject actions and selected count
 
-#### Scenario: Bulk approve confirma antes de ejecutar
-- **WHEN** the admin presses "aprobar selección"
-- **THEN** a modal opens showing the count and the first 10 paths
-- **AND** confirming issues `POST /actions/bulk-approve` with the selected `items`
+#### Scenario: Bulk approve usa event_ids
+- **WHEN** the admin confirms bulk approval over three selected events
+- **THEN** `POST /actions/bulk-approve` is issued as `{event_ids:[id1,id2,id3]}`
+- **AND** the body contains no `items`, versions, confirmation or baseline fields
 
-#### Scenario: Bulk reject pide la acción y la aplica a cada ítem
-- **WHEN** the admin presses "rechazar selección", chooses `quarantine` and confirms over three selected events
-- **THEN** `POST /actions/bulk-reject` is issued with three items, each carrying `event_id`, `version` and `action: "quarantine"`
-- **AND** no `action` key is present at the top level of the body
+#### Scenario: Bulk reject usa una acción común
+- **WHEN** the admin chooses `quarantine` and confirms over three selected events
+- **THEN** `POST /actions/bulk-reject` is issued as `{event_ids:[id1,id2,id3], action:"quarantine"}`
+- **AND** the body contains no per-item action
 
-#### Scenario: Un rechazo en lote válido no es rechazado por el backend
-- **WHEN** the body the client emits for a bulk reject is validated against the backend contract
-- **THEN** it is accepted, and specifically does not fail with a missing per-item `action`
+#### Scenario: El wire legacy es rechazado
+- **WHEN** a body containing `items` is submitted to either bulk endpoint
+- **THEN** the backend responds 422 because no legacy alias exists
 
 #### Scenario: Resultado parcial se refleja en un toast con conteos
 - **WHEN** a bulk action returns `{succeeded:[...], failed:[...]}` with failures

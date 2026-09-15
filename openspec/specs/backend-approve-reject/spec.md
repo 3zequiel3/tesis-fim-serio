@@ -69,40 +69,61 @@ El sistema SHALL exponer `POST /actions/reject` (requiere JWT de admin) que acep
 
 ### Requirement: POST /actions/bulk-approve — bulk approve múltiples eventos
 
-El sistema SHALL exponer `POST /actions/bulk-approve` (requiere JWT de admin) que acepta `{items: [{event_id: int, version: int, confirm_absent: bool = false}]}`. MUST procesar cada ítem de forma independiente (sin transacción global). MUST retornar `200 OK` con `{"succeeded": [event_id, ...], "failed": [{event_id, reason}, ...]}` independientemente de cuántos ítems fallen. Cada ítem exitoso MUST hacer upsert en `baseline_entries` y publicar `baseline_update`. Cada ítem MUST registrarse en `audit_log`.
+El sistema SHALL exponer `POST /actions/bulk-approve` (requiere JWT de admin) con el contrato canónico único `{event_ids: [int, ...]}`. El servidor MUST cargar cada evento por ID, distinguir `not_found` de `not_pending`, capturar su versión vigente y conservar el conflicto optimista si una carrera cambia esa versión antes del update. MUST procesar cada ID de forma independiente (sin transacción global) y retornar `200 OK` con `{"succeeded": [event_id, ...], "failed": [{event_id, reason}, ...]}` independientemente de cuántos fallen. Cada aprobación exitosa MUST hacer upsert en `baseline_entries`, registrar `audit_log` y publicar `baseline_update`. Un evento con baseline ausente MUST fallar con `reason="baseline_absent"`.
+
+Esta es una migración breaking: el bulk wire y su respuesta no admiten `items`, `version`, `confirm_absent` ni `baseline_absent`. El body legacy con `items` MUST responder `422`; no existe alias de compatibilidad. `baseline_absent` se mantiene únicamente en la acción individual.
 
 #### Scenario: Bulk approve — todos exitosos
-- **WHEN** el admin envía 3 ítems válidos en estado `pending` con versiones correctas
+- **WHEN** el admin envía `{event_ids:[1,2,3]}` y los tres eventos existen y están `pending`
 - **THEN** la respuesta es `200 OK`
 - **AND** `succeeded` contiene los 3 `event_id`
 - **AND** `failed` está vacío
 - **AND** se publicaron 3 comandos `baseline_update`
 
 #### Scenario: Bulk approve — resultado parcial
-- **WHEN** el admin envía 3 ítems, 1 tiene versión incorrecta (conflicto)
+- **WHEN** el admin envía 3 IDs y una carrera cambia la versión vigente de uno después de cargarlo
 - **THEN** la respuesta es `200 OK`
 - **AND** `succeeded` tiene los 2 ítems válidos
 - **AND** `failed` tiene el ítem conflictivo con `reason="conflict"`
 - **AND** el ítem conflictivo no cambia de estado
 
 #### Scenario: Bulk approve vacío
-- **WHEN** el admin envía `items: []`
+- **WHEN** el admin envía `{event_ids: []}`
 - **THEN** la respuesta es `200 OK` con `{"succeeded": [], "failed": []}`
+
+#### Scenario: Bulk approve distingue IDs no procesables
+- **WHEN** un ID no existe y otro identifica un evento que ya no está `pending`
+- **THEN** `failed` contiene respectivamente `reason="not_found"` y `reason="not_pending"`
+
+#### Scenario: Bulk approve legacy es rechazado
+- **WHEN** el admin envía un body con `items`
+- **THEN** la respuesta es `422 Unprocessable Entity`
 
 ### Requirement: POST /actions/bulk-reject — bulk reject múltiples eventos
 
-El sistema SHALL exponer `POST /actions/bulk-reject` (requiere JWT de admin) que acepta `{items: [{event_id: int, version: int, action: "restore" | "quarantine"}]}`. MUST procesar cada ítem de forma independiente. MUST retornar `200 OK` con `{"succeeded": [event_id, ...], "failed": [{event_id, reason}, ...]}`. Cada ítem exitoso MUST publicar el comando correspondiente (`restore_file` o `quarantine_file`). Cada ítem MUST registrarse en `audit_log`.
+El sistema SHALL exponer `POST /actions/bulk-reject` (requiere JWT de admin) con el contrato canónico único `{event_ids: [int, ...], action: "restore" | "quarantine"}`. La acción top-level MUST aplicarse a toda la selección. El servidor MUST cargar cada evento por ID, distinguir `not_found` de `not_pending`, capturar su versión vigente y conservar el conflicto optimista ante carreras. MUST procesar cada ID de forma independiente y retornar `200 OK` con `{"succeeded": [event_id, ...], "failed": [{event_id, reason}, ...]}`. Cada rechazo exitoso MUST registrarse en `audit_log` y publicar el comando correspondiente, excepto cuando el baseline está ausente: ese caso MUST ser éxito y no publicar comando, conforme RN-74.
+
+Esta es una migración breaking: no se admiten `items`, `version` ni acciones por ítem; el body legacy con `items` MUST responder `422` y no existe alias de compatibilidad.
 
 #### Scenario: Bulk reject — resultado parcial
-- **WHEN** el admin envía 2 ítems, 1 con versión incorrecta
+- **WHEN** el admin envía 2 IDs y una carrera cambia la versión vigente de uno después de cargarlo
 - **THEN** la respuesta es `200 OK`
 - **AND** `succeeded` tiene el ítem válido
 - **AND** `failed` tiene el conflictivo con `reason="conflict"`
 
-#### Scenario: Bulk reject mixto — restore y quarantine
-- **WHEN** el admin envía 2 ítems: uno con `action="restore"` y otro con `action="quarantine"`
+#### Scenario: Bulk reject aplica una acción común
+- **WHEN** el admin envía `{event_ids:[1,2], action:"quarantine"}`
 - **THEN** `succeeded` contiene ambos `event_id`
-- **AND** se publicó un `restore_file` y un `quarantine_file` en el stream
+- **AND** se publicaron dos comandos `quarantine_file`
+
+#### Scenario: Bulk reject con baseline ausente es no-op exitoso
+- **WHEN** uno de los eventos tiene baseline ausente
+- **THEN** su ID aparece en `succeeded`
+- **AND** no se publica comando para ese evento
+
+#### Scenario: Bulk reject legacy es rechazado
+- **WHEN** el admin envía un body con `items`
+- **THEN** la respuesta es `422 Unprocessable Entity`
 
 ### Requirement: Comando baseline_update publicado en Valkey al aprobar
 

@@ -6,7 +6,7 @@ For every request shape covered by this capability, the repository SHALL hold a 
 
 The fixture SHALL live at the repository root, not under `frontend/` or `backend/`. Placing it under either side would make it "that side's belief, which the other consumes" — the original problem with a shared file on top of it. At the root it is what it is, and neither side owns it.
 
-This exists because of a failure that two green test suites did not see. `frontend/src/api/actions.ts:64-66` sent `{items:[{event_id, version}], action}` with the action at the top level; `backend/app/modules/actions/schemas.py:57-61` requires it inside each item; every bulk reject returned 422 for the entire life of the project. Facing it, `backend/tests/test_actions_router.py:405` is named `test_bulk_reject_uses_items_contract_with_per_item_action` and passes. **Two suites, two incompatible contracts, zero shared assertions.** Each side verified its own belief and neither observed the other's.
+Historical note: when this change was authored, the two sides disagreed over two `items[]` variants. That historical diagnosis is preserved, but its proposed per-item repair is superseded by the current canonical breaking migration. The authoritative bulk reject request is now `{event_ids:[...], action:"restore"|"quarantine"}` and bulk approve is `{event_ids:[...]}`; neither endpoint has an `items` alias. **Two suites, two incompatible contracts, zero shared assertions** remains the reason the fixture exists.
 
 Mock depth is not the fix, and the distinction matters. `bulkReject` calls `apiClient.post(url, body)`, so even the project's existing convention of mocking `@/api/client` captures the body object; a test written at the time would have asserted the wrong shape — written by the same person, from the same mental model that produced the code — and passed. What was missing was not a lower mock. It was any artifact that both sides answer to.
 
@@ -37,11 +37,11 @@ For each fixture, both sides SHALL also assert that the **superseded or malforme
 A guard that has never been run against its own negative case is not known to be a guard. This project has already paid for that lesson once: `test_fix09_no_utcnow_in_production_modules` was a green test whose name asserted the absence of the very defect that was in production, because its predicate was never exercised against a failing input. Without the negative case here, someone could empty the fixture and both assertions would keep passing over nothing.
 
 #### Scenario: The superseded bulk-reject shape is rejected by the backend
-- **WHEN** a body carrying the reject action at the top level, and absent from each item, is posted to `POST /actions/bulk-reject`
-- **THEN** the response is 422, and the validation error names the missing per-item `action`
+- **WHEN** any body carrying legacy `items` is posted to `POST /actions/bulk-reject`
+- **THEN** the response is 422 because the canonical schema has no compatibility alias
 
 #### Scenario: The frontend assertion can distinguish the two shapes
-- **WHEN** the captured body is compared against a body carrying the action at the top level
+- **WHEN** the captured canonical `{event_ids, action}` body is compared against a body carrying `items`
 - **THEN** the comparison fails, demonstrating the assertion is capable of detecting the regression
 
 ---

@@ -1,6 +1,10 @@
+## Current authority and supersession
+
+The canonical bulk wire is a breaking migration: approve `{event_ids:[...]}`, reject `{event_ids:[...], action:"restore"|"quarantine"}`, no compatibility alias, and legacy `items` receives 422. Backend schema/router/service load each event by ID and own version capture. Any `items[]` example retained below is explicitly historical diagnosis of the pre-migration defect, not a design instruction.
+
 ## Context
 
-Dos defectos de frontend, verificados contra el sistema vivo (ver [proposal](proposal.md)): la tabla de eventos no muestra severidad ni contexto de proceso, y `POST /actions/bulk-reject` se emite con una forma que el backend rechaza con 422 en el 100% de las llamadas. El backend no se toca: severidad persistida, filtro repetible y contrato de bulk-reject ya existen y responden correctamente.
+Dos defectos de frontend fueron verificados contra el sistema vivo (ver [proposal](proposal.md)): la tabla de eventos no mostraba severidad ni contexto de proceso, y el cliente y backend sostenían variantes incompatibles de `items[]`. Ese diagnóstico es histórico. La resolución vigente conserva el trabajo de severidad y reemplaza ambas variantes bulk por el contrato canónico `event_ids`.
 
 El estado del laboratorio al diseñar acota el problema con precisión: **142 eventos `pending`, de los cuales 140 son `low`, 1 es `critical` y 1 es `high`**. La cola de triage tiene 142 filas y 2 que importan. Esa proporción es la que gobierna las decisiones de abajo: no se está diseñando una vista para leer con calma, se está diseñando una para encontrar dos agujas en tres páginas.
 
@@ -26,7 +30,7 @@ Restricciones que no se negocian:
 **Non-Goals:**
 
 - Cambiar el orden por defecto del listado (ver D-3).
-- Tocar código de producción del backend.
+- Tocar código de producción del backend fuera de la migración canónica del contrato bulk.
 - Introducir dependencias nuevas en el frontend (ver D-6).
 - Resolver los demás criterios abiertos de US-06/07/08/25 enumerados como fuera de scope en el proposal.
 
@@ -77,7 +81,7 @@ Que viva en la URL no es simetría por prolijidad: **es la precondición del dee
 
 Este es el corazón del change, porque es lo único que impide que el defecto 2 vuelva.
 
-**El diagnóstico completo.** Es tentador decir "el problema fue mockear el módulo de API en vez del cliente HTTP". Es cierto pero **no es suficiente**, y conviene decirlo con precisión: `bulkReject` llama `apiClient.post(url, body)`, así que incluso el mock de módulo vigente en el proyecto (`vi.mock('@/api/client')`) captura el objeto del cuerpo. Un test escrito en su momento habría afirmado `{items:[…], action:'restore'}` — **la creencia equivocada, escrita por la misma persona con el mismo modelo mental que produjo el código** — y habría pasado. La profundidad del mock no era el problema. El problema es que **ningún artefacto del lado del frontend sabía qué acepta el backend**, y ninguno del lado del backend sabía qué emite el frontend. Del otro lado hay un test llamado `test_bulk_reject_uses_items_contract_with_per_item_action`, en verde, sobre la forma correcta. Dos suites verdes, dos contratos incompatibles, cero aserciones compartidas.
+**Diagnóstico histórico completo, supersedido como wire.** Es tentador decir "el problema fue mockear el módulo de API en vez del cliente HTTP". Es cierto pero **no es suficiente**, y conviene decirlo con precisión: `bulkReject` llamaba `apiClient.post(url, body)`, así que incluso el mock de módulo vigente entonces (`vi.mock('@/api/client')`) capturaba el objeto del cuerpo. Un test escrito en su momento habría afirmado `{items:[…], action:'restore'}` — **la creencia equivocada, escrita por la misma persona con el mismo modelo mental que produjo el código** — y habría pasado. La profundidad del mock no era el problema. El problema es que **ningún artefacto del lado del frontend sabía qué acepta el backend**, y ninguno del lado del backend sabía qué emite el frontend. Del otro lado hay un test llamado `test_bulk_reject_uses_items_contract_with_per_item_action`, en verde, sobre la forma que entonces aceptaba el backend. Dos suites verdes, dos contratos incompatibles, cero aserciones compartidas.
 
 **La solución: un solo artefacto que los dos lados asertan.**
 
@@ -87,7 +91,7 @@ contracts/actions.bulk-reject.request.json
 
 - **Frontend**: instala un adaptador de captura sobre el cliente axios **real** (`apiClient.defaults.adapter`), llama `bulkReject(...)` sin mockear `@/api/client`, y compara `JSON.parse(config.data)` contra el fixture. La captura ocurre después de `transformRequest`, así que lo comparado es el cuerpo **serializado** que saldría al cable, no el objeto de JavaScript que lo precede.
 - **Backend**: lee el mismo archivo y afirma (a) que `BulkRejectRequest.model_validate(fixture)` no levanta, y (b) que `POST /actions/bulk-reject` con ese cuerpo no devuelve 422.
-- **Caso negativo, obligatorio en los dos lados**: la forma vieja —acción arriba, ausente por ítem— debe ser **rechazada**. Un guard que nunca se probó contra su propio caso negativo es cómo la change 44 descubrió que `test_fix09_no_utcnow_in_production_modules` afirmaba lo contrario de la verdad. No se repite ese error acá.
+- **Caso negativo, obligatorio en los dos lados**: cualquier forma legacy con `items` debe ser rechazada con 422. El caso positivo único es `{event_ids:[...], action}`. Un guard que nunca se probó contra su propio caso negativo no demuestra exclusividad del contrato.
 
 **Por qué el fixture y no un literal en cada test.** Un literal en el test del frontend es la misma creencia unilateral, escrita dos veces. El fixture solo tiene valor porque **el backend lo valida**: es el único punto donde las dos creencias se encuentran y pueden discrepar. Si el schema del backend cambia, su test se pone rojo sobre el fixture; si el cliente del frontend cambia, su test se pone rojo sobre el mismo fixture. Ninguno de los dos lados puede moverse solo.
 
@@ -125,13 +129,13 @@ Y un test de léxico que recorre las etiquetas de estado del dashboard y afirma 
 - **El adaptador de captura toca `apiClient.defaults`, que es estado global del módulo** → se instala y se restaura en `beforeEach`/`afterEach` del archivo que lo usa, y el helper vive en `src/test/` para que el patrón no se copie mal. Si se filtrara, el síntoma sería ruidoso (todas las requests capturadas), no silencioso.
 - **El fixture puede quedar desactualizado si alguien lo edita para "que pase el test"** → editarlo pone en rojo el otro lado inmediatamente. Ese es el mecanismo entero, y es la razón por la que el caso negativo también se testea: sin él, alguien podría vaciar el fixture y las dos aserciones seguirían pasando sobre nada.
 - **Con 140 de 142 pendientes en `low`, la columna de severidad discrimina poco dentro del filtro `pending`** → es exactamente al revés: 140 iguales y 2 distintos es el caso donde una banda de color rinde más, no menos. Lo que sí es cierto es que la utilidad depende de que el ruleset asigne severidades con criterio; con 5 reglas en el laboratorio (3 `critical`, 2 `high`) y `medium` sin usar en ningún evento, la paleta define cuatro niveles de los que hoy se ven tres. Se definen los cuatro igual: el nivel faltante aparece en cuanto alguien cree una regla `medium`, y descubrirlo entonces sería un defecto.
-- **`bulkReject` cambia de firma** (`(items, action)` → `(items)`) → es un cambio interno al frontend con un único llamador (`useEventActions.ts:88`); TypeScript localiza el resto. Se hace así a propósito: con `action` dentro del tipo del ítem, omitirla deja de compilar, que es la garantía más barata disponible contra la reincidencia.
+- **`bulkReject` cambia al contrato canónico** (`(eventIds, action)` → `{event_ids, action}` al serializar) → es un cambio coordinado de frontend y backend. El tipo compartido elimina versiones y acciones por ítem; el test de fixture y el caso legacy 422 impiden reintroducir un alias silencioso.
 
 ## Migration Plan
 
-No hay migración: sin cambios de base de datos, sin cambios de API, sin cambios de contrato de respuesta. El despliegue es un build de frontend.
+No hay migración de base de datos, pero sí una migración breaking de API. Frontend y backend deben desplegarse como una unidad compatible: approve usa `{event_ids:[...]}` y reject `{event_ids:[...], action}`. La respuesta bulk conserva únicamente `succeeded` y `failed`; `items`, versiones, confirmaciones y `baseline_absent` bulk se eliminan.
 
-**Rollback**: revertir el commit. El único artefacto compartido nuevo es `contracts/`, que solo consumen tests. Un rollback parcial que revirtiera el frontend dejando el test del backend sería inofensivo: ese test valida el fixture contra el schema del backend y seguiría pasando.
+**Rollback**: revertir frontend, backend, fixture y specs como una sola unidad. Un rollback parcial reintroduciría incompatibilidad de wire y no es seguro.
 
 **Verificación post-despliegue**, en este orden:
 

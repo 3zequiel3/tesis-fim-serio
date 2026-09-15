@@ -147,7 +147,9 @@ El frontend SHALL proveer `frontend/src/components/ui/RejectModal.tsx` que, para
 
 ### Requirement: Bulk approve y bulk reject con modal de confirmación y resultado parcial
 
-El frontend SHALL proveer `frontend/src/components/ui/BulkActionBar.tsx` que aparece cuando hay ≥1 evento seleccionado y permite aprobar o rechazar la selección, siempre con un modal de confirmación (RN-99, W15). El bulk approve SHALL mostrar el conteo y las primeras 10 paths y llamar `POST /actions/bulk-approve` con `{items:[{event_id, version, confirm_absent:false}]}`. El bulk reject SHALL pedir adicionalmente la acción (`restore`|`quarantine`) y llamar `POST /actions/bulk-reject` con `{items:[{event_id, version}], action}`. La respuesta `{succeeded[], failed[]}` SHALL traducirse en un toast con los conteos y SHALL invalidar la query de la lista.
+El frontend SHALL proveer `frontend/src/components/ui/BulkActionBar.tsx` que aparece cuando hay ≥1 evento seleccionado y permite aprobar o rechazar la selección, siempre con un modal de confirmación (RN-99, W15). El bulk approve SHALL mostrar el conteo y las primeras 10 paths y llamar `POST /actions/bulk-approve` con el contrato canónico `{event_ids:[...]}`. El bulk reject SHALL pedir adicionalmente una acción común (`restore`|`quarantine`) y llamar `POST /actions/bulk-reject` con `{event_ids:[...], action}`. La respuesta `{succeeded[], failed[]}` SHALL traducirse en un toast con los conteos y SHALL invalidar la query de la lista.
+
+El contrato canónico es una migración breaking: el frontend MUST NOT emitir `items`, `version`, `confirm_absent`, acciones por ítem ni `baseline_absent` en el bulk wire. No hay alias legacy; un body con `items` MUST ser rechazado por el backend con `422`.
 
 #### Scenario: BulkActionBar aparece con selección
 - **WHEN** hay al menos un evento seleccionado
@@ -156,12 +158,17 @@ El frontend SHALL proveer `frontend/src/components/ui/BulkActionBar.tsx` que apa
 #### Scenario: Bulk approve confirma antes de ejecutar
 - **WHEN** el admin pulsa "aprobar selección"
 - **THEN** se abre un modal mostrando el conteo y las primeras 10 paths
-- **AND** al confirmar se hace `POST /actions/bulk-approve` con los `items` seleccionados
+- **AND** al confirmar se hace `POST /actions/bulk-approve` con `{event_ids:[...]}`
 
 #### Scenario: Bulk reject pide acción restore/quarantine
 - **WHEN** el admin pulsa "rechazar selección"
 - **THEN** el modal pide elegir `restore` o `quarantine`
-- **AND** al confirmar se hace `POST /actions/bulk-reject` con `{items, action}`
+- **AND** al confirmar se hace `POST /actions/bulk-reject` con `{event_ids:[...], action}`
+
+#### Scenario: El frontend no conserva el wire legacy
+- **WHEN** se serializa una acción masiva
+- **THEN** el body no contiene `items`, versiones ni campos de baseline
+- **AND** una forma legacy con `items` recibe `422` del backend
 
 #### Scenario: Resultado parcial se refleja en un toast con conteos
 - **WHEN** una acción masiva retorna `{succeeded:[...], failed:[...]}` con fallos
