@@ -2691,3 +2691,14 @@ su generación y uso operativo.
 | D60 | HSTS: `provided` ⇒ `max-age=63072000; includeSubDomains`; `self_signed` ⇒ `max-age=300`; `off` ⇒ sin encabezado. |
 | D61 | `certs-init` reemite si el SAN no cubre el conjunto requerido **o** si faltan menos de `_CERT_RENEWAL_THRESHOLD_DAYS` (15) días; sólo al arrancar; la CA no se rota. |
 | D62 | Certificado `self_signed` de la consola: autofirmado ECDSA P-256 / ECDSA-SHA256, sin la CA propia; `certs-init` imprime su huella SHA-256. Cerrada el 2026-09-13 al aplicar D55. |
+
+### D63–D65 / RN-157 a RN-159: Pendientes de privacidad de la auditoría V10 (riesgo M-4)
+
+Contraparte técnica de las decisiones homónimas de [reglas_de_negocio.md](reglas_de_negocio.md), agregadas el 2026-09-15.
+
+| Decisión | Resolución técnica |
+|---|---|
+| D63 | Cola offline y descarte del agente: AES-256-GCM con clave `HKDF(master_secret, info=b"queue-v1")`, nonce aleatorio de 12 bytes por archivo, datos asociados ligados al identificador del archivo. Archivos en claro preexistentes se leen una vez y se reescriben cifrados. Límite de 100 MB y contrato D37 sin cambios. |
+| D64 | `POST /alerts/stream-ticket` (JWT + admin) devuelve un ticket opaco de 30 s guardado en Valkey; `GET /alerts/stream?ticket=` lo consume de forma atómica (un solo uso). Cada reconexión pide un ticket nuevo; la continuidad de D-EV-6 se preserva. El JWT deja de viajar en la URL y el ticket se redacta de los logs. |
+| D65 | Proceso periódico del lifespan que elimina en lotes filas de `rejected_events_audit` más antiguas que `REJECTED_EVENTS_RETENTION_DAYS` (90 por defecto). `audit_log` nunca se purga (W18/RN-94). |
+

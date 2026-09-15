@@ -1100,6 +1100,56 @@ Reglas: RN-76, RN-78, RN-114, RN-115, RN-52, RN-53, RN-146, RN-147 a RN-150, D-0
 
 ---
 
+### Change 53 — `agent-queue-encryption-at-rest`
+
+**Capa**: agente · **Depende de**: 42 (`stream-ack-durability`, dueño del sobre de la cola y del directorio de descarte) · **Paralelizable con**: 54, 55 · **Origen**: auditoría de la tesis V10, riesgo M-4 · **Decisiones**: D63/RN-157
+
+> **Nota**: la cola offline y el descarte guardan el sobre JSON **en claro**, con `diff_text`, rutas y contexto de proceso. La baseline y la cuarentena ya se cifran con claves derivadas del `master_secret`; la cola era la única copia persistente del contenido que quedaba legible.
+
+Capacidades:
+- **Cifrado AES-256-GCM** de cada archivo de cola y descarte con `HKDF(master_secret, info=b"queue-v1")`, mismo patrón que `derive_baseline_key` y `derive_quarantine_key`.
+- **Migración en el lugar**: un archivo en claro preexistente se lee una vez y se reescribe cifrado.
+- **Integridad**: un archivo alterado falla GCM y se trata como corrupto según D37, sin detener el agente.
+
+Reglas: RN-50, RN-82, RN-131. Decisiones nuevas: **D63/RN-157**.
+
+**Done**: ningún archivo de `queue/` ni del descarte contiene `diff_text` legible; una cola en claro preexistente se drena y queda cifrada; alterar un byte de un archivo produce el tratamiento de corrupto de D37; la suite de durabilidad de la cola sigue verde.
+
+---
+
+### Change 54 — `backend-privacy-hardening`
+
+**Capa**: backend + frontend · **Depende de**: 16 (`backend-sse-alerts`) y 32 (`backend-sse-security-fixes`) · **Paralelizable con**: 53; con 55 comparte el módulo `alerts` (aplicar en serie) · **Origen**: auditoría de la tesis V10, riesgo M-4 · **Decisiones**: D64/RN-158, D65/RN-159
+
+> **Nota**: el stream SSE recibe el JWT completo en `?token=`, que queda en los logs de nginx y del backend durante toda su vigencia; y `rejected_events_audit` crece sin límite. `audit_log` tiene retención ilimitada por W18/RN-94 y no se toca.
+
+Capacidades:
+- **Ticket SSE de un solo uso (D64)**: `POST /alerts/stream-ticket` con JWT y rol admin; `GET /alerts/stream?ticket=` lo consume de forma atómica en Valkey; el frontend pide un ticket antes de cada conexión y reconexión, preservando la continuidad de D-EV-6. Redacción del ticket en logs.
+- **Retención de `rejected_events_audit` (D65)**: proceso periódico en el lifespan con `REJECTED_EVENTS_RETENTION_DAYS` (90 por defecto), borrado en lotes.
+
+Reglas: RN-94 (ratificada), D4, contrato C16 (reemplazado en autenticación). Decisiones nuevas: **D64/RN-158**, **D65/RN-159**.
+
+**Done**: ningún request a `/alerts/stream` lleva un JWT en la URL; un ticket reutilizado, vencido o inexistente recibe 401; el frontend reconecta sin perder eventos; filas de `rejected_events_audit` más antiguas que el período se eliminan y `audit_log` no pierde filas.
+
+---
+
+### Change 55 — `backlog-partial-stories-completion`
+
+**Capa**: backend + frontend + tests · **Depende de**: 17 (`frontend-shell-auth`) y 15 (`backend-notifications`) · **Paralelizable con**: 53; con 54 comparte el módulo `alerts` (aplicar en serie) · **Origen**: auditoría de la tesis V10, riesgo A-4 (backlog 23/8/0) · **Decisiones**: ninguna nueva — los criterios ya están en `docs/historias_de_usuario.md`
+
+> **Nota**: de las 8 historias parciales, US-11 y US-12 ya tienen el comportamiento implementado y sólo carecen de tests dedicados; US-27 no exige la complejidad de contraseña que su criterio pide (mayúscula, minúscula y número); US-29 y US-05 muestran el banner de alertas fallidas con cualquier total, sin el umbral `retry_count >= 3`, con el enlace a `/alerts` en lugar de la vista de fallidas, y los reintentos no se registran en `audit_log`. US-21 (webhook al pasar a `dead`, `queue_size` en UI) queda en el change 48; US-01 y US-23 son correcciones de texto.
+
+Capacidades:
+- **US-27**: regla de complejidad en el cambio de contraseña (backend y formulario), con tests de contraseña actual, largo, complejidad, Argon2id y `audit_log`.
+- **US-29 / US-05**: umbral `retry_count >= 3` en el banner, enlace a la vista de alertas fallidas y `audit_log` en reintentos individuales y masivos.
+- **US-11 / US-12**: tests dedicados del toast 409, del aviso de archivo ausente y del estado final del journal de cuarentena.
+
+Reglas: RN-94, RN-102, RN-62. Decisiones nuevas: ninguna.
+
+**Done**: cada criterio listado tiene un test que lo ejercita y pasa; la contraseña sin mayúscula, minúscula o número se rechaza con 422; el banner no aparece con alertas fallidas de `retry_count < 3` y enlaza a la vista de fallidas; cada reintento deja una fila en `audit_log`.
+
+---
+
 ## Decisiones de implementación cerradas — Abril 2026
 
 Las 8 suposiciones que estaban abiertas en una versión anterior de este roadmap se cerraron el 2026-04-24 y se documentaron formalmente en los appendices "Decisiones de implementación — Abril 2026" de:

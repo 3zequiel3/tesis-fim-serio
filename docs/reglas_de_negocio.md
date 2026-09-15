@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-156 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-159 |
 
 ---
 
@@ -784,7 +784,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D65 (RN-157 a RN-159) se agregaron el 2026-09-15. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -2048,6 +2048,77 @@ funcional observable.
 **Nota de proceso:** esta decisión y su implementación se ejecutaron inline, sin change de OpenSpec,
 por decisión explícita del responsable del proyecto — es una corrección de privacidad acotada, no una
 feature nueva del roadmap.
+
+#### D63 / RN-157: Cifrado en reposo de la cola offline y del directorio de descarte del agente
+
+**Descripción:** Todo archivo que el agente escribe en su cola offline y en su directorio de descarte
+SHALL cifrarse con AES-256-GCM, con una clave derivada por HKDF del `master_secret` del agente con la
+etiqueta de dominio `info=b"queue-v1"` —mismo patrón que la baseline (`baseline-v1`) y la cuarentena
+(`quarantine-v1`)—, nonce aleatorio de 12 bytes por archivo y datos asociados que liguen el contenido
+a su identificador. Los archivos en claro preexistentes SHALL leerse una única vez y reescribirse
+cifrados en el mismo lugar, sin un script de migración separado. El límite de tamaño de la cola y el
+contrato de durabilidad de D37/RN-131 no cambian.
+
+**Motivo:** La auditoría V10 (riesgo M-4) verificó que la cola y el descarte guardan el sobre JSON en
+claro, incluido `diff_text`, rutas y contexto de proceso: los permisos `0700`/`0600` limitan el acceso
+pero no protegen el contenido ante una copia del disco o un respaldo. La baseline y la cuarentena ya
+se cifran; la cola era la única copia persistente del contenido que quedaba en claro.
+
+**Condición:** Toda escritura y lectura de la cola offline y del directorio de descarte.
+
+**Resultado:** Ningún archivo de cola o descarte contiene contenido legible sin el `master_secret`
+del agente. Un archivo alterado falla la verificación de GCM y se trata como corrupto según D37.
+
+**Excepciones:** Ninguna. La rotación de la clave queda fuera de alcance.
+
+**Reglas afectadas:** complementa RN-50 y RN-82 (cifrado y derivación de claves del agente) y
+D37/RN-131 (durabilidad), sin modificarlas.
+
+#### D64 / RN-158: Autenticación del stream SSE con ticket de un solo uso
+
+**Descripción:** `GET /alerts/stream` SHALL dejar de aceptar el JWT de acceso en la query string. El
+cliente SHALL obtener antes un ticket opaco mediante un `POST` autenticado con el JWT y rol admin; el
+ticket SHALL ser aleatorio, de un solo uso, con vida de 30 segundos, guardado en Valkey asociado al
+usuario, y SHALL consumirse de forma atómica al abrir la conexión. Cada reconexión SHALL pedir un
+ticket nuevo y conservar la continuidad de eventos de D-EV-6 (`Last-Event-ID` o su equivalente en la
+URL). El valor del ticket SHALL redactarse de los logs.
+
+**Motivo:** `EventSource` no admite encabezados, por eso el contrato C16 ponía el JWT completo en
+`?token=`. Ese JWT queda en los logs de acceso de nginx y del backend y en el historial del navegador
+durante toda su vigencia (riesgo M-4 de la auditoría V10). La cookie de refresh no sirve: su `Path` es
+`/auth/refresh`. Un ticket de un solo uso y 30 segundos reduce lo que se filtra a un valor inservible
+después de abrir la conexión, sin reemplazar `EventSource`.
+
+**Condición:** Apertura y reconexión del stream SSE de alertas.
+
+**Resultado:** Ningún JWT viaja en una URL. Un ticket reutilizado, vencido o inexistente se rechaza
+con 401.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** reemplaza el mecanismo de autenticación del contrato C16; no cambia qué eventos
+se emiten ni la exigencia de rol admin.
+
+#### D65 / RN-159: Retención de `rejected_events_audit`; `audit_log` sin purga
+
+**Descripción:** Las filas de `rejected_events_audit` con más de `REJECTED_EVENTS_RETENTION_DAYS` días
+(por defecto 90) SHALL eliminarse con un proceso periódico del lifespan del backend, en lotes. La tabla
+`audit_log` SHALL NOT purgarse: conserva la retención ilimitada de W18/RN-94.
+
+**Motivo:** La auditoría V10 (riesgo M-4) señaló la retención de ambas tablas como pendiente. Para
+`audit_log`, W18/RN-94 ya fija retención ilimitada por las Resoluciones AAIP 47/2018 y 126/2024: purgarla
+violaría esa regla, así que la respuesta al riesgo es declarar la retención, no acortarla.
+`rejected_events_audit` (D4) guarda payloads rechazados truncados sin obligación normativa de
+conservación y hoy crece sin límite.
+
+**Condición:** Ejecución periódica del proceso de retención del backend.
+
+**Resultado:** `rejected_events_audit` no conserva filas más antiguas que el período configurado;
+`audit_log` conserva todo.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** completa D4 con un período de retención; ratifica W18/RN-94.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
