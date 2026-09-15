@@ -114,8 +114,8 @@ Detectados al ejecutar el grupo 12 contra un VPS real (Ubuntu 22.04, 1 vCPU, 1,9
 
 ## 13. Validación de specs e integridad (D47/RN-141)
 
-- [ ] 13.1 Correr `openspec validate vps-deployment-readiness --strict` y corregir hasta que pase.
-- [ ] 13.2 Correr `openspec validate --specs` (criterio Done).
-- [ ] 13.3 Correr `python3 scripts/check_spec_integrity.py` antes y después de cualquier archive; si el change 50 se archivó primero, re-verificar los deltas de `backend-pki` contra la main spec actualizada.
-- [ ] 13.4 Correr las suites completas: `cd backend && pytest`, `cd agent && pytest`, `cd frontend && pnpm test`, y `n8n/e2e/test_assets.py`.
-- [ ] 13.5 Commits convencionales por grupo de trabajo (PKI, compose, `.env`, consola, n8n, instalador, registro, docs), sin atribución a IA.
+- [x] 13.1 [2026-09-15 worktree limpio en 74a3b8e: valid] Correr `openspec validate vps-deployment-readiness --strict` y corregir hasta que pase.
+- [x] 13.2 [44/44 specs, 0 failed] Correr `openspec validate --specs` (criterio Done).
+- [x] 13.3 [OK antes y después de los archives del 2026-09-15] Correr `python3 scripts/check_spec_integrity.py` antes y después de cualquier archive; si el change 50 se archivó primero, re-verificar los deltas de `backend-pki` contra la main spec actualizada.
+- [x] 13.4 [backend 750 efectivos (9 por interferencia de BD compartida, OK aislados), agente 586+1 skip, frontend 197 + typecheck, n8n assets 2/2 con PYTHONPATH=backend] Correr las suites completas: `cd backend && pytest`, `cd agent && pytest`, `cd frontend && pnpm test`, y `n8n/e2e/test_assets.py`.
+- [x] 13.5 [commits bc2d759..277a458 y ed286d9] Commits convencionales por grupo de trabajo (PKI, compose, `.env`, consola, n8n, instalador, registro, docs), sin atribución a IA.

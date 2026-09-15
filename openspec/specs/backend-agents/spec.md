@@ -2,9 +2,7 @@
 
 ## Purpose
 TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
-
 ## Requirements
-
 ### Requirement: Admin pre-registers agent with bootstrap secret
 El backend SHALL proveer `POST /agents/register` (requiere JWT de admin) que recibe `{agent_id: str, bootstrap_secret: str}` y persiste el agente en DB con `bootstrap_secret_hash = Argon2id(bootstrap_secret)`. Si ya existe un agente con ese `agent_id`, el endpoint MUST retornar 409. `bootstrap_secret` MUST tener al menos 16 caracteres.
 
@@ -21,7 +19,7 @@ El backend SHALL proveer `POST /agents/register` (requiere JWT de admin) que rec
 - **THEN** responde 422 con detalle de validación
 
 ### Requirement: Agent bootstrap with CSR exchange
-El backend SHALL proveer `POST /agents/bootstrap` (sin autenticación JWT) que recibe `{agent_id: str, csr_pem: str, bootstrap_secret: str}`. MUST verificar que el `agent_id` existe, que `Argon2id.verify(bootstrap_secret, stored_hash)` pasa, y que el CSR es válido (Ed25519, CN coincide con agent_id). Si todo es válido MUST: emitir certificado (90 días), generar `shared_secret` (32 bytes random) y `master_secret` (32 bytes random), retornar `{cert_pem, ca_cert_pem, shared_secret_hex, master_secret_hex}`, y nullear `bootstrap_secret_hash` en DB. El `bootstrap_secret` es de un solo uso: un segundo intento con el mismo secreto MUST fallar.
+El backend SHALL proveer `POST /agents/bootstrap` (sin autenticación JWT) que recibe `{agent_id: str, csr_pem: str, bootstrap_secret: str}`. El endpoint MUST servirse exclusivamente por el listener TLS dedicado al bootstrap en el puerto 8444 (D52/RN-146; ver spec `backend-pki`); la aplicación principal servida en el puerto 8000 MUST NOT montarlo, de modo que el `bootstrap_secret` y los secretos de la respuesta nunca viajen en claro. MUST verificar que el `agent_id` existe, que `Argon2id.verify(bootstrap_secret, stored_hash)` pasa, y que el CSR es válido (Ed25519, CN coincide con agent_id). Si todo es válido MUST: emitir certificado (90 días), generar `shared_secret` (32 bytes random) y `master_secret` (32 bytes random), retornar `{cert_pem, ca_cert_pem, shared_secret_hex, master_secret_hex}`, y nullear `bootstrap_secret_hash` en DB. El `bootstrap_secret` es de un solo uso: un segundo intento con el mismo secreto MUST fallar.
 
 #### Scenario: Bootstrap exitoso
 - **WHEN** un agente envía CSR válido con el bootstrap_secret correcto
@@ -42,6 +40,10 @@ El backend SHALL proveer `POST /agents/bootstrap` (sin autenticación JWT) que r
 #### Scenario: CSR con CN incorrecto
 - **WHEN** el CSR tiene CN distinto al `agent_id` del request
 - **THEN** responde 422
+
+#### Scenario: El puerto 8000 no sirve el bootstrap
+- **WHEN** se hace `POST /agents/bootstrap` contra la aplicación principal en el puerto 8000
+- **THEN** responde 404 o 405 y no se consulta ni modifica ningún agente
 
 ### Requirement: Bootstrap secret is single-use
 El campo `bootstrap_secret_hash` en la tabla `agents` MUST ser nulleado atómicamente en la misma transacción DB en que se emite el certificado. Si la transacción falla, el secreto no se invalida y el agente puede reintentar.
@@ -85,3 +87,4 @@ El consumer de eventos (`events/consumer.py`) MUST consultar el estado del agent
 #### Scenario: Agente con status online procesado normalmente
 - **WHEN** el consumer recibe un mensaje de un agente con `status == online`
 - **THEN** el mensaje se procesa normalmente sin descarte
+

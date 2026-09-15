@@ -2,9 +2,7 @@
 
 ## Purpose
 TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
-
 ## Requirements
-
 ### Requirement: Baseline key derivation via HKDF-SHA256
 
 El motor de baseline SHALL derivar su clave de cifrado de 256 bits con `HKDF-SHA256(ikm=master_secret, salt=agent_id, info="baseline-v1", length=32)`, donde `master_secret` son los 32 bytes raw leídos desde `/var/lib/fim-agent/secrets/master_secret` y `agent_id` es el identificador del agente codificado en UTF-8. La clave derivada MUST mantenerse únicamente en memoria y MUST NOT escribirse a disco ni emitirse en logs.
@@ -164,3 +162,20 @@ When applying a `baseline_update` command, `update_from_command` SHALL read the 
 #### Scenario: Re-delivery of the same command is idempotent
 - **WHEN** the same `baseline_update` command is applied twice
 - **THEN** the preserved content remains intact and the entry is not corrupted
+
+### Requirement: Baseline scan skips entries resolving outside the watch_path scope
+
+During `init_scan` and `run_scan`, for every candidate discovered via `rglob`, the baseline engine SHALL resolve the candidate with `os.path.realpath()` and, when that real path is NOT `is_relative_to` the canonicalized `watch_path` being scanned, skip it with a `warning` log instead of encrypting it into the baseline. This prevents a symlink located inside a `watch_path` but pointing outside it (e.g. to `/root/.ssh`) from being encrypted as if it were in-scope content, enforcing RN-04 at baseline time. Containment MUST be evaluated against the canonicalized `watch_path`, consistent with the detector scope filter and with the D18/RN-116 pattern. (D31 / RN-125)
+
+#### Scenario: In-scope file is baselined
+- **WHEN** `init_scan` finds a regular file whose `os.path.realpath()` is relative to the canonicalized `watch_path`
+- **THEN** the file is hashed and written to the baseline as usual
+
+#### Scenario: Symlink escaping the watch_path is skipped with a warning
+- **WHEN** `init_scan` finds a symlink inside a `watch_path` whose `os.path.realpath()` resolves outside the canonicalized `watch_path`
+- **THEN** the entry is skipped with a warning log and its content is NOT encrypted into the baseline
+
+#### Scenario: run_scan applies the same containment rule
+- **WHEN** `run_scan` (rescan or newly added paths) encounters a candidate whose real path escapes the canonicalized `watch_path`
+- **THEN** it is skipped with a warning, identically to `init_scan`
+
