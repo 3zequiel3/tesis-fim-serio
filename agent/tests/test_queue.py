@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import stat
 import time
@@ -12,7 +11,8 @@ from pathlib import Path
 import pytest
 
 from agent.publisher import Publisher
-from agent.queue import EventQueue, _MAX_BYTES
+from agent.queue import EventQueue, _MAGIC_VERSION, _MAX_BYTES
+from agent.tests.conftest import TEST_AGENT_ID, TEST_MASTER_SECRET, decrypt_queue_file
 
 
 def _make_event(event_id: str, detected_at: str | None = None) -> dict:
@@ -29,7 +29,7 @@ def _make_event(event_id: str, detected_at: str | None = None) -> dict:
 
 @pytest.fixture()
 def queue(tmp_path: Path) -> EventQueue:
-    return EventQueue(tmp_path / "queue")
+    return EventQueue(tmp_path / "queue", master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)
 
 
 # ── Escritura atómica ─────────────────────────────────────────────────────────
@@ -51,7 +51,9 @@ def test_enqueue_no_tmp_after_write(queue: EventQueue) -> None:
 def test_enqueue_content_roundtrip(queue: EventQueue) -> None:
     evt = _make_event("e3")
     path = queue.enqueue(evt)
-    loaded = json.loads(path.read_bytes())
+    # D63/RN-157: el archivo en disco es un blob cifrado, no JSON legible.
+    assert path.read_bytes()[: len(_MAGIC_VERSION)] == _MAGIC_VERSION
+    loaded = decrypt_queue_file(path)
     # D-7: el archivo guarda un sobre {payload, attempts, first_attempt_at},
     # no el payload desnudo.
     assert loaded["payload"]["event_id"] == "e3"
@@ -107,11 +109,11 @@ def test_hot_path_operations_do_not_rescan_the_queue_directory(
 
 def test_restart_rebuilds_file_and_size_indexes(tmp_path: Path) -> None:
     queue_dir = tmp_path / "queue"
-    first = EventQueue(queue_dir)
+    first = EventQueue(queue_dir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)
     first.enqueue(_make_event("survives-restart"))
     expected_bytes = first._total_bytes()
 
-    restarted = EventQueue(queue_dir)
+    restarted = EventQueue(queue_dir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)
 
     assert restarted.contains("survives-restart")
     assert restarted.queue_size == 1
@@ -133,7 +135,7 @@ def test_drop_oldest_on_limit(queue: EventQueue) -> None:
         qmod._MAX_BYTES = 200  # límite tiny para el test
 
         # Primer evento (~150 bytes) ocupa la mayoría del límite
-        q = EventQueue(queue._dir)
+        q = EventQueue(queue._dir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)
         e1 = _make_event("oldest", "2026-01-01T00:00:00+00:00")
         q.enqueue(e1)
         size_after_e1 = q._total_bytes()
@@ -185,7 +187,7 @@ def test_drop_oldest_counter_tracks_multiple_evictions(queue: EventQueue) -> Non
     original = qmod._MAX_BYTES
     try:
         qmod._MAX_BYTES = 500
-        q = EventQueue(queue._dir)
+        q = EventQueue(queue._dir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)
         q.enqueue(_make_event("old-1", "2026-01-01T00:00:00+00:00"))
         q.enqueue(_make_event("old-2", "2026-01-02T00:00:00+00:00"))
         before = q.evicted_events
@@ -207,7 +209,7 @@ def test_queue_dir_created_with_0700(tmp_path: Path) -> None:
     """El directorio de cola debe crearse con modo 0700 (mismo criterio que
     baseline.py/quarantine.py) — la cola guarda diff_text en texto plano."""
     qdir = tmp_path / "queue"
-    EventQueue(qdir)
+    EventQueue(qdir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)
     assert stat.S_IMODE(os.stat(qdir).st_mode) == 0o700
 
 
@@ -217,7 +219,7 @@ def test_queue_dir_preexisting_permissions_hardened_to_0700(tmp_path: Path) -> N
     qdir = tmp_path / "queue"
     qdir.mkdir(mode=0o755)
     os.chmod(qdir, 0o755)
-    EventQueue(qdir)
+    EventQueue(qdir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)
     assert stat.S_IMODE(os.stat(qdir).st_mode) == 0o700
 
 
@@ -237,7 +239,7 @@ def test_discard_dir_preexisting_permissions_hardened_to_0700(tmp_path: Path) ->
     ddir = tmp_path / "discarded"
     ddir.mkdir(mode=0o755)
     os.chmod(ddir, 0o755)
-    q = EventQueue(qdir, discard_dir=ddir)
+    q = EventQueue(qdir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID, discard_dir=ddir)
     event = _make_event("discard-perm-2")
     q.enqueue(event)
     q.discard("discard-perm-2", "test_reason")
@@ -253,7 +255,7 @@ def test_sweep_orphaned_tmp_on_init(tmp_path: Path) -> None:
     orphan.write_text("{}")
     assert orphan.exists()
 
-    EventQueue(qdir)  # __init__ barre los .tmp
+    EventQueue(qdir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)  # __init__ barre los .tmp
 
     assert not orphan.exists()
 
@@ -301,7 +303,7 @@ def test_drop_oldest_removes_chronologically_oldest(queue: EventQueue) -> None:
     try:
         # 1 byte: cualquier evento nuevo supera el límite y dispara drop-oldest
         qmod._MAX_BYTES = 1
-        q = EventQueue(queue._dir)
+        q = EventQueue(queue._dir, master_secret=TEST_MASTER_SECRET, agent_id=TEST_AGENT_ID)
 
         t_old = "2026-01-01T00:00:00+00:00"
         t_new = "2026-06-01T00:00:00+00:00"

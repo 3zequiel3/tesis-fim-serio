@@ -217,9 +217,10 @@ async def test_xadd_failure_keeps_event_in_pending(tmp_path: Path) -> None:
     """When _xadd raises, the event_id must still be in _pending for retry."""
     from agent.publisher import Publisher
     from agent.queue import EventQueue
+    from agent.tests.conftest import TEST_MASTER_SECRET
 
     cfg = _make_config(tmp_path)
-    queue = EventQueue(str(tmp_path / "queue"))
+    queue = EventQueue(str(tmp_path / "queue"), master_secret=TEST_MASTER_SECRET, agent_id=cfg.agent_id)
 
     mock_client = AsyncMock()
     mock_client.xadd = AsyncMock(side_effect=ConnectionError("valkey down"))
@@ -249,9 +250,10 @@ async def test_xadd_success_also_sets_pending(tmp_path: Path) -> None:
     """When _xadd succeeds, event is still in _pending (waiting for ack)."""
     from agent.publisher import Publisher
     from agent.queue import EventQueue
+    from agent.tests.conftest import TEST_MASTER_SECRET
 
     cfg = _make_config(tmp_path)
-    queue = EventQueue(str(tmp_path / "queue"))
+    queue = EventQueue(str(tmp_path / "queue"), master_secret=TEST_MASTER_SECRET, agent_id=cfg.agent_id)
 
     mock_client = AsyncMock()
     mock_client.xadd = AsyncMock(return_value="1-0")

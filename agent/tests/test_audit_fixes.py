@@ -211,7 +211,7 @@ async def test_flush_commands_save_state_error_does_not_abort(tmp_path: Path) ->
 
     queue_dir = tmp_path / "queue"
     queue_dir.mkdir(parents=True, exist_ok=True)
-    q = EventQueue(str(queue_dir))
+    q = EventQueue(str(queue_dir), master_secret=_MASTER_SECRET, agent_id="test-agent-c28")
     pub = Publisher(cfg, q, mock_client)
     pub._agent_state = state
 
@@ -443,7 +443,7 @@ async def test_ack_listener_cursor_not_advanced_before_dispatch(tmp_path: Path) 
 
     queue_dir = tmp_path / "queue"
     queue_dir.mkdir(parents=True, exist_ok=True)
-    q = EventQueue(str(queue_dir))
+    q = EventQueue(str(queue_dir), master_secret=_MASTER_SECRET, agent_id="test-agent-c28")
     pub = Publisher(cfg, q, mock_client)
     pub._agent_state = state
 

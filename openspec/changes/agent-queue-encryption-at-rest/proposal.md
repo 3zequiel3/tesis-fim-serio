@@ -15,6 +15,7 @@ La decisión D63/RN-157 cerró el qué; este change lo implementa.
 - **Migración en el lugar**: los archivos en claro preexistentes, tanto de la cola como del descarte y tanto en formato sobre como en payload desnudo, se leen una única vez al abrir la cola y se reescriben cifrados con el mismo nombre, sin script de migración separado. La lectura sigue tolerando un archivo en claro que la pasada no haya alcanzado.
 - **Integridad**: un archivo que no supera la verificación GCM (byte alterado, truncado, clave distinta, nombre cambiado) se trata por el mismo camino que la cola ya aplica a un archivo ilegible: no se publica, no interrumpe el drenaje de los demás ni detiene el agente, y se registra sin contenido.
 - **Orden de arranque explícito**: la cola sólo se abre después de cargar el `master_secret`, lo que ya ocurre después del bootstrap. Ninguna escritura de cola puede ocurrir sin clave.
+- **Inspección forense (resuelto 2026-09-15)**: se agrega `python -m agent.queue_inspect`, un CLI root-only y de solo lectura que deriva la clave de cola desde el `master_secret` y el `agent_id` del estado del agente para listar y, sólo con un flag explícito, descifrar e imprimir el contenido de un archivo de cola o de descarte. Nunca escribe ni migra archivos.
 - **Sin cambios**: nombre de archivo (`{detected_at_ms:016d}_{event_id}.json`), orden FIFO, escritura atómica, límite de 100 MB medido sobre el tamaño en disco, drop-oldest, cota del descarte, vocabulario de motivos de descarte y contrato de durabilidad de D37/RN-131. La rotación de la clave queda fuera de alcance.
 
 ## Capabilities
@@ -25,7 +26,7 @@ Ninguna.
 
 ### Modified Capabilities
 
-- `agent-queue-durability`: cifrado autenticado de los archivos de cola y descarte, migración en el lugar de archivos en claro y tratamiento de un archivo que no se autentica.
+- `agent-queue-durability`: cifrado autenticado de los archivos de cola y descarte, migración en el lugar de archivos en claro, tratamiento de un archivo que no se autentica y un CLI root-only de inspección forense.
 - `agent-core`: la cola offline se abre sólo después de cargar el `master_secret`.
 
 ## Impact
@@ -34,8 +35,8 @@ Ninguna.
 
 **Dependencias**: Change 42 (`stream-ack-durability`) es dueño del sobre y del directorio de descarte. Su código está implementado, pero el change todavía no está archivado (104/109 tareas) y sus requisitos de sobre y descarte viven en su delta de `agent-queue-durability`, no en la main spec. Por eso este change sólo agrega requisitos y no modifica los de Change 42. Change 42 MUST archivarse antes que este.
 
-**Código**: `agent/queue.py` (derivación de clave, cifrado, detección de formato, migración, tratamiento de archivos que no se autentican, firma de `EventQueue`), `agent/__main__.py` (construcción de la cola con el `master_secret` ya cargado), tests en `agent/tests/` que construyen `EventQueue` (`test_queue.py`, `test_stream_ack_durability.py`, `test_reconnect_order.py` y otros) y un archivo de tests nuevo para el cifrado.
+**Código**: `agent/queue.py` (derivación de clave, cifrado, detección de formato, migración, tratamiento de archivos que no se autentican, firma de `EventQueue`, función pública de lectura reutilizable), `agent/queue_inspect.py` (CLI root-only de inspección forense, nuevo), `agent/__main__.py` (construcción de la cola con el `master_secret` ya cargado), tests en `agent/tests/` que construyen `EventQueue` (`test_queue.py`, `test_stream_ack_durability.py`, `test_reconnect_order.py` y otros), un archivo de tests nuevo para el cifrado y un archivo de tests nuevo para el CLI de inspección.
 
 **Dependencias externas**: ninguna nueva; `cryptography` ya se usa en `agent/baseline.py` y `agent/quarantine.py`.
 
-**Operación**: los registros del descarte dejan de poder inspeccionarse con un visor de texto. Los scripts de evidencia archivados en `docs/cierre/evidencia/` no se modifican.
+**Operación**: los registros de la cola y del descarte dejan de poder inspeccionarse con un visor de texto; la inspección forense pasa por `python -m agent.queue_inspect`, root-only y de solo lectura (ver `design.md` D-9). Los scripts de evidencia archivados en `docs/cierre/evidencia/` no se modifican.

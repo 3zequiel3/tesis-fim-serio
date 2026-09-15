@@ -93,3 +93,31 @@ Cada archivo en esa condición SHALL registrarse con un evento de log que incluy
 
 - **WHEN** se incrementa el contador de intentos de un evento cuyo archivo no se autentica
 - **THEN** la operación devuelve cero y el archivo queda byte a byte igual
+
+### Requirement: A root-only CLI can inspect queue and discard files for forensic use
+
+El agente SHALL proveer un comando de solo lectura, invocable con `python -m agent.queue_inspect`, para que un operador inspeccione con fines forenses el contenido de los archivos de la cola offline y del directorio de descarte. El comando SHALL requerir privilegios de root y MUST rechazar la ejecución antes de leer configuración, `master_secret` o cualquier archivo de cola o descarte cuando el proceso no corre como root.
+
+El comando SHALL derivar la clave de cola a partir del `master_secret` y del `agent_id` leídos del mismo estado del agente que usa el proceso principal (configuración y directorio de secretos), sin credenciales ni rutas nuevas. En su modo por defecto SHALL listar, por archivo, el nombre, el tamaño en disco y su estado (`ok`, `authentication_failed`, `malformed`, `legacy_plaintext`), sin descifrar ni imprimir contenido. El comando SHALL imprimir el contenido descifrado de un archivo únicamente cuando se invoca con un flag explícito que identifique ese archivo.
+
+El comando MUST NOT escribir, crear, modificar ni eliminar ningún archivo de `queue_dir` ni de `discard_dir` en ningún modo, y MUST NOT ejecutar la pasada de migración en el lugar de D63. Un archivo que no se autentica o que está mal formado SHALL reportarse por stderr con su motivo (`authentication_failed` | `malformed`), sin contenido y sin una excepción no controlada, terminando con un código de salida distinto de cero. (D63 / RN-157, D37 / RN-131, RN-108)
+
+#### Scenario: Un usuario sin privilegios de root es rechazado
+
+- **WHEN** se invoca `python -m agent.queue_inspect` como un usuario que no es root
+- **THEN** el comando termina con un mensaje claro y un código de salida distinto de cero, sin leer `master_secret`, configuración ni ningún archivo de cola o descarte
+
+#### Scenario: El contenido descifrado coincide con el sobre original
+
+- **WHEN** un operador root invoca el comando con el flag de impresión sobre un archivo cifrado con la clave de cola vigente
+- **THEN** el comando imprime el sobre JSON descifrado y su contenido es idéntico al payload, los intentos y las marcas de tiempo que se habían encolado originalmente
+
+#### Scenario: Clave incorrecta o archivo manipulado se reportan sin interrumpir el comando
+
+- **WHEN** un operador root invoca el comando con el flag de impresión sobre un archivo cifrado con un `master_secret` distinto, o sobre un archivo cuyo ciphertext fue alterado
+- **THEN** el comando reporta por stderr el motivo (`authentication_failed`) sin imprimir contenido, sin lanzar una excepción no controlada, y termina con un código de salida distinto de cero
+
+#### Scenario: El comando nunca escribe
+
+- **WHEN** se ejecuta el comando en modo lista o en modo impresión, incluso sobre archivos en claro heredados o archivos que no se autentican
+- **THEN** ningún archivo de `queue_dir` ni de `discard_dir` cambia de tamaño, contenido o fecha de modificación, y no se crea ningún archivo nuevo

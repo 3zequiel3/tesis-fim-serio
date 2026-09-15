@@ -16,6 +16,7 @@ from agent.config import AgentConfig, StorageConfig
 from agent.publisher import Publisher
 from agent.queue import EventQueue
 from agent.streams import sign_payload
+from agent.tests.conftest import TEST_MASTER_SECRET
 
 
 @pytest.fixture()
@@ -51,7 +52,7 @@ def config(tmp_path: Path, shared_secret: bytes) -> AgentConfig:
 
 @pytest.fixture()
 def publisher(config: AgentConfig, tmp_path: Path) -> Publisher:
-    queue = EventQueue(config.storage.queue_dir)
+    queue = EventQueue(config.storage.queue_dir, master_secret=TEST_MASTER_SECRET, agent_id=config.agent_id)
     client = AsyncMock()
     client.xadd = AsyncMock(return_value="1-0")
     return Publisher(config, queue, client)

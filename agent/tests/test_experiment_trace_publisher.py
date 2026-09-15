@@ -12,6 +12,7 @@ from agent.config import AgentConfig, StorageConfig
 from agent.experiment_trace import ExperimentTrace
 from agent.publisher import Publisher
 from agent.queue import EventQueue
+from agent.tests.conftest import TEST_MASTER_SECRET
 
 
 @pytest.fixture()
@@ -26,7 +27,8 @@ def publisher(tmp_path: Path) -> tuple[Publisher, Path, AsyncMock]:
     )
     client = AsyncMock(); client.xadd = AsyncMock(return_value="1-0")
     trace_path = tmp_path / "trace.jsonl"
-    return Publisher(cfg, EventQueue(cfg.storage.queue_dir), client, ExperimentTrace(trace_path, "run-trace")), trace_path, client
+    queue = EventQueue(cfg.storage.queue_dir, master_secret=TEST_MASTER_SECRET, agent_id=cfg.agent_id)
+    return Publisher(cfg, queue, client, ExperimentTrace(trace_path, "run-trace")), trace_path, client
 
 
 def rows(path: Path) -> list[dict]:

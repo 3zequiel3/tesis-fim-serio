@@ -419,3 +419,23 @@ Cómo leer cada motivo:
 **Contador**: `discarded_events` viaja en el heartbeat (acumulativo desde el arranque del proceso) y el backend lo persiste y lo muestra en la tarjeta del agente. Un contador que crece es la señal temprana; el directorio es la evidencia.
 
 **No se purga automáticamente.** La retención de RN-98 no lo toca: es material forense y su borrado es una decisión del operador.
+
+### Cola y descarte cifrados (D63/RN-157)
+
+Desde el change `agent-queue-encryption-at-rest`, cada archivo de la cola (`/var/lib/fim-agent/queue/`) y del descarte está cifrado con AES-256-GCM, con una clave derivada del `master_secret` del agente. Los archivos conservan la extensión `.json`, pero su contenido **no es legible** con `cat` ni con `jq`. Los archivos en claro que existieran antes de actualizar el agente se reescriben cifrados la primera vez que el agente abre la cola.
+
+**Inspección forense** (sólo root, sólo lectura):
+
+```bash
+# Listar archivos de cola y descarte con su estado, sin mostrar contenido
+sudo /opt/fim-agent/venv/bin/python -m agent.queue_inspect --dir both
+
+# Descifrar e imprimir un único archivo del descarte
+sudo /opt/fim-agent/venv/bin/python -m agent.queue_inspect --dir discard --print <archivo>.json
+```
+
+Ejecutar los comandos desde `/opt/fim-agent`, o con esa ruta en `PYTHONPATH`. El listado informa por archivo un estado: `ok`, `authentication_failed` (el archivo fue alterado o se cifró con otra clave), `malformed` o `legacy_plaintext`. El comando nunca escribe, borra ni migra archivos.
+
+**Cambio de `master_secret`.** Si el agente se vuelve a bootstrapear y recibe un `master_secret` distinto, los archivos previos de cola y descarte quedan como `authentication_failed`: no se publican y salen por drop-oldest. Es la misma consecuencia que tiene la baseline cifrada (D48/RN-142).
+
+**Antes de volver a una versión anterior del agente**, esperar a que el `queue_size` del heartbeat (visible en la tarjeta del agente) llegue a 0. Una versión previa no sabe leer el formato cifrado y dejaría sin publicar los eventos pendientes hasta volver a la versión nueva.

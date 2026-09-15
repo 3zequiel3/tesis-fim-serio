@@ -16,6 +16,7 @@ from agent.config import AgentConfig, StorageConfig
 from agent.publisher import Publisher, _ACK_TIMEOUT_S
 from agent.queue import EventQueue
 from agent.streams import sign_payload, verify_payload
+from agent.tests.conftest import TEST_MASTER_SECRET
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ def config(tmp_path: Path, shared_secret: bytes) -> AgentConfig:
 
 @pytest.fixture()
 def queue(config: AgentConfig) -> EventQueue:
-    return EventQueue(config.storage.queue_dir)
+    return EventQueue(config.storage.queue_dir, master_secret=TEST_MASTER_SECRET, agent_id=config.agent_id)
 
 
 @pytest.fixture()

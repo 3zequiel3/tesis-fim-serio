@@ -25,6 +25,7 @@ from agent.publisher import Publisher
 from agent.queue import EventQueue
 from agent.state import AgentState, load_state, save_state
 from agent.streams import sign_payload
+from agent.tests.conftest import TEST_MASTER_SECRET
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ def mock_client() -> AsyncMock:
 
 @pytest.fixture()
 def publisher(config: AgentConfig, mock_client: AsyncMock, agent_state: AgentState) -> Publisher:
-    queue = EventQueue(config.storage.queue_dir)
+    queue = EventQueue(config.storage.queue_dir, master_secret=TEST_MASTER_SECRET, agent_id=config.agent_id)
     pub = Publisher(config, queue, mock_client)
     pub.register_command_handlers(
         baseline_engine=MagicMock(),
@@ -307,7 +308,7 @@ async def test_flush_timeout_continues_to_drain(
         update={"publisher": PublisherConfig(command_flush_timeout_s=0.05)}
     )
 
-    queue = EventQueue(config.storage.queue_dir)
+    queue = EventQueue(config.storage.queue_dir, master_secret=TEST_MASTER_SECRET, agent_id=config.agent_id)
     pub = Publisher(config, queue, mock_client)
     pub.register_command_handlers(
         baseline_engine=MagicMock(),

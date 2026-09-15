@@ -299,6 +299,8 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
 
     queue = EventQueue(
         cfg.storage.queue_dir,
+        master_secret=master_secret,
+        agent_id=cfg.agent_id,
         discard_dir=cfg.storage.discard_dir,
         max_discard_files=cfg.publisher.max_discard_files,
     )

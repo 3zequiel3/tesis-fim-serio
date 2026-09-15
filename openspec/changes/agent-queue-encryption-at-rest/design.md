@@ -21,6 +21,8 @@ Disponibilidad del `master_secret`, verificada en `agent/__main__.py`:
 
 Conclusión: hoy ninguna escritura de cola ocurre antes del bootstrap ni sin `master_secret`. Este change convierte esa propiedad circunstancial en un requisito.
 
+**Nota de secuenciación**: Change 42 (`stream-ack-durability`) no está archivado (104/109 tareas); sus requisitos de sobre y descarte viven en su propio delta de `agent-queue-durability`, no en la main spec. Change 42 MUST archivarse antes que este change (ver `proposal.md` → Impact → Dependencias, y `tasks.md` 0.1).
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -29,13 +31,13 @@ Conclusión: hoy ninguna escritura de cola ocurre antes del bootstrap ni sin `ma
 - Una cola o un descarte en claro preexistentes quedan cifrados después de un arranque, sin paso manual ni pérdida de eventos.
 - Un archivo alterado no se publica ni detiene el agente.
 - La suite de durabilidad de la cola y del transporte (Change 42) sigue verde sin relajar ninguna aserción de comportamiento.
+- Un operador root puede inspeccionar el contenido de un archivo de cola o de descarte con fines forenses mediante un CLI dedicado, sin reintroducir contenido en claro en disco (ver D-9).
 
 **Non-Goals:**
 
 - Rotación de la clave de cola o del `master_secret` (excluida por D63).
 - Cifrado del journal, del `state.json` o de los logs.
-- Herramienta de inspección de registros del descarte para el operador (ver Open Questions).
-- Cambiar el destino de un archivo corrupto: mover a descarte, borrar o alertar (ver Open Questions).
+- Cambiar el destino de un archivo corrupto: mover a descarte, borrar o alertar (resuelto — ver D-6).
 - Cambiar el formato del nombre de archivo, el presupuesto de 100 MB, la cota del descarte o el vocabulario de motivos de descarte.
 
 ## Decisions
@@ -106,7 +108,9 @@ Migración:
 - `get_attempts` y `bump_attempts` devuelven `0` sin reescribir;
 - el archivo no entra en `_pending`, no se publica y no detiene el agente; sigue contando para el presupuesto y sale por drop-oldest.
 
-Es el tratamiento que Change 42 dejó implementado para un archivo ilegible y el que D63 referencia como "corrupto según D37". Este change no inventa un destino nuevo; si ese destino debe cambiar, es una decisión abierta (ver Open Questions).
+Es el tratamiento que Change 42 dejó implementado para un archivo ilegible y el que D63 referencia como "corrupto según D37".
+
+**Resuelto (aprobación del usuario, 2026-09-15):** el tratamiento final de un archivo que no se autentica es el camino que la cola ya aplica a un archivo ilegible (saltear, no publicar, salir por drop-oldest, log sin contenido). Este change no inventa un destino nuevo ni un motivo de descarte adicional; el vocabulario cerrado de D37/RN-131 (`max_attempts_exceeded`, `invalid_schema`, `clock_skew`) no se extiende.
 
 - **Nunca se interpreta un archivo que falla GCM como legacy en claro**: la clasificación depende del magic, no de "falló el descifrado, probemos JSON". De lo contrario un atacante con escritura sobre el directorio podría plantar un sobre en claro que se publicaría firmado por el agente.
 
@@ -118,10 +122,22 @@ Es el tratamiento que Change 42 dejó implementado para un archivo ilegible y el
 
 `EventQueue` recibe el `master_secret` ya cargado en la línea 224 y `cfg.agent_id`. No se agrega ninguna carga nueva del secreto ni ningún camino que abra la cola antes del bootstrap.
 
+### D-9. CLI root-only de inspección forense (`agent/queue_inspect.py`)
+
+**Resuelto (aprobación del usuario, 2026-09-15):** se agrega un comando de solo lectura, invocable con `python -m agent.queue_inspect`, para que un operador con acceso root pueda listar y, sólo bajo un flag explícito, descifrar el contenido de la cola y del descarte con fines forenses.
+
+- **Chequeo de root**: `os.geteuid() == 0` se verifica antes de leer configuración, `master_secret` o cualquier archivo; sin root, el comando termina con un mensaje claro y código de salida distinto de cero.
+- **Origen de la clave**: el comando carga la configuración con `agent.config.load_config`, `master_secret` con `agent.baseline.load_master_secret(cfg.storage.secrets_dir)` y `agent_id` de `cfg.agent_id` — el mismo estado del agente que usa `agent/__main__.py`, sin credenciales nuevas — y deriva la clave con `derive_queue_key` (D-1).
+- **Modo lista (por defecto)**: recorre `queue_dir` y/o `discard_dir` (`--dir queue|discard|both`) e imprime, por archivo, nombre, tamaño en disco y estado (`ok`, `authentication_failed`, `malformed`, `legacy_plaintext`), sin descifrar ni imprimir contenido.
+- **Modo impresión (`--print <archivo>`)**: descifra únicamente el archivo indicado e imprime el sobre JSON decodificado por stdout. Un fallo de autenticación o un archivo mal formado se reporta por stderr con el motivo (`authentication_failed` | `malformed`), sin traceback, terminando con código de salida distinto de cero.
+- **Sólo lectura**: ningún modo escribe, ejecuta la pasada de migración de D-5 ni construye un `EventQueue` completo; lee archivos directamente y reutiliza el descifrado de `agent/queue.py` a través de una función pública nueva (p. ej. `read_queue_file(path, key)`), en vez de depender de símbolos privados de otro módulo.
+- **Por qué un módulo nuevo y no un flag de `agent/__main__.py`**: separa una herramienta de diagnóstico de proceso único del daemon de producción, evita que el arranque normal cargue código de impresión de contenido y sigue el patrón de `agent/installer.py`, que también es un entrypoint separado con su propio `argparse`.
+- **Alternativa descartada**: exponer la clave derivada o el contenido descifrado por un endpoint HTTP del agente. Viola RN-108/D8 (sin servidor HTTP en el agente).
+
 ## Risks / Trade-offs
 
-- [Re-bootstrap que entrega un `master_secret` distinto] → toda la cola y el descarte previos dejan de autenticarse y se tratan como ilegibles: no se publican y salen por drop-oldest. Es la misma exposición que ya tienen baseline y cuarentena. Ver Open Questions.
-- [Operador pierde la inspección directa del descarte] → los registros siguen existiendo, contabilizados en `discarded_events` del heartbeat; su lectura requiere el `master_secret`. Ver Open Questions.
+- [Re-bootstrap que entrega un `master_secret` distinto] → toda la cola y el descarte previos dejan de autenticarse y se tratan como ilegibles: no se publican y salen por drop-oldest. **Resuelto (aprobación del usuario, 2026-09-15):** es una consecuencia documentada, consistente con la exposición que ya tiene la baseline bajo D48/RN-142 — el backend no persiste `master_secret` (D48), y tanto la renovación automática dentro de los 15 días previos al vencimiento (RN-78) como la recuperación administrativa de D48 —que preserva el `master_secret` existente y no admite ventana de gracia sobre certificados vencidos— existen precisamente para evitar llegar a un re-bootstrap; si igualmente se entrega un `master_secret` nuevo, D48 exige un re-baseline documentado, y la cola previa se pierde en el mismo movimiento. No se agrega mitigación de código en este change.
+- [Operador pierde la inspección directa en claro del descarte] → los registros siguen existiendo, contabilizados en `discarded_events` del heartbeat. **Resuelto (aprobación del usuario, 2026-09-15):** su lectura pasa a requerir el CLI root-only de D-9, que exige el `master_secret` del agente.
 - [Un archivo que no se autentica ocupa presupuesto hasta que drop-oldest lo alcanza] → comportamiento idéntico al actual para archivos ilegibles; queda visible por el log `queue.unreadable_file`.
 - [Crash durante la migración] → la escritura atómica garantiza que el archivo es el claro completo o el cifrado completo; el `.tmp` huérfano se barre en el arranque siguiente, que reintenta la migración.
 - [Costo de CPU del cifrado en el camino caliente] → AES-GCM sobre sobres de kilobytes es despreciable frente al `fsync` que ya se hace por escritura. El índice de Change 42 sigue evitando relecturas de directorio.
@@ -133,8 +149,10 @@ Es el tratamiento que Change 42 dejó implementado para un archivo ilegible y el
 2. En el primer arranque, la pasada de D-5 cifra la cola y el descarte existentes antes de que el publisher drene. El log `queue.migration` registra los conteos.
 3. **Rollback**: una versión anterior del agente no sabe leer el formato cifrado; `_load_envelope` fallaría con `JSONDecodeError`, los saltearía y no los publicaría. Por lo tanto, un rollback con eventos pendientes en cola los deja sin publicar hasta volver a la versión nueva. Antes de revertir, esperar a que `queue_size` del heartbeat llegue a 0.
 
-## Open Questions
+## Resolved Questions
 
-1. **Destino final de un archivo que no se autentica.** D63 dice "se trata como corrupto según D37", pero el texto de D37/RN-131 no define un tratamiento de archivos corruptos: su vocabulario cerrado de motivos de descarte es `max_attempts_exceeded`, `invalid_schema`, `clock_skew`. Este diseño aplica el comportamiento ya implementado para archivos ilegibles (saltear, no publicar, salir por drop-oldest, log). Si se quiere moverlo al descarte con un motivo nuevo (p. ej. `unreadable`), borrarlo o emitir una alerta, eso extiende el vocabulario de D37/RN-71 y MUST cerrarse primero en el appendix de `docs/reglas_de_negocio.md`.
-2. **Cola previa a un re-bootstrap con otro `master_secret`.** `bootstrap.run()` reescribe `secrets/master_secret` cuando `is_bootstrapped()` es falso, lo que incluye un certificado vencido. No se verificó si el backend entrega el mismo `master_secret` a un agente ya registrado. Si puede cambiar, falta decidir si los eventos pendientes se aceptan como perdidos (igual que la baseline) o si el bootstrap debe drenar o preservar la clave anterior. La rotación de clave está fuera de alcance por D63, pero este caso no es una rotación deliberada.
-3. **Inspección forense del descarte.** Con D37 un operador podía leer el motivo y el payload de un evento descartado directamente en el host. D63 no define una herramienta de lectura. Falta decidir si se agrega un comando local de solo lectura (con los mismos requisitos de privilegios que el acceso a `secrets/`) o si la inspección queda fuera del producto.
+Las tres preguntas abiertas de este diseño fueron cerradas por aprobación del usuario el 2026-09-15. Se conservan aquí con su resolución; el detalle de cada una vive en la sección referenciada.
+
+1. **Destino final de un archivo que no se autentica.** D63 dice "se trata como corrupto según D37", pero el texto de D37/RN-131 no define un tratamiento de archivos corruptos: su vocabulario cerrado de motivos de descarte es `max_attempts_exceeded`, `invalid_schema`, `clock_skew`. **Resuelto:** se mantiene el camino ya implementado para un archivo ilegible (saltear, no publicar, salir por drop-oldest, log sin contenido); no se agrega un motivo de descarte nuevo ni se extiende el vocabulario de D37/RN-71. Ver D-6.
+2. **Cola previa a un re-bootstrap con otro `master_secret`.** `bootstrap.run()` reescribe `secrets/master_secret` cuando `is_bootstrapped()` es falso, lo que incluye un certificado vencido; no se verificó si el backend entrega el mismo `master_secret` a un agente ya registrado. **Resuelto:** es una consecuencia documentada y aceptada, consistente con la exposición que ya tiene la baseline bajo D48/RN-142. No se agrega mitigación de código en este change. Ver Risks / Trade-offs.
+3. **Inspección forense del descarte.** Con D37 un operador podía leer el motivo y el payload de un evento descartado directamente en el host; D63 no define una herramienta de lectura. **Resuelto:** se agrega un CLI root-only de solo lectura, `python -m agent.queue_inspect`. Ver D-9 y el requisito ADDED correspondiente en `specs/agent-queue-durability/spec.md`.

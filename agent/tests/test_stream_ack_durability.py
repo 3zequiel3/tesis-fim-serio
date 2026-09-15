@@ -24,9 +24,10 @@ import pytest
 from agent.config import AgentConfig, PublisherConfig, StorageConfig
 from agent.heartbeat import HeartbeatPublisher
 from agent.publisher import _ACK_TIMEOUT_S, _MIN_RETRY_AFTER_S, Publisher
-from agent.queue import EventQueue, _iso_to_epoch_ms
+from agent.queue import EventQueue, _MAGIC_VERSION, _iso_to_epoch_ms
 from agent.state import AgentState
 from agent.streams import sign_payload, verify_payload
+from agent.tests.conftest import TEST_MASTER_SECRET, decrypt_queue_file
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -73,6 +74,8 @@ def config(tmp_path: Path, shared_secret: bytes) -> AgentConfig:
 def queue(config: AgentConfig) -> EventQueue:
     return EventQueue(
         config.storage.queue_dir,
+        master_secret=TEST_MASTER_SECRET,
+        agent_id=config.agent_id,
         discard_dir=config.storage.discard_dir,
         max_discard_files=config.publisher.max_discard_files,
     )
@@ -113,7 +116,8 @@ def _event(event_id: str, detected_at: str | None = None) -> dict:
 
 def test_enqueue_writes_envelope_without_signature_or_sent_at(queue: EventQueue) -> None:
     path = queue.enqueue(_event("e1"))
-    raw = json.loads(path.read_bytes())
+    assert path.read_bytes()[: len(_MAGIC_VERSION)] == _MAGIC_VERSION
+    raw = decrypt_queue_file(path)
     assert raw["attempts"] == 0
     assert raw["first_attempt_at"] is None
     assert "signature" not in raw["payload"]
@@ -123,13 +127,15 @@ def test_enqueue_writes_envelope_without_signature_or_sent_at(queue: EventQueue)
 def test_legacy_bare_payload_file_wrapped_as_zero_attempts(queue: EventQueue) -> None:
     legacy = _event("legacy1", "2026-01-01T00:00:00+00:00")
     f = queue._dir / f"{_iso_to_epoch_ms(legacy['detected_at']):016d}_legacy1.json"
-    f.write_text(json.dumps(legacy))
+    f.write_text(json.dumps(legacy))  # formato anterior a Change 53, escrito en claro
 
     entries = queue.iter_entries()
     assert len(entries) == 1
     assert entries[0]["attempts"] == 0
     assert entries[0]["first_attempt_at"] is None
     assert entries[0]["payload"]["event_id"] == "legacy1"
+    # D63/RN-157: la lectura reintenta la migración — el archivo queda cifrado.
+    assert f.read_bytes()[: len(_MAGIC_VERSION)] == _MAGIC_VERSION
 
 
 def test_mixed_queue_directory_drains_in_fifo_order(queue: EventQueue) -> None:
@@ -142,6 +148,8 @@ def test_mixed_queue_directory_drains_in_fifo_order(queue: EventQueue) -> None:
 
     assert [e["event_id"] for e in queue.iter_fifo()] == ["old1", "new1"]
     assert all(e["attempts"] == 0 for e in queue.iter_entries())
+    # D63/RN-157: ambos archivos terminan cifrados tras la lectura.
+    assert legacy_file.read_bytes()[: len(_MAGIC_VERSION)] == _MAGIC_VERSION
 
 
 def test_bump_attempts_persists_increment_and_survives_reread(queue: EventQueue) -> None:
@@ -156,10 +164,10 @@ def test_bump_attempts_sets_first_attempt_at_once(queue: EventQueue) -> None:
     queue.bump_attempts("e3")
     f = queue._find_file("e3")
     assert f is not None
-    first = json.loads(f.read_bytes())["first_attempt_at"]
+    first = decrypt_queue_file(f)["first_attempt_at"]
     assert first is not None
     queue.bump_attempts("e3")
-    assert json.loads(f.read_bytes())["first_attempt_at"] == first
+    assert decrypt_queue_file(f)["first_attempt_at"] == first
 
 
 def test_bump_attempts_nonexistent_returns_zero_without_creating(queue: EventQueue) -> None:
@@ -179,7 +187,8 @@ def test_discard_moves_event_with_reason_and_timestamp(queue: EventQueue) -> Non
 
     discarded = list(queue._discard_dir.glob("*.json"))
     assert len(discarded) == 1
-    record = json.loads(discarded[0].read_bytes())
+    assert discarded[0].read_bytes()[: len(_MAGIC_VERSION)] == _MAGIC_VERSION
+    record = decrypt_queue_file(discarded[0])
     assert record["discard_reason"] == "clock_skew"
     assert record["discarded_at"] is not None
     assert record["payload"]["event_id"] == "d1"
@@ -202,14 +211,20 @@ def test_discard_does_not_affect_queue_pressure_or_total_bytes(queue: EventQueue
 
 
 def test_discard_directory_drops_oldest_past_bound(tmp_path: Path) -> None:
-    q = EventQueue(tmp_path / "queue", discard_dir=tmp_path / "discarded", max_discard_files=2)
+    q = EventQueue(
+        tmp_path / "queue",
+        master_secret=TEST_MASTER_SECRET,
+        agent_id="test-agent-01",
+        discard_dir=tmp_path / "discarded",
+        max_discard_files=2,
+    )
     for i in range(3):
         eid = f"e{i}"
         q.enqueue(_event(eid, f"2026-01-0{i + 1}T00:00:00+00:00"))
         q.discard(eid, "clock_skew")
 
     remaining = {
-        json.loads(f.read_bytes())["payload"]["event_id"] for f in q._discard_dir.glob("*.json")
+        decrypt_queue_file(f)["payload"]["event_id"] for f in q._discard_dir.glob("*.json")
     }
     assert len(remaining) == 2
     assert "e0" not in remaining  # el más antiguo se descarta primero
@@ -221,13 +236,23 @@ def test_sweep_orphaned_tmp_covers_discard_dir(tmp_path: Path) -> None:
     orphan = discard_dir / "1234_abc.json.tmp"
     orphan.write_text("{}")
 
-    EventQueue(tmp_path / "queue", discard_dir=discard_dir)
+    EventQueue(
+        tmp_path / "queue",
+        master_secret=TEST_MASTER_SECRET,
+        agent_id="test-agent-01",
+        discard_dir=discard_dir,
+    )
 
     assert not orphan.exists()
 
 
 def test_discard_dir_created_on_demand(tmp_path: Path) -> None:
-    q = EventQueue(tmp_path / "queue", discard_dir=tmp_path / "discarded")
+    q = EventQueue(
+        tmp_path / "queue",
+        master_secret=TEST_MASTER_SECRET,
+        agent_id="test-agent-01",
+        discard_dir=tmp_path / "discarded",
+    )
     assert not q._discard_dir.exists()
     q.enqueue(_event("d4"))
     q.discard("d4", "clock_skew")
@@ -313,7 +338,7 @@ async def test_terminal_nack_discards_event_with_reason(
     assert publisher.discarded_events == 1
     discarded = list(queue._discard_dir.glob("*.json"))
     assert len(discarded) == 1
-    assert json.loads(discarded[0].read_bytes())["discard_reason"] == "clock_skew"
+    assert decrypt_queue_file(discarded[0])["discard_reason"] == "clock_skew"
 
 
 @pytest.mark.asyncio
@@ -474,6 +499,8 @@ async def test_attempt_ceiling_discards_via_retry_loop(
     cfg = _make_config(tmp_path, max_publish_attempts=2)
     queue = EventQueue(
         cfg.storage.queue_dir,
+        master_secret=TEST_MASTER_SECRET,
+        agent_id=cfg.agent_id,
         discard_dir=cfg.storage.discard_dir,
         max_discard_files=cfg.publisher.max_discard_files,
     )
@@ -508,7 +535,7 @@ async def test_attempt_ceiling_discards_via_retry_loop(
     assert queue.contains(event_id) is False
     discarded = list(queue._discard_dir.glob("*.json"))
     assert len(discarded) == 1
-    assert json.loads(discarded[0].read_bytes())["discard_reason"] == "max_attempts_exceeded"
+    assert decrypt_queue_file(discarded[0])["discard_reason"] == "max_attempts_exceeded"
     assert pub.discarded_events == 1
 
 
@@ -522,7 +549,12 @@ async def test_attempt_count_survives_simulated_restart(
     tmp_path: Path, shared_secret: bytes
 ) -> None:
     cfg = _make_config(tmp_path)
-    queue1 = EventQueue(cfg.storage.queue_dir, discard_dir=cfg.storage.discard_dir)
+    queue1 = EventQueue(
+        cfg.storage.queue_dir,
+        master_secret=TEST_MASTER_SECRET,
+        agent_id=cfg.agent_id,
+        discard_dir=cfg.storage.discard_dir,
+    )
     client1 = AsyncMock()
     client1.xadd = AsyncMock(return_value="1-0")
     pub1 = Publisher(cfg, queue1, client1)
@@ -534,7 +566,12 @@ async def test_attempt_count_survives_simulated_restart(
     assert attempts_before == 2
 
     # "Reinicio": nueva EventQueue/Publisher sobre el mismo directorio.
-    queue2 = EventQueue(cfg.storage.queue_dir, discard_dir=cfg.storage.discard_dir)
+    queue2 = EventQueue(
+        cfg.storage.queue_dir,
+        master_secret=TEST_MASTER_SECRET,
+        agent_id=cfg.agent_id,
+        discard_dir=cfg.storage.discard_dir,
+    )
     assert queue2.get_attempts(event_id) == attempts_before
 
     client2 = AsyncMock()
@@ -555,7 +592,12 @@ async def test_heartbeat_carries_discarded_events_and_is_signed(
     tmp_path: Path, shared_secret: bytes
 ) -> None:
     cfg = _make_config(tmp_path)
-    queue = EventQueue(cfg.storage.queue_dir, discard_dir=cfg.storage.discard_dir)
+    queue = EventQueue(
+        cfg.storage.queue_dir,
+        master_secret=TEST_MASTER_SECRET,
+        agent_id=cfg.agent_id,
+        discard_dir=cfg.storage.discard_dir,
+    )
     client = AsyncMock()
     client.xadd = AsyncMock(return_value="1-0")
     pub = Publisher(cfg, queue, client)
@@ -584,7 +626,12 @@ async def test_heartbeat_reports_zero_discarded_events_by_default(
     tmp_path: Path, shared_secret: bytes
 ) -> None:
     cfg = _make_config(tmp_path)
-    queue = EventQueue(cfg.storage.queue_dir, discard_dir=cfg.storage.discard_dir)
+    queue = EventQueue(
+        cfg.storage.queue_dir,
+        master_secret=TEST_MASTER_SECRET,
+        agent_id=cfg.agent_id,
+        discard_dir=cfg.storage.discard_dir,
+    )
     client = AsyncMock()
     pub = Publisher(cfg, queue, client)
     state = AgentState(state_path=tmp_path / "state.json")
