@@ -27,7 +27,23 @@ Esta guía asume dos roles, posiblemente la misma persona:
 
 ### Host monitoreado
 
-- Linux con systemd, kernel ≥ 5.1 (fanotify en modo FID) y Python 3.13.
+- Linux con systemd, kernel ≥ 5.1 (fanotify en modo FID) y **exactamente
+  Python 3.13** (no 3.12, no 3.14). `agent/install.sh` valida la versión
+  **antes** de crear el entorno virtual y aborta con un mensaje claro si no
+  coincide — no falla a mitad de la instalación de dependencias. Si el
+  `python3` del sistema es otra versión (por ejemplo Ubuntu 26.04, que trae
+  Python 3.14 por defecto), instalar 3.13 con
+  [`uv`](https://docs.astral.sh/uv/) y pasar la ruta con `--python`:
+
+  ```bash
+  uv python install 3.13
+  sudo bash agent/install.sh --non-interactive --python "$(uv python find 3.13)" \
+    ... # el resto de los flags de la sección 7
+  ```
+
+  `--python` sólo afecta con qué intérprete se crea el venv; en una
+  reinstalación sobre un venv ya creado (incluido uno pre-creado a mano con
+  `uv venv --python 3.13`) el chequeo de versión no se repite.
 - Conectividad saliente hacia el servidor en los puertos 8444 y 6380.
 - Root para instalar el agente como servicio systemd (`agent/install.sh`
   requiere `CAP_SYS_ADMIN` y las demás capabilities de
@@ -71,6 +87,29 @@ Puntos importantes:
   para la lista completa y sus defaults. Sin ningún canal habilitado, el
   enrutador de alertas responde `channel_disabled` en los tres — es un modo
   válido para levantar el stack por primera vez y habilitar canales después.
+  Cambiar estas variables recrea el contenedor `n8n` en la próxima `up -d`
+  (el provisioning corre en su propio entrypoint — sección 4).
+
+**Ejemplo — canal de email con Gmail.** Gmail rechaza la contraseña de la
+cuenta para SMTP de terceros; generar una [contraseña de
+aplicación](https://myaccount.google.com/apppasswords) (requiere 2FA
+habilitado) y usarla como `N8N_EMAIL_SMTP_PASSWORD`:
+
+```bash
+N8N_FIM_CHANNELS=email
+N8N_EMAIL_FROM=tu-cuenta@gmail.com
+N8N_EMAIL_TO=destino@ejemplo.org
+N8N_EMAIL_SMTP_HOST=smtp.gmail.com
+N8N_EMAIL_SMTP_PORT=587
+N8N_EMAIL_SMTP_USER=tu-cuenta@gmail.com
+N8N_EMAIL_SMTP_PASSWORD=<contraseña-de-aplicación-de-16-caracteres>
+N8N_EMAIL_SMTP_SECURE=false
+```
+
+`N8N_EMAIL_SMTP_SECURE=false` con el puerto 587 es STARTTLS (TLS negociado
+sobre una conexión inicialmente en claro), no una conexión sin cifrar — es
+la combinación que Gmail espera en 587. `secure=true` es para el puerto 465
+(TLS implícito desde el handshake).
 
 ## 3. Elección del modo de consola
 
@@ -110,21 +149,32 @@ docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app ps
 
 Sin editar ningún archivo YAML. `--profile app` deja **afuera** el agente de
 laboratorio (`agent` pasó al perfil `lab` — D54/RN-148: un agente de prueba
-con secreto por defecto no debe correr en un servidor real). `certs-init` y
-`n8n-provision` son servicios one-shot: terminan con exit 0 y no vuelven a
-correr hasta el próximo `up` — verlos en `Exited (0)` en el `ps` es el
-resultado esperado, no una falla.
+con secreto por defecto no debe correr en un servidor real). `certs-init` es
+un servicio one-shot: termina con exit 0 y no vuelve a correr hasta el
+próximo `up` — verlo en `Exited (0)` en el `ps` es el resultado esperado, no
+una falla. El provisioning de workflows de n8n (import, publicación y
+verificación de activación) corre dentro del propio entrypoint del
+contenedor `n8n`, antes de que el proceso `n8n` arranque — si falla, `n8n`
+nunca llega a reportar `healthy` y el log de `docker compose logs n8n` nombra
+el workflow que no quedó activo; no hay un servicio separado que revisar.
 
 Verificar salud:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app logs certs-init
-docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app logs n8n-provision
-curl -k https://<host>:8443/health   # o el endpoint de salud que exponga el backend
+docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app logs n8n
+docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app ps  # n8n debe quedar "healthy"
 ```
 
-`GET /health/components` (autenticado, desde la consola) debe reportar
-`valkey: ok` y, una vez completada la sección 8, `n8n: ok`.
+`8443` es el listener mTLS para agentes (RN-78): exige un certificado de
+cliente, así que un `curl -k` sin uno falla el handshake TLS — es el
+comportamiento esperado, no una falla del backend. `8444` (bootstrap) sólo
+expone `POST /agents/bootstrap`; un `curl -k https://<host>:8444/` desde el
+servidor sirve como smoke test de que el listener TLS responde (cualquier
+respuesta HTTP, incluido un 404, confirma que el backend está arriba), no
+como chequeo de salud. Para el chequeo real, entrar a la consola y revisar
+`GET /health/components` (autenticado) — debe reportar `valkey: ok` y, una
+vez que `n8n` está `healthy`, `n8n: ok`.
 
 ## 5. Restricción de acceso a los puertos publicados
 
@@ -207,9 +257,15 @@ verificación TLS/hostname).
 - El log del backend muestra el bootstrap por el puerto 8444.
 - Un cambio en un `watch_path` configurado aparece como evento en la consola
   dentro de los segundos siguientes.
-- `GET /health/components` reporta `n8n: ok` una vez que `n8n-provision`
-  terminó exitosamente (sección 4) y al menos un canal está habilitado en
-  `.env` (`N8N_FIM_CHANNELS`).
+- `GET /health/components` reporta `n8n: ok` una vez que el contenedor `n8n`
+  está `healthy` (su entrypoint completó el provisioning de workflows,
+  sección 4) y `N8N_HEALTH_URL` responde. **Esto es independiente de si hay
+  algún canal habilitado**: `n8n: ok` sólo confirma que el propio n8n
+  responde en `/healthz`, no que una alerta se vaya a entregar. Sin ningún
+  canal en `N8N_FIM_CHANNELS`, `n8n` puede seguir `ok` mientras el enrutador
+  responde `channel_disabled` (502) a cualquier `POST` — es el
+  comportamiento correcto (D43/RN-137: un canal sin configurar no se reporta
+  como sano).
 - Un `POST` real contra `/webhook/fim-alert` del enrutador de n8n entrega el
   canal habilitado y responde 202; dos `POST` con el mismo `event_id` de un
   evento de ticketing producen un único ticket (search-before-create,
@@ -237,7 +293,39 @@ Tras el primer bootstrap exitoso, la configuración autoritativa vive en el
 backend y se administra desde la consola — reconfigurar localmente ya no
 tiene efecto sobre un agente enrolado.
 
-## 10. Renovación del certificado provisto de la consola
+Si el agente **ya se enroló** (tiene su propio certificado, emitido en el
+primer bootstrap) y no se pasa `--reconfigure`, `--bootstrap-secret-file` ya
+no es obligatorio — reinstalar para actualizar el código no exige volver a
+generar ni copiar un secreto:
+
+```bash
+sudo bash agent/install.sh --non-interactive \
+  --server-host <host-del-servidor> --agent-id <agent_id> \
+  --watch-path /etc --ca-cert ./fim-ca.pem --ca-fingerprint <huella>
+```
+
+## 10. Reset de la contraseña del admin
+
+Si el servidor ya tenía una base de datos con un usuario admin (por ejemplo,
+un reinicio del stack sobre volúmenes existentes) y se cambió
+`ADMIN_PASSWORD` en `.env`, ese valor **no se aplica solo**: el arranque deja
+un `warning` `seed_admin.env_password_ignored` en el log del backend y la
+contraseña almacenada no cambia — aplicar un valor de entorno en cada
+arranque, sin confirmación, dejaría que un `.env` viejo o filtrado
+sobrescribiera una contraseña que el operador ya cambió a mano.
+
+Para aplicar el `ADMIN_PASSWORD` vigente explícitamente:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app \
+  exec backend python -m app.modules.auth.cli reset-admin-password
+```
+
+Esto hashea la contraseña (Argon2id, igual que el primer arranque), fuerza
+`must_change_password=True` (el próximo login exige elegir una nueva) y deja
+un registro en `audit_log` con `action="reset_admin_password_cli"`.
+
+## 11. Renovación del certificado provisto de la consola
 
 Solo aplica al modo `provided` (sección 3). Renovar el certificado con la
 herramienta que corresponda (por ejemplo `certbot renew` para Let's Encrypt)
