@@ -10,21 +10,22 @@ vi.mock('@/api/client', () => ({
   default: { get: (...args: unknown[]) => apiGet(...args) },
 }))
 
-function mockFailedAlerts(total: number) {
+function mockFailedCount(count: number) {
   apiGet.mockImplementation((url: string) => {
-    if (url !== '/alerts') throw new Error(`URL no mockeada en el test: ${url}`)
-    return Promise.resolve({ data: { items: [], total, page: 1, size: 1 } })
+    if (url !== '/alerts/failed/count') throw new Error(`URL no mockeada en el test: ${url}`)
+    return Promise.resolve({ data: { count } })
   })
 }
 
-// US-05, criterio del banner amarillo (detalle en US-29).
-describe('AlertsBanner — US-05: banner amarillo de notificaciones fallidas', () => {
+// US-29, US-05, D6/RN-102 (D-3, D-4): banner sin umbral de retry_count, texto
+// literal del criterio, enlace a /alerts/failed y query key ['alerts','failed','count'].
+describe('AlertsBanner — US-29/US-05: banner amarillo de la DLQ', () => {
   beforeEach(() => {
     apiGet.mockReset()
   })
 
-  it('no muestra ningun banner cuando no hay alertas fallidas', async () => {
-    mockFailedAlerts(0)
+  it('no muestra ningun banner cuando count=0', async () => {
+    mockFailedCount(0)
 
     renderWithProviders(<AlertsBanner />)
 
@@ -32,41 +33,63 @@ describe('AlertsBanner — US-05: banner amarillo de notificaciones fallidas', (
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('muestra un banner amarillo con la cantidad de alertas fallidas en la DLQ', async () => {
-    mockFailedAlerts(4)
+  it('muestra un banner amarillo con el texto literal de US-29 cuando count=4', async () => {
+    mockFailedCount(4)
 
     renderWithProviders(<AlertsBanner />)
 
     const banner = await screen.findByRole('alert')
-    expect(banner).toHaveTextContent(/4 alertas fallidas en la DLQ/i)
+    expect(banner).toHaveTextContent('Notificaciones pendientes: 4 alertas no pudieron ser enviadas')
     expect(banner.className).toMatch(/bg-yellow-/)
   })
 
-  it('ofrece un enlace para revisar las alertas fallidas', async () => {
-    mockFailedAlerts(2)
+  it('usa el singular cuando count=1', async () => {
+    mockFailedCount(1)
+
+    renderWithProviders(<AlertsBanner />)
+
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent('Notificaciones pendientes: 1 alerta no pudo ser enviada')
+  })
+
+  it('una alerta con retry_count=0 (n8n sin configurar) igual cuenta — sin umbral', async () => {
+    // El backend ya filtra sin umbral (D-3); el frontend sólo confía en count.
+    mockFailedCount(1)
+
+    renderWithProviders(<AlertsBanner />)
+
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent('1 alerta no pudo ser enviada')
+  })
+
+  it('el enlace apunta a /alerts/failed', async () => {
+    mockFailedCount(2)
 
     renderWithProviders(<AlertsBanner />)
 
     await screen.findByRole('alert')
     const link = screen.getByRole('link', { name: /revisar/i })
-    expect(link).toHaveAttribute('href', '/alerts')
+    expect(link).toHaveAttribute('href', '/alerts/failed')
   })
 
-  it('consulta unicamente las alertas en estado failed', async () => {
-    mockFailedAlerts(1)
+  it('consulta GET /alerts/failed/count', async () => {
+    mockFailedCount(1)
 
     renderWithProviders(<AlertsBanner />)
     await screen.findByRole('alert')
 
-    expect(apiGet).toHaveBeenCalledWith('/alerts', { params: { status: 'failed', size: 1 } })
+    expect(apiGet).toHaveBeenCalledWith('/alerts/failed/count')
   })
 
-  it('usa el singular cuando hay una sola alerta fallida', async () => {
-    mockFailedAlerts(1)
+  it('el banner desaparece cuando un refetch devuelve count=0', async () => {
+    mockFailedCount(3)
+    const { queryClient } = renderWithProviders(<AlertsBanner />)
 
-    renderWithProviders(<AlertsBanner />)
+    await screen.findByRole('alert')
 
-    const banner = await screen.findByRole('alert')
-    expect(banner).toHaveTextContent(/1 alerta fallida en la DLQ/i)
+    mockFailedCount(0)
+    await queryClient.refetchQueries({ queryKey: ['alerts', 'failed', 'count'] })
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   })
 })

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Routes, Route } from 'react-router-dom'
 import { renderWithProviders } from '@/test/renderWithProviders'
 import { EventDetail } from './EventDetail'
@@ -9,11 +10,27 @@ import type { EventDetail as EventDetailData } from '@/api/events'
 // sustituye la fila de path por el tipo de evento y su causa, sin romper al
 // renderizar. Mismo mock de @/api/client que Events.test.tsx.
 
-const { apiGet } = vi.hoisted(() => ({ apiGet: vi.fn() }))
+const { apiGet, apiPost, toastError, toastSuccess, toastInfo } = vi.hoisted(() => ({
+  apiGet: vi.fn(),
+  apiPost: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastInfo: vi.fn(),
+}))
 
 vi.mock('@/api/client', () => ({
-  apiClient: { get: (...args: unknown[]) => apiGet(...args) },
-  default: { get: (...args: unknown[]) => apiGet(...args) },
+  apiClient: {
+    get: (...args: unknown[]) => apiGet(...args),
+    post: (...args: unknown[]) => apiPost(...args),
+  },
+  default: {
+    get: (...args: unknown[]) => apiGet(...args),
+    post: (...args: unknown[]) => apiPost(...args),
+  },
+}))
+
+vi.mock('sonner', () => ({
+  toast: { error: toastError, success: toastSuccess, info: toastInfo, warning: vi.fn() },
 }))
 
 function makeEvent(overrides: Partial<EventDetailData> = {}): EventDetailData {
@@ -242,5 +259,176 @@ describe('EventDetail — US-08 (tipo de acción, severidad, fecha de creación,
 
     expect(await screen.findByText('Brecha de detección')).toBeInTheDocument()
     expect(screen.queryByText(/posici[oó]n/i)).not.toBeInTheDocument()
+  })
+})
+
+// US-11: toast ante 409 (compartido por approve y reject) y aviso de archivo
+// ausente ante 422 en approve, con los textos literales de la historia.
+
+function axiosErrorWithStatus(status: number, data: Record<string, unknown> = {}) {
+  return Object.assign(new Error('request failed'), {
+    isAxiosError: true,
+    response: { status, data },
+  })
+}
+
+describe('EventDetail — US-11 (toast 409 y aviso de archivo ausente)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiPost.mockReset()
+    toastError.mockReset()
+    toastSuccess.mockReset()
+    toastInfo.mockReset()
+  })
+
+  it('el detalle de un evento pending muestra los botones Aprobar y Rechazar', async () => {
+    mockDetailAndChain(makeEvent({ id: 50, status: 'pending' }))
+
+    renderDetail(50)
+
+    expect(await screen.findByRole('button', { name: 'Aprobar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rechazar' })).toBeInTheDocument()
+  })
+
+  it('approve con 409 muestra el toast literal e invalida las queries del evento y la lista', async () => {
+    mockDetailAndChain(makeEvent({ id: 51, status: 'pending' }))
+    apiPost.mockRejectedValue(axiosErrorWithStatus(409))
+    const user = userEvent.setup()
+
+    const { queryClient } = renderDetail(51)
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await user.click(await screen.findByRole('button', { name: 'Aprobar' }))
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Este evento ya fue resuelto o reemplazado. Refrescando lista...'
+      )
+    )
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['event', 51] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['events'] })
+  })
+
+  it('reject con 409 muestra el mismo toast e invalida las queries', async () => {
+    mockDetailAndChain(makeEvent({ id: 52, status: 'pending' }))
+    apiPost.mockRejectedValue(axiosErrorWithStatus(409))
+    const user = userEvent.setup()
+
+    const { queryClient } = renderDetail(52)
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await user.click(await screen.findByRole('button', { name: 'Rechazar' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirmar rechazo' }))
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Este evento ya fue resuelto o reemplazado. Refrescando lista...'
+      )
+    )
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['event', 52] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['events'] })
+  })
+
+  it('approve con 422 absent_confirmation_required muestra el aviso literal; Confirmar reenvía con confirm_absent:true', async () => {
+    mockDetailAndChain(makeEvent({ id: 53, status: 'pending', version: 3 }))
+    apiPost.mockRejectedValueOnce(
+      axiosErrorWithStatus(422, { code: 'absent_confirmation_required' })
+    )
+    const user = userEvent.setup()
+
+    renderDetail(53)
+
+    await user.click(await screen.findByRole('button', { name: 'Aprobar' }))
+
+    expect(
+      await screen.findByText(
+        'El archivo ya no existe. Aprobar = la ausencia es el nuevo estado válido del baseline.'
+      )
+    ).toBeInTheDocument()
+
+    apiPost.mockResolvedValueOnce({ data: {} })
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() =>
+      expect(apiPost).toHaveBeenLastCalledWith('/actions/approve', {
+        event_id: 53,
+        version: 3,
+        confirm_absent: true,
+      })
+    )
+  })
+
+  it('Cancelar oculta el aviso de archivo ausente sin enviar una nueva request', async () => {
+    mockDetailAndChain(makeEvent({ id: 54, status: 'pending' }))
+    apiPost.mockRejectedValueOnce(
+      axiosErrorWithStatus(422, { code: 'absent_confirmation_required' })
+    )
+    const user = userEvent.setup()
+
+    renderDetail(54)
+
+    await user.click(await screen.findByRole('button', { name: 'Aprobar' }))
+    await screen.findByText(
+      'El archivo ya no existe. Aprobar = la ausencia es el nuevo estado válido del baseline.'
+    )
+
+    apiPost.mockClear()
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(
+      screen.queryByText(
+        'El archivo ya no existe. Aprobar = la ausencia es el nuevo estado válido del baseline.'
+      )
+    ).not.toBeInTheDocument()
+    expect(apiPost).not.toHaveBeenCalled()
+  })
+})
+
+// US-12 (D-8): toast informativo cuando la respuesta de reject trae
+// baseline_absent:true — condición de carrera entre el baseline_status leído
+// al abrir el modal y el estado real al confirmar.
+describe('EventDetail — US-12 (toast baseline_absent en reject)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiPost.mockReset()
+    toastError.mockReset()
+    toastSuccess.mockReset()
+    toastInfo.mockReset()
+  })
+
+  it('reject con baseline_absent:true en la respuesta muestra el toast informativo', async () => {
+    mockDetailAndChain(makeEvent({ id: 60, status: 'pending' }))
+    apiPost.mockResolvedValue({
+      data: { event_id: 60, status: 'rejected', baseline_absent: true },
+    })
+    const user = userEvent.setup()
+
+    renderDetail(60)
+
+    await user.click(await screen.findByRole('button', { name: 'Rechazar' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirmar rechazo' }))
+
+    await waitFor(() =>
+      expect(toastInfo).toHaveBeenCalledWith(
+        'El baseline ya no tiene archivo: el rechazo no ejecutó ninguna acción.'
+      )
+    )
+    expect(toastSuccess).not.toHaveBeenCalled()
+  })
+
+  it('reject sin baseline_absent muestra el toast de éxito actual', async () => {
+    mockDetailAndChain(makeEvent({ id: 61, status: 'pending' }))
+    apiPost.mockResolvedValue({
+      data: { event_id: 61, status: 'rejected', baseline_absent: false },
+    })
+    const user = userEvent.setup()
+
+    renderDetail(61)
+
+    await user.click(await screen.findByRole('button', { name: 'Rechazar' }))
+    await user.click(await screen.findByRole('button', { name: 'Confirmar rechazo' }))
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Evento rechazado'))
+    expect(toastInfo).not.toHaveBeenCalled()
   })
 })

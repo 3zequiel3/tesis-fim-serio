@@ -47,7 +47,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
     if (!axios.isAxiosError(err)) return
     const status = err.response?.status
     if (status === 409) {
-      toast.error('Este evento ya fue resuelto por otro admin')
+      toast.error('Este evento ya fue resuelto o reemplazado. Refrescando lista...')
       invalidateEvent()
       return
     }
@@ -74,9 +74,17 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   const rejectMutation = useMutation({
     mutationFn: (params: RejectParams) => reject(params),
     onError: handleActionError,
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateEvent()
-      toast.success('Evento rechazado')
+      // US-12 (D-8): condición de carrera entre el baseline_status leído al
+      // abrir el modal y el estado real al confirmar — el backend responde
+      // baseline_absent:true cuando el modal mostró las opciones correctivas
+      // pero el baseline ya no tenía archivo.
+      if (result.baseline_absent) {
+        toast.info('El baseline ya no tiene archivo: el rechazo no ejecutó ninguna acción.')
+      } else {
+        toast.success('Evento rechazado')
+      }
     },
   })
 

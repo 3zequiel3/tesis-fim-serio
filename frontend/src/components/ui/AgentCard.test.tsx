@@ -351,3 +351,42 @@ describe('AgentCard — botón de guardar deshabilitado durante drenaje (US-24/C
     expect(screen.queryByRole('button', { name: /guardar paths/i })).not.toBeInTheDocument()
   })
 })
+
+// ── US-21: ruleset_version aplicado y realce de agentes no-ok ─────────────────
+describe('AgentCard — US-21 ruleset aplicado y realce de estados no-ok', () => {
+  it('muestra el ruleset_version aplicado por el agente', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ ruleset_version_applied: 7 })} onConfigSave={noop} onRescan={noop} />
+    )
+    expect(screen.getByText(/ruleset v7/)).toBeTruthy()
+  })
+
+  it('no inventa un ruleset cuando el agente todavía no aplicó ninguno', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ ruleset_version_applied: undefined })} onConfigSave={noop} onRescan={noop} />
+    )
+    expect(screen.queryByText(/ruleset v/)).toBeNull()
+  })
+
+  it.each([
+    ['dead', 'bg-red-800'],
+    ['draining', 'bg-yellow-700'],
+    ['offline', 'bg-gray-600'],
+  ] as const)('realza el estado no-ok %s con su color propio', (status, colorClass) => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ status })} onConfigSave={noop} onRescan={noop} />
+    )
+    const badge = screen.getByText(status, { selector: 'span' })
+    expect(badge.className).toContain(colorClass)
+  })
+
+  it('un agente online no usa los colores de alerta', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ status: 'online' })} onConfigSave={noop} onRescan={noop} />
+    )
+    const badge = screen.getByText('online', { selector: 'span' })
+    expect(badge.className).not.toContain('bg-red-800')
+    expect(badge.className).not.toContain('bg-yellow-700')
+  })
+})
+

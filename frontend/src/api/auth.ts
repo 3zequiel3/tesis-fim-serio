@@ -73,6 +73,7 @@ export async function logoutApi(accessToken: string): Promise<void> {
 }
 
 export interface ChangePasswordPayload {
+  current_password: string
   new_password: string
 }
 

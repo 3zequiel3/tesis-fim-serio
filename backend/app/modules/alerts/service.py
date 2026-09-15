@@ -27,6 +27,7 @@ from app.modules.alerts.contract import (
     action_taken_for,
 )
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
+from app.modules.audit.models import AuditLog
 from app.modules.alerts.stream import alerts_broadcaster
 from app.modules.alerts.notifier import (
     send_log_only,
@@ -430,10 +431,28 @@ def list_failed_alerts(session: Session) -> list[Alert]:
     return list(session.exec(stmt).all())
 
 
-async def retry_alert(alert_id: int, session: Session) -> Alert:
+def count_failed_alerts(session: Session) -> int:
+    """
+    Cuenta alertas en fallo terminal (D6/RN-102): failed_at NOT NULL y
+    delivered_at IS NULL — misma condición que list_failed_alerts, SIN umbral
+    adicional de retry_count (D-3, US-29/US-05).
+    """
+    stmt = (
+        select(func.count())
+        .select_from(Alert)
+        .where(Alert.failed_at.is_not(None))  # type: ignore[union-attr]
+        .where(Alert.delivered_at.is_(None))  # type: ignore[union-attr]
+    )
+    return session.exec(stmt).one()  # type: ignore[return-value]
+
+
+async def retry_alert(alert_id: int, session: Session, actor_id: int) -> Alert:
     """
     Resetea failed_at/last_error/retry_count y re-intenta la notificación.
     Raises ValueError si no existe o ya fue entregada (el router convierte a 404/409).
+
+    Registra `audit_log` (action="alert_retry", D-5/RN-94) en la MISMA
+    transacción que el reset — un 404/409 lanza antes del commit y no deja fila.
     """
     alert = session.get(Alert, alert_id)
     if alert is None:
@@ -450,6 +469,15 @@ async def retry_alert(alert_id: int, session: Session) -> Alert:
     if not alert.notification_id:
         alert.notification_id = str(uuid.uuid4())
     session.add(alert)
+    session.add(
+        AuditLog(
+            user_id=actor_id,
+            action="alert_retry",
+            target_type="alert",
+            target_id=alert_id,
+            detail=f"event_id={alert.event_id}",
+        )
+    )
     session.commit()
     session.refresh(alert)
 
@@ -463,13 +491,25 @@ async def retry_alert(alert_id: int, session: Session) -> Alert:
     return alert
 
 
-def delete_alert(alert_id: int, session: Session) -> None:
+def delete_alert(alert_id: int, session: Session, actor_id: int) -> None:
     """
     Elimina la fila de alerts.
     Raises ValueError si no existe.
+
+    Registra `audit_log` (action="alert_discard", D-5/RN-94) en la MISMA
+    transacción que la eliminación — un 404 lanza antes del commit y no deja fila.
     """
     alert = session.get(Alert, alert_id)
     if alert is None:
         raise ValueError("not_found")
+    session.add(
+        AuditLog(
+            user_id=actor_id,
+            action="alert_discard",
+            target_type="alert",
+            target_id=alert_id,
+            detail=f"event_id={alert.event_id}",
+        )
+    )
     session.delete(alert)
     session.commit()

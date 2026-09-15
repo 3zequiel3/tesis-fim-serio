@@ -54,6 +54,7 @@ from app.modules.alerts.service import (
     retry_alert,
 )
 from app.modules.agents.models import Agent, AgentStatus
+from app.modules.audit.models import AuditLog
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus
 from app.modules.rules.models import Rule, RuleAction, RuleSeverity
@@ -647,6 +648,60 @@ def test_get_failed_alerts_empty(session, agent):
     app.dependency_overrides.clear()
 
 
+def test_get_failed_alerts_count_ignores_retry_count_threshold(session, agent):
+    """
+    GET /alerts/failed/count (D-3, US-29/US-05): cuenta fallo terminal puro,
+    sin umbral de retry_count. Con una alerta entregada, una fallida con
+    retry_count=3, una fallida con retry_count=0 (n8n sin configurar) y una
+    pendiente, el conteo es 2.
+    """
+    event = _make_event(session)
+    _make_alert(session, event.id, delivered=True)
+    _make_alert(session, event.id, failed=True)  # retry_count=3 (helper default)
+    zero_retry = _make_alert(session, event.id, failed=True)
+    zero_retry.retry_count = 0
+    session.add(zero_retry)
+    session.commit()
+    pending = Alert(event_id=event.id, severity=AlertSeverity.critical)
+    session.add(pending)
+    session.commit()
+
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.get("/alerts/failed/count")
+
+    assert response.status_code == 200
+    assert response.json() == {"count": 2}
+    app.dependency_overrides.clear()
+
+
+def test_get_failed_alerts_count_empty_dlq(session, agent):
+    """DLQ vacía → count == 0."""
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.get("/alerts/failed/count")
+
+    assert response.status_code == 200
+    assert response.json() == {"count": 0}
+    app.dependency_overrides.clear()
+
+
+def test_get_failed_alerts_count_requires_admin(session):
+    """Sin token válido, GET /alerts/failed/count responde 401."""
+    from app.main import app
+    from app.core.database import get_session
+
+    def override_session():
+        yield session
+
+    app.dependency_overrides[get_session] = override_session
+    with TestClient(app) as client:
+        response = client.get("/alerts/failed/count")
+
+    assert response.status_code == 401
+    app.dependency_overrides.clear()
+
+
 @pytest.mark.asyncio
 async def test_retry_alert_already_delivered(session, agent):
     """retry_alert lanza ValueError('already_delivered') si ya fue entregada."""
@@ -654,14 +709,14 @@ async def test_retry_alert_already_delivered(session, agent):
     alert = _make_alert(session, event.id, delivered=True)
 
     with pytest.raises(ValueError, match="already_delivered"):
-        await retry_alert(alert.id, session)
+        await retry_alert(alert.id, session, 1)
 
 
 @pytest.mark.asyncio
 async def test_retry_alert_not_found(session):
     """retry_alert lanza ValueError('not_found') si id no existe."""
     with pytest.raises(ValueError, match="not_found"):
-        await retry_alert(99999, session)
+        await retry_alert(99999, session, 1)
 
 
 @pytest.mark.asyncio
@@ -685,7 +740,7 @@ async def test_retry_alert_resets_dlq_state_and_reschedules(session, agent):
     with patch.object(
         alerts_service, "notify_event", new_callable=AsyncMock
     ) as mock_notify:
-        returned = await retry_alert(alert.id, session)
+        returned = await retry_alert(alert.id, session, 1)
         # La notificación es fire-and-forget: cederle el loop para que corra.
         # Sólo las tareas que creó esta llamada, no las que pudo dejar otro test.
         await asyncio.gather(*(alerts_service._background_tasks - preexisting))
@@ -732,7 +787,7 @@ async def test_retry_alert_delivers_and_leaves_the_dlq(session, agent):
         mock_session_class.return_value.__enter__ = MagicMock(return_value=session)
         mock_session_class.return_value.__exit__ = MagicMock(return_value=False)
 
-        await retry_alert(alert.id, session)
+        await retry_alert(alert.id, session, 1)
         await asyncio.gather(*(alerts_service._background_tasks - preexisting))
 
     session.expire_all()
@@ -767,6 +822,72 @@ def test_post_retry_alert_404_if_not_found(session):
     app.dependency_overrides.clear()
 
 
+def test_post_retry_alert_deja_fila_en_audit_log(session, agent):
+    """D-5/RN-94, US-29: retry exitoso deja una fila alert_retry con user_id, target y event_id."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id, failed=True)
+
+    app = _make_test_app(session)
+    # notify_event se mockea: el foco es audit_log, no la cascada de entrega, y
+    # el fire-and-forget real escribiría en el engine de Postgres compartido
+    # fuera del ciclo de vida de este test (autouse _db_isolation lo trunca).
+    with patch("app.modules.alerts.service.notify_event", new_callable=AsyncMock):
+        with TestClient(app) as client:
+            response = client.post(f"/alerts/{alert.id}/retry")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    rows = session.exec(select(AuditLog).where(AuditLog.action == "alert_retry")).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.user_id == 1
+    assert row.target_type == "alert"
+    assert row.target_id == alert.id
+    assert row.detail == f"event_id={event.id}"
+
+
+def test_post_retry_alert_masivo_deja_una_fila_por_alerta(session, agent):
+    """Reintento masivo (N llamadas individuales del frontend) deja N filas alert_retry."""
+    event = _make_event(session)
+    alerts = [_make_alert(session, event.id, failed=True) for _ in range(3)]
+
+    app = _make_test_app(session)
+    with patch("app.modules.alerts.service.notify_event", new_callable=AsyncMock):
+        with TestClient(app) as client:
+            for alert in alerts:
+                response = client.post(f"/alerts/{alert.id}/retry")
+                assert response.status_code == 200
+    app.dependency_overrides.clear()
+
+    rows = session.exec(select(AuditLog).where(AuditLog.action == "alert_retry")).all()
+    assert sorted(r.target_id for r in rows) == sorted(a.id for a in alerts)
+
+
+def test_post_retry_alert_409_no_deja_fila_en_audit_log(session, agent):
+    event = _make_event(session)
+    alert = _make_alert(session, event.id, delivered=True)
+
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.post(f"/alerts/{alert.id}/retry")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 409
+    rows = session.exec(select(AuditLog).where(AuditLog.action == "alert_retry")).all()
+    assert rows == []
+
+
+def test_post_retry_alert_404_no_deja_fila_en_audit_log(session):
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.post("/alerts/99999/retry")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    rows = session.exec(select(AuditLog).where(AuditLog.action == "alert_retry")).all()
+    assert rows == []
+
+
 def test_delete_alert_204(session, agent):
     """DELETE /alerts/{id} → 204 si ok."""
     event = _make_event(session)
@@ -796,8 +917,38 @@ def test_delete_alert_service(session, agent):
     alert = _make_alert(session, event.id)
     alert_id = alert.id
 
-    delete_alert(alert_id, session)
+    delete_alert(alert_id, session, 1)
     assert session.get(Alert, alert_id) is None
+
+
+def test_delete_alert_deja_fila_en_audit_log(session, agent):
+    """D-5/RN-94, US-29: descarte exitoso deja una fila alert_discard con event_id."""
+    event = _make_event(session)
+    alert = _make_alert(session, event.id)
+
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.delete(f"/alerts/{alert.id}")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    rows = session.exec(select(AuditLog).where(AuditLog.action == "alert_discard")).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.target_type == "alert"
+    assert row.target_id == alert.id
+    assert f"event_id={event.id}" in (row.detail or "")
+
+
+def test_delete_alert_404_no_deja_fila_en_audit_log(session):
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.delete("/alerts/99999")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    rows = session.exec(select(AuditLog).where(AuditLog.action == "alert_discard")).all()
+    assert rows == []
 
 
 # ── 7.3 Tests de GET /health/components ─────────────────────────────────────

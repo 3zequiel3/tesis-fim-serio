@@ -82,6 +82,25 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
+def password_policy_error(password: str) -> str | None:
+    """Validate password against RN-100: length first, then complexity.
+
+    Returns None if the password satisfies the policy, or a message naming
+    the first unmet requirement otherwise. Character classes are evaluated
+    per-character with Unicode-aware predicates (str.isupper/islower/isdecimal)
+    so letters like 'Ñ' or 'á' count in their class.
+    """
+    if len(password) < 12:
+        return "Password must be at least 12 characters"
+    if not any(c.isupper() for c in password):
+        return "Password must contain at least one uppercase letter"
+    if not any(c.islower() for c in password):
+        return "Password must contain at least one lowercase letter"
+    if not any(c.isdecimal() for c in password):
+        return "Password must contain at least one digit"
+    return None
+
+
 def blacklist_token(jti: str, exp: int | float, valkey_client) -> None:
     """Add jti to Valkey blacklist with TTL = remaining seconds until expiry."""
     ttl = int(exp - time.time())

@@ -130,7 +130,10 @@ async def _full_access_login(client) -> tuple[str, dict]:
     assert first.status_code == 200, first.text
     change = await client.post(
         "/users/change-password",
-        json={"new_password": _NEW_ADMIN_PASSWORD},
+        json={
+            "current_password": os.environ["ADMIN_PASSWORD"],
+            "new_password": _NEW_ADMIN_PASSWORD,
+        },
         headers={"Authorization": f"Bearer {first.json()['access_token']}"},
     )
     assert change.status_code == 200, change.text
@@ -154,6 +157,49 @@ def test_hash_password_usa_argon2id_c9():
 
     hashed = hash_password("SomePlainPassword1!")
     assert hashed.startswith("$argon2id$v=19$m=65536,t=3,p=4$"), hashed
+
+
+# ─── Tests: password_policy_error (US-27, RN-100, D-1) ──────────────────────
+
+
+def test_password_policy_error_password_valida():
+    from app.core.security import password_policy_error
+
+    assert password_policy_error("ValidPassword1") is None
+
+
+def test_password_policy_error_corta():
+    from app.core.security import password_policy_error
+
+    assert password_policy_error("Short1x") is not None
+
+
+def test_password_policy_error_sin_mayuscula():
+    from app.core.security import password_policy_error
+
+    err = password_policy_error("lowercase123andmore")
+    assert err is not None
+    assert "uppercase" in err.lower() or "mayúscula" in err.lower() or "mayuscula" in err.lower()
+
+
+def test_password_policy_error_sin_minuscula():
+    from app.core.security import password_policy_error
+
+    err = password_policy_error("UPPERCASE123ANDMORE")
+    assert err is not None
+
+
+def test_password_policy_error_sin_digito():
+    from app.core.security import password_policy_error
+
+    err = password_policy_error("NoDigitsHereAtAllXX")
+    assert err is not None
+
+
+def test_password_policy_error_mayuscula_ene_con_tilde_es_valida():
+    from app.core.security import password_policy_error
+
+    assert password_policy_error("Ñuevopassword1") is None
 
 
 async def test_access_15min_refresh_7d(auth_client):
@@ -443,7 +489,10 @@ async def test_gracia_no_resucita_refresh_ganador_revocado_por_change_password_s
     # from travelling to /users/change-password.
     changed = await blacklist_client.post(
         "/users/change-password",
-        json={"new_password": "GraceReplayClosed42!"},
+        json={
+            "current_password": os.environ["ADMIN_PASSWORD"],
+            "new_password": "GraceReplayClosed42!",
+        },
         headers={"Authorization": f"Bearer {winner_access}"},
     )
     assert changed.status_code == 200
@@ -587,33 +636,252 @@ async def test_scope_password_change_only_en_access_token(auth_client):
 
 # ─── Tests: change-password ──────────────────────────────────────────────────
 
-async def test_change_password_con_scope_password_change_only(auth_client):
-    """Primer login → change-password con scope especial → 200."""
+
+async def _change_password_with_scope(
+    auth_client, *, current_password=None, new_password="NewStrongPassword42!"
+):
+    """Login del admin de seed (scope password_change_only) y llama a change-password."""
     login_resp = await _login(auth_client)
     assert login_resp.status_code == 200
-
     access_token = login_resp.json()["access_token"]
+    body = {"new_password": new_password}
+    if current_password is not None:
+        body["current_password"] = current_password
     resp = await auth_client.post(
         "/users/change-password",
-        json={"new_password": "NewStrongPassword42!"},
+        json=body,
         headers={"Authorization": f"Bearer {access_token}"},
         cookies=login_resp.cookies,
+    )
+    return resp
+
+
+async def test_change_password_con_scope_password_change_only(auth_client):
+    """Primer login → change-password con scope especial, current_password correcto → 200."""
+    resp = await _change_password_with_scope(
+        auth_client, current_password=os.environ["ADMIN_PASSWORD"]
     )
     assert resp.status_code == 200
     assert resp.json()["message"] == "password_changed"
 
 
 async def test_change_password_short_retorna_422(auth_client):
-    login_resp = await _login(auth_client)
-    assert login_resp.status_code == 200
-    access_token = login_resp.json()["access_token"]
+    resp = await _change_password_with_scope(
+        auth_client, current_password=os.environ["ADMIN_PASSWORD"], new_password="short"
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "new_password",
+    [
+        pytest.param("lowercase123andmore", id="sin_mayuscula"),
+        pytest.param("UPPERCASE123ANDMORE", id="sin_minuscula"),
+        pytest.param("NoDigitsHereAtAllXX", id="sin_digito"),
+    ],
+)
+async def test_change_password_sin_complejidad_retorna_422(auth_client, new_password):
+    """US-27/RN-100: 422 con detail string, sin tocar password_hash."""
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.core.security import verify_password
+    from app.modules.auth.models import User
+
+    resp = await _change_password_with_scope(
+        auth_client, current_password=os.environ["ADMIN_PASSWORD"], new_password=new_password
+    )
+    assert resp.status_code == 422
+    assert isinstance(resp.json()["detail"], str)
+
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.username == os.environ["ADMIN_USERNAME"])
+        ).one()
+        # El seed hashea ADMIN_PASSWORD; un cambio exitoso hubiera reemplazado el hash.
+        assert verify_password(os.environ["ADMIN_PASSWORD"], user.password_hash)
+
+
+async def _assert_seed_hash_unchanged():
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.core.security import verify_password
+    from app.modules.auth.models import User
+
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.username == os.environ["ADMIN_USERNAME"])
+        ).one()
+        assert verify_password(os.environ["ADMIN_PASSWORD"], user.password_hash)
+        assert user.must_change_password is True
+
+
+async def test_change_password_current_password_incorrecto_scope_forzado_retorna_401(
+    auth_client,
+):
+    """US-27 D-2: scope password_change_only también exige current_password correcto."""
+    resp = await _change_password_with_scope(auth_client, current_password="not-the-seed-pwd")
+    assert resp.status_code == 401
+    await _assert_seed_hash_unchanged()
+
+
+async def test_change_password_current_password_ausente_scope_forzado_retorna_401(auth_client):
+    resp = await _change_password_with_scope(auth_client, current_password=None)
+    assert resp.status_code == 401
+    await _assert_seed_hash_unchanged()
+
+
+async def test_change_password_current_password_correcto_scope_normal(auth_client):
+    """Cambio normal (scope pleno) con current_password correcto → 200, must_change_password False."""
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.modules.auth.models import User
+
+    first = await _login(auth_client)
+    assert first.status_code == 200
+    changed = await auth_client.post(
+        "/users/change-password",
+        json={
+            "current_password": os.environ["ADMIN_PASSWORD"],
+            "new_password": _NEW_ADMIN_PASSWORD,
+        },
+        headers={"Authorization": f"Bearer {first.json()['access_token']}"},
+    )
+    assert changed.status_code == 200
+
+    full = await _login(auth_client, password=_NEW_ADMIN_PASSWORD)
+    assert full.status_code == 200
+    access_token = full.json()["access_token"]
 
     resp = await auth_client.post(
         "/users/change-password",
-        json={"new_password": "short"},
+        json={
+            "current_password": _NEW_ADMIN_PASSWORD,
+            "new_password": "AnotherValidPass9!",
+        },
         headers={"Authorization": f"Bearer {access_token}"},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 200
+
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.username == os.environ["ADMIN_USERNAME"])
+        ).one()
+        assert user.must_change_password is False
+
+
+async def test_change_password_current_password_incorrecto_scope_normal_retorna_401(
+    auth_client,
+):
+    first = await _login(auth_client)
+    assert first.status_code == 200
+    changed = await auth_client.post(
+        "/users/change-password",
+        json={
+            "current_password": os.environ["ADMIN_PASSWORD"],
+            "new_password": _NEW_ADMIN_PASSWORD,
+        },
+        headers={"Authorization": f"Bearer {first.json()['access_token']}"},
+    )
+    assert changed.status_code == 200
+
+    full = await _login(auth_client, password=_NEW_ADMIN_PASSWORD)
+    assert full.status_code == 200
+    access_token = full.json()["access_token"]
+
+    resp = await auth_client.post(
+        "/users/change-password",
+        json={"current_password": "wrong-password", "new_password": "AnotherValidPass9!"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert resp.status_code == 401
+
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.core.security import verify_password
+    from app.modules.auth.models import User
+
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.username == os.environ["ADMIN_USERNAME"])
+        ).one()
+        assert verify_password(_NEW_ADMIN_PASSWORD, user.password_hash)
+
+
+async def test_change_password_mayuscula_no_ascii_cuenta(auth_client):
+    """Ñ como única mayúscula cumple la complejidad (D-1)."""
+    resp = await _change_password_with_scope(
+        auth_client,
+        current_password=os.environ["ADMIN_PASSWORD"],
+        new_password="Ñuevopassword1",
+    )
+    assert resp.status_code == 200
+
+
+async def test_change_password_hashea_con_argon2id_c9_y_no_verifica_contra_anterior(
+    auth_client,
+):
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.core.security import verify_password
+    from app.modules.auth.models import User
+
+    resp = await _change_password_with_scope(
+        auth_client, current_password=os.environ["ADMIN_PASSWORD"]
+    )
+    assert resp.status_code == 200
+
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.username == os.environ["ADMIN_USERNAME"])
+        ).one()
+        assert user.password_hash.startswith("$argon2id$v=19$m=65536,t=3,p=4$")
+        assert verify_password("NewStrongPassword42!", user.password_hash)
+        assert not verify_password(os.environ["ADMIN_PASSWORD"], user.password_hash)
+
+
+async def test_change_password_deja_fila_en_audit_log(auth_client):
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.modules.audit.models import AuditLog
+    from app.modules.auth.models import User
+
+    resp = await _change_password_with_scope(
+        auth_client, current_password=os.environ["ADMIN_PASSWORD"]
+    )
+    assert resp.status_code == 200
+
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.username == os.environ["ADMIN_USERNAME"])
+        ).one()
+        rows = session.exec(
+            select(AuditLog).where(
+                AuditLog.action == "change_password", AuditLog.user_id == user.id
+            )
+        ).all()
+        assert len(rows) == 1
+
+
+async def test_change_password_no_completado_se_vuelve_a_exigir(auth_client):
+    """Login del seed sin completar el cambio, segundo login → sigue en password_change_only."""
+    first = await _login(auth_client)
+    assert first.status_code == 200
+    assert first.json()["must_change_password"] is True
+
+    second = await _login(auth_client)
+    assert second.status_code == 200
+    assert second.json()["must_change_password"] is True
+
+    from app.core.security import decode_token
+
+    payload = decode_token(second.json()["access_token"])
+    assert payload.get("scope") == "password_change_only"
 
 
 # ─── Tests: CORS ─────────────────────────────────────────────────────────────
@@ -658,7 +926,10 @@ async def test_require_full_access_bloquea_scope_password_change_only(auth_clien
         access_token = body["access_token"]
         cp_resp = await auth_client.post(
             "/users/change-password",
-            json={"new_password": "AnotherGoodPassword1!"},
+            json={
+                "current_password": os.environ["ADMIN_PASSWORD"],
+                "new_password": "AnotherGoodPassword1!",
+            },
             headers={"Authorization": f"Bearer {access_token}"},
         )
         assert cp_resp.status_code == 200

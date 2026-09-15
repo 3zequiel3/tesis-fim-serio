@@ -64,6 +64,9 @@ export interface EventListItem {
   // de datos (no_baseline_content, no_baseline_metadata, ...). Ausente
   // cuando action_failed es false.
   action_error?: string | null
+  // US-12 (C10, D-8): estado del baseline del path del evento — sólo lo
+  // envía GET /events/{id} (EventDetailOut); el listado no lo trae.
+  baseline_status?: 'present' | 'absent' | null
 }
 
 // US-09: el diff se entrega solo en el detalle. Es un patch unificado acotado,

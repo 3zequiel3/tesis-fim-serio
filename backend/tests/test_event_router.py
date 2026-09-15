@@ -97,3 +97,128 @@ async def test_list_events_returns_200_with_auth(monkeypatch) -> None:
     assert "items" in body
     assert "page" in body
     assert "page_size" in body
+
+
+# ── US-12 (C10, D-8): baseline_status en GET /events/{id} ───────────────────
+
+import uuid
+from datetime import datetime, timezone
+
+from sqlmodel import Session, select
+
+from app.core.database import engine
+from app.modules.agents.models import Agent, AgentStatus, BaselineEntry, BaselineStatus
+from app.modules.events.models import Event, EventStatus
+
+
+def _baseline_session():
+    return Session(engine)
+
+
+def _make_agent(session: Session) -> Agent:
+    a = Agent(
+        agent_id=f"agent-baseline-{uuid.uuid4().hex[:8]}",
+        status=AgentStatus.online,
+        shared_secret_hex=uuid.uuid4().hex + uuid.uuid4().hex,
+    )
+    session.add(a)
+    session.commit()
+    session.refresh(a)
+    return a
+
+
+def _make_event_with_path(session: Session, agent: Agent, path: str | None) -> Event:
+    now = datetime.now(timezone.utc)
+    event = Event(
+        event_id=f"evt-baseline-{uuid.uuid4().hex[:12]}",
+        agent_id=agent.agent_id,
+        event_type="detection_gap" if path is None else "file_modified",
+        path=path,
+        hash_detected="abc123" if path is not None else "",
+        status=EventStatus.pending,
+        version=0,
+        detected_at=now,
+        received_at=now,
+    )
+    session.add(event)
+    session.commit()
+    session.refresh(event)
+    return event
+
+
+@pytest.mark.asyncio
+async def test_get_event_baseline_status_absent() -> None:
+    with _baseline_session() as session:
+        agent = _make_agent(session)
+        path = f"/etc/{uuid.uuid4().hex[:6]}"
+        event = _make_event_with_path(session, agent, path)
+        session.add(
+            BaselineEntry(
+                path=path,
+                agent_id=agent.agent_id,
+                status=BaselineStatus.absent,
+                ruleset_version=1,
+            )
+        )
+        session.commit()
+        event_id = event.id
+
+    async with await _get_client() as ac:
+        resp = await ac.get(f"/events/{event_id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["baseline_status"] == "absent"
+
+
+@pytest.mark.asyncio
+async def test_get_event_baseline_status_present() -> None:
+    with _baseline_session() as session:
+        agent = _make_agent(session)
+        path = f"/etc/{uuid.uuid4().hex[:6]}"
+        event = _make_event_with_path(session, agent, path)
+        session.add(
+            BaselineEntry(
+                path=path,
+                agent_id=agent.agent_id,
+                status=BaselineStatus.present,
+                hash="deadbeef",
+                ruleset_version=1,
+            )
+        )
+        session.commit()
+        event_id = event.id
+
+    async with await _get_client() as ac:
+        resp = await ac.get(f"/events/{event_id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["baseline_status"] == "present"
+
+
+@pytest.mark.asyncio
+async def test_get_event_baseline_status_null_sin_fila() -> None:
+    with _baseline_session() as session:
+        agent = _make_agent(session)
+        path = f"/etc/{uuid.uuid4().hex[:6]}"
+        event = _make_event_with_path(session, agent, path)
+        event_id = event.id
+
+    async with await _get_client() as ac:
+        resp = await ac.get(f"/events/{event_id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["baseline_status"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_event_baseline_status_null_sin_path() -> None:
+    with _baseline_session() as session:
+        agent = _make_agent(session)
+        event = _make_event_with_path(session, agent, None)
+        event_id = event.id
+
+    async with await _get_client() as ac:
+        resp = await ac.get(f"/events/{event_id}", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    assert resp.json()["baseline_status"] is None

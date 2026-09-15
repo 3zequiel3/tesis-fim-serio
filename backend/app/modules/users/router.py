@@ -21,6 +21,7 @@ from app.core.security import (
     blacklist_token,
     decode_token,
     hash_password,
+    password_policy_error,
     verify_password,
 )
 from app.core.valkey import get_valkey_client
@@ -51,21 +52,22 @@ async def change_password(
     valkey_client=Depends(get_valkey_client),
 ) -> ChangePasswordResponse:
     payload = user.__dict__.get("_token_payload", {})
-    scope = payload.get("scope")
 
-    if scope != "password_change_only":
-        if not body.current_password or not verify_password(
-            body.current_password, user.password_hash
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect current password",
-            )
+    # Verified regardless of scope (D-2): the seed admin knows the password
+    # used to obtain even a password_change_only token.
+    if not body.current_password or not verify_password(
+        body.current_password, user.password_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect current password",
+        )
 
-    if len(body.new_password) < 12:
+    policy_error = password_policy_error(body.new_password)
+    if policy_error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Password must be at least 12 characters",
+            detail=policy_error,
         )
 
     user.password_hash = hash_password(body.new_password)

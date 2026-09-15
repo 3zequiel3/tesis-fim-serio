@@ -145,7 +145,8 @@ export function EventDetail() {
           {needsAbsentConfirmation ? (
             <div className="flex items-center gap-3 p-3 bg-yellow-950 border border-yellow-800 rounded text-sm">
               <span className="text-yellow-300">
-                El archivo no está en el baseline. ¿Confirmar aprobación de ausencia?
+                El archivo ya no existe. Aprobar = la ausencia es el nuevo estado válido del
+                baseline.
               </span>
               <button
                 onClick={handleApprove}

@@ -35,14 +35,24 @@ export interface RejectParams {
   action: RejectAction
 }
 
+// US-12 (D-8): cuerpo de POST /actions/reject — baseline_absent señala una
+// condición de carrera entre el baseline_status leído al abrir el modal y el
+// estado real al confirmar (ver useEventActions.ts).
+export interface RejectResponse {
+  event_id: number
+  status: string
+  baseline_absent: boolean
+}
+
 // ─── Funciones API ────────────────────────────────────────────────────────────
 
 export async function approve(params: ApproveParams): Promise<void> {
   await apiClient.post('/actions/approve', params)
 }
 
-export async function reject(params: RejectParams): Promise<void> {
-  await apiClient.post('/actions/reject', params)
+export async function reject(params: RejectParams): Promise<RejectResponse> {
+  const { data } = await apiClient.post<RejectResponse>('/actions/reject', params)
+  return data
 }
 
 export async function bulkApprove(eventIds: number[]): Promise<BulkResult> {

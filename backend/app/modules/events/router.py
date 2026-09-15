@@ -18,6 +18,7 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.deps import require_admin, require_full_access
+from app.modules.agents.models import BaselineEntry
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus
 from app.modules.events.service import derive_action_type, get_event_chain
@@ -83,6 +84,10 @@ class EventDetailOut(EventOut):
     is_binary: bool = False
     hex_dump_before: str | None = None
     hex_dump_after: str | None = None
+    # US-12 (C10, D-8): estado del baseline del path del evento, leído de
+    # baseline_entries por (path, agent_id). None cuando el evento no tiene
+    # path (p. ej. detection_gap, D50/RN-144) o el path nunca fue baselineado.
+    baseline_status: str | None = None
 
 
 class PaginatedEventsOut(BaseModel):
@@ -168,7 +173,8 @@ async def get_event(
     if event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     ack_map = _get_ack_status_map(session, [event.id] if event.id is not None else [])
-    return _to_event_detail_out(event, ack_map)
+    baseline_status = _get_baseline_status(session, event)
+    return _to_event_detail_out(event, ack_map, baseline_status)
 
 
 @router.get("/{event_id}/chain", response_model=EventChainOut)
@@ -238,8 +244,32 @@ def _to_event_out(event: Event, ack_map: dict[int, str]) -> EventOut:
     return out
 
 
-def _to_event_detail_out(event: Event, ack_map: dict[int, str]) -> EventDetailOut:
+def _to_event_detail_out(
+    event: Event, ack_map: dict[int, str], baseline_status: str | None = None
+) -> EventDetailOut:
     out = EventDetailOut.model_validate(event)
     out.ack_status = ack_map.get(event.id) if event.id is not None else None
     out.action_type = derive_action_type(event.status)
+    out.baseline_status = baseline_status
     return out
+
+
+# ── Helpers — baseline_status (US-12, C10, D-8) ──────────────────────────────
+
+
+def _get_baseline_status(session: Session, event: Event) -> str | None:
+    """
+    Resuelve baseline_status para GET /events/{id} (C10): None cuando el
+    evento no tiene path, o cuando no hay fila de baseline_entries para
+    (event.path, event.agent_id).
+    """
+    if event.path is None:
+        return None
+    entry = session.exec(
+        select(BaselineEntry)
+        .where(BaselineEntry.path == event.path)
+        .where(BaselineEntry.agent_id == event.agent_id)
+    ).first()
+    if entry is None:
+        return None
+    return entry.status.value

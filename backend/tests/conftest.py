@@ -292,7 +292,10 @@ async def authenticated_client(_db_isolation):
             # Step 2: change password using the restricted token
             change_resp = await ac.post(
                 "/users/change-password",
-                json={"new_password": _FORCED_CHANGE_NEW_PASSWORD},
+                json={
+                    "current_password": os.environ["ADMIN_PASSWORD"],
+                    "new_password": _FORCED_CHANGE_NEW_PASSWORD,
+                },
                 headers={"Authorization": f"Bearer {pco_token}"},
             )
             assert change_resp.status_code == 200, (

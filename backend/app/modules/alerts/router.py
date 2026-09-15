@@ -31,7 +31,13 @@ from app.core.security import BLACKLIST_PREFIX, decode_token
 from app.core.valkey import get_valkey_client
 from app.modules.alerts.contract import action_taken_for
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
-from app.modules.alerts.service import delete_alert, list_alerts, list_failed_alerts, retry_alert
+from app.modules.alerts.service import (
+    count_failed_alerts,
+    delete_alert,
+    list_alerts,
+    list_failed_alerts,
+    retry_alert,
+)
 from app.modules.alerts.stream import alerts_broadcaster
 from app.modules.auth.models import User
 from app.modules.events.models import Event
@@ -279,6 +285,24 @@ async def get_failed_alerts(
     )
 
 
+class FailedAlertsCountResponse(BaseModel):
+    count: int
+
+
+# Declarada antes de las rutas con /{alert_id} para que ese parámetro de path
+# no la capture (D-3).
+@router.get("/failed/count", response_model=FailedAlertsCountResponse)
+async def get_failed_alerts_count(
+    session: Session = Depends(get_session),
+    _admin: User = Depends(require_admin),
+) -> FailedAlertsCountResponse:
+    """
+    Conteo de alertas en fallo terminal para el banner (US-29, US-05, D-3):
+    delivered_at IS NULL AND failed_at IS NOT NULL, sin umbral de retry_count.
+    """
+    return FailedAlertsCountResponse(count=count_failed_alerts(session))
+
+
 @router.post("/{alert_id}/retry", response_model=AlertResponse)
 async def retry_failed_alert(
     alert_id: int,
@@ -287,7 +311,7 @@ async def retry_failed_alert(
 ) -> AlertResponse:
     """Resetea la alerta fallida y re-intenta el envío."""
     try:
-        alert = await retry_alert(alert_id, session)
+        alert = await retry_alert(alert_id, session, _admin.id)  # type: ignore[arg-type]
     except ValueError as exc:
         reason = str(exc)
         if reason in ("not_found", "event_not_found"):
@@ -307,6 +331,6 @@ async def discard_alert(
 ) -> None:
     """Elimina la alerta de la DLQ."""
     try:
-        delete_alert(alert_id, session)
+        delete_alert(alert_id, session, _admin.id)  # type: ignore[arg-type]
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="alert_not_found")

@@ -79,7 +79,10 @@ async def _change_password(client: AsyncClient, token: str) -> str:
     if payload.get("scope") == "password_change_only":
         resp = await client.post(
             "/users/change-password",
-            json={"new_password": "ChangedAdminPwd99!"},
+            json={
+                "current_password": os.environ["ADMIN_PASSWORD"],
+                "new_password": "ChangedAdminPwd99!",
+            },
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 200
