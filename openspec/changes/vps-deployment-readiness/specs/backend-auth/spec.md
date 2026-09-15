@@ -62,3 +62,28 @@ El endpoint `POST /auth/login` SHALL aceptar JSON `{username: str, password: str
 #### Scenario: Advertencia en modo sin TLS
 - **WHEN** el backend arranca con `CONSOLE_TLS_MODE=off`
 - **THEN** se emite un log de nivel `warning` con el modo y la advertencia de tráfico en claro
+
+### Requirement: Advertencia y CLI de reset cuando `ADMIN_PASSWORD` no verifica contra el admin existente (D56/RN-150, hallazgo 14.4)
+
+`seed_admin()` SHALL crear el admin sólo si la tabla `users` está vacía (sin cambios). Si ya existe un usuario con `username=settings.admin_username` y `ADMIN_PASSWORD` no está vacío y no verifica contra su `password_hash` almacenado, `seed_admin()` SHALL registrar un log de nivel `warning` con evento `seed_admin.env_password_ignored` y el `username`, SHALL NOT modificar la contraseña almacenada, y SHALL continuar el arranque sin abortar. Con `ADMIN_PASSWORD` vacío, o si verifica contra el hash existente, SHALL NOT emitirse el warning.
+
+El sistema SHALL exponer un CLI soportado, `python -m app.modules.auth.cli reset-admin-password`, que aplica el `ADMIN_PASSWORD` vigente al usuario `settings.admin_username` (mismo hashing Argon2id que `seed_admin()`), fuerza `must_change_password=True` (RN-62, RN-100/W20) y escribe un registro en `audit_log` (RN-94) con `action="reset_admin_password_cli"`, `user_id` del propio admin y `detail` con el username. Con `ADMIN_PASSWORD` vacío o sin un usuario `settings.admin_username`, SHALL terminar con exit distinto de 0 sin escribir nada, nombrando la causa.
+
+#### Scenario: Warning sin modificar la contraseña
+- **WHEN** el backend arranca con un admin ya existente cuyo `password_hash` no verifica contra `ADMIN_PASSWORD`
+- **THEN** se emite un log `warning` `seed_admin.env_password_ignored` con el `username`
+- **AND** el `password_hash` almacenado no cambia
+
+#### Scenario: Sin warning cuando la contraseña coincide
+- **WHEN** el backend arranca con un admin ya existente cuyo `password_hash` sí verifica contra `ADMIN_PASSWORD`
+- **THEN** no se emite el warning `seed_admin.env_password_ignored`
+
+#### Scenario: CLI aplica la contraseña y fuerza el cambio
+- **WHEN** se ejecuta `python -m app.modules.auth.cli reset-admin-password` con `ADMIN_PASSWORD` configurado y el usuario admin existente
+- **THEN** el CLI termina con exit 0
+- **AND** el login con la nueva `ADMIN_PASSWORD` es exitoso y `must_change_password` es `true`
+- **AND** existe un registro en `audit_log` con `action="reset_admin_password_cli"` y el `user_id` del admin
+
+#### Scenario: CLI sin `ADMIN_PASSWORD`
+- **WHEN** se ejecuta el CLI sin `ADMIN_PASSWORD` configurado
+- **THEN** termina con exit distinto de 0 sin escribir nada, nombrando `ADMIN_PASSWORD`

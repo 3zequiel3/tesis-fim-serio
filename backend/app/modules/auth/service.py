@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 
 from app.core.database import engine
 from app.core.logging import log
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 
 
 def seed_admin() -> None:
@@ -18,6 +18,21 @@ def seed_admin() -> None:
     with Session(engine) as session:
         existing = session.exec(select(User)).first()
         if existing:
+            # D56/RN-150 finding 14.4: a pre-existing DB (e.g. a server that
+            # already booted once) means ADMIN_PASSWORD from this boot's
+            # .env was never applied — silently. Warn instead of staying
+            # quiet, without touching the stored hash: only
+            # `app.modules.auth.cli reset-admin-password` may change it.
+            env_password = settings.admin_password.get_secret_value()
+            if env_password:
+                existing_admin = session.exec(
+                    select(User).where(User.username == settings.admin_username)
+                ).first()
+                if existing_admin and not verify_password(env_password, existing_admin.password_hash):
+                    log.warning(
+                        "seed_admin.env_password_ignored",
+                        username=settings.admin_username,
+                    )
             return
         admin = User(
             username=settings.admin_username,

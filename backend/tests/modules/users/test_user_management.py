@@ -272,3 +272,81 @@ def test_seed_admin_idempotente_con_admin_existente(monkeypatch: pytest.MonkeyPa
             select(func.count()).select_from(User).where(User.username == settings.admin_username)
         ).one()
     assert total == 1
+
+
+# ── Tests: warning cuando ADMIN_PASSWORD no verifica (14.4) ────────────────────
+
+
+def test_seed_admin_advierte_password_no_verifica_sin_modificarla(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """14.4: si ADMIN_PASSWORD no verifica contra el hash existente,
+    seed_admin() registra el warning seed_admin.env_password_ignored y NO
+    toca la contraseña almacenada."""
+    from unittest.mock import MagicMock
+
+    from sqlmodel import Session, select
+
+    from app.core.config import settings
+    from app.core.database import engine
+    from app.core.security import hash_password, verify_password
+    from app.modules.auth import service as auth_service
+    from app.modules.auth.models import User
+
+    stale_hash = hash_password("a-completely-different-password")
+    with Session(engine) as session:
+        admin = session.exec(select(User).where(User.username == settings.admin_username)).first()
+        assert admin is not None
+        admin.password_hash = stale_hash
+        session.add(admin)
+        session.commit()
+
+    mock_warning = MagicMock()
+    monkeypatch.setattr(auth_service.log, "warning", mock_warning)
+
+    auth_service.seed_admin()
+
+    mock_warning.assert_called_once()
+    assert mock_warning.call_args.args[0] == "seed_admin.env_password_ignored"
+    assert mock_warning.call_args.kwargs.get("username") == settings.admin_username
+
+    with Session(engine) as session:
+        admin = session.exec(select(User).where(User.username == settings.admin_username)).first()
+    assert admin is not None
+    assert admin.password_hash == stale_hash  # untouched
+    assert not verify_password(settings.admin_password.get_secret_value(), admin.password_hash)
+
+
+def test_seed_admin_sin_warning_cuando_password_coincide(monkeypatch: pytest.MonkeyPatch) -> None:
+    """14.4: si ADMIN_PASSWORD sí verifica contra el hash existente, no se
+    registra ningún warning."""
+    from unittest.mock import MagicMock
+
+    from app.modules.auth import service as auth_service
+
+    mock_warning = MagicMock()
+    monkeypatch.setattr(auth_service.log, "warning", mock_warning)
+
+    # El admin ya existe por _db_isolation con la password de ADMIN_PASSWORD.
+    auth_service.seed_admin()
+
+    mock_warning.assert_not_called()
+
+
+def test_seed_admin_sin_warning_cuando_admin_password_vacio(monkeypatch: pytest.MonkeyPatch) -> None:
+    """14.4: sin ADMIN_PASSWORD configurado (vacío), no hay nada que comparar
+    y no se emite el warning."""
+    from unittest.mock import MagicMock
+
+    from pydantic import SecretStr
+
+    from app.core.config import settings
+    from app.modules.auth import service as auth_service
+
+    monkeypatch.setattr(settings, "admin_password", SecretStr(""))
+    mock_warning = MagicMock()
+    monkeypatch.setattr(auth_service.log, "warning", mock_warning)
+
+    auth_service.seed_admin()
+
+    mock_warning.assert_not_called()
