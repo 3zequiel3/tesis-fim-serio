@@ -2,19 +2,21 @@
 
 ### Requirement: Compose orquesta los servicios del servidor central
 
-El sistema SHALL proveer un archivo `docker-compose.yml` en la raíz del repositorio que declare los servicios de larga vida `db`, `valkey`, `backend`, `frontend` y `n8n`, y los servicios one-shot `certs-init` (emisión de certificados, D53/RN-147) y `n8n-provision` (provisioning de workflows, D44/RN-138), sin servicio `db-init` (D3). Los servicios `backend` y `frontend` SHALL pertenecer al perfil `app`.
+El sistema SHALL proveer un archivo `docker-compose.yml` en la raíz del repositorio que declare los servicios de larga vida `db`, `valkey`, `backend`, `frontend` y `n8n`, y el servicio one-shot `certs-init` (emisión de certificados, D53/RN-147), sin servicio `db-init` (D3). Los servicios `backend` y `frontend` SHALL pertenecer al perfil `app`.
+
+*(Revisado el 2026-09-15 tras la aceptación en VPS — hallazgo 14.5, D58/RN-152 revisada)* NO SHALL existir un servicio `n8n-provision` separado: el provisioning de workflows y credenciales de n8n (D44/RN-138) corre dentro del propio entrypoint del servicio `n8n`, antes de que arranque el proceso `n8n` — ver el requisito "Provisioning idempotente de workflows de n8n" más abajo.
 
 El compose MAY declarar un servicio `agent`, exclusivamente bajo el perfil `lab`. Ese servicio es de laboratorio: SHALL NOT arrancar con `--profile app` y SHALL NOT ser el mecanismo para monitorear hosts, que se monitorean con el agente nativo instalado por `agent/install.sh` (RN-68, D54/RN-148, D56/RN-150).
 
 #### Scenario: Compose válido sintácticamente
 - **WHEN** se ejecuta `docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app config` con un `.env` completo derivado de `.env.example`
 - **THEN** el comando termina con exit 0 y emite la composición renderizada sin warnings de variables faltantes
-- **AND** el output incluye los servicios `db`, `valkey`, `backend`, `frontend`, `n8n`, `certs-init` y `n8n-provision`, y NO incluye `db-init`
+- **AND** el output incluye los servicios `db`, `valkey`, `backend`, `frontend`, `n8n` y `certs-init`, y NO incluye `db-init` ni `n8n-provision`
 
 #### Scenario: Servicios infra arrancan en aislado
 - **WHEN** se ejecuta `docker compose up -d db valkey n8n`
 - **THEN** los tres contenedores de larga vida quedan en estado `running` y sus healthchecks reportan `healthy`
-- **AND** `n8n-provision` termina con exit 0 antes de que `n8n` arranque
+- **AND** `n8n` no reporta `healthy` hasta que su entrypoint completó el provisioning de workflows (si el provisioning falla, `n8n` no llega a arrancar y el contenedor termina en error, nunca en `healthy`)
 - **AND** ningún error aparece en `docker compose logs db valkey n8n` relacionado con configuración faltante
 
 #### Scenario: El agente de laboratorio no arranca con el perfil de servidor
@@ -24,17 +26,13 @@ El compose MAY declarar un servicio `agent`, exclusivamente bajo el perfil `lab`
 
 ### Requirement: Versiones del stack pinneadas
 
-El compose SHALL fijar las imágenes a las versiones declaradas en `docs/arquitectura_stack.md §Stack`: `postgres:18.3`, `valkey/valkey:9.0.3`, `n8nio/n8n:2.17.8` (D45/RN-139). El servicio `n8n-provision` SHALL usar exactamente la misma imagen que `n8n`. SHALL NO usarse el tag `latest` ni rangos abiertos.
+El compose SHALL fijar las imágenes a las versiones declaradas en `docs/arquitectura_stack.md §Stack`: `postgres:18.3`, `valkey/valkey:9.0.3`, `n8nio/n8n:2.17.8` (D45/RN-139). SHALL NO usarse el tag `latest` ni rangos abiertos.
 
 #### Scenario: Versiones exactas presentes en compose
 - **WHEN** se inspecciona el `docker-compose.yml`
 - **THEN** se encuentran textualmente las cadenas `postgres:18.3`, `valkey/valkey:9.0.3` y `n8nio/n8n:2.17.8`
 - **AND** no aparece `n8nio/n8n:2.16.1`
 - **AND** no aparece `:latest` en ninguna directiva `image:`
-
-#### Scenario: El provisioning usa la misma versión que n8n
-- **WHEN** se renderiza la composición
-- **THEN** la imagen de `n8n-provision` es idéntica a la de `n8n`
 
 ### Requirement: Red interna y exposición de puertos (RN-76, RN-78)
 
@@ -154,26 +152,33 @@ El servicio `n8n` SHALL declarar `N8N_ENCRYPTION_KEY` como obligatoria (la compo
 - **WHEN** n8n arranca por primera vez con el owner declarado por variables de entorno
 - **THEN** el owner existe con el correo configurado y no queda pendiente ningún setup de owner
 
-### Requirement: Provisioning idempotente de workflows de n8n (D44/RN-138)
+### Requirement: Provisioning idempotente de workflows de n8n (D44/RN-138, D58/RN-152 revisada)
 
-El servicio one-shot `n8n-provision` SHALL montar `./n8n/workflows` en solo lectura, compartir con `n8n` la base `fim_n8n`, `N8N_ENCRYPTION_KEY` y las variables de owner, e importar cada workflow por su `id` estable, de modo que re-ejecutarlo actualice las entradas existentes en lugar de duplicarlas. SHALL publicar/activar el enrutador y los sub-flujos y SHALL verificar el estado de activación de cada workflow esperado, terminando con exit distinto de 0 si alguno no quedó activo. `n8n` SHALL depender de `n8n-provision` con `condition: service_completed_successfully`. La activación no se asume: un workflow importado inactivo sólo responde en `/webhook-test/...`.
+*(Revisado el 2026-09-15 tras la aceptación en VPS — hallazgo 14.5)* El provisioning SHALL correr dentro del entrypoint del propio contenedor `n8n` (`n8n/provision/entrypoint.sh`, montado junto con `./n8n/workflows` en solo lectura), **antes** de que se ejecute el proceso `n8n`, y SHALL importar cada workflow por su `id` estable, de modo que re-ejecutarlo actualice las entradas existentes en lugar de duplicarlas. SHALL publicar/activar el enrutador y los sub-flujos y SHALL verificar el estado de activación de cada workflow esperado, terminando el contenedor con exit distinto de 0 (sin llegar a iniciar `n8n`) si alguno no quedó activo — esa verificación es una lectura de la base de datos vía la CLI de n8n y no requiere que el proceso `n8n` esté corriendo. La activación no se asume: un workflow importado inactivo sólo responde en `/webhook-test/...`.
+
+NO SHALL existir un camino en el que el provisioning modifique workflows o credenciales de una instancia de `n8n` que ya está corriendo: al vivir en el entrypoint, sólo corre cuando el contenedor `n8n` arranca (creación o recreación), nunca contra un proceso ya activo — una segunda `docker compose up -d` que no cambia la configuración de `n8n` deja el contenedor (y por lo tanto el entrypoint) sin re-ejecutar.
 
 #### Scenario: Despliegue limpio
 - **WHEN** se levanta el stack sobre una base `fim_n8n` vacía
 - **THEN** el enrutador `fim-alert` y los tres sub-flujos quedan importados y activos
 
 #### Scenario: Re-ejecución sin duplicados
-- **WHEN** se ejecuta `n8n-provision` una segunda vez
+- **WHEN** se recrea el contenedor `n8n` (por ejemplo, tras cambiar una variable de canal en `.env`)
 - **THEN** la cantidad de workflows en n8n no cambia y cada `id` aparece una sola vez
 
 #### Scenario: Activación no verificada
 - **WHEN** algún workflow esperado no queda activo tras el provisioning
-- **THEN** `n8n-provision` termina con exit distinto de 0 nombrando el workflow
-- **AND** `n8n` no arranca
+- **THEN** el contenedor `n8n` termina con exit distinto de 0 nombrando el workflow
+- **AND** el proceso `n8n` nunca llega a iniciar
 
 #### Scenario: El webhook productivo responde
 - **WHEN** desde la red `fim_internal` se hace `POST http://n8n:5678/webhook/fim-alert` con un payload válido de `notification-payload-contract`
 - **THEN** la respuesta no es 404 y el enrutador registra una ejecución
+
+#### Scenario: Segunda `up -d` con n8n ya activo no deja el webhook sin registrar
+- **WHEN** se ejecuta `docker compose up -d` una segunda vez, sin cambios en la configuración de `n8n`, mientras `n8n` ya está `healthy`
+- **THEN** el contenedor `n8n` no se recrea y su entrypoint no se re-ejecuta
+- **AND** un `POST http://n8n:5678/webhook/fim-alert` inmediatamente después sigue respondiendo (no 404), sin necesidad de `restart n8n`
 
 ### Requirement: Modos TLS de la consola en el compose (D55/RN-149)
 

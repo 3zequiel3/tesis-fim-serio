@@ -1,14 +1,24 @@
 #!/bin/sh
-# FIM Platform — n8n workflow + credential provisioning (D44/RN-138,
-# D58/RN-152, D-6 of the vps-deployment-readiness design).
+# FIM Platform — n8n container entrypoint: workflow + credential provisioning
+# (D44/RN-138, D58/RN-152 revised, D-6 of the vps-deployment-readiness design)
+# followed by a hand-off to the real `n8n` process.
 #
-# Runs as the one-shot `n8n-provision` service, BEFORE the long-lived `n8n`
-# service starts (`n8n.depends_on.n8n-provision: service_completed_successfully`).
-# That ordering matters: `n8n publish:workflow` only takes effect for the next
-# `n8n start` — it explicitly warns "Please restart n8n for changes to take
-# effect if n8n is currently running" when a server process already has the
-# workflow's previous state loaded. Running before `n8n start` means there is
-# no already-running process to miss the update.
+# *(Revised 2026-09-15 after the VPS acceptance run, finding 14.5)* This used
+# to be a separate one-shot `n8n-provision` service that `n8n` depended on
+# with `service_completed_successfully`. That worked for a clean `up`, but a
+# SECOND `docker compose up -d` with `n8n` already healthy re-ran the one-shot
+# service anyway (Compose recreates a service whose desired state is not
+# already "up", and an exited one-shot container never is) — silently
+# re-publishing the workflows against an `n8n` process that was already
+# running. `n8n publish:workflow` only takes effect for the NEXT `n8n start`
+# — it explicitly warns "Please restart n8n for changes to take effect if n8n
+# is currently running" — so the webhook was left unregistered (POST
+# /webhook/fim-alert -> 404) until someone noticed and ran `restart n8n` by
+# hand. Running this INSIDE the `n8n` container's own entrypoint, before `n8n`
+# itself starts, removes the race entirely: as long as `n8n`'s desired state
+# (image + environment + mounts) does not change, Compose leaves the
+# container alone on a second `up -d` and this script never runs again while
+# `n8n` is already serving traffic.
 #
 # Steps, in order:
 #   1. Render every `n8n/workflows/*.json` file: replace each
@@ -23,10 +33,20 @@
 #      channel's secret variables are simply never read.
 #   4. Publish every expected workflow id.
 #   5. Verify with `n8n list:workflow --active=true --onlyId` that every
-#      expected id is active; exit non-zero naming the first one that is not.
+#      expected id is active; exit non-zero naming the first one that is not
+#      — this is a plain DB read via the n8n CLI, so it works whether or not
+#      the long-lived n8n process has started yet (it has not, at this
+#      point).
+#   6. `exec n8n "$@"` — hand off to the real n8n process, same as the
+#      image's own `/docker-entrypoint.sh` (`exec n8n "$@"` / `exec n8n`).
+#      Since this replaces the current process image rather than forking, the
+#      long-lived n8n process stays tini's direct child, exactly as it would
+#      under the stock entrypoint — signal forwarding and zombie reaping are
+#      unaffected (docker-compose.yml keeps `entrypoint: ["tini", "--",
+#      "/bin/sh", "/provision/entrypoint.sh"]`, i.e. tini still owns pid 1).
 #
-# A failure at any step aborts before publishing anything further and before
-# n8n ever starts.
+# A failure at any of steps 1-5 aborts before publishing anything further and
+# before n8n ever starts.
 set -eu
 
 WORKFLOWS_DIR=${WORKFLOWS_DIR:-/workflows}
@@ -42,8 +62,8 @@ EMAIL_ID=9d42f98a-d16c-4224-9c9b-8c7a8593bff8
 SLACK_ID=00100d40-0e73-4762-9b79-9a030f7b46f7
 TICKET_ID=dc8458ed-b9a2-4c05-bf95-824f068abf7f
 
-log() { printf 'provision.sh: %s\n' "$1"; }
-fail() { printf 'provision.sh: ERROR: %s\n' "$1" >&2; exit 1; }
+log() { printf 'entrypoint.sh: %s\n' "$1"; }
+fail() { printf 'entrypoint.sh: ERROR: %s\n' "$1" >&2; exit 1; }
 
 # ── 1. Render ─────────────────────────────────────────────────────────────
 [ -d "$WORKFLOWS_DIR" ] || fail "workflows directory not found: $WORKFLOWS_DIR"
@@ -153,3 +173,25 @@ for id in "$ROUTER_ID" "$EMAIL_ID" "$SLACK_ID" "$TICKET_ID"; do
 done
 
 log "all workflows imported, credentials provisioned, and activation verified"
+
+# ── 6. Hand off to the real n8n process ─────────────────────────────────────
+# Mirrors the "Trusting custom certificates" step of the image's own
+# /docker-entrypoint.sh — a no-op here since nothing mounts
+# /opt/custom-certificates, kept only so this entrypoint is a strict superset
+# of the stock one rather than a silent behavior loss for a future user of
+# that mount.
+if [ -d /opt/custom-certificates ]; then
+  echo "Trusting custom certificates from /opt/custom-certificates."
+  export NODE_OPTIONS="--use-openssl-ca ${NODE_OPTIONS:-}"
+  export SSL_CERT_DIR=/opt/custom-certificates
+  c_rehash /opt/custom-certificates
+fi
+
+# `exec` replaces this shell's process image without running the EXIT trap
+# above, so the temp dir is removed explicitly first — it would otherwise
+# leak for the container's lifetime (harmless, but untidy).
+rm -rf "$RENDERED_DIR"
+trap - EXIT
+
+log "starting n8n"
+exec n8n "$@"

@@ -6,10 +6,15 @@ Renderiza la composición real con `docker compose ... config --format json`
 contra un `.env` de prueba (no arranca nada, no publica puertos reales).
 
 Tarea 3.4 completa (grupo 6 ya implementado): `test_certs_init_presente`
-verifica `n8n-provision` además de `certs-init`, y
-`test_n8n_provision_misma_imagen_que_n8n` verifica la paridad de imagen
-(D-6/D45/RN-139, requirement "Versiones del stack pinneadas" de
-`infra-compose`).
+verifica `certs-init`.
+
+Grupo 14 (2026-09-15, hallazgo 14.5, D58/RN-152 revisada): el servicio
+`n8n-provision` se eliminó — el provisioning corre dentro del propio
+entrypoint de `n8n`. `test_n8n_provision_service_eliminado`,
+`test_n8n_entrypoint_corre_el_provisioning_antes_de_n8n_start`,
+`test_n8n_monta_workflows_y_provision` y
+`test_n8n_variables_de_canal_en_el_propio_servicio` cubren la topología
+nueva.
 """
 
 from __future__ import annotations
@@ -128,13 +133,33 @@ def test_agent_presente_con_perfil_app_y_lab(rendered_app_lab) -> None:
 
 def test_certs_init_presente(rendered_app) -> None:
     assert "certs-init" in rendered_app["services"]
-    assert "n8n-provision" in rendered_app["services"]
 
 
-def test_n8n_provision_misma_imagen_que_n8n(rendered_app) -> None:
-    services = rendered_app["services"]
-    assert services["n8n-provision"]["image"] == services["n8n"]["image"]
-    assert services["n8n"]["image"] == "n8nio/n8n:2.17.8"
+def test_n8n_provision_service_eliminado(rendered_app) -> None:
+    """14.5 (D58/RN-152 revisada): el provisioning corre dentro del propio
+    entrypoint de `n8n`; ya no existe un servicio `n8n-provision` separado."""
+    assert "n8n-provision" not in rendered_app["services"]
+    assert rendered_app["services"]["n8n"]["image"] == "n8nio/n8n:2.17.8"
+
+
+def test_n8n_entrypoint_corre_el_provisioning_antes_de_n8n_start(rendered_app) -> None:
+    n8n = rendered_app["services"]["n8n"]
+    assert n8n["entrypoint"] == ["tini", "--", "/bin/sh", "/provision/entrypoint.sh"]
+    assert "n8n-provision" not in n8n.get("depends_on", {})
+
+
+def test_n8n_monta_workflows_y_provision(rendered_app) -> None:
+    volumes = {v["target"] for v in rendered_app["services"]["n8n"]["volumes"]}
+    assert "/workflows" in volumes
+    assert "/provision" in volumes
+
+
+def test_n8n_variables_de_canal_en_el_propio_servicio(rendered_app) -> None:
+    """Las variables de canal (D58/RN-152) viven en `n8n`, no en un servicio
+    separado, para que cambiarlas recree el contenedor en la próxima `up -d`."""
+    env = rendered_app["services"]["n8n"]["environment"]
+    for key in ("N8N_FIM_CHANNELS", "N8N_EMAIL_FROM", "N8N_SLACK_ACCESS_TOKEN"):
+        assert key in env
 
 
 def test_parametros_tls_del_valkey_url(rendered_app) -> None:

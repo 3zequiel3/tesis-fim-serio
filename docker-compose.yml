@@ -91,19 +91,36 @@ services:
   # Usa la base fim_n8n con el usuario fim (D-03).
   # Puerto 5678 (UI de n8n) NO expuesto al host — acceso solo por exec (D-04).
   # Owner declarativo (N8N_INSTANCE_OWNER_MANAGED_BY_ENV) para que el primer
-  # arranque no deje pendiente el wizard de setup manual. `n8n-provision`
-  # (one-shot, más abajo) importa y publica los workflows ANTES de que este
-  # proceso arranque, así que `backend` recién depende de `n8n` cuando ya
-  # tiene el enrutador y los sub-flujos activos (change 52, D-6).
+  # arranque no deje pendiente el wizard de setup manual.
+  #
+  # D58/RN-152 revisada (2026-09-15, hallazgo 14.5): el provisioning de
+  # workflows/credenciales corre DENTRO del propio entrypoint de este
+  # contenedor (`n8n/provision/entrypoint.sh`), antes de que arranque el
+  # proceso `n8n` — ya no existe un servicio `n8n-provision` separado. Un
+  # servicio one-shot aparte volvía a correr en cada `docker compose up -d`
+  # aunque `n8n` ya estuviera sano (un contenedor "Exited" nunca cuenta como
+  # "up" para Compose), republicando los workflows contra un proceso n8n que
+  # ya estaba corriendo y dejando el webhook `fim-alert` sin registrar hasta
+  # un `restart n8n` manual — `n8n publish:workflow` sólo tiene efecto en el
+  # PRÓXIMO `n8n start`. Con el provisioning en el entrypoint de `n8n` mismo,
+  # una segunda `up -d` sin cambios en la configuración de este servicio deja
+  # el contenedor intacto (comportamiento estándar de Compose) y el
+  # entrypoint no se re-ejecuta. Las variables de canal (antes en
+  # `n8n-provision`) viven ahora acá: cambiarlas en `.env` cambia la
+  # configuración deseada de `n8n` y por lo tanto SÍ dispara su recreación en
+  # la próxima `up -d`, exactamente lo que se necesita para que un canal
+  # nuevo quede provisionado. `backend` depende de `n8n` con
+  # `service_healthy`, que ya implica que el entrypoint completó el
+  # provisioning (si hubiera fallado, `n8n` nunca habría arrancado y jamás
+  # reportaría healthy).
   # ---------------------------------------------------------------------------
   n8n:
     image: n8nio/n8n:2.17.8
     restart: unless-stopped
+    entrypoint: ["tini", "--", "/bin/sh", "/provision/entrypoint.sh"]
     depends_on:
       db:
         condition: service_healthy
-      n8n-provision:
-        condition: service_completed_successfully
     environment:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: db
@@ -123,50 +140,10 @@ services:
       N8N_PROTOCOL: http
       N8N_DIAGNOSTICS_ENABLED: "false"
       N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
-    volumes:
-      - n8n_data:/home/node/.n8n
-    networks:
-      - fim_internal
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:5678/healthz"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 15s
-
-  # ---------------------------------------------------------------------------
-  # n8n-provision — importa y publica los workflows de n8n/workflows/ y las
-  # credenciales de los canales habilitados en N8N_FIM_CHANNELS, ANTES de que
-  # `n8n` arranque (D44/RN-138, D58/RN-152, D-6 del design de
-  # vps-deployment-readiness). Sin perfil: arranca con `docker compose up`
-  # a secas (igual que `n8n`, criterio Done del change 01) y con --profile
-  # app. Misma imagen que `n8n`, misma base fim_n8n, mismo owner y clave de
-  # cifrado — import:credentials y publish:workflow necesitan la clave para
-  # descifrar/cifrar las credenciales que ya existan.
-  # ---------------------------------------------------------------------------
-  n8n-provision:
-    image: n8nio/n8n:2.17.8
-    restart: "no"
-    entrypoint: ["/bin/sh", "/provision/provision.sh"]
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DB_TYPE: postgresdb
-      DB_POSTGRESDB_HOST: db
-      DB_POSTGRESDB_PORT: 5432
-      DB_POSTGRESDB_DATABASE: fim_n8n
-      DB_POSTGRESDB_USER: fim
-      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD}
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env — see .env.example}
-      N8N_INSTANCE_OWNER_MANAGED_BY_ENV: "true"
-      N8N_INSTANCE_OWNER_EMAIL: ${N8N_INSTANCE_OWNER_EMAIL}
-      N8N_INSTANCE_OWNER_FIRST_NAME: ${N8N_INSTANCE_OWNER_FIRST_NAME}
-      N8N_INSTANCE_OWNER_LAST_NAME: ${N8N_INSTANCE_OWNER_LAST_NAME}
-      N8N_INSTANCE_OWNER_PASSWORD_HASH: ${N8N_INSTANCE_OWNER_PASSWORD_HASH}
       # D58/RN-152 — canales habilitados y sus credenciales/config, ninguno
       # con default: un canal ausente de N8N_FIM_CHANNELS simplemente no se
-      # provisiona ni se invoca desde el enrutador.
+      # provisiona ni se invoca desde el enrutador. Viven en ESTE servicio
+      # (no en uno separado) para que cambiarlas recree el contenedor.
       N8N_FIM_CHANNELS: ${N8N_FIM_CHANNELS:-}
       N8N_EMAIL_FROM: ${N8N_EMAIL_FROM:-}
       N8N_EMAIL_TO: ${N8N_EMAIL_TO:-}
@@ -193,6 +170,12 @@ services:
       - ./n8n/provision:/provision:ro
     networks:
       - fim_internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:5678/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
   # ---------------------------------------------------------------------------
   # certs-init — emisión de certificados previa al arranque (D53/RN-147, D-1
