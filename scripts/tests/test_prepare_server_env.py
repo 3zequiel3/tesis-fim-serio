@@ -99,30 +99,48 @@ def test_parse_public_hosts_paridad_con_backend_pki() -> None:
             assert {ipaddress.ip_address(str(ip)) for ip in script_ips} == set(backend_ips), raw
 
 
-# ── derive_cors_origins (D59/RN-153) ──────────────────────────────────────────
+# ── derive_cors_origins (D59/RN-153, revisado 2026-09-15 — hallazgo 14.6) ─────
+# Ambos esquemas (http y https) SIEMPRE, sin importar console_tls_mode: pasar
+# de off a self_signed no debe exigir editar CORS_ALLOWED_ORIGINS a mano.
 
 
-def test_derive_cors_origins_off_default_ports() -> None:
+def test_derive_cors_origins_both_schemes_default_ports() -> None:
     origins = prepare_server_env.derive_cors_origins({"fim.example.org"}, set(), "off")
-    assert origins == "http://fim.example.org,http://localhost"
-
-
-def test_derive_cors_origins_self_signed_https_default_port() -> None:
-    origins = prepare_server_env.derive_cors_origins(set(), set(), "self_signed")
-    assert origins == "https://localhost"
-
-
-def test_derive_cors_origins_non_default_port_included() -> None:
-    origins = prepare_server_env.derive_cors_origins(
-        set(), set(), "self_signed", https_port=8443
+    assert origins == (
+        "http://fim.example.org,https://fim.example.org,"
+        "http://localhost,https://localhost"
     )
-    assert origins == "https://localhost:8443"
+
+
+def test_derive_cors_origins_console_tls_mode_does_not_change_schemes() -> None:
+    """El modo de la consola ya no decide qué esquema se emite — sólo influye
+    (vía http_port/https_port) en qué puerto lleva cada uno."""
+    off_origins = prepare_server_env.derive_cors_origins({"fim.example.org"}, set(), "off")
+    self_signed_origins = prepare_server_env.derive_cors_origins(
+        {"fim.example.org"}, set(), "self_signed"
+    )
+    provided_origins = prepare_server_env.derive_cors_origins(
+        {"fim.example.org"}, set(), "provided"
+    )
+    assert off_origins == self_signed_origins == provided_origins
+
+
+def test_derive_cors_origins_non_default_https_port_included() -> None:
+    origins = prepare_server_env.derive_cors_origins(set(), set(), "self_signed", https_port=8443)
+    assert origins == "http://localhost,https://localhost:8443"
+
+
+def test_derive_cors_origins_non_default_http_port_included() -> None:
+    origins = prepare_server_env.derive_cors_origins(set(), set(), "off", http_port=8080)
+    assert origins == "http://localhost:8080,https://localhost"
 
 
 def test_derive_cors_origins_ipv6_bracketed() -> None:
     ip = ipaddress.ip_address("2001:db8::1")
     origins = prepare_server_env.derive_cors_origins(set(), {ip}, "off")
-    assert "http://[2001:db8::1]" in origins.split(",")
+    split = origins.split(",")
+    assert "http://[2001:db8::1]" in split
+    assert "https://[2001:db8::1]" in split
 
 
 # ── run() — generación de .env ────────────────────────────────────────────────

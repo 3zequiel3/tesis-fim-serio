@@ -6,7 +6,7 @@ El repositorio SHALL proveer un script de preparación del servidor, ejecutable 
 
 - validar cada entrada de `FIM_PUBLIC_HOSTS` con la misma regla IP/DNS que el backend, antes de escribir nada;
 - generar con un generador criptográfico `DB_PASSWORD` (con caracteres seguros para URL), `JWT_SECRET_CURRENT` (32 bytes en hex), `ADMIN_PASSWORD`, `N8N_ENCRYPTION_KEY` y una contraseña del owner de n8n, cuyo hash bcrypt SHALL escribirse en `N8N_INSTANCE_OWNER_PASSWORD_HASH` —nunca la contraseña en claro—;
-- escribir `N8N_WEBHOOK_URL=http://n8n:5678/webhook/fim-alert`, `N8N_HEALTH_URL=http://n8n:5678/healthz`, las rutas de certificados con sus valores canónicos y `CORS_ALLOWED_ORIGINS` derivado de los hosts y del esquema de la consola;
+- escribir `N8N_WEBHOOK_URL=http://n8n:5678/webhook/fim-alert`, `N8N_HEALTH_URL=http://n8n:5678/healthz`, las rutas de certificados con sus valores canónicos y `CORS_ALLOWED_ORIGINS` derivado de los hosts, con AMBOS esquemas — `http` y `https` — para cada uno (D59/RN-153 revisada, hallazgo 14.6: con un solo esquema, cambiar `CONSOLE_TLS_MODE` de `off` a `self_signed` rompía el login por HTTPS con 403 hasta editar `CORS_ALLOWED_ORIGINS` a mano);
 - crear `.env` con modo `0600` de forma exclusiva y SHALL NOT sobrescribir un `.env` existente, terminando con exit distinto de 0 sin modificarlo;
 - mostrar una única vez en la terminal la contraseña inicial del admin y la del owner de n8n, sin escribirlas en ningún otro archivo ni log.
 

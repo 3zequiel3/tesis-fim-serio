@@ -20,8 +20,9 @@ QUÉ ESCRIBE
     (vacío), `ADMIN_USERNAME`, `ADMIN_PASSWORD`, las rutas canónicas de
     certificados (`CA_CERT_PATH`, `CA_KEY_PATH`, `BACKEND_CERT_PATH`,
     `BACKEND_KEY_PATH`), `CORS_ALLOWED_ORIGINS` (derivado de
-    `FIM_PUBLIC_HOSTS` ∪ `localhost` con el esquema y puerto del modo de
-    consola — D59/RN-153), `FIM_PUBLIC_HOSTS`, las seis `CONSOLE_*`,
+    `FIM_PUBLIC_HOSTS` ∪ `localhost` con AMBOS esquemas, `http` y `https` —
+    D59/RN-153, revisado 2026-09-15 para que cambiar el modo de consola no
+    exija editar `CORS_ALLOWED_ORIGINS` a mano), `FIM_PUBLIC_HOSTS`, las seis `CONSOLE_*`,
     `N8N_WEBHOOK_URL`/`N8N_HEALTH_URL` (URLs productivas), `N8N_ENCRYPTION_KEY`
     y las cuatro `N8N_INSTANCE_OWNER_*` (con el hash bcrypt de una contraseña
     generada, nunca la contraseña en claro).
@@ -161,21 +162,23 @@ def derive_cors_origins(
     http_port: int = 80,
     https_port: int = 443,
 ) -> str:
-    """Union of FIM_PUBLIC_HOSTS ∪ {localhost}, with the scheme of the
-    console mode and the port only when it is not the scheme's default
-    (D59/RN-153)."""
-    scheme = "http" if console_tls_mode == "off" else "https"
-    port = http_port if scheme == "http" else https_port
-    default_port = 80 if scheme == "http" else 443
-
+    """Union of FIM_PUBLIC_HOSTS ∪ {localhost}, with BOTH schemes (`http` and
+    `https`) for each host and the port only when it is not that scheme's
+    default (D59/RN-153, revised 2026-09-15 after the VPS acceptance run:
+    with a single scheme, switching CONSOLE_TLS_MODE from `off` to
+    `self_signed` made the HTTPS login fail with 403 until
+    CORS_ALLOWED_ORIGINS was edited by hand — the whole point of deriving it
+    was to make that edit unnecessary). `console_tls_mode` no longer affects
+    which scheme is emitted, only which ports each scheme uses."""
     hosts = sorted(dns_names | {"localhost"}) + sorted(str(ip) for ip in ip_addresses)
     origins = []
     for host in hosts:
         display_host = f"[{host}]" if ":" in host else host
-        if port == default_port:
-            origins.append(f"{scheme}://{display_host}")
-        else:
-            origins.append(f"{scheme}://{display_host}:{port}")
+        for scheme, port, default_port in (("http", http_port, 80), ("https", https_port, 443)):
+            if port == default_port:
+                origins.append(f"{scheme}://{display_host}")
+            else:
+                origins.append(f"{scheme}://{display_host}:{port}")
     return ",".join(origins)
 
 
