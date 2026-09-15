@@ -219,6 +219,7 @@ async def test_session_closed_when_no_replay():
 
     mock_request = MagicMock()
     mock_request.headers = {}  # sin Last-Event-ID
+    mock_request.query_params = {}
     mock_request.is_disconnected = AsyncMock(return_value=False)
 
     gen = _alert_sse_generator(mock_request, mock_session)

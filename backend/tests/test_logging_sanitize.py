@@ -18,7 +18,7 @@ import os
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
 os.environ.setdefault("VALKEY_URL", "valkey://localhost:6379")
 
-from app.core.logging import sanitize_secrets
+from app.core.logging import redact_query_credentials, sanitize_secrets
 
 
 def test_password_redacted_direct_kwarg():
@@ -136,3 +136,108 @@ def test_sanitize_secrets_processor_direct():
     assert result["password"] == "[REDACTED]"
     assert result["username"] == "alice"
     assert result["event"] == "test"
+
+
+# ── redact_query_credentials (D64/RN-158) ─────────────────────────────────────
+
+
+def test_redact_query_credentials_uvicorn_access_line():
+    """Línea de uvicorn.access con ?ticket=...&last_event_id=9: ticket redactado,
+    last_event_id intacto, el valor del ticket no aparece en ninguna parte."""
+    event_dict = {
+        "event": '"GET /alerts/stream?ticket=abc123&last_event_id=9 HTTP/1.1" 200',
+    }
+    result = redact_query_credentials(None, "info", event_dict)
+    assert "ticket=[REDACTED]&last_event_id=9" in result["event"]
+    assert "abc123" not in result["event"]
+
+
+def test_redact_query_credentials_token_residual():
+    event_dict = {"event": "/alerts/stream?token=eyJhbGciOi.payload.sig"}
+    result = redact_query_credentials(None, "info", event_dict)
+    assert "token=[REDACTED]" in result["event"]
+    assert "eyJhbGciOi" not in result["event"]
+
+
+def test_redact_query_credentials_nested_string_case_insensitive():
+    event_dict = {"event": "sse.request", "ctx": {"url": "/alerts/stream?Ticket=abc123"}}
+    result = redact_query_credentials(None, "info", event_dict)
+    assert result["ctx"]["url"] == "/alerts/stream?Ticket=[REDACTED]"
+
+
+def test_redact_query_credentials_non_credential_query_untouched():
+    event_dict = {"event": "x", "url": "/events?page=2&size=50"}
+    result = redact_query_credentials(None, "info", event_dict)
+    assert result["url"] == "/events?page=2&size=50"
+
+
+def test_redact_query_credentials_access_token_param():
+    event_dict = {"event": "/alerts/stream?access_token=secretvalue123"}
+    result = redact_query_credentials(None, "info", event_dict)
+    assert "access_token=[REDACTED]" in result["event"]
+    assert "secretvalue123" not in result["event"]
+
+
+# ── 5.7: end-to-end via el pipeline real de configure_logging() ──────────────
+#
+# TestClient (httpx + ASGITransport) nunca pasa por el servidor uvicorn real,
+# así que no dispara el middleware de access log de uvicorn — ese camino
+# completo (nginx + uvicorn reales) se verifica en 7.4 contra el stack
+# levantado. Esta prueba verifica en cambio que el pipeline REAL configurado
+# por configure_logging() (dictConfig + structlog.configure(), no la función
+# processor llamada a mano como en los tests de arriba) redacta una línea
+# `uvicorn.access` con el formato real que produciría el servidor, emitida a
+# través del logger stdlib `uvicorn.access` — mismo logger que dictConfig
+# conecta al ProcessorFormatter con el foreign_pre_chain real.
+
+
+def test_e2e_stream_ticket_never_appears_in_stdout(capfd):
+    """
+    Hace GET /alerts/stream?ticket=<valor> (401, ticket inexistente) contra la
+    app configurada con configure_logging(), y emite además la línea de
+    access log que produciría uvicorn para esa request real a través del
+    logger stdlib `uvicorn.access` — el mismo que configure_logging() conecta
+    al ProcessorFormatter con sanitize_secrets + redact_query_credentials.
+    Ninguna línea de stdout/stderr debe contener el valor del ticket.
+
+    Sin overrides de sesión: usa la Postgres real de test (autouse
+    _db_isolation de conftest), igual que cualquier otro request no-SSE de la
+    suite — el ticket inexistente corta en la dependencia antes de tocar la
+    tabla alerts.
+    """
+    import logging as stdlib_logging
+
+    from fastapi.testclient import TestClient
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.core.logging import configure_logging
+    from app.core.valkey import get_async_valkey_client, get_valkey_client
+    from app.main import app
+
+    configure_logging()
+
+    ticket_value = "super-secret-e2e-ticket-should-not-leak"
+
+    mock_async_valkey = AsyncMock()
+    mock_async_valkey.getdel.return_value = None  # ticket inexistente ⇒ 401
+
+    app.dependency_overrides[get_valkey_client] = lambda: MagicMock()
+    app.dependency_overrides[get_async_valkey_client] = lambda: mock_async_valkey
+
+    try:
+        with TestClient(app) as tc:
+            resp = tc.get(f"/alerts/stream?ticket={ticket_value}")
+        assert resp.status_code == 401
+
+        stdlib_logging.getLogger("uvicorn.access").info(
+            '%s - "GET /alerts/stream?ticket=%s HTTP/1.1" 401',
+            "127.0.0.1:12345",
+            ticket_value,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    captured = capfd.readouterr()
+    assert ticket_value not in captured.out
+    assert ticket_value not in captured.err
+    assert "ticket=[REDACTED]" in captured.out

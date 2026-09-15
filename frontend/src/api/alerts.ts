@@ -56,3 +56,19 @@ export async function retryAlert(id: number): Promise<void> {
 export async function discardAlert(id: number): Promise<void> {
   await apiClient.delete(`/alerts/${id}`)
 }
+
+export interface StreamTicket {
+  ticket: string
+  expires_in: number
+}
+
+/**
+ * Pide un ticket SSE de un solo uso para GET /alerts/stream (D64/RN-158).
+ * Va por el cliente HTTP autenticado (JWT en Authorization, con el refresh
+ * automático del interceptor) — nunca por la URL del stream, que no admite
+ * headers (EventSource).
+ */
+export async function fetchStreamTicket(): Promise<StreamTicket> {
+  const { data } = await apiClient.post<StreamTicket>('/alerts/stream-ticket')
+  return data
+}

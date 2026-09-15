@@ -12,6 +12,7 @@ conexiones (fail-fast por diseño — D-CHANGE-04).
 
 from typing import Literal
 
+from pydantic import Field
 from pydantic import PostgresDsn
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
@@ -120,6 +121,16 @@ class Settings(BaseSettings):
     smtp_ssl: bool = False
 
     webhook_fallback_url: str = ""
+
+    # Retención de rejected_events_audit (D65/RN-159, D4). rejected_events_audit
+    # guarda payloads rechazados truncados y crecía sin límite; esta variable
+    # fija cuántos días se conservan antes de que rejected_events_retention_task()
+    # los elimine en lotes (backend/app/modules/events/service.py). ge=1 aborta
+    # el arranque con ValidationError ante un valor inválido (0 o negativo) —
+    # fail-fast, mismo criterio que el resto de Settings.
+    # audit_log NO tiene un setting equivalente: su retención es ilimitada y no
+    # se purga (W18/RN-94, ratificada) — no confundir ambas tablas.
+    rejected_events_retention_days: int = Field(default=90, ge=1)
 
     def get_allowed_origins(self) -> list[str]:
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]

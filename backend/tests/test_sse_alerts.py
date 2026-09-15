@@ -130,7 +130,7 @@ def _make_test_app_for_sse(test_session: Session):
     from app.main import app
     from app.core.database import get_session
     from app.core.valkey import get_valkey_client
-    from app.modules.alerts.router import _require_admin_from_token
+    from app.modules.alerts.router import _require_admin_from_ticket
 
     def override_session():
         yield test_session
@@ -142,7 +142,7 @@ def _make_test_app_for_sse(test_session: Session):
         return MagicMock()
 
     app.dependency_overrides[get_session] = override_session
-    app.dependency_overrides[_require_admin_from_token] = override_sse_admin
+    app.dependency_overrides[_require_admin_from_ticket] = override_sse_admin
     app.dependency_overrides[get_valkey_client] = override_valkey
     return app
 
@@ -542,25 +542,29 @@ def test_get_failed_alerts_includes_path_and_action_taken(session):
 # ── 6.4 GET /alerts/stream — auth ─────────────────────────────────────────────
 
 
-def test_stream_alerts_invalid_token_returns_401(session):
-    """GET /alerts/stream?token=bad → 401 (JWTError en decode_token)."""
+def test_stream_alerts_invalid_ticket_returns_401(session):
+    """GET /alerts/stream?ticket=bad → 401 (D64/RN-158: ticket inexistente)."""
     from app.main import app
     from app.core.database import get_session
-    from app.core.valkey import get_valkey_client
+    from app.core.valkey import get_async_valkey_client, get_valkey_client
+
+    mock_async_valkey = AsyncMock()
+    mock_async_valkey.getdel.return_value = None
 
     app.dependency_overrides[get_session] = lambda: session
     app.dependency_overrides[get_valkey_client] = lambda: MagicMock()
+    app.dependency_overrides[get_async_valkey_client] = lambda: mock_async_valkey
 
     try:
         with TestClient(app) as tc:
-            resp = tc.get("/alerts/stream?token=badtoken")
+            resp = tc.get("/alerts/stream?ticket=badticket")
         assert resp.status_code == 401
     finally:
         app.dependency_overrides.clear()
 
 
-def test_stream_alerts_no_token_returns_422(session):
-    """GET /alerts/stream sin query param token → 422 (token es requerido)."""
+def test_stream_alerts_no_ticket_returns_401_not_422(session):
+    """GET /alerts/stream sin query param ticket → 401, no 422 (D64/RN-158)."""
     from app.main import app
     from app.core.database import get_session
     from app.core.valkey import get_valkey_client
@@ -571,7 +575,7 @@ def test_stream_alerts_no_token_returns_422(session):
     try:
         with TestClient(app) as tc:
             resp = tc.get("/alerts/stream")
-        assert resp.status_code == 422
+        assert resp.status_code == 401
     finally:
         app.dependency_overrides.clear()
 
@@ -590,6 +594,7 @@ async def test_stream_alerts_valid_token_content_type(session):
 
     mock_request = MagicMock()
     mock_request.headers = {}  # no Last-Event-ID
+    mock_request.query_params = {}
 
     response = await stream_alerts(
         request=mock_request,
@@ -648,6 +653,7 @@ async def test_sse_no_last_event_id_no_replay(session):
 
     mock_request = MagicMock()
     mock_request.headers = {}  # sin Last-Event-ID
+    mock_request.query_params = {}
     mock_request.is_disconnected = AsyncMock(return_value=False)
 
     # El generador no debe emitir replay: subscribe e inmediatamente entra al loop
@@ -725,6 +731,7 @@ async def test_sse_realtime_frame_carries_event_alert(session):
 
     mock_request = MagicMock()
     mock_request.headers = {}  # sin Last-Event-ID → sin replay
+    mock_request.query_params = {}
     mock_request.is_disconnected = AsyncMock(return_value=False)
 
     gen = _alert_sse_generator(mock_request, session)
@@ -758,6 +765,7 @@ async def test_sse_keepalive_frame_has_no_event_type(session):
 
     mock_request = MagicMock()
     mock_request.headers = {}
+    mock_request.query_params = {}
     mock_request.is_disconnected = AsyncMock(return_value=False)
 
     with patch.object(alerts_router, "_KEEPALIVE_INTERVAL", 0.01):

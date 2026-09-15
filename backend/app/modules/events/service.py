@@ -15,12 +15,14 @@ from enum import Enum
 from typing import Any, Callable
 
 import structlog
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import update as sa_update
 from sqlmodel import Session, select
 
+from app.core.config import settings
 from app.core.database import engine
 from app.modules.audit.models import AuditLog
-from app.modules.events.models import Event, EventStatus
+from app.modules.events.models import Event, EventStatus, RejectedEventAudit
 from app.modules.rules.models import RuleSeverity
 from app.modules.rules.service import determine_severity_for_path
 
@@ -487,3 +489,75 @@ async def retention_task() -> None:
             if to_delete:
                 session.commit()
                 log.info("service.retention_run", deleted=len(to_delete))
+
+
+def purge_rejected_events_audit(
+    session_factory: Callable[[], Session],
+    now: datetime,
+    days: int,
+    batch_size: int = 1000,
+) -> int:
+    """
+    Elimina en lotes las filas de rejected_events_audit con received_at
+    anterior a `now - days` (D65/RN-159). `rejected_events_audit` guarda
+    payloads rechazados truncados (D4) y crece sin límite sin esta retención.
+
+    Cada lote corre en su propia sesión/transacción (session_factory() se
+    invoca una vez por lote) y borra a lo sumo batch_size filas por
+    `id IN (SELECT id … WHERE received_at < cutoff ORDER BY id LIMIT batch)`,
+    para no bloquear la tabla con una transacción larga mientras el consumer
+    sigue insertando rechazos. Repite hasta que un lote borre menos de
+    batch_size filas. Portable a SQLite (tests en memoria) y Postgres.
+
+    NUNCA referencia AuditLog/audit_log — esa tabla tiene retención ilimitada
+    y este change no la toca (W18/RN-94, ratificada).
+
+    Retorna el total de filas eliminadas en la corrida.
+    """
+    cutoff = now - timedelta(days=days)
+    total_deleted = 0
+
+    while True:
+        with session_factory() as session:
+            batch_ids = (
+                select(RejectedEventAudit.id)
+                .where(RejectedEventAudit.received_at < cutoff)
+                .order_by(RejectedEventAudit.id.asc())
+                .limit(batch_size)
+            )
+            stmt = sa_delete(RejectedEventAudit).where(RejectedEventAudit.id.in_(batch_ids))
+            result = session.execute(stmt)
+            session.commit()
+            deleted = result.rowcount or 0
+            total_deleted += deleted
+
+        if deleted < batch_size:
+            break
+
+    return total_deleted
+
+
+async def rejected_events_retention_task() -> None:
+    """
+    Tarea asyncio periódica (D65/RN-159, una vez por hora, igual cadencia que
+    RN-98): elimina en lotes las filas de rejected_events_audit más antiguas
+    que settings.rejected_events_retention_days.
+
+    Separada de retention_task() para aislar fallos (design.md Decisión 5):
+    un error transitorio de DB se registra y NO termina la tarea, que
+    reintenta en la siguiente iteración. NUNCA purga audit_log (W18/RN-94).
+    """
+    while True:
+        await asyncio.sleep(3600)
+        try:
+            deleted = purge_rejected_events_audit(
+                lambda: Session(engine),
+                datetime.now(timezone.utc),
+                settings.rejected_events_retention_days,
+            )
+        except Exception:
+            log.error("service.rejected_retention_error", exc_info=True)
+            continue
+
+        if deleted > 0:
+            log.info("service.rejected_retention_run", deleted=deleted)

@@ -3,7 +3,9 @@ Router de alertas para FIM Platform (C15 + C16).
 
 Endpoints:
   GET  /alerts                — listado paginado completo con filtros (C16)
-  GET  /alerts/stream         — stream SSE de alertas nuevas (C16)
+  POST /alerts/stream-ticket  — emite ticket SSE de un solo uso (D64/RN-158)
+  GET  /alerts/stream         — stream SSE de alertas nuevas, autenticado
+                                 por ticket (contrato C16, D64/RN-158)
   GET  /alerts/failed         — DLQ (C15)
   POST /alerts/{id}/retry     — reintento desde DLQ (C15)
   DELETE /alerts/{id}         — descartar de DLQ (C15)
@@ -19,7 +21,6 @@ from typing import Annotated, Any, AsyncGenerator, Literal
 import anyio
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from jose import JWTError
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from sse_starlette.sse import EventSourceResponse
@@ -27,8 +28,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.core.database import get_session
 from app.core.deps import require_admin
 from app.core.rate_limit import check_api_rate_limit
-from app.core.security import BLACKLIST_PREFIX, decode_token
-from app.core.valkey import get_valkey_client
+from app.core.valkey import get_async_valkey_client
 from app.modules.alerts.contract import action_taken_for
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
 from app.modules.alerts.service import (
@@ -39,6 +39,11 @@ from app.modules.alerts.service import (
     retry_alert,
 )
 from app.modules.alerts.stream import alerts_broadcaster
+from app.modules.alerts.stream_ticket import (
+    SSE_TICKET_TTL_SECONDS,
+    consume_ticket,
+    issue_ticket,
+)
 from app.modules.auth.models import User
 from app.modules.events.models import Event
 
@@ -119,7 +124,15 @@ class AlertPaginatedResponse(BaseModel):
     size: int
 
 
-# ── Auth via query param para SSE (EventSource no soporta headers) ────────────
+# ── Auth via ticket de un solo uso para SSE (D64/RN-158) ──────────────────────
+#
+# EventSource no admite headers custom, así que el contrato C16 no puede
+# autenticar con Authorization: Bearer. Antes de este change el JWT de acceso
+# viajaba completo en ?token=, quedando expuesto en logs de acceso y en el
+# historial del navegador durante toda su vigencia. Ahora GET /alerts/stream
+# exige un ticket opaco de un solo uso (?ticket=), emitido por
+# POST /alerts/stream-ticket y consumido atómicamente (GETDEL) — ver
+# app.modules.alerts.stream_ticket.
 
 _credentials_exc = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -127,36 +140,39 @@ _credentials_exc = HTTPException(
 )
 
 
-async def _require_admin_from_token(
-    token: str = Query(...),
+class StreamTicketResponse(BaseModel):
+    ticket: str
+    expires_in: int
+
+
+async def _require_admin_from_ticket(
+    ticket: str | None = Query(default=None),
     session: Session = Depends(get_session),
-    valkey_client=Depends(get_valkey_client),
+    async_valkey_client=Depends(get_async_valkey_client),
 ) -> User:
-    """Dependency SSE: valida JWT de query param ?token= y exige rol admin."""
-    try:
-        payload = decode_token(token)
-    except JWTError:
+    """
+    Dependencia SSE del stream (D64/RN-158): consume el ticket de un solo uso
+    con GETDEL y exige rol admin. Un ticket ausente, inexistente, vencido o ya
+    consumido responde 401 explícito (antes, sin `ticket`, FastAPI respondía
+    422 por validación del `token` requerido — divergencia frente a la spec,
+    corregida acá). `?token=<jwt>` sin `?ticket=` ya no autentica: el parámetro
+    `token` desapareció de la firma, así que cae en "ticket ausente" ⇒ 401.
+    """
+    if ticket is None:
         raise _credentials_exc
 
-    jti: str | None = payload.get("jti")
-    if jti and valkey_client.exists(f"{BLACKLIST_PREFIX}{jti}"):
-        raise _credentials_exc
-
-    user_id: str | None = payload.get("sub")
+    user_id = await consume_ticket(ticket, async_valkey_client)
     if user_id is None:
         raise _credentials_exc
 
-    if payload.get("scope") == "password_change_only":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="password_change_required")
-
-    await check_api_rate_limit(int(user_id))
-
-    user = session.exec(select(User).where(User.id == int(user_id))).first()
+    user = session.exec(select(User).where(User.id == user_id)).first()
     if user is None or not user.is_active:
         raise _credentials_exc
 
     if user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_required")
+
+    await check_api_rate_limit(user_id)
 
     return user
 
@@ -187,11 +203,18 @@ async def _alert_sse_generator(
     request: Request,
     session: Session,
 ) -> AsyncGenerator[dict[str, Any], None]:
-    # 1. Replay via Last-Event-ID (D-SSE-3)
+    # 1. Replay via Last-Event-ID (D-SSE-3), o su equivalente en la URL
+    # last_event_id (D64/RN-158, D-EV-6): EventSource no permite fijar el
+    # header Last-Event-ID en la URL inicial de una conexión abierta a mano
+    # (solo lo reenvía en su propia reconexión nativa, que este change
+    # desactiva — ver useAlertsSSE.ts), así que el frontend lo pasa como query
+    # param en su lugar. El header prevalece si ambos están presentes.
     # FIX-01: la sesión se usa SÓLO para el replay y se cierra explícitamente
     # antes de entrar al bucle SSE, para no retener una conexión del pool
     # durante el lifetime de la conexión SSE (que puede ser horas).
     last_id_str = request.headers.get("last-event-id")
+    if last_id_str is None:
+        last_id_str = request.query_params.get("last_event_id")
     try:
         if last_id_str is not None:
             try:
@@ -261,13 +284,34 @@ async def list_all_alerts(
     )
 
 
+@router.post("/stream-ticket", response_model=StreamTicketResponse)
+async def create_stream_ticket(
+    _admin: User = Depends(require_admin),
+    async_valkey_client=Depends(get_async_valkey_client),
+) -> StreamTicketResponse:
+    """
+    Emite un ticket opaco de un solo uso para GET /alerts/stream (D64/RN-158).
+
+    Reutiliza `require_admin` (JWT en Authorization, scope completo, activo,
+    admin, rate limit). El valor del ticket no se loguea.
+    """
+    ticket = await issue_ticket(_admin.id, async_valkey_client)  # type: ignore[arg-type]
+    return StreamTicketResponse(ticket=ticket, expires_in=SSE_TICKET_TTL_SECONDS)
+
+
 @router.get("/stream")
 async def stream_alerts(
     request: Request,
     session: Session = Depends(get_session),
-    _admin: User = Depends(_require_admin_from_token),
+    _admin: User = Depends(_require_admin_from_ticket),
 ) -> EventSourceResponse:
-    """Stream SSE de alertas nuevas. Auth via query param ?token=<jwt>."""
+    """
+    Stream SSE de alertas nuevas (contrato C16). Auth via ticket de un solo
+    uso `?ticket=<ticket>` emitido por POST /alerts/stream-ticket (D64/RN-158)
+    — ya no acepta un JWT en `?token=`. La continuidad tras un corte usa el
+    header `Last-Event-ID` o, como equivalente en la URL, `?last_event_id=`
+    (D-EV-6).
+    """
     return EventSourceResponse(_alert_sse_generator(request, session))
 
 

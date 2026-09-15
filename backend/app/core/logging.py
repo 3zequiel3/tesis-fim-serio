@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import logging.config
+import re
 from typing import Any
 
 import structlog
@@ -117,6 +118,55 @@ def sanitize_secrets(
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Redacción de credenciales en query strings (D64/RN-158, RN-89)
+# ─────────────────────────────────────────────────────────────────────────────
+# sanitize_secrets redacta por NOMBRE de key (ej. la key "token" entera).
+# Una URL con `?ticket=<valor>` o `?token=<valor>` no es en sí misma una key
+# sensible — es un string cualquiera (p. ej. la línea de acceso ya renderizada
+# de uvicorn.access, o un campo "url" arbitrario) — así que necesita redacción
+# por CONTENIDO. Match case-insensitive de ticket/token/access_token como
+# parámetro de query; preserva el nombre del parámetro y el resto de la línea.
+_QUERY_CREDENTIAL_PATTERN = re.compile(
+    r"(?i)([?&](?:ticket|token|access_token)=)[^&\s\"']+"
+)
+
+
+def _redact_query_credentials_in_value(value: Any, depth: int) -> Any:
+    """Recorre recursivamente dicts, listas y strings redactando credenciales
+    de query string embebidas en cualquier valor (misma profundidad máxima
+    que sanitize_secrets — _MAX_DEPTH)."""
+    if depth > _MAX_DEPTH:
+        return value
+
+    if isinstance(value, dict):
+        return {k: _redact_query_credentials_in_value(v, depth + 1) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact_query_credentials_in_value(item, depth + 1) for item in value]
+    if isinstance(value, str):
+        return _QUERY_CREDENTIAL_PATTERN.sub(r"\1[REDACTED]", value)
+    return value
+
+
+def redact_query_credentials(
+    logger: Any,
+    method_name: str,
+    event_dict: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Structlog processor que redacta ticket/token/access_token embebidos en
+    query strings dentro de cualquier valor string del event_dict — incluido
+    `event`, que para registros stdlib (uvicorn.access) ya contiene la línea
+    de acceso completamente renderizada con la URL (D64/RN-158).
+
+    Corre DESPUÉS de sanitize_secrets en ambas cadenas (structlog y el
+    foreign_pre_chain de uvicorn.access): ese processor ya cubrió la
+    redacción por nombre de key; este cubre la redacción por contenido dentro
+    de un string que no es en sí mismo una key sensible.
+    """
+    return {k: _redact_query_credentials_in_value(v, 1) for k, v in event_dict.items()}
+
+
 def configure_logging() -> None:
     """
     Configura structlog + logging stdlib para emitir JSON por stdout.
@@ -125,11 +175,13 @@ def configure_logging() -> None:
     (para que los logs del lifespan ya salgan formateados — D-CHANGE-07).
 
     Pipeline de processors en orden:
-      1. merge_contextvars  — inyecta trace_id y demás vars del context
-      2. add_log_level      — agrega key "level"
-      3. TimeStamper        — agrega "timestamp" ISO 8601 UTC
-      4. sanitize_secrets   — redacta secrets (D-CHANGE-01)
-      5. JSONRenderer       — serializa a JSON
+      1. merge_contextvars         — inyecta trace_id y demás vars del context
+      2. add_log_level             — agrega key "level"
+      3. TimeStamper                — agrega "timestamp" ISO 8601 UTC
+      4. sanitize_secrets          — redacta secrets por nombre de key (D-CHANGE-01)
+      5. redact_query_credentials  — redacta ticket/token/access_token embebidos
+                                      en query strings, por contenido (D64/RN-158)
+      6. JSONRenderer               — serializa a JSON
 
     El wrapper_class filtra por nivel de log configurado en settings.log_level.
     """
@@ -153,6 +205,7 @@ def configure_logging() -> None:
                         structlog.stdlib.add_logger_name,
                         TimeStamper(fmt="iso", utc=True),
                         sanitize_secrets,
+                        redact_query_credentials,
                     ],
                 }
             },
@@ -186,6 +239,7 @@ def configure_logging() -> None:
             add_log_level,
             TimeStamper(fmt="iso", utc=True),
             sanitize_secrets,
+            redact_query_credentials,
             JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(log_level_int),
