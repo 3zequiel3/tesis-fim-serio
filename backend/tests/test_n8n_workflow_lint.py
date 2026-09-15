@@ -161,6 +161,61 @@ def test_execute_workflow_references_resolve_to_a_present_subflow() -> None:
     assert referencing_files > 0, "expected at least one Execute Workflow node in the router"
 
 
+def test_email_send_parameters_match_email_format() -> None:
+    """14.7: `emailSend` v2.1 reads the body from parameters named after
+    `emailFormat` — `html` for 'html', `text` for 'text', both for 'both' —
+    never from a `message` parameter (n8n-nodes-base's send.operation.js,
+    verified against n8nio/n8n:2.17.8)."""
+    workflows = _load_all()
+    checked = 0
+    for wf_name, wf in workflows.items():
+        for node in wf["nodes"]:
+            if node["type"] != "n8n-nodes-base.emailSend":
+                continue
+            checked += 1
+            params = node["parameters"]
+            assert "message" not in params, (
+                f"{wf_name}: emailSend node {node['name']!r} uses the parameter "
+                "'message', which emailSend v2.1 never reads — use 'html'/'text' "
+                "depending on emailFormat"
+            )
+            email_format = params.get("emailFormat")
+            assert email_format in ("html", "text", "both"), (
+                f"{wf_name}: emailSend node {node['name']!r} has an unexpected "
+                f"emailFormat {email_format!r}"
+            )
+            if email_format in ("html", "both"):
+                assert params.get("html"), (
+                    f"{wf_name}: emailSend node {node['name']!r} has emailFormat="
+                    f"{email_format!r} but no non-empty 'html' parameter"
+                )
+            if email_format in ("text", "both"):
+                assert params.get("text"), (
+                    f"{wf_name}: emailSend node {node['name']!r} has emailFormat="
+                    f"{email_format!r} but no non-empty 'text' parameter"
+                )
+    assert checked >= 1, "expected at least one emailSend node"
+
+
+def test_email_send_attribution_explicitly_disabled() -> None:
+    """14.7: `options.appendAttribution` SHALL be explicitly `false` —
+    emailSend v2.1 defaults it to `true` (appending "This email was sent
+    automatically with n8n") unless the workflow sets it."""
+    workflows = _load_all()
+    checked = 0
+    for wf_name, wf in workflows.items():
+        for node in wf["nodes"]:
+            if node["type"] != "n8n-nodes-base.emailSend":
+                continue
+            checked += 1
+            options = node["parameters"].get("options", {})
+            assert options.get("appendAttribution") is False, (
+                f"{wf_name}: emailSend node {node['name']!r} must set "
+                "options.appendAttribution to false"
+            )
+    assert checked >= 1, "expected at least one emailSend node"
+
+
 def test_no_on_received_response_mode() -> None:
     for path in _workflow_files():
         raw = path.read_text(encoding="utf-8")

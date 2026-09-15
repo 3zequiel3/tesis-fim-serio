@@ -70,6 +70,23 @@ Antes de crear un ticket, el sub-flujo de ticketing SHALL consultar al sistema d
 - **THEN** el sistema de tickets contiene exactamente un ticket con el marcador de ese `event_id`
 - **AND** ambas respuestas del enrutador informan la entrega de ticketing como confirmada
 
+### Requirement: Cuerpo del correo de alerta legible con los campos reales del payload (hallazgo 14.7)
+
+El nodo `emailSend` (v2.1) del sub-flujo de correo SHALL declarar `emailFormat: "both"` y SHALL escribir el cuerpo en los parámetros `html` y `text` — NUNCA en un parámetro `message`, que `emailSend` v2.1 no lee bajo ningún `emailFormat` (verificado contra `n8n-nodes-base/dist/nodes/EmailSend/v2/send.operation.js` de la imagen `n8nio/n8n:2.17.8`: con `html` lee `html`; con `text` lee `text`; con `both` lee ambos). SHALL fijar explícitamente `options.appendAttribution: false` — el default (`true` para `nodeVersion >= 2.1` salvo que se fije la opción) agrega el pie "This email was sent automatically with n8n". Ambos cuerpos SHALL incluir, con nombres legibles y la severidad destacada visualmente (tamaño y color), los campos reales del contrato de notificaciones (`backend/app/modules/alerts/contract.py`): `severity`, `path`, `agent_id`, `status`, `action_taken`, `detected_at` y `notification_id`, además de los campos de `health_change` (`component`, `old_status`, `new_status`) para el mismo sub-flujo cuando el tipo de notificación es distinto. SHALL NOT inventarse nombres de campo ausentes del contrato.
+
+#### Scenario: Cuerpo no vacío con los campos del payload
+- **WHEN** se entrega un `POST /webhook/fim-alert` real con el canal email habilitado contra un SMTP de captura
+- **THEN** el correo recibido tiene un cuerpo HTML no vacío y un cuerpo de texto plano no vacío
+- **AND** ambos contienen la severidad, la ruta, el agente, el estado, la acción tomada y la fecha de detección del payload
+
+#### Scenario: Sin atribución de n8n
+- **WHEN** se inspecciona el correo recibido
+- **THEN** no contiene el texto "sent automatically with n8n"
+
+#### Scenario: Parámetros coherentes con `emailFormat`
+- **WHEN** se inspecciona el nodo `emailSend` del workflow de correo
+- **THEN** `emailFormat` es `"both"`, existen parámetros `html` y `text` no vacíos, no existe un parámetro `message`, y `options.appendAttribution` es `false`
+
 #### Scenario: Eventos distintos
 - **WHEN** se hacen dos `POST` con `event_id` distintos
 - **THEN** se crean dos tickets, cada uno con su marcador
