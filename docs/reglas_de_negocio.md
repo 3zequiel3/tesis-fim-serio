@@ -1896,8 +1896,12 @@ con D36/RN-130 (drop-in de `watch_paths`), que no se modifica.
 
 **Descripción:** Los canales que el enrutador de n8n abanica y las credenciales de cada uno SHALL
 declararse en el `.env` del servidor: `N8N_FIM_CHANNELS` con la lista de canales habilitados y las
-variables propias de cada canal. El servicio de provisioning de n8n SHALL importar esas credenciales
-en cada arranque y fijar en el enrutador el conjunto de canales habilitados. El entorno del contenedor
+variables propias de cada canal. El provisioning de n8n SHALL ejecutarse dentro del arranque del propio contenedor de
+n8n, antes de iniciar su proceso principal, importando esas credenciales y fijando en el enrutador el
+conjunto de canales habilitados. SHALL NOT existir un camino en el que el provisioning modifique
+workflows o credenciales de una instancia de n8n ya en ejecución. *(Revisado el 2026-09-15 tras la
+aceptación en VPS: un servicio de provisioning separado volvía a correr en cada `docker compose up -d`
+con n8n activo y dejaba el webhook `fim-alert` sin registrar, en silencio, hasta reiniciar n8n.)* El entorno del contenedor
 SHALL NOT exponerse a las expresiones de los workflows (`N8N_BLOCK_ENV_ACCESS_IN_NODE` conserva su
 default). Sin ningún canal habilitado, el enrutador SHALL responder con un código no-2xx.
 
@@ -1919,8 +1923,11 @@ D43/RN-137 (un canal sin configurar no se reporta como sano).
 #### D59 / RN-153: Orígenes permitidos de la consola derivados de `FIM_PUBLIC_HOSTS`
 
 **Descripción:** El script de preparación del servidor (D54/RN-148) SHALL derivar
-`CORS_ALLOWED_ORIGINS` de cada entrada de `FIM_PUBLIC_HOSTS` más `localhost`, con el esquema del modo
-de la consola (D55/RN-149) y el puerto sólo cuando no es el default de ese esquema. El valor SHALL
+`CORS_ALLOWED_ORIGINS` de cada entrada de `FIM_PUBLIC_HOSTS` más `localhost`, con **ambos** esquemas
+(`http` y `https`) y el puerto sólo cuando no es el default de cada esquema, de modo que cambiar
+`CONSOLE_TLS_MODE` (D55/RN-149) no exija editar `CORS_ALLOWED_ORIGINS`. *(Revisado el 2026-09-15
+tras la aceptación en VPS: con un solo esquema, pasar de `off` a `self_signed` hacía fallar el login
+por HTTPS con 403.)* El valor SHALL
 quedar editable en `.env`. No se introduce una variable separada para los nombres de la consola.
 
 **Motivo:** El middleware de CORS del backend responde 403 a todo origen no listado, y el default

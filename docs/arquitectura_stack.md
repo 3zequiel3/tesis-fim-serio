@@ -2686,8 +2686,8 @@ su generación y uso operativo.
 
 | Decisión | Resolución técnica |
 |---|---|
-| D58 | `N8N_FIM_CHANNELS` + variables por canal en `.env`; `n8n-provision` importa credenciales con `import:credentials` y fija el conjunto habilitado en el enrutador; `N8N_BLOCK_ENV_ACCESS_IN_NODE` en su default; sin canal habilitado ⇒ respuesta no-2xx. |
-| D59 | `CORS_ALLOWED_ORIGINS` = `FIM_PUBLIC_HOSTS` ∪ `localhost`, con esquema del modo de consola y puerto sólo si no es el default; editable en `.env`. |
+| D58 | `N8N_FIM_CHANNELS` + variables por canal en `.env`; el provisioning corre en el entrypoint del contenedor `n8n` antes de `n8n start` (revisado 2026-09-15: nunca contra una instancia ya activa), importa credenciales con `import:credentials` y fija el conjunto habilitado en el enrutador; `N8N_BLOCK_ENV_ACCESS_IN_NODE` en su default; sin canal habilitado ⇒ respuesta no-2xx. |
+| D59 | `CORS_ALLOWED_ORIGINS` = (`FIM_PUBLIC_HOSTS` ∪ `localhost`) × {`http`, `https`}, puerto sólo si no es el default de cada esquema (revisado 2026-09-15); editable en `.env`. |
 | D60 | HSTS: `provided` ⇒ `max-age=63072000; includeSubDomains`; `self_signed` ⇒ `max-age=300`; `off` ⇒ sin encabezado. |
 | D61 | `certs-init` reemite si el SAN no cubre el conjunto requerido **o** si faltan menos de `_CERT_RENEWAL_THRESHOLD_DAYS` (15) días; sólo al arrancar; la CA no se rota. |
 | D62 | Certificado `self_signed` de la consola: autofirmado ECDSA P-256 / ECDSA-SHA256, sin la CA propia; `certs-init` imprime su huella SHA-256. Cerrada el 2026-09-13 al aplicar D55. |
