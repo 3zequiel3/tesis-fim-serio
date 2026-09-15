@@ -49,6 +49,9 @@ DEFAULT_CONFIG_DEST = "/etc/fim-agent/config.yaml"
 DEFAULT_ENV_DEST = "/etc/fim-agent/env"
 DEFAULT_CA_CERT_DEST = "/etc/fim-agent/certs/ca.pem"
 DEFAULT_CONFIG_EXAMPLE = str(Path(__file__).parent / "deploy" / "config.yaml.example")
+# Same path install.sh's AGENT_CERT_PATH points to — where agent/bootstrap.py
+# writes the agent's own certificate after a successful bootstrap.
+DEFAULT_AGENT_CERT_PATH = "/var/lib/fim-agent/certs/agent-cert.pem"
 
 MIN_SECRET_LENGTH = 16
 SCOPE_CHECK_TIMEOUT_S = 5.0
@@ -181,6 +184,40 @@ def resolve_bootstrap_secret(
             f"bootstrap secret must be at least {MIN_SECRET_LENGTH} characters"
         )
     return secret
+
+
+def is_already_enrolled(agent_cert_path: str) -> bool:
+    """True when a valid (unexpired) agent certificate already exists at
+    `agent_cert_path` — i.e. this host already completed a bootstrap.
+
+    Delegates to `agent.bootstrap.is_bootstrapped`, the same check the agent
+    process itself uses to decide whether to skip bootstrapping (D56/RN-150
+    finding 14.3): reinstalling an already-enrolled agent SHALL NOT demand
+    the bootstrap secret again, because after the first successful bootstrap
+    the authoritative configuration lives in the backend, not in a locally
+    supplied secret. The secret stays mandatory for a first install and for
+    any `--reconfigure` run — see `secret_required` below."""
+    from agent.bootstrap import is_bootstrapped
+
+    try:
+        return is_bootstrapped(Path(agent_cert_path).parent)
+    except OSError:
+        # Cannot even stat the certs directory (e.g. permission denied
+        # walking a parent that install.sh has not created/chowned yet) —
+        # treat as "not enrolled" so the installer falls back to the safe
+        # default of requiring the bootstrap secret, rather than crashing.
+        return False
+
+
+def secret_required(args: argparse.Namespace) -> bool:
+    """Whether `plan`/`apply` must resolve a bootstrap secret at all.
+
+    Required on a first install (no valid agent certificate yet) and on any
+    `--reconfigure` run; NOT required to reinstall an already-enrolled agent
+    without `--reconfigure` (D56/RN-150 finding 14.3)."""
+    if args.reconfigure:
+        return True
+    return not is_already_enrolled(args.agent_cert_path)
 
 
 def reject_secret_argument(argv: list[str]) -> None:
@@ -419,12 +456,21 @@ def apply_config(args: argparse.Namespace, inputs: ResolvedInputs) -> None:
         print(f"installer.py: {config_dest} already exists, keeping it (use --reconfigure to replace)")
 
     env_dest = Path(args.env_dest)
-    env_content = f"FIM_BOOTSTRAP_SECRET={inputs.bootstrap_secret}\n"
-    env_status = _write_managed_file(
-        env_dest, env_content, 0o600, reconfigure=args.reconfigure, owner=("root", "root")
-    )
-    if env_status == "skipped_exists":
+    if env_dest.exists() and not args.reconfigure:
+        # Reinstalling an enrolled agent (secret_required() returned False)
+        # never has a bootstrap secret to write, and never needs one: `env`
+        # already exists and stays untouched, same as any other managed file.
         print(f"installer.py: {env_dest} already exists, keeping it (use --reconfigure to replace)")
+    else:
+        if inputs.bootstrap_secret is None:
+            raise InstallerError(
+                f"internal error: {env_dest} needs to be (re)written but no bootstrap "
+                "secret was resolved — this should be unreachable"
+            )
+        env_content = f"FIM_BOOTSTRAP_SECRET={inputs.bootstrap_secret}\n"
+        _write_managed_file(
+            env_dest, env_content, 0o600, reconfigure=args.reconfigure, owner=("root", "root")
+        )
 
     ca_dest = Path(args.ca_cert_dest)
     ca_dest.parent.mkdir(parents=True, exist_ok=True)
@@ -566,6 +612,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         p.add_argument("--env-dest", default=DEFAULT_ENV_DEST)
         p.add_argument("--ca-cert-dest", default=DEFAULT_CA_CERT_DEST)
         p.add_argument("--config-example", default=DEFAULT_CONFIG_EXAMPLE)
+        p.add_argument("--agent-cert-path", default=DEFAULT_AGENT_CERT_PATH)
+        # Accepted (and otherwise ignored here) so install.sh can forward its
+        # own arguments unchanged: `--python` only selects the interpreter
+        # install.sh uses to create the venv (D56/RN-150 finding 14.1),
+        # resolved and consumed entirely in bash before installer.py ever
+        # runs. Declaring it here keeps argparse from rejecting it as
+        # unrecognized when install.sh passes "$@" through unmodified.
+        p.add_argument("--python")
 
     return parser
 
@@ -577,16 +631,21 @@ def main(argv: list[str] | None = None) -> int:
         args = _build_arg_parser().parse_args(raw_argv)
 
         if args.command == "plan":
-            inputs = resolve_inputs(args, need_secret=True, need_watch_paths=True)
+            need_secret = secret_required(args)
+            inputs = resolve_inputs(args, need_secret=need_secret, need_watch_paths=True)
             print("installer.py: plan")
             print(f"  agent_id={inputs.agent_id}")
             print(f"  backend_url={inputs.backend_url}")
             print(f"  mtls_backend_url={inputs.mtls_backend_url}")
             print(f"  valkey_url={inputs.valkey_url}")
             print(f"  watch_paths={inputs.watch_paths}")
-            print("  bootstrap secret: provided (not shown)")
+            if need_secret:
+                print("  bootstrap secret: provided (not shown)")
+            else:
+                print("  bootstrap secret: not required (agent already enrolled)")
         elif args.command == "apply":
-            inputs = resolve_inputs(args, need_secret=True, need_watch_paths=True)
+            need_secret = secret_required(args)
+            inputs = resolve_inputs(args, need_secret=need_secret, need_watch_paths=True)
             apply_config(args, inputs)
         elif args.command == "check":
             server_host = _get_value(args.server_host, "FIM_SERVER_HOST", "Server host", args.non_interactive)

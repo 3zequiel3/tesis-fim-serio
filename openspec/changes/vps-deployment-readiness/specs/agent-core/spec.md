@@ -15,6 +15,10 @@
 
 A partir del host SHALL derivar `backend_url=https://<host>:8444`, `mtls_backend_url=https://<host>:8443` y `valkey_url=valkeys://<host>:6380`, encerrando entre corchetes un literal IPv6. Cada `watch_path` SHALL ser absoluto, existir, y pasar la misma validación que el generador del drop-in (`agent.deployment`). Con `--non-interactive`, un valor faltante SHALL terminar la instalación con exit distinto de 0 nombrando la entrada, antes de modificar nada bajo `/etc/fim-agent`. `config.yaml` SHALL generarse a partir de `agent/deploy/config.yaml.example`, reemplazando sólo los campos derivados de las entradas y conservando los demás defaults.
 
+*(Revisado el 2026-09-15 tras la aceptación en VPS — hallazgo 14.2)* `--ca-cert` y `--bootstrap-secret-file`, cuando se dan como rutas relativas, SHALL resolverse contra el directorio desde el que se invocó `install.sh`, en las tres fases (`plan`, `apply` y `check`) — incluidas `apply` y `check`, que cambian de directorio de trabajo internamente.
+
+*(Revisado el 2026-09-15 — hallazgo 14.1)* `install.sh` SHALL aceptar además `--python <ruta>` para elegir el intérprete usado para crear el venv (precedencia sobre `FIM_AGENT_PYTHON`, default `python3`), y SHALL validar la versión de ese intérprete **antes** de crear el venv: exactamente Python 3.13. Con otra versión, o si el intérprete no existe, SHALL abortar con exit distinto de 0 sin crear el venv, nombrando la versión encontrada, la requerida y la alternativa (`uv python install 3.13`). Esta validación SHALL NOT repetirse al reinstalar sobre un venv ya creado.
+
 #### Scenario: Instalación con flags completos
 - **WHEN** se ejecuta `install.sh --non-interactive --server-host 203.0.113.10 --agent-id web-01 --watch-path /srv/app --ca-cert ./fim-ca.pem --ca-fingerprint <huella> --bootstrap-secret-file ./secret` en un host sin instalación previa
 - **THEN** `/etc/fim-agent/config.yaml` contiene `agent_id: web-01`, `backend_url: https://203.0.113.10:8444`, `mtls_backend_url: https://203.0.113.10:8443`, `valkey_url: valkeys://203.0.113.10:6380` y `watch_paths: [/srv/app]`
@@ -31,9 +35,23 @@ A partir del host SHALL derivar `backend_url=https://<host>:8444`, `mtls_backend
 - **WHEN** se ejecuta con `--non-interactive` sin `--server-host` ni `FIM_SERVER_HOST`
 - **THEN** termina con exit distinto de 0 nombrando la entrada faltante
 
+#### Scenario: Rutas relativas de `--ca-cert` y `--bootstrap-secret-file` en `apply`/`check`
+- **WHEN** se ejecuta `install.sh` desde `/srv/ops` con `--ca-cert ./fim-ca.pem --bootstrap-secret-file ./secret` (rutas relativas a `/srv/ops`)
+- **THEN** las fases `plan`, `apply` y `check` leen ambos archivos correctamente, aunque `apply` y `check` cambien de directorio de trabajo a `/opt/fim-agent` internamente
+
+#### Scenario: Intérprete con versión incorrecta
+- **WHEN** el `python3` por defecto (o el que indica `--python`) no es la versión 3.13
+- **THEN** la instalación termina con exit distinto de 0, nombra la versión encontrada y la requerida, sugiere `uv python install 3.13`, y no crea `/opt/fim-agent/venv`
+
+#### Scenario: `--python` selecciona el intérprete del venv
+- **WHEN** se ejecuta con `--python <ruta-a-python-3.13>` en un host sin instalación previa
+- **THEN** el venv se crea con ese intérprete
+
 ### Requirement: El secreto de bootstrap nunca se acepta como argumento (D56/RN-150)
 
 El instalador SHALL obtener el secreto de bootstrap únicamente por prompt oculto (sin eco en la terminal) o leyéndolo de un archivo. SHALL NOT existir flag, argumento posicional ni variable de entorno que transporte el valor del secreto; un flag no reconocido que lo intente (por ejemplo `--bootstrap-secret`) SHALL rechazarse sin escribir nada. El secreto SHALL validarse (al menos 16 caracteres) antes de escribirlo, SHALL escribirse sólo en `/etc/fim-agent/env` como `FIM_BOOTSTRAP_SECRET` (modo `0600`, `root:root`), y SHALL NOT aparecer en `config.yaml`, en la salida del instalador, en logs, ni en los argumentos de ningún proceso que el instalador lance.
+
+*(Revisado el 2026-09-15 tras la aceptación en VPS — hallazgo 14.3)* El secreto es la única entrada de la tabla anterior cuya ausencia en modo no interactivo SHALL NOT terminar la instalación cuando el host ya tiene un certificado de agente propio vigente (el mismo chequeo que usa el propio agente para decidir si ya bootstrapeó, `agent.bootstrap.is_bootstrapped`) y no se pasó `--reconfigure`: reinstalar un agente ya enrolado no lo exige, porque la configuración autoritativa ya vive en el backend. En cualquier otro caso — primera instalación, o `--reconfigure` — el secreto sigue siendo obligatorio en modo no interactivo.
 
 #### Scenario: Intento de pasar el secreto por argumento
 - **WHEN** se ejecuta `install.sh --bootstrap-secret 0123456789abcdef`
@@ -48,6 +66,14 @@ El instalador SHALL obtener el secreto de bootstrap únicamente por prompt ocult
 #### Scenario: Secreto demasiado corto
 - **WHEN** el secreto provisto tiene menos de 16 caracteres
 - **THEN** la instalación termina con exit distinto de 0 sin escribir `/etc/fim-agent/env`
+
+#### Scenario: Reinstalación de un agente ya enrolado sin secreto
+- **WHEN** se ejecuta `install.sh --non-interactive` sin `--bootstrap-secret-file` ni `--reconfigure` sobre un host con un certificado de agente propio y vigente
+- **THEN** la instalación continúa (exit 0 si el resto de las verificaciones pasa) sin exigir el secreto de bootstrap, y `/etc/fim-agent/env` queda sin modificar
+
+#### Scenario: `--reconfigure` sigue exigiendo el secreto aunque el agente esté enrolado
+- **WHEN** se ejecuta `install.sh --non-interactive --reconfigure` sin `--bootstrap-secret-file` sobre un host con un certificado de agente propio y vigente
+- **THEN** la instalación termina con exit distinto de 0 nombrando el secreto de bootstrap como entrada faltante
 
 ### Requirement: Ancla de confianza verificada por huella SHA-256 (D56/RN-150, RN-114)
 

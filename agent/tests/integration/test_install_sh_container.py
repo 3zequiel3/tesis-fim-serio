@@ -263,6 +263,122 @@ def test_bootstrap_secret_flag_rejected(container: str) -> None:
     assert config_exists.stdout.strip() == "no"
 
 
+def test_relative_ca_cert_and_secret_paths_resolved_from_invocation_dir(container: str) -> None:
+    """14.2: --ca-cert and --bootstrap-secret-file given as RELATIVE paths
+    must resolve against the directory install.sh was invoked from
+    (/workspace here), not against /opt/fim-agent — install.sh `cd`s there
+    for the apply/check phases (D-7 steps 6/9) before this fix."""
+    _provision(container)
+    fingerprint = _fingerprint(container)
+
+    result = _exec(
+        container,
+        "bash /workspace/agent-src/install.sh --non-interactive "
+        "--server-host 127.0.0.1 --agent-id rel-path-test --watch-path /workspace/watched "
+        "--ca-cert certs/ca.pem "
+        f"--ca-fingerprint {fingerprint} "
+        "--bootstrap-secret-file secret",
+        timeout=120.0,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    env = _exec(container, "cat /etc/fim-agent/env")
+    assert "FIM_BOOTSTRAP_SECRET=0123456789abcdef0123" in env.stdout
+
+
+def test_wrong_python_version_aborts_before_venv_created(container: str) -> None:
+    """14.1: a Python interpreter that is not exactly 3.13 aborts install.sh
+    BEFORE creating the venv, naming both the found and required versions."""
+    _provision(container, start_servers=False)
+    fake = """
+cat > /usr/local/bin/fake-python-314 <<'PYEOF'
+#!/bin/sh
+if [ "$1" = "-c" ]; then
+  echo "3.14"
+  exit 0
+fi
+exit 1
+PYEOF
+chmod +x /usr/local/bin/fake-python-314
+"""
+    setup = _exec(container, fake)
+    assert setup.returncode == 0, setup.stdout + setup.stderr
+
+    result = _exec(
+        container,
+        "bash /workspace/agent-src/install.sh --non-interactive "
+        "--python /usr/local/bin/fake-python-314 "
+        "--server-host 127.0.0.1 --agent-id ver-test --watch-path /workspace/watched "
+        "--ca-cert /workspace/certs/ca.pem --ca-fingerprint deadbeef "
+        "--bootstrap-secret-file /workspace/secret",
+    )
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert "3.14" in output
+    assert "3.13" in output
+
+    venv_exists = _exec(container, "test -d /opt/fim-agent/venv && echo yes || echo no")
+    assert venv_exists.stdout.strip() == "no"
+
+
+def test_python_flag_selects_venv_interpreter(container: str) -> None:
+    """14.1: `--python <path>` overrides the default `python3` used to
+    create the venv — verified via pyvenv.cfg's `home` entry."""
+    _provision(container)
+    fingerprint = _fingerprint(container)
+    python_path = _exec(container, "command -v python3").stdout.strip()
+    assert python_path
+
+    result = _exec(
+        container,
+        "bash /workspace/agent-src/install.sh --non-interactive "
+        f"--python {python_path} "
+        "--server-host 127.0.0.1 --agent-id py-flag-test --watch-path /workspace/watched "
+        "--ca-cert /workspace/certs/ca.pem "
+        f"--ca-fingerprint {fingerprint} "
+        "--bootstrap-secret-file /workspace/secret",
+        timeout=120.0,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    cfg = _exec(container, "cat /opt/fim-agent/venv/pyvenv.cfg")
+    python_dir = python_path.rsplit("/", 1)[0]
+    assert python_dir in cfg.stdout
+
+
+def test_reinstall_enrolled_agent_does_not_require_secret(container: str) -> None:
+    """14.3: reinstalling a host whose own agent certificate is already
+    present (a completed enrollment) does not require
+    --bootstrap-secret-file in --non-interactive mode, as long as
+    --reconfigure is not passed."""
+    _provision(container)
+    fingerprint = _fingerprint(container)
+    assert _run_install(container, fingerprint).returncode == 0
+
+    # Simulate a completed enrollment: write a valid, unexpired self-signed
+    # certificate at the path the agent writes its own cert to after a real
+    # bootstrap (agent/bootstrap.py's is_bootstrapped()).
+    fake_cert = """
+set -e
+mkdir -p /var/lib/fim-agent/certs
+openssl ecparam -name prime256v1 -genkey -noout -out /tmp/agent-key.pem
+openssl req -x509 -new -key /tmp/agent-key.pem -days 365 \
+    -out /var/lib/fim-agent/certs/agent-cert.pem -subj "/CN=test-agent-01"
+"""
+    setup = _exec(container, fake_cert)
+    assert setup.returncode == 0, setup.stdout + setup.stderr
+
+    result = _exec(
+        container,
+        "bash /workspace/agent-src/install.sh --non-interactive "
+        "--server-host 127.0.0.1 --agent-id test-agent-01 --watch-path /workspace/watched "
+        "--ca-cert /workspace/certs/ca.pem "
+        f"--ca-fingerprint {fingerprint}",
+        timeout=120.0,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_scope_check_failure_blocks_enable_and_exits_3(container: str) -> None:
     _provision(container, start_servers=False)  # nothing listens on 8444/6380
     fingerprint = _fingerprint(container)

@@ -10,11 +10,18 @@
 # testable with pytest and no root privileges (same split agent/deployment.py
 # already uses for the systemd drop-in).
 #
-# This script never interprets its own arguments: it forwards them to
-# installer.py unchanged ("$@"), so no secret value ever sits in a shell
-# variable or shows up in `ps`. See agent/installer.py --help (via its
-# subcommands) and openspec/changes/vps-deployment-readiness/design.md (D-7)
-# for the full flag/env-var reference.
+# This script forwards its arguments to installer.py unmodified — no secret
+# value ever sits in a shell variable or shows up in `ps`. It DOES read two
+# non-secret things out of "$@" before forwarding (D56/RN-150 findings
+# 14.1/14.2, revised 2026-09-15 after the VPS acceptance run): `--python
+# <path>` picks the interpreter used to create the venv, and a relative
+# --ca-cert/--bootstrap-secret-file path is rewritten to an absolute one
+# (resolved against the directory install.sh was invoked from) before the
+# apply/check phases `cd` into ${AGENT_DEST} — everything else, the bootstrap
+# secret above all, still passes through untouched. See agent/installer.py
+# --help (via its subcommands) and
+# openspec/changes/vps-deployment-readiness/design.md (D-7) for the full
+# flag/env-var reference.
 #
 # Idempotent: safe to re-run. Re-running REPLACES the installed code (never
 # merges into it — a previous bug nested it at agent/agent/) and never
@@ -42,11 +49,14 @@ CONFIG_DEST="/etc/fim-agent/config.yaml"
 ENV_DEST="/etc/fim-agent/env"
 CA_CERT_DEST="/etc/fim-agent/certs/ca.pem"
 AGENT_CERT_PATH="/var/lib/fim-agent/certs/agent-cert.pem"
+REQUIRED_PYTHON_MAJOR=3
+REQUIRED_PYTHON_MINOR=13
 
 echo "[fim-agent] Installing FIM Agent from ${AGENT_SRC}"
 
 # --- Capture state BEFORE any change: needed for the enable/start/restart
-# decision at the very end (D-7 step 10). ---
+# decision at the very end (D-7 step 10), and for the version check and path
+# resolution below (D56/RN-150 findings 14.1/14.2). ---
 WAS_ACTIVE=false
 if systemctl is-active --quiet fim-agent 2>/dev/null; then
     WAS_ACTIVE=true
@@ -55,11 +65,62 @@ ENV_EXISTED_BEFORE=false
 if [ -f "${ENV_DEST}" ]; then
     ENV_EXISTED_BEFORE=true
 fi
+
+# The directory install.sh was invoked from — captured before this script (or
+# any subshell it spawns) ever `cd`s anywhere, so a relative --ca-cert or
+# --bootstrap-secret-file always resolves against it, even in the apply/check
+# phases below that `cd "${AGENT_DEST}"` first (finding 14.2; previously
+# those two phases silently resolved relative paths against
+# /opt/fim-agent instead of the operator's own working directory).
+INVOCATION_DIR="$(pwd)"
+
+_resolve_relative() {
+    # $1: a path that may be relative. Prints it unchanged if absolute,
+    # otherwise prefixed with INVOCATION_DIR.
+    case "$1" in
+        /*) printf '%s\n' "$1" ;;
+        *) printf '%s\n' "${INVOCATION_DIR}/$1" ;;
+    esac
+}
+
 RECONFIGURE=false
+PYTHON_BIN="${FIM_AGENT_PYTHON:-python3}"
+RESOLVED_ARGS=()
+prev_flag=""
 for arg in "$@"; do
-    if [ "${arg}" = "--reconfigure" ]; then
-        RECONFIGURE=true
-    fi
+    case "${prev_flag}" in
+        --ca-cert|--bootstrap-secret-file)
+            RESOLVED_ARGS+=("$(_resolve_relative "${arg}")")
+            prev_flag=""
+            continue
+            ;;
+        --python)
+            PYTHON_BIN="${arg}"
+            RESOLVED_ARGS+=("${arg}")
+            prev_flag=""
+            continue
+            ;;
+    esac
+    case "${arg}" in
+        --reconfigure)
+            RECONFIGURE=true
+            ;;
+        --ca-cert=*)
+            RESOLVED_ARGS+=("--ca-cert=$(_resolve_relative "${arg#--ca-cert=}")")
+            prev_flag=""
+            continue
+            ;;
+        --bootstrap-secret-file=*)
+            RESOLVED_ARGS+=("--bootstrap-secret-file=$(_resolve_relative "${arg#--bootstrap-secret-file=}")")
+            prev_flag=""
+            continue
+            ;;
+        --python=*)
+            PYTHON_BIN="${arg#--python=}"
+            ;;
+    esac
+    RESOLVED_ARGS+=("${arg}")
+    prev_flag="${arg}"
 done
 
 # --- Create fim-agent user if not exists (unchanged, change 41) ---
@@ -93,7 +154,32 @@ echo "[fim-agent] Created /var/log/fim-agent/ and /etc/fim-agent/"
 # change resolves) and would leave stale files from a previous version around.
 mkdir -p "${AGENT_DEST}"
 if [ ! -x "${VENV_DIR}/bin/python" ]; then
-    python3 -m venv "${VENV_DIR}"
+    # D56/RN-150 finding 14.1: validate the interpreter version BEFORE
+    # creating the venv, not deep inside `pip install` while building
+    # pydantic-core — PyO3 (its build backend, as of this change's pinned
+    # dependencies) caps out at Python 3.13, so a newer system default (e.g.
+    # Python 3.14 on Ubuntu 26.04) must be rejected here with an actionable
+    # message, not a wall of a build failure. Only runs when a venv is about
+    # to be CREATED: reinstalling on top of an already-created venv (e.g.
+    # pre-created with `uv python install 3.13`) never re-validates the
+    # system default, since install.sh will not touch it.
+    if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
+        echo "[fim-agent] ERROR: Python interpreter '${PYTHON_BIN}' not found." >&2
+        echo "  Install Python ${REQUIRED_PYTHON_MAJOR}.${REQUIRED_PYTHON_MINOR} (e.g. 'uv python install ${REQUIRED_PYTHON_MAJOR}.${REQUIRED_PYTHON_MINOR}') or pass --python <path>." >&2
+        exit 1
+    fi
+    PYTHON_VERSION="$("${PYTHON_BIN}" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+    PYTHON_MAJOR="${PYTHON_VERSION%%.*}"
+    PYTHON_MINOR="${PYTHON_VERSION##*.}"
+    if [ "${PYTHON_MAJOR}" -ne "${REQUIRED_PYTHON_MAJOR}" ] || [ "${PYTHON_MINOR}" -ne "${REQUIRED_PYTHON_MINOR}" ]; then
+        echo "[fim-agent] ERROR: ${PYTHON_BIN} is Python ${PYTHON_VERSION}; the FIM Agent requires exactly Python ${REQUIRED_PYTHON_MAJOR}.${REQUIRED_PYTHON_MINOR}." >&2
+        echo "  Install it with 'uv python install ${REQUIRED_PYTHON_MAJOR}.${REQUIRED_PYTHON_MINOR}' and re-run with" >&2
+        echo "  '--python <path-to-a-${REQUIRED_PYTHON_MAJOR}.${REQUIRED_PYTHON_MINOR}-interpreter>'." >&2
+        exit 1
+    fi
+    echo "[fim-agent] Using ${PYTHON_BIN} (Python ${PYTHON_VERSION})"
+
+    "${PYTHON_BIN}" -m venv "${VENV_DIR}"
     echo "[fim-agent] Created venv at ${VENV_DIR}"
 fi
 
@@ -115,7 +201,7 @@ echo "[fim-agent] Installed Python dependencies into ${VENV_DIR}"
 # invocation only.
 PLAN_PYTHONPATH_DIR="$(mktemp -d)"
 ln -s "${AGENT_STAGING}" "${PLAN_PYTHONPATH_DIR}/agent"
-PYTHONPATH="${PLAN_PYTHONPATH_DIR}" "${VENV_DIR}/bin/python" -m agent.installer plan "$@"
+PYTHONPATH="${PLAN_PYTHONPATH_DIR}" "${VENV_DIR}/bin/python" -m agent.installer plan "${RESOLVED_ARGS[@]}"
 rm -rf "${PLAN_PYTHONPATH_DIR}"
 echo "[fim-agent] Plan validated"
 
@@ -139,7 +225,7 @@ echo "[fim-agent] Installed fim-agent.service"
 # NOW-INSTALLED code, same WorkingDirectory/import as ExecStart. ---
 (
     cd "${AGENT_DEST}"
-    "${VENV_DIR}/bin/python" -m agent.installer apply "$@"
+    "${VENV_DIR}/bin/python" -m agent.installer apply "${RESOLVED_ARGS[@]}"
 )
 echo "[fim-agent] Applied configuration"
 
@@ -169,7 +255,7 @@ echo "[fim-agent] Reloaded systemd"
 CHECK_STATUS=0
 (
     cd "${AGENT_DEST}"
-    "${VENV_DIR}/bin/python" -m agent.installer check "$@"
+    "${VENV_DIR}/bin/python" -m agent.installer check "${RESOLVED_ARGS[@]}"
 ) || CHECK_STATUS=$?
 
 # --- D-7 step 11: apply final ownership regardless of the check outcome, so

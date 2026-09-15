@@ -9,6 +9,7 @@ agent/tests/integration/test_install_sh_container.py).
 
 from __future__ import annotations
 
+import argparse
 import datetime
 import socket
 import ssl
@@ -23,12 +24,14 @@ from cryptography.x509.oid import NameOID
 
 from agent.installer import (
     InstallerError,
+    _build_arg_parser,
     _get_value,
     apply_config,
     bracket_host,
     check_port,
     compute_fingerprint,
     derive_urls,
+    is_already_enrolled,
     load_and_verify_ca,
     main,
     normalize_fingerprint,
@@ -36,6 +39,7 @@ from agent.installer import (
     render_config_yaml,
     resolve_bootstrap_secret,
     run_scope_check,
+    secret_required,
     validate_watch_paths,
 )
 
@@ -233,6 +237,184 @@ def test_resolve_bootstrap_secret_missing_non_interactive() -> None:
 def test_resolve_bootstrap_secret_interactive_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("getpass.getpass", lambda _: "0123456789abcdef")
     assert resolve_bootstrap_secret(None, non_interactive=False) == "0123456789abcdef"
+
+
+# ── Reinstall of an enrolled agent skips the bootstrap secret (14.3) ─────────
+
+
+def _write_fake_agent_cert(path: Path, *, expired: bool = False) -> None:
+    """Writes a self-signed certificate at `path` — good enough for
+    `is_bootstrapped`, which only checks existence and expiry, never CA-ness
+    or a trust chain."""
+    cert, key = _make_ca(common_name="test-agent-01")
+    if expired:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(cert.subject)
+            .issuer_name(cert.issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now - datetime.timedelta(days=10))
+            .not_valid_after(now - datetime.timedelta(days=1))
+            .sign(key, hashes.SHA256())
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _write_pem(path, cert)
+
+
+def test_is_already_enrolled_false_without_cert(tmp_path: Path) -> None:
+    assert is_already_enrolled(str(tmp_path / "agent-cert.pem")) is False
+
+
+def test_is_already_enrolled_true_with_valid_cert(tmp_path: Path) -> None:
+    cert_path = tmp_path / "certs" / "agent-cert.pem"
+    _write_fake_agent_cert(cert_path)
+    assert is_already_enrolled(str(cert_path)) is True
+
+
+def test_is_already_enrolled_false_with_expired_cert(tmp_path: Path) -> None:
+    cert_path = tmp_path / "certs" / "agent-cert.pem"
+    _write_fake_agent_cert(cert_path, expired=True)
+    assert is_already_enrolled(str(cert_path)) is False
+
+
+def _namespace(*, reconfigure: bool, agent_cert_path: str) -> argparse.Namespace:
+    return _build_arg_parser().parse_args(
+        ["plan", "--agent-cert-path", agent_cert_path]
+        + (["--reconfigure"] if reconfigure else [])
+    )
+
+
+def test_secret_required_true_on_first_install(tmp_path: Path) -> None:
+    args = _namespace(reconfigure=False, agent_cert_path=str(tmp_path / "agent-cert.pem"))
+    assert secret_required(args) is True
+
+
+def test_secret_required_false_on_reinstall_of_enrolled_agent(tmp_path: Path) -> None:
+    cert_path = tmp_path / "agent-cert.pem"
+    _write_fake_agent_cert(cert_path)
+    args = _namespace(reconfigure=False, agent_cert_path=str(cert_path))
+    assert secret_required(args) is False
+
+
+def test_secret_required_true_with_reconfigure_even_if_enrolled(tmp_path: Path) -> None:
+    cert_path = tmp_path / "agent-cert.pem"
+    _write_fake_agent_cert(cert_path)
+    args = _namespace(reconfigure=True, agent_cert_path=str(cert_path))
+    assert secret_required(args) is True
+
+
+def test_apply_reinstall_enrolled_agent_without_secret_succeeds(tmp_path: Path) -> None:
+    """End-to-end: `apply` on a host with an existing valid agent certificate
+    and no --reconfigure succeeds in --non-interactive mode without
+    --bootstrap-secret-file, and does not touch the existing env file."""
+    ca_cert, _ = _make_ca()
+    ca_path = tmp_path / "ca.pem"
+    _write_pem(ca_path, ca_cert)
+    fingerprint = compute_fingerprint(ca_cert)
+    watch_dir = tmp_path / "watched"
+    watch_dir.mkdir()
+    agent_cert_path = tmp_path / "certs" / "agent-cert.pem"
+    env_dest = tmp_path / "env"
+
+    # First install: writes env with the secret, as usual.
+    secret_file = tmp_path / "secret"
+    secret_file.write_text("0123456789abcdef")
+    first_argv = [
+        "apply",
+        "--non-interactive",
+        "--server-host",
+        "203.0.113.10",
+        "--agent-id",
+        "web-01",
+        "--watch-path",
+        str(watch_dir),
+        "--ca-cert",
+        str(ca_path),
+        "--ca-fingerprint",
+        fingerprint,
+        "--bootstrap-secret-file",
+        str(secret_file),
+        "--config-dest",
+        str(tmp_path / "config.yaml"),
+        "--env-dest",
+        str(env_dest),
+        "--ca-cert-dest",
+        str(tmp_path / "ca-installed.pem"),
+        "--config-example",
+        str(CONFIG_EXAMPLE),
+        "--agent-cert-path",
+        str(agent_cert_path),
+    ]
+    assert main(first_argv) == 0
+    env_before = env_dest.read_bytes()
+
+    # Simulate a completed bootstrap: the agent wrote its own certificate.
+    _write_fake_agent_cert(agent_cert_path)
+
+    # Reinstall WITHOUT --bootstrap-secret-file and WITHOUT --reconfigure.
+    reinstall_argv = [
+        "apply",
+        "--non-interactive",
+        "--server-host",
+        "203.0.113.10",
+        "--agent-id",
+        "web-01",
+        "--watch-path",
+        str(watch_dir),
+        "--ca-cert",
+        str(ca_path),
+        "--ca-fingerprint",
+        fingerprint,
+        "--config-dest",
+        str(tmp_path / "config.yaml"),
+        "--env-dest",
+        str(env_dest),
+        "--ca-cert-dest",
+        str(tmp_path / "ca-installed.pem"),
+        "--config-example",
+        str(CONFIG_EXAMPLE),
+        "--agent-cert-path",
+        str(agent_cert_path),
+    ]
+    assert main(reinstall_argv) == 0
+    assert env_dest.read_bytes() == env_before
+
+
+def test_plan_first_install_without_secret_fails(tmp_path: Path) -> None:
+    ca_cert, _ = _make_ca()
+    ca_path = tmp_path / "ca.pem"
+    _write_pem(ca_path, ca_cert)
+    fingerprint = compute_fingerprint(ca_cert)
+    watch_dir = tmp_path / "watched"
+    watch_dir.mkdir()
+
+    argv = [
+        "plan",
+        "--non-interactive",
+        "--server-host",
+        "203.0.113.10",
+        "--agent-id",
+        "web-01",
+        "--watch-path",
+        str(watch_dir),
+        "--ca-cert",
+        str(ca_path),
+        "--ca-fingerprint",
+        fingerprint,
+        "--agent-cert-path",
+        str(tmp_path / "agent-cert.pem"),
+    ]
+    assert main(argv) != 0
+
+
+# ── --python is accepted but unused by installer.py (14.1) ──────────────────
+
+
+def test_python_flag_accepted_without_error() -> None:
+    args = _build_arg_parser().parse_args(["plan", "--python", "/usr/bin/python3.13"])
+    assert args.python == "/usr/bin/python3.13"
 
 
 def test_secret_absent_from_apply_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
