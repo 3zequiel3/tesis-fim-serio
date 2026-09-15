@@ -50,3 +50,20 @@ resultados/
 # D55/RN-149, change 52) — nunca commitear material TLS real.
 /deploy/console-tls/*
 !/deploy/console-tls/.gitkeep
+
+# Artefactos locales de laboratorio y de cierre todavía no consolidados.
+# El paquete del ensayo A-3 (a3-multihost/) sí se versiona.
+/.env.lab-backup
+/fim-ca.pem
+/docs/cierre/AUDITORIA_INTEGRAL_TESIS_V*
+/docs/cierre/REGISTRO_CAMBIOS_TESIS_V*.md
+/docs/cierre/Tesis_v*_cierre_tecnico*.docx
+/docs/cierre/Tesis_v*_cierre_tecnico*.pdf
+/docs/cierre/evidencia/a4-vps-*/
+/docs/cierre/evidencia/experiments-closure-*/
+/docs/cierre/evidencia/final-consolidated-*/
+/docs/cierre/evidencia/us02-us20-us31-*/
+/docs/cierre/evidencia/us03-us16-us17-us25-isolated-*/
+/docs/cierre/evidencia/us03-us25-playwright-*/
+/docs/cierre/evidencia/v10-closure-20260912T190052Z/*
+!/docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/
