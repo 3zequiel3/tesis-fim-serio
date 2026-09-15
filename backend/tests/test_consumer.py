@@ -234,9 +234,15 @@ def test_ingest_with_binary_diff_never_logs_diff_or_hexdump_content(
     with patch.object(consumer_mod, "engine", mem_engine), \
             patch.object(service_mod, "engine", mem_engine):
         with structlog.testing.capture_logs() as captured:
-            asyncio.run(
-                consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload))
-            )
+            # structlog runs with cache_logger_on_first_use=True, so the
+            # module-level loggers may already be bound by an earlier test and
+            # would bypass capture_logs(). Fresh loggers created inside the
+            # capture context make the inspection independent of test order.
+            with patch.object(consumer_mod, "log", structlog.get_logger()), \
+                    patch.object(service_mod, "log", structlog.get_logger()):
+                asyncio.run(
+                    consumer_mod._handle_message(mock_client, "1-0", _make_msg_data(payload))
+                )
 
     assert len(captured) > 0, "no structured logs were captured — test would be vacuous"
     for record in captured:
