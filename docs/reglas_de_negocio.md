@@ -784,7 +784,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) se agregó el 2026-09-16. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -2169,6 +2169,35 @@ y sin actor identificado en `extra` es inválida: `NULL` significa "originada po
 desconocido".
 
 **Reglas afectadas:** precisa RN-94; no modifica D30/RN-124 ni el contrato de `command_ack`.
+
+#### D68 / RN-162: Agentes que nunca reportaron — `registered_at` y gracia hasta la transición a `dead`
+
+**Descripción:** `Agent` SHALL incorporar `registered_at` (timestamp UTC, no nulo, por defecto el instante del
+registro). El barrido que marca agentes como `dead` SHALL considerar además a los agentes cuyo
+`last_heartbeat` es `NULL`, usando `registered_at` como referencia temporal y **el mismo umbral** que ya rige
+la transición (`_DEAD_THRESHOLD_S`, 5 minutos): un agente sin ningún heartbeat SHALL pasar a `dead` cuando su
+registro tenga más antigüedad que ese umbral, y SHALL permanecer `offline` antes de cumplirlo.
+
+**Motivo:** un agente recién registrado nace `offline` con `last_heartbeat` nulo. La primera pasada del
+barrido solo evalúa `online`/`draining`, y la segunda compara `last_heartbeat < umbral`, comparación que en
+SQL da `NULL` y por lo tanto **no matchea nunca**. El resultado actual no es que el agente se marque `dead`
+antes de tiempo: es que **no se marca jamás** y queda `offline` de forma indefinida, indistinguible de uno
+que latió hace un minuto. Se descartó tratar `NULL` como elegible inmediato porque en el flujo propio del
+proyecto el registro **precede** a la instalación —`register-agent.sh` imprime el secreto de bootstrap que
+`install.sh` consume después, en otro host y en otro momento—, así que esa variante marcaría `dead` y
+dispararía la alerta de agente caído sobre cada agente todavía no instalado. La gracia reutiliza el umbral
+existente en lugar de introducir un número nuevo: sigue habiendo un solo valor que razonar.
+
+**Condición:** Barrido periódico de estado de agentes, para agentes con `last_heartbeat IS NULL`.
+
+**Resultado:** Un agente registrado y nunca instalado queda `offline` durante la ventana de gracia y luego
+`dead`, con la misma notificación que cualquier otra transición a `dead`. La columna se agrega por migración
+aditiva; las filas existentes toman el instante de la migración como `registered_at`.
+
+**Excepciones:** Un agente `revoked` no participa de ninguna de las dos pasadas del barrido.
+
+**Reglas afectadas:** cierra la pregunta abierta que `backend-residual-fixes` registró como candidata
+D30/D32; precisa la transición a `dead` (D-C14-04) sin modificar sus umbrales ni el contrato de heartbeat.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
