@@ -346,3 +346,76 @@ async def test_notify_agent_dead_sends_n8n_payload(mem_engine) -> None:
     assert payload["type"] == "agent_dead"
     assert payload["agent_id"] == "hb-agent"
     assert call_args[0][1] == "http://n8n.local/webhook"
+
+
+# ── D68/RN-162: agentes que nunca latieron ────────────────────────────────────
+
+
+def test_sweep_marks_dead_agent_with_null_heartbeat_past_registered_at_threshold(
+    mem_engine, agent
+) -> None:
+    """Un agente que nunca latió (last_heartbeat IS NULL) pasa a `dead` cuando
+    su registered_at supera el umbral de 5 min (D68/RN-162). Sin esta rama,
+    `last_heartbeat < dead_threshold` evalúa NULL y la fila nunca matchea."""
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+        a.status = AgentStatus.offline
+        a.last_heartbeat = None
+        a.registered_at = datetime.now(timezone.utc) - timedelta(seconds=301)
+        session.add(a)
+        session.commit()
+
+    import app.modules.agents.heartbeat_consumer as hc
+    with patch.object(hc, "engine", mem_engine):
+        newly_dead = hc._sweep_offline()
+
+    assert newly_dead == ["hb-agent"]
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.status == AgentStatus.dead
+
+
+def test_sweep_keeps_offline_agent_with_null_heartbeat_within_grace_window(
+    mem_engine, agent
+) -> None:
+    """El mismo agente, con registered_at reciente, permanece `offline`
+    (ventana de gracia de D68/RN-162: register-agent.sh precede a install.sh,
+    en otro host y otro momento — no se marca `dead` a un agente todavía no
+    instalado)."""
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+        a.status = AgentStatus.offline
+        a.last_heartbeat = None
+        a.registered_at = datetime.now(timezone.utc) - timedelta(seconds=10)
+        session.add(a)
+        session.commit()
+
+    import app.modules.agents.heartbeat_consumer as hc
+    with patch.object(hc, "engine", mem_engine):
+        newly_dead = hc._sweep_offline()
+
+    assert newly_dead == []
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.status == AgentStatus.offline
+
+
+def test_sweep_does_not_touch_revoked_agent_with_null_heartbeat(mem_engine, agent) -> None:
+    """Un agente `revoked` sin heartbeat nunca participa de ninguna pasada del
+    barrido, sin importar cuán viejo sea su registered_at (D68/RN-162)."""
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+        a.status = AgentStatus.revoked
+        a.last_heartbeat = None
+        a.registered_at = datetime.now(timezone.utc) - timedelta(seconds=301)
+        session.add(a)
+        session.commit()
+
+    import app.modules.agents.heartbeat_consumer as hc
+    with patch.object(hc, "engine", mem_engine):
+        newly_dead = hc._sweep_offline()
+
+    assert newly_dead == []
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.status == AgentStatus.revoked

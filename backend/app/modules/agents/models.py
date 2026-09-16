@@ -22,6 +22,10 @@ class Agent(SQLModel, table=True):
 
     agent_id: str = Field(primary_key=True)
     status: AgentStatus = Field(default=AgentStatus.offline)
+    # D68/RN-162: instante de registro, no nulo. Referencia temporal para
+    # agentes que nunca latieron (last_heartbeat IS NULL) — ver
+    # _sweep_offline en heartbeat_consumer.py. Migración 019.
+    registered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=_TZ_AWARE)
     last_heartbeat: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     ruleset_version_applied: int = Field(default=0)
     queue_pressure: float | None = Field(default=None)

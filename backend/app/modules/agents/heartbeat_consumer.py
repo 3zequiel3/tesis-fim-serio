@@ -8,7 +8,9 @@ Por heartbeat recibido:
   - Persiste Agent.discarded_events si la clave viene y es numérica (D37/RN-131,
     tolerancia hacia adelante: ausente no pisa, no numérico se ignora con log).
 
-Barrido periódico (~10 s): marca offline a agentes con last_heartbeat > 30 s (RN-92).
+Barrido periódico (~10 s): marca offline a agentes con last_heartbeat > 30 s
+(RN-92), y dead a agentes offline con last_heartbeat > 5 min — o, si nunca
+latieron, con registered_at > 5 min (D68/RN-162).
 
 Las funciones síncronas de DB (_handle_heartbeat, _sweep_offline) se ejecutan
 vía run_in_executor para no bloquear el event loop (D21).
@@ -22,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
-from sqlmodel import Session, select
+from sqlmodel import Session, or_, select
 
 from app.core.database import engine
 from app.core.streams import STREAM_HEARTBEAT, verify_payload
@@ -223,11 +225,18 @@ def _sweep_offline() -> list[str]:
         if candidates:
             log.info("heartbeat_consumer.sweep_offline", count=len(candidates))
 
-        # Segunda pasada: offline sin heartbeat en 5min → dead (D-C14-04)
+        # Segunda pasada: offline sin heartbeat en 5min → dead (D-C14-04).
+        # D68/RN-162: un agente que nunca latió (last_heartbeat IS NULL) usa
+        # registered_at como referencia — `last_heartbeat < dead_threshold`
+        # evalúa a NULL en SQL y esa fila nunca matchearía por esa rama sola.
+        # Mismo umbral (_DEAD_THRESHOLD_S), sin introducir uno nuevo.
         dead_candidates = session.exec(
             select(Agent).where(
                 Agent.status == AgentStatus.offline,  # type: ignore[attr-defined]
-                Agent.last_heartbeat < dead_threshold,
+                or_(
+                    Agent.last_heartbeat < dead_threshold,  # type: ignore[operator]
+                    (Agent.last_heartbeat.is_(None)) & (Agent.registered_at < dead_threshold),  # type: ignore[union-attr]
+                ),
             )
         ).all()
         for agent in dead_candidates:
