@@ -2,15 +2,13 @@
 
 ## Purpose
 TBD - created by archiving change backend-notifications. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: GET /health/components — verificación real de dependencias
 
 El sistema SHALL exponer `GET /health/components` que realiza comprobaciones reales (no cached) de:
 - **postgres**: `SELECT 1` con timeout 2s. Resultado: `ok` o `down`.
 - **valkey**: `PING` con timeout 2s. Resultado: `ok` o `down`.
-- **n8n**: `GET {N8N_HEALTH_URL}` con timeout 3s; si `N8N_HEALTH_URL` no está configurado → `degraded`. El check SHALL NO emitir ningún request contra `N8N_WEBHOOK_URL` (D43/RN-137): un `GET` contra un webhook productivo puede disparar el workflow, convirtiendo el health check en emisor de notificaciones espurias cada 10 s.
+- **n8n**: `HEAD {N8N_WEBHOOK_URL}` con timeout 3s; el check MUST inspeccionar el status code HTTP (o invocar `raise_for_status()`) y reportar `down` ante cualquier status de error (4xx/5xx). Si el `HEAD` falla o el endpoint no soporta `HEAD`, el check MUST reintentar con `GET` (fallback documentado) antes de decidir el resultado. Si `N8N_WEBHOOK_URL` no está configurado → `degraded`. Un `HEAD`/`GET` que devuelva 5xx MUST reportarse como `down`, nunca como `ok`.
 - **agents**: lista todos los agentes de la DB con su `status` actual (`online`, `offline`, `dead`, `inactive`). Resultado agregado: `ok` si alguno está `online`, `degraded` si ninguno está `online`.
 
 La respuesta SHALL ser `200 OK` independientemente del estado de los componentes (para que el frontend pueda procesarlo). El cuerpo SHALL tener la forma:
@@ -40,15 +38,17 @@ No requiere autenticación JWT (RN-101 — monitoreo sin login).
 - **WHEN** valkey no responde dentro de 2s
 - **THEN** la respuesta tiene `{"valkey": "down"}` y status HTTP sigue siendo 200
 
-#### Scenario: N8N_HEALTH_URL no configurado
-- **WHEN** `N8N_HEALTH_URL` es cadena vacía o no está seteada
-- **THEN** la respuesta tiene `{"n8n": "degraded"}`
+#### Scenario: n8n responde 500 se reporta down
+- **WHEN** el endpoint n8n responde con status 500
+- **THEN** la respuesta tiene `{"n8n": "down"}` (nunca `ok`)
 
-#### Scenario: El health check no toca la URL del webhook
-- **WHEN** `N8N_WEBHOOK_URL` y `N8N_HEALTH_URL` están ambas configuradas con valores distintos
-- **AND** se ejecuta el check de componentes
-- **THEN** se emite exactamente un request hacia `N8N_HEALTH_URL`
-- **AND** no se emite ningún request hacia `N8N_WEBHOOK_URL`
+#### Scenario: n8n no soporta HEAD — fallback a GET
+- **WHEN** el `HEAD` al endpoint n8n falla o devuelve un status que indica método no soportado
+- **THEN** el check reintenta con `GET` y decide el resultado según el status de esa respuesta
+
+#### Scenario: N8N_WEBHOOK_URL no configurado
+- **WHEN** `N8N_WEBHOOK_URL` es cadena vacía o no está seteada
+- **THEN** la respuesta tiene `{"n8n": "degraded"}`
 
 #### Scenario: Sin agentes registrados
 - **WHEN** la tabla `agents` está vacía
@@ -104,3 +104,4 @@ El health checker MUST guardar una referencia fuerte a cualquier `asyncio.Task` 
 - **WHEN** el health checker detecta un cambio de estado y crea una task para notificar vía n8n
 - **THEN** la task mantiene una referencia fuerte hasta completar
 - **AND** el GC no puede cancelar la task durante el I/O HTTP de la notificación
+

@@ -46,23 +46,16 @@ El sistema SHALL exponer `GET /agents/{id}` (requiere JWT admin) que retorna el 
 
 ### Requirement: POST /agents/{id}/config — actualizar watch_paths y publicar update_config
 
-El sistema SHALL exponer `POST /agents/{id}/config` (requiere JWT admin) que acepta `{watch_paths: list[str]}`. MUST persistir los nuevos `watch_paths` en DB (replace-all), incrementar `ruleset_version` (D5), **encolar el comando `update_config` HMAC-signed en el outbox transaccional** con `target_agent_id` y la lista de paths, y registrar en `audit_log`. Si el agente no existe SHALL retornar `404`.
+El sistema SHALL exponer `POST /agents/{id}/config` (requiere JWT admin) que acepta `{watch_paths: list[str]}`. MUST persistir los nuevos `watch_paths` en DB (replace-all), incrementar `ruleset_version` (D5), publicar el comando `update_config` HMAC-signed al stream `commands` de Valkey con `target_agent_id` y la lista de paths, y registrar en `audit_log`. Si el agente no existe SHALL retornar `404`.
 
-**Emisión por outbox (D37 / RN-131).** La fila `PublishedCommand` con el payload ya firmado SHALL insertarse con `status="pending"` y `published_at=None` **dentro de la misma transacción** que la persistencia de `watch_paths`, el incremento de `ruleset_version` y el `audit_log`; el `XADD` lo ejecuta el despachador del outbox después del commit, con un intento inmediato best-effort para no agregar latencia al camino feliz. Deja de existir el estado en que la configuración quedó persistida y el comando no se emitió. `ruleset_version_applied` conserva su semántica de D5/RN-106 y C36: solo avanza cuando el consumer de `command_ack` confirma la ejecución, nunca al publicar.
+El campo `detail` del registro `audit_log` de esta operación MUST ser JSON válido, serializado con `json.dumps(...)` (comillas dobles, escape correcto), y no una interpolación f-string sobre `str(list)`. El `detail` MUST permanecer JSON válido aunque algún path contenga caracteres especiales como comillas dobles (`"`) o barras invertidas (`\`).
 
-D37/RN-131 enumera `baseline_update`, `restore_file` y `quarantine_file`; `update_config` se incluye por tener el hueco idéntico y compartir el mismo publicador síncrono, sin introducir mecanismo, tabla ni semántica nueva.
-
-#### Scenario: Config actualizado y comando encolado
+#### Scenario: Config actualizado y comando publicado
 - **WHEN** un admin hace `POST /agents/agent-01/config` con `watch_paths=["/etc"]`
 - **THEN** la respuesta es `200 OK`
 - **AND** `agents.watch_paths` es `["/etc"]` en DB
-- **AND** existe una fila `PublishedCommand` con `command_type="update_config"` y `status="pending"` comiteada junto con esa mutación
-- **AND** el payload persistido tiene `target_agent_id="agent-01"`, `watch_paths=["/etc"]` y `signature` verificable con HMAC-SHA256 y el `shared_secret` del agente
-
-#### Scenario: Valkey caído deja la config persistida y el comando pendiente
-- **WHEN** se actualiza la config y el `XADD` falla porque Valkey no responde
-- **THEN** la respuesta es `200 OK`, `agents.watch_paths` refleja el cambio y la fila del comando queda `pending`
-- **AND** el despachador del outbox la publica en una corrida posterior y la marca `published`
+- **AND** se publicó el mensaje `update_config` en el stream `commands` con `target_agent_id="agent-01"` y `watch_paths=["/etc"]`
+- **AND** el mensaje tiene `signature` verificable con HMAC-SHA256 y el `shared_secret` del agente
 
 #### Scenario: watch_paths vacío es válido
 - **WHEN** el admin envía `watch_paths=[]`
@@ -76,9 +69,9 @@ D37/RN-131 enumera `baseline_update`, `restore_file` y `quarantine_file`; `updat
 - **WHEN** se actualiza la config
 - **THEN** existe una fila en `audit_log` con `action="agent_config"` y el `agent_id`
 
-#### Scenario: Un agente sin shared_secret hace fallar la actualización
-- **WHEN** se actualiza la config de un agente sin `shared_secret_hex`
-- **THEN** la transacción se revierte, `watch_paths` conserva su valor anterior y la respuesta es un error
+#### Scenario: detail del audit_log es JSON válido con paths que contienen comillas
+- **WHEN** se actualiza la config con un path que contiene comillas dobles o barras invertidas
+- **THEN** el `detail` del `audit_log` es JSON parseable (comillas dobles, escape correcto) y no rompe el parseo posterior
 
 ### Requirement: POST /agents/{id}/rescan — forzar re-scan con gestión de pending
 
