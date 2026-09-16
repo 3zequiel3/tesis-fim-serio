@@ -684,6 +684,16 @@ def start_mtls_server(
         http=PeerCertificateH11Protocol,
         log_level="info",
         lifespan="off",
+        # log_config=None is NOT cosmetic (D64/RN-158): uvicorn.Config.__init__
+        # calls configure_logging(), which by default runs dictConfig() with
+        # uvicorn's own LOGGING_CONFIG and REPLACES the handlers that
+        # app.core.logging.configure_logging() installed on the `uvicorn`,
+        # `uvicorn.error` and `uvicorn.access` loggers. Since these servers are
+        # built inside the lifespan — after main.py configured logging — the
+        # default would silently disconnect the access log from structlog, and
+        # with it from sanitize_secrets + redact_query_credentials, printing
+        # `?ticket=<value>` in clear text for the rest of the process's life.
+        log_config=None,
     )
     server = _finalize_tls_server(config)
     log.info("pki.mtls_server.configured", port=port)
@@ -729,6 +739,10 @@ def start_bootstrap_server(
         ssl_cert_reqs=ssl.CERT_NONE,
         log_level="info",
         lifespan="off",
+        # Same reason as start_mtls_server: never let a secondary uvicorn
+        # server re-run dictConfig and detach the access log from structlog's
+        # redaction pipeline (D64/RN-158).
+        log_config=None,
     )
     server = _finalize_tls_server(config)
     log.info("pki.bootstrap_tls_server.configured", port=port)

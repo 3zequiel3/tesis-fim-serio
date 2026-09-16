@@ -241,3 +241,115 @@ def test_e2e_stream_ticket_never_appears_in_stdout(capfd):
     assert ticket_value not in captured.out
     assert ticket_value not in captured.err
     assert "ticket=[REDACTED]" in captured.out
+
+
+# ── 7.4 regression: secondary uvicorn servers must not detach the access log ──
+#
+# start_mtls_server (8443) and start_bootstrap_server (8444) build extra
+# uvicorn servers INSIDE the lifespan, i.e. after main.py already called
+# configure_logging(). uvicorn.Config.__init__ calls its own
+# configure_logging(), which with the default log_config re-runs dictConfig
+# with uvicorn's LOGGING_CONFIG and REPLACES the handlers installed on the
+# `uvicorn`, `uvicorn.error` and `uvicorn.access` loggers. The access log then
+# bypasses sanitize_secrets + redact_query_credentials and prints
+# `?ticket=<value>` in clear text — observed on a real deployment before this
+# fix, while nginx (which redacts independently) looked correct.
+
+
+def _build_tls_material(tmp_path):
+    """Self-signed ECDSA P-256 cert + key on disk, enough for the path checks
+    in start_mtls_server / start_bootstrap_server."""
+    import datetime
+
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import NameOID
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")])
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(minutes=5))
+        .not_valid_after(now + datetime.timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+
+    cert_path = tmp_path / "server.pem"
+    key_path = tmp_path / "server.key"
+    cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(
+        key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+    )
+    return str(cert_path), str(key_path)
+
+
+def test_tls_servers_pass_log_config_none(tmp_path, monkeypatch):
+    """Both secondary servers MUST build their uvicorn.Config with
+    log_config=None, the only way to stop uvicorn from re-running dictConfig
+    over the structlog wiring."""
+    from types import SimpleNamespace
+
+    import uvicorn
+
+    from app.core.pki import start_bootstrap_server, start_mtls_server
+
+    cert_path, key_path = _build_tls_material(tmp_path)
+    captured_kwargs: list[dict] = []
+
+    class SpyConfig:
+        def __init__(self, app, **kwargs):
+            captured_kwargs.append(kwargs)
+            # _finalize_tls_server pins the TLS floor on config.ssl, so the
+            # spy needs a writable stand-in for the real SSLContext.
+            self.ssl = SimpleNamespace()
+
+        def load(self):  # uvicorn.Config.load() — no-op for the spy
+            return None
+
+    monkeypatch.setattr(uvicorn, "Config", SpyConfig)
+    monkeypatch.setattr(uvicorn, "Server", lambda config: config)
+
+    start_mtls_server(object(), cert_path, cert_path, key_path)
+    start_bootstrap_server(object(), cert_path, key_path)
+
+    assert len(captured_kwargs) == 2
+    for kwargs in captured_kwargs:
+        assert "log_config" in kwargs, "uvicorn would re-run dictConfig by default"
+        assert kwargs["log_config"] is None
+
+
+def test_building_a_tls_server_keeps_uvicorn_access_redacted(tmp_path, capfd):
+    """End-to-end counterpart: after the real uvicorn.Config objects are built
+    the way pki.py builds them, an access log line still goes through the
+    redaction pipeline."""
+    import logging as stdlib_logging
+
+    from app.core.logging import configure_logging
+    from app.core.pki import start_bootstrap_server
+
+    configure_logging()
+    cert_path, key_path = _build_tls_material(tmp_path)
+    ticket_value = "ticket-that-must-not-survive-a-second-uvicorn-server"
+
+    assert start_bootstrap_server(object(), cert_path, key_path) is not None
+
+    stdlib_logging.getLogger("uvicorn.access").info(
+        '%s - "GET /alerts/stream?ticket=%s HTTP/1.1" 200',
+        "127.0.0.1:12345",
+        ticket_value,
+    )
+
+    captured = capfd.readouterr()
+    assert ticket_value not in captured.out
+    assert ticket_value not in captured.err
+    assert "ticket=[REDACTED]" in captured.out
