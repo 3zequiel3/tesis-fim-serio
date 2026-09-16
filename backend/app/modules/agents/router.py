@@ -16,6 +16,7 @@ from cryptography.x509.oid import NameOID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session
 
+from app.core.audit import write_audit_log
 from app.core.database import get_session
 from app.core.deps import require_admin
 from app.core.config import settings
@@ -59,6 +60,13 @@ def _renewal_forbidden(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
 
+# D67/RN-161: these entries have no user behind them — the caller authenticates
+# by mTLS with its own agent certificate, not as a user account — so they are
+# written with user_id=None and identify the agent in `extra` instead (RN-94).
+_AUDIT_ACTION_CERT_RENEWED = "agent_cert_renewed"
+_AUDIT_ACTION_CERT_RENEWAL_REJECTED = "agent_cert_renewal_rejected"
+
+
 @renew_router.post("/agents/renew", response_model=AgentRenewResponse)
 async def renew_certificate(
     req: AgentRenewRequest,
@@ -78,11 +86,35 @@ async def renew_certificate(
         raise _renewal_forbidden("invalid client certificate") from exc
 
     if cert_agent_id != req.agent_id:
+        write_audit_log(
+            session,
+            _AUDIT_ACTION_CERT_RENEWAL_REJECTED,
+            None,
+            extra=(
+                f"agent_id={req.agent_id} cert_agent_id={cert_agent_id} "
+                "reason=identity_mismatch"
+            ),
+        )
         raise _renewal_forbidden("certificate identity mismatch")
     agent = session.get(Agent, cert_agent_id)
     if agent is None or agent.status == AgentStatus.revoked:
+        write_audit_log(
+            session,
+            _AUDIT_ACTION_CERT_RENEWAL_REJECTED,
+            None,
+            extra=f"agent_id={cert_agent_id} reason=agent_revoked_or_unknown",
+        )
         raise _renewal_forbidden("agent revoked or unknown")
     if is_revoked(peer_cert.serial_number, session):
+        write_audit_log(
+            session,
+            _AUDIT_ACTION_CERT_RENEWAL_REJECTED,
+            None,
+            extra=(
+                f"agent_id={cert_agent_id} serial={peer_cert.serial_number} "
+                "reason=certificate_revoked"
+            ),
+        )
         raise _renewal_forbidden("certificate revoked")
 
     remaining = peer_cert.not_valid_after_utc - datetime.now(timezone.utc)
@@ -97,6 +129,16 @@ async def renew_certificate(
         peer_cert.public_key(),
         settings.ca_cert_path,
         settings.ca_key_path,
+    )
+    new_serial = x509.load_pem_x509_certificate(cert_pem.encode()).serial_number
+    write_audit_log(
+        session,
+        _AUDIT_ACTION_CERT_RENEWED,
+        None,
+        extra=(
+            f"agent_id={cert_agent_id} old_serial={peer_cert.serial_number} "
+            f"new_serial={new_serial}"
+        ),
     )
     return AgentRenewResponse(
         cert_pem=cert_pem,

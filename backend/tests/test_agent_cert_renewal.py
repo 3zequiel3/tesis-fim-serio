@@ -11,7 +11,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlmodel import Session, SQLModel, create_engine
+from pydantic import ValidationError
+from sqlmodel import Session, SQLModel, create_engine, select
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://fim:test@localhost:5432/fim_test")
 os.environ.setdefault("VALKEY_URL", "valkey://localhost:6379")
@@ -24,8 +25,9 @@ os.environ.setdefault("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 from app.core.database import get_session
 from app.core.pki import PEER_CERT_SCOPE_KEY, ensure_ca
 from app.main import app as http_app
-from app.modules.agents.models import Agent, AgentStatus, RevokedCertificate
+from app.modules.agents.models import Agent, AgentRenewResponse, AgentStatus, RevokedCertificate
 from app.modules.agents.router import renew_router
+from app.modules.audit.models import AuditLog
 
 
 def _issue_client(ca_cert_path, ca_key_path, key, cn: str, days: int = 10):
@@ -86,16 +88,34 @@ def renewal_env(tmp_path, monkeypatch):
 
 
 async def test_valid_certificate_renews_with_new_serial_and_same_key(renewal_env) -> None:
-    app, _engine, key, old_cert, _ca_cert, _ca_key = renewal_env
+    app, engine, key, old_cert, _ca_cert, _ca_key = renewal_env
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://mtls") as client:
         response = await client.post("/agents/renew", json={"agent_id": "agent-renew"})
 
     assert response.status_code == 200
-    renewed = x509.load_pem_x509_certificate(response.json()["cert_pem"].encode())
+    body = response.json()
+    renewed = x509.load_pem_x509_certificate(body["cert_pem"].encode())
     assert renewed.serial_number != old_cert.serial_number
     assert renewed.public_key().public_bytes(
         serialization.Encoding.Raw, serialization.PublicFormat.Raw
     ) == key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+
+    # 3.3 (D-3): the outgoing certificate is never revoked by a renewal — the
+    # agent needs it valid until it writes and reloads the new one.
+    with Session(engine) as session:
+        assert session.exec(select(RevokedCertificate)).all() == []
+
+        # 4.1 (RN-94/D67): the successful renewal is audited with no user
+        # behind it, and the agent_id plus both serials in `extra`.
+        entries = session.exec(select(AuditLog)).all()
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.user_id is None
+        assert entry.action == "agent_cert_renewed"
+        assert entry.detail is not None
+        assert "agent_id=agent-renew" in entry.detail
+        assert f"old_serial={old_cert.serial_number}" in entry.detail
+        assert f"new_serial={renewed.serial_number}" in entry.detail
 
 
 @pytest.mark.parametrize("failure", ["mismatch", "agent_revoked", "serial_revoked"])
@@ -120,6 +140,33 @@ async def test_identity_and_revocation_fail_closed(renewal_env, failure: str) ->
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://mtls") as client:
         response = await client.post("/agents/renew", json={"agent_id": body_agent})
     assert response.status_code == 403
+
+    # 4.2 (RN-94/D67): every rejection path is audited with its reason, and no
+    # certificate is ever emitted or issued as a side effect of a rejection.
+    with Session(engine) as session:
+        entries = session.exec(select(AuditLog)).all()
+        # A "serial_revoked" run pre-seeds one RevokedCertificate row, not an
+        # AuditLog row, so exactly one rejection entry is expected in all cases.
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.user_id is None
+        assert entry.action == "agent_cert_renewal_rejected"
+        assert entry.detail is not None
+        expected_reason = {
+            "mismatch": "reason=identity_mismatch",
+            "agent_revoked": "reason=agent_revoked_or_unknown",
+            "serial_revoked": "reason=certificate_revoked",
+        }[failure]
+        assert expected_reason in entry.detail
+
+
+def test_contract_response_schema_requires_cert_pem() -> None:
+    """Mandatory negative case (task 5.3) for the agent<->backend contract:
+    a response missing `cert_pem` must fail, so the positive contract test
+    above (`data["cert_pem"]` never raises KeyError) is not vacuously green.
+    """
+    with pytest.raises(ValidationError):
+        AgentRenewResponse(ca_cert_pem="irrelevant")  # type: ignore[call-arg]
 
 
 async def test_certificate_outside_pre_expiry_threshold_is_not_renewed(renewal_env) -> None:
