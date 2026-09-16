@@ -1,0 +1,24 @@
+-- Migration 018: audit_log.user_id becomes nullable (D67/RN-161).
+--
+-- POST /agents/renew (backend-agent-cert-renewal) authenticates the caller
+-- by mTLS with the agent's own certificate — there is no user account behind
+-- the request. audit_log.user_id was a NOT NULL foreign key to users, which
+-- made it impossible to write an audit entry for that action at all.
+--
+-- D67/RN-161: a NULL user_id means "originated by the system, not a human
+-- operator". The actor and the action data for a system-originated entry
+-- travel in the existing `extra` column (write_audit_log's `extra`
+-- parameter, persisted as `detail`) — for a certificate renewal, the
+-- agent_id and the outgoing/incoming certificate serial numbers. An entry
+-- with a NULL user_id and no actor named in `extra` is invalid by
+-- convention, not by a database constraint.
+--
+-- No backfill: existing rows keep their non-null user_id untouched.
+--
+-- Idempotent: DROP NOT NULL on a column that is already nullable is a no-op
+-- in PostgreSQL. Running this script twice is safe.
+--
+-- Migrations are applied by hand (D3) — this one included. Apply with:
+--   psql $DATABASE_URL -f 018_nullable_audit_log_user_id.sql
+
+ALTER TABLE audit_log ALTER COLUMN user_id DROP NOT NULL;

@@ -11,7 +11,10 @@ class AuditLog(SQLModel, table=True):
     __tablename__ = "audit_log"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id")
+    # D67/RN-161: NULL means the action was originated by the system (no
+    # human operator behind it), e.g. an agent renewing its own certificate
+    # over mTLS. The actor and action data then travel in `detail` instead.
+    user_id: int | None = Field(default=None, foreign_key="users.id")
     action: str
     target_type: str | None = Field(default=None)
     target_id: int | None = Field(default=None)
