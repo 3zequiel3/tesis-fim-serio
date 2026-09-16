@@ -58,11 +58,11 @@
 - [x] 9.7 M9: test de que n8n respondiendo 500 reporta `down`; fallback GET cuando HEAD no está soportado
 - [x] 9.8 Correr la suite completa con los nuevos tests; confirmar que todos pasan
 
-## 10. M4 — BLOQUEADO: transición a dead de agentes que nunca latieron (requiere decisión D30)
+## 10. M4 — transición a dead de agentes que nunca latieron (decisión cerrada por D68/RN-162)
 
-- [ ] 10.1 PRE-REQUISITO: cerrar la decisión (candidata D30) en el appendix "Decisiones de implementación — Abril 2026" de `docs/arquitectura_stack.md` / `docs/reglas_de_negocio.md`: definir la referencia temporal para agentes con `last_heartbeat IS NULL` (opción A: NULL = inmediatamente elegible para `dead`; opción B: agregar `registered_at`/`created_at` a `Agent` + grace de 5 min). NO implementar M4 hasta cerrar esto (ver design → Open Questions) — # DIFERIDO — pendiente D32/RN-126 (candidata D30 en design.md; el equipo usó el número D32 al pedir este apply). NO implementado en este apply por decisión explícita del usuario.
-- [ ] 10.2 (post-decisión) En `backend/app/modules/agents/heartbeat_consumer.py` `_sweep_offline`: incluir explícitamente `last_heartbeat IS NULL` en el barrido según la política elegida en 10.1 — # DIFERIDO — pendiente D32/RN-126
-- [ ] 10.3 (post-decisión) Test de regresión: agente que nunca latió transiciona (o no) según D30 — # DIFERIDO — pendiente D32/RN-126
+- [x] 10.1 Decisión cerrada: D68/RN-162 (`docs/reglas_de_negocio.md`, appendix "Decisiones de implementación — Abril 2026"; contraparte técnica en la tabla D63–D68 de `docs/arquitectura_stack.md`) — opción B: `Agent.registered_at` (timestamptz NOT NULL, migración aditiva `019_add_agent_registered_at.sql`) + gracia hasta `_DEAD_THRESHOLD_S` (5 min), reutilizando el umbral existente.
+- [x] 10.2 En `backend/app/modules/agents/heartbeat_consumer.py` `_sweep_offline`: la segunda pasada agrega `last_heartbeat IS NULL AND registered_at < dead_threshold` (D68/RN-162), sin introducir un umbral nuevo; `revoked` sigue sin participar de ninguna pasada.
+- [x] 10.3 Tests de regresión en `backend/tests/test_heartbeat_consumer.py`: agente sin heartbeat con `registered_at` vieja → `dead`; con `registered_at` reciente → sigue `offline`; agente `revoked` sin heartbeat no se toca (D68/RN-162).
 
 ## 11. Commit y cierre
 
