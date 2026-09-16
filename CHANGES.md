@@ -66,7 +66,7 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 42 | [`stream-ack-durability`](#change-42--stream-ack-durability) | agente + backend + frontend | — (auditoría 2026-08-16) ✓ | 40, 41 |
 | 43 | [`agent-restore-feedback-loop`](#change-43--agent-restore-feedback-loop) | agente | — (incidente 2026-08-20) ✓ | 41 |
 | 44 | [`timestamps-timezone-aware`](#change-44--timestamps-timezone-aware) | backend + frontend + base | — (defecto 2026-08-20) | 40 |
-| 45 | [`frontend-severity-triage`](#change-45--frontend-severity-triage) | frontend | — (auditoría de frontend 2026-08-21) | 38, 44 |
+| 45 | [`frontend-severity-triage`](#change-45--frontend-severity-triage) | frontend | — (auditoría de frontend 2026-08-21) ✓ | 38, 44 |
 
 ---
 
