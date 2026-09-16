@@ -61,4 +61,4 @@
 
 - [x] 10.1 Correr la suite del agente, del backend y el build/lint del frontend; todo verde
 - [x] 10.2 Verificar contra los delta specs (5 capabilities) que cada scenario tiene cobertura
-- [ ] 10.3 Actualizar el estado de C39 en CHANGES.md si corresponde al momento de archivar (fase de archive, no de apply)
+- [x] 10.3 Actualizar el estado de C39 en CHANGES.md si corresponde al momento de archivar (fase de archive, no de apply)
