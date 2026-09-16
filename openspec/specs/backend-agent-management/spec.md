@@ -2,9 +2,7 @@
 
 ## Purpose
 TBD — estructura reparada por el change openspec-main-specs-repair. El archivo se habia escrito con encabezados de delta, que ocultaban sus requisitos al tooling. Actualizar este Purpose con el proposito real de la capability.
-
 ## Requirements
-
 ### Requirement: watch_paths almacenado en el modelo Agent
 
 El sistema SHALL agregar el campo `watch_paths: list[str]` al modelo `Agent` en DB (columna JSON, default `[]`). Este campo es la fuente autoritativa de paths que el agente debe monitorear (RN-68). El backend persiste los paths y los envía al agente; el agente actualiza su configuración local al recibirlos.
@@ -48,7 +46,7 @@ El sistema SHALL exponer `GET /agents/{id}` (requiere JWT admin) que retorna el 
 
 ### Requirement: POST /agents/{id}/config — actualizar watch_paths y publicar update_config
 
-El sistema SHALL exponer `POST /agents/{id}/config` (requiere JWT admin) que acepta `{watch_paths: list[str]}`. MUST persistir los nuevos `watch_paths` en DB (replace-all), incrementar `ruleset_version` (D5), publicar el comando `update_config` HMAC-signed al stream `commands` de Valkey con `target_agent_id` y la lista de paths, y registrar en `audit_log`. Si el agente no existe SHALL retornar `404`.
+El sistema SHALL exponer `POST /agents/{id}/config` (requiere JWT admin) que acepta `{watch_paths: list[str]}`. MUST persistir los nuevos `watch_paths` en DB (replace-all), incrementar `ruleset_version` (D5), publicar el comando `update_config` HMAC-signed al stream `commands` de Valkey con `target_agent_id` y la lista de paths, y registrar en `audit_log`. Si el agente no existe SHALL retornar `404`. El endpoint MUST NOT avanzar `Agent.ruleset_version_applied` al publicar: ese campo solo avanza cuando el `command_ack` del agente confirma la ejecución del comando (D5/RN-106, capability `backend-command-ack`). La publicación MUST registrar la fila `PublishedCommand` con el `command_id` del payload y `ack_status = pending` para que el consumer de `command_ack` pueda correlacionar la confirmación.
 
 #### Scenario: Config actualizado y comando publicado
 - **WHEN** un admin hace `POST /agents/agent-01/config` con `watch_paths=["/etc"]`
@@ -56,6 +54,11 @@ El sistema SHALL exponer `POST /agents/{id}/config` (requiere JWT admin) que ace
 - **AND** `agents.watch_paths` es `["/etc"]` en DB
 - **AND** se publicó el mensaje `update_config` en el stream `commands` con `target_agent_id="agent-01"` y `watch_paths=["/etc"]`
 - **AND** el mensaje tiene `signature` verificable con HMAC-SHA256 y el `shared_secret` del agente
+
+#### Scenario: ruleset_version_applied no avanza al publicar
+- **WHEN** un admin hace `POST /agents/agent-01/config` y el comando `update_config` se publica correctamente
+- **THEN** `agents.ruleset_version_applied` NO cambia como efecto de la publicación
+- **AND** existe una fila `PublishedCommand` con el `command_id` del comando y `ack_status = pending`
 
 #### Scenario: watch_paths vacío es válido
 - **WHEN** el admin envía `watch_paths=[]`
@@ -108,3 +111,4 @@ El sistema SHALL extender el sweep periódico del heartbeat consumer para marcar
 #### Scenario: Agente dead que envía heartbeat vuelve a online
 - **WHEN** un agente en estado `dead` envía un heartbeat al backend
 - **THEN** su `status` transiciona a `online` y `last_heartbeat` se actualiza
+
