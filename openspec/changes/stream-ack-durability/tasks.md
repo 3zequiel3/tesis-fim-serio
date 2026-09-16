@@ -139,7 +139,9 @@
 
 ## 16. Verificación manual (NO simulable en tests unitarios)
 
-- [ ] 16.1 Con backend y Valkey reales: parar el backend, generar eventos durante más de cinco minutos, levantarlo, y verificar que **la cola drena completa**. Es la demostración del defecto principal.
+- [x] 16.1 Con backend y Valkey reales: parar el backend, generar eventos durante más de cinco minutos, levantarlo, y verificar que **la cola drena completa**. Es la demostración del defecto principal.
+  - Corrida 2026-09-16 contra el VPS (backend + Valkey + PostgreSQL reales, agente `pc-ezequiel` en otro host): `docker compose stop backend`, 60 archivos nuevos bajo `/srv/fim-watch` a razón de uno cada 6 s durante 6 minutos, `docker compose start backend`. Resultado: **60/60 eventos persistidos**, cola local en 0 y directorio de descarte inexistente (nunca se descartó nada).
+  - Observación que el diseño predice y conviene documentar: Valkey nunca cayó, así que las primeras copias quedaron esperando en el stream con su `sent_at` original (D-1). Al leer el backlog de golpe, 13 de ellas ya superaban los 300 s y fueron rechazadas por `clock_skew.out_of_range` (D-2 punto 3) en una ráfaga de 50 ms. Ninguna se perdió: el reintento a los 60 s las republicó con `sent_at` nuevo, y cuando llegó el nack terminal sus `event_id` ya no estaban en la cola, por lo que el agente los ignoró según D-4. Las 13 filas de `rejected_events_audit` son la traza esperada de ese camino, no una pérdida.
 - [ ] 16.2 Verificar el mismo drenaje partiendo de una cola escrita por la versión anterior del agente (formato sin sobre), sin tocar el directorio a mano.
 - [ ] 16.3 Generar una tormenta que supere los 100 eventos/min y observar que el agente frena, no pierde eventos, y los entrega cuando se libera el presupuesto.
 - [ ] 16.4 Aprobar un evento con Valkey caído: verificar `200`, evento `approved`, fila `pending`, y entrega del comando al levantar Valkey.
