@@ -784,7 +784,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) se agregó el 2026-09-16. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -2141,6 +2141,34 @@ decisión; `ruleset_version_applied` sigue reflejando sólo la configuración.
 **Excepciones:** Ninguna.
 
 **Reglas afectadas:** precisa D5/RN-106; no la modifica.
+
+#### D67 / RN-161: Auditoría de acciones originadas por el sistema — `audit_log.user_id` nullable
+
+**Descripción:** `audit_log.user_id` SHALL admitir `NULL`. Un `user_id` nulo SHALL significar que la acción
+fue originada por el sistema y no por un operador humano. Toda entrada de auditoría de una acción originada
+por el sistema SHALL identificar a su actor y los datos de la acción en el campo `extra`; para la renovación
+de certificados de agente, `extra` SHALL incluir el `agent_id` y los números de serie saliente y entrante.
+La renovación exitosa y sus rechazos SHALL auditarse (RN-94).
+
+**Motivo:** RN-94 exige auditar las acciones sensibles, pero `POST /agents/renew` se autentica por mTLS con
+el certificado del propio agente y no tiene ninguna cuenta de usuario detrás: el `FOREIGN KEY` no nulo a
+`users` hacía la entrada literalmente imposible de escribir. El proyecto ya usa esta misma semántica en otro
+lado — un evento resuelto automáticamente por el agente se persiste con `resolved_by` nulo, que significa
+exactamente "sin operador humano" (D35/RN-129) —, así que `NULL` no introduce un concepto nuevo. La
+alternativa evaluada, agregar una columna `actor_agent_id`, deja dos columnas nullable para un mismo
+concepto: todo lector tendría que consultar ambas para responder "quién hizo esto". La identidad del agente
+es **metadata de la acción**, no una identidad de cuenta, y `extra` ya existe para eso.
+
+**Condición:** Cualquier entrada de `audit_log` cuya acción no haya sido iniciada por un usuario autenticado.
+
+**Resultado:** Migración aditiva (`ALTER COLUMN user_id DROP NOT NULL`), sin backfill: las entradas
+existentes conservan su `user_id`. Los consumidores SHALL representar un `user_id` nulo como "sistema".
+
+**Excepciones:** Las acciones iniciadas por un usuario conservan `user_id` no nulo. Una entrada sin `user_id`
+y sin actor identificado en `extra` es inválida: `NULL` significa "originada por el sistema", nunca "actor
+desconocido".
+
+**Reglas afectadas:** precisa RN-94; no modifica D30/RN-124 ni el contrato de `command_ack`.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
