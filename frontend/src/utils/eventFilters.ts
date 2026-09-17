@@ -10,6 +10,15 @@ const DEFAULT_PAGE_SIZE = 50
 export function parseEventFilters(sp: URLSearchParams): EventFilters {
   const statusValues = sp.getAll('status')
   const severityValues = sp.getAll('severity')
+  // US-07, D-2 del design: GET /events excluye superseded antes de aplicar
+  // status (events/router.py:129-133), así que un deep-link con
+  // status=superseded sin include_superseded=true siempre devolvería vacío.
+  // Normalizamos acá: si superseded está en la URL, el toggle arranca
+  // activo aunque la URL no lo traiga.
+  const includeSuperseded =
+    sp.get('include_superseded') === 'true' || statusValues.includes('superseded')
+      ? true
+      : undefined
   return {
     status: statusValues.length > 0 ? statusValues : undefined,
     // Mismo patrón que status: array si hay valores, undefined si está
@@ -19,7 +28,7 @@ export function parseEventFilters(sp: URLSearchParams): EventFilters {
     path_prefix: sp.get('path_prefix') ?? undefined,
     date_from: sp.get('date_from') ?? undefined,
     date_to: sp.get('date_to') ?? undefined,
-    include_superseded: sp.get('include_superseded') === 'true' ? true : undefined,
+    include_superseded: includeSuperseded,
     page: sp.get('page') ? Number(sp.get('page')) : DEFAULT_PAGE,
     page_size: DEFAULT_PAGE_SIZE,
   }

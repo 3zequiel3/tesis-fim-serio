@@ -62,6 +62,11 @@ log = structlog.get_logger()
 _MAX_BYTES: int = 100 * 1024 * 1024  # 100 MB
 _DEFAULT_MAX_DISCARD_FILES: int = 1000
 
+# W3/RN-84, D72/RN-166: umbral único para el flag `queue_pressure_high` del
+# heartbeat (agent/heartbeat.py). Comparación estricta (`>`): al *superar*
+# el 80% del límite de 100 MB de la cola offline, no al alcanzarlo.
+QUEUE_PRESSURE_HIGH_THRESHOLD: float = 0.8
+
 # ── Cifrado (D63/RN-157) ───────────────────────────────────────────────────
 
 _MAGIC_VERSION: bytes = b"FIMQE\x01"

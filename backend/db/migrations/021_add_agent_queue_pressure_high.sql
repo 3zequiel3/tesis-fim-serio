@@ -1,0 +1,22 @@
+-- Migration 021: Agrega `queue_pressure_high` (BOOLEAN, nullable) a agents (D72/RN-166).
+--
+-- W3 (RN-84) pide un banner de alerta específico del agente cuando su cola offline supera
+-- el 80% del límite de 100 MB. El agente ya calculaba ese umbral en el cliente a partir del
+-- ratio `queue_pressure`; D72/RN-166 lo mueve al agente, que ahora publica el booleano
+-- `queue_pressure_high` en cada heartbeat (agent/heartbeat.py) derivado de una sola lectura
+-- del ratio. Esta columna es donde el backend lo persiste.
+--
+-- Sin backfill, a propósito: no existe forma de reconstruir el flag de un heartbeat pasado,
+-- y `NULL` ("el agente nunca reportó la clave") es la respuesta correcta para las filas
+-- existentes — distinto de `false` ("reportó y no hay presión"). Por eso, igual que las
+-- migraciones 010/020, esta no lleva `UPDATE` de backfill, `SET DEFAULT` ni `SET NOT NULL`:
+-- es una sola sentencia, estrictamente aditiva.
+--
+-- La columna `queue_pressure` (float) existente y su ingesta permanecen sin cambios.
+--
+-- Idempotente: ADD COLUMN IF NOT EXISTS. Ejecutar el script dos veces no produce error.
+--
+-- Migrations are applied by hand (D3) — this one included. Apply with:
+--   psql $DATABASE_URL -f 021_add_agent_queue_pressure_high.sql
+
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS queue_pressure_high BOOLEAN;

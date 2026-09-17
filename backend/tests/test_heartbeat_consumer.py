@@ -52,6 +52,9 @@ def agent(mem_engine, shared_secret) -> Agent:
     return a
 
 
+_UNSET = object()
+
+
 def _make_hb(
     agent_id: str,
     secret: bytes,
@@ -60,6 +63,7 @@ def _make_hb(
     discarded_events: object = None,
     queue_size: object = 0,
     out_of_scope_drops: object = None,
+    queue_pressure_high: object = _UNSET,
 ) -> dict:
     from app.core.streams import sign_payload
     payload = {
@@ -76,6 +80,11 @@ def _make_hb(
         payload["discarded_events"] = discarded_events
     if out_of_scope_drops is not None:
         payload["out_of_scope_drops"] = out_of_scope_drops
+    # D72/RN-166: _UNSET (default) omite la clave del payload — a diferencia
+    # de discarded_events/out_of_scope_drops, acá `False` es un valor válido
+    # que hay que poder enviar, así que no se puede usar None como "omitir".
+    if queue_pressure_high is not _UNSET:
+        payload["queue_pressure_high"] = queue_pressure_high
     payload["signature"] = sign_payload(secret, payload)
     return {"data": json.dumps(payload)}
 
@@ -353,6 +362,70 @@ def test_queue_size_never_reported_reads_as_null(mem_engine, agent) -> None:
     with Session(mem_engine) as session:
         a = session.get(Agent, "hb-agent")
     assert a.queue_size is None
+
+
+# ── queue_pressure_high (D72/RN-166) ──────────────────────────────────────────
+
+
+def test_queue_pressure_high_persisted(mem_engine, agent, shared_secret) -> None:
+    """Heartbeat con queue_pressure_high=true → se persiste; un heartbeat
+    posterior con false actualiza el valor guardado a false."""
+    import app.modules.agents.heartbeat_consumer as hc
+    with patch.object(hc, "engine", mem_engine):
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, queue_pressure_high=True))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.queue_pressure_high is True
+
+    with patch.object(hc, "engine", mem_engine):
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, queue_pressure_high=False))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.queue_pressure_high is False
+
+
+def test_queue_pressure_high_absent_does_not_reset(mem_engine, agent, shared_secret) -> None:
+    """Un heartbeat sin la clave NO pisa el valor guardado (tolerancia hacia adelante)."""
+    import app.modules.agents.heartbeat_consumer as hc
+
+    with patch.object(hc, "engine", mem_engine):
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, queue_pressure_high=True))
+        # Segundo heartbeat, agente sin actualizar a D72: sin la clave.
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.queue_pressure_high is True
+
+
+@pytest.mark.parametrize("bad_value", [1, 0, "true"])
+def test_queue_pressure_high_non_bool_ignored(mem_engine, agent, shared_secret, bad_value) -> None:
+    """Enteros y cadenas se rechazan: sólo true/false son válidos. El resto
+    del heartbeat se procesa igual (status online, last_heartbeat actualizado)."""
+    import app.modules.agents.heartbeat_consumer as hc
+
+    with patch.object(hc, "engine", mem_engine), patch.object(hc, "log") as mock_log:
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, queue_pressure_high=bad_value))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.queue_pressure_high is None
+    assert a.status == AgentStatus.online
+    assert a.last_heartbeat is not None
+    mock_log.warning.assert_any_call("heartbeat_consumer.invalid_queue_pressure_high", agent_id="hb-agent")
+
+
+def test_queue_pressure_high_never_reported_reads_as_null(mem_engine, agent) -> None:
+    """Un agente que nunca envió queue_pressure_high expone None, no False."""
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.queue_pressure_high is None
+
+    from app.modules.agents.service import _agent_to_response
+    response = _agent_to_response(a)
+    assert response.queue_pressure_high is None
 
 
 # ── US-21: webhook n8n al pasar a `dead` ──────────────────────────────────────

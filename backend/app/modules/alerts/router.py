@@ -32,6 +32,7 @@ from app.core.valkey import get_async_valkey_client
 from app.modules.alerts.contract import action_taken_for
 from app.modules.alerts.models import Alert, AlertChannel, AlertSeverity
 from app.modules.alerts.service import (
+    _as_utc,
     count_failed_alerts,
     delete_alert,
     list_alerts,
@@ -92,11 +93,16 @@ def _to_alert_response(alert: Alert, event: Event | None) -> AlertResponse:
         event_id=alert.event_id,
         severity=alert.severity,
         channel=alert.channel,
-        delivered_at=alert.delivered_at,
-        failed_at=alert.failed_at,
+        # US-29: mismo normalizador que service.py::_as_utc — SQLite (usado
+        # por los tests unitarios de este módulo) descarta la zona horaria al
+        # leer de vuelta un DateTime(timezone=True); Postgres (producción) ya
+        # la conserva y astimezone(utc) sobre un aware es un no-op semántico.
+        # El contrato HTTP siempre expone ISO-8601 con zona.
+        delivered_at=_as_utc(alert.delivered_at) if alert.delivered_at else None,
+        failed_at=_as_utc(alert.failed_at) if alert.failed_at else None,
         last_error=alert.last_error,
         retry_count=alert.retry_count,
-        created_at=alert.created_at,
+        created_at=_as_utc(alert.created_at),
         status=_derive_alert_status(alert),
         path=event.path if event else None,
         action_taken=action_taken_for(event.status) if event else None,

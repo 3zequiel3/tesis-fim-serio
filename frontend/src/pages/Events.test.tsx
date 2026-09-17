@@ -91,17 +91,19 @@ describe('Events — US-31 toggle superseded', () => {
   })
 })
 
-// US-07: selector de estado con 7 estados posibles, selección múltiple,
-// `superseded` excluido por defecto y sólo disponible como 7º checkbox
-// cuando el toggle "Mostrar superseded" está activo, y actualización dinámica
-// del listado al aplicar/quitar filtros.
-const BASE_STATUS_CHECKBOXES = [
+// US-07 (RN-71, W1, D-2 del design): selector de estado con los 7 estados
+// canónicos SIEMPRE visibles, sin depender del toggle "Mostrar superseded".
+// Marcar/desmarcar superseded y encender/apagar el toggle mantienen la
+// coherencia con include_superseded, porque el backend excluye superseded
+// antes de aplicar el filtro de estado (events/router.py:129-133).
+const ALL_STATUS_CHECKBOXES = [
   'pending',
   'approved',
   'rejected',
   'auto_restored',
   'quarantined',
   'alert_only',
+  'superseded',
 ]
 
 describe('Events — filtro por estado (US-07)', () => {
@@ -110,35 +112,21 @@ describe('Events — filtro por estado (US-07)', () => {
     apiGet.mockResolvedValue({ data: { total: 0, page: 1, page_size: 50, items: [] } })
   })
 
-  it('sin el toggle activo muestra los 6 checkboxes de estado base y NINGUNO de superseded', async () => {
+  it('C1: los siete checkboxes existen sin activar el toggle y en el orden canónico', async () => {
     renderWithProviders(<Events />, { route: '/events' })
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
 
-    for (const status of BASE_STATUS_CHECKBOXES) {
-      expect(screen.getByRole('checkbox', { name: status })).toBeInTheDocument()
-    }
-    expect(screen.queryByRole('checkbox', { name: 'superseded' })).not.toBeInTheDocument()
-    // Falla si el checkbox default incluyera un 7mo estado: hay exactamente 6
-    // checkboxes de estado + el toggle "Mostrar eventos superseded".
-    const statusCheckboxes = BASE_STATUS_CHECKBOXES.map((s) =>
+    const statusCheckboxes = ALL_STATUS_CHECKBOXES.map((s) =>
       screen.getByRole('checkbox', { name: s }),
     )
-    expect(statusCheckboxes).toHaveLength(6)
+    statusCheckboxes.forEach((cb) => expect(cb).not.toBeChecked())
+
+    const allCheckboxes = screen.getAllByRole('checkbox')
+    const positions = statusCheckboxes.map((cb) => allCheckboxes.indexOf(cb))
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
   })
 
-  it('con el toggle "Mostrar eventos superseded" activo aparecen los 7 checkboxes de estado', async () => {
-    const user = userEvent.setup()
-    renderWithProviders(<Events />, { route: '/events' })
-    await waitFor(() => expect(apiGet).toHaveBeenCalled())
-
-    await user.click(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' }))
-
-    for (const status of [...BASE_STATUS_CHECKBOXES, 'superseded']) {
-      expect(screen.getByRole('checkbox', { name: status })).toBeInTheDocument()
-    }
-  })
-
-  it('seleccionar dos estados refleja ambos en la petición (selección múltiple)', async () => {
+  it('C2: marcar pending y approved emite ambos status en la petición', async () => {
     const user = userEvent.setup()
     renderWithProviders(<Events />, { route: '/events' })
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
@@ -146,44 +134,97 @@ describe('Events — filtro por estado (US-07)', () => {
     await user.click(screen.getByRole('checkbox', { name: 'pending' }))
     await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['pending']))
 
-    await user.click(screen.getByRole('checkbox', { name: 'quarantined' }))
+    await user.click(screen.getByRole('checkbox', { name: 'approved' }))
     await waitFor(() =>
-      expect(lastEventsRequestParams()?.status).toEqual(['pending', 'quarantined']),
+      expect(lastEventsRequestParams()?.status).toEqual(['pending', 'approved']),
     )
     expect(screen.getByRole('checkbox', { name: 'pending' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'quarantined' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'approved' })).toBeChecked()
   })
 
-  it('por defecto ningún filtro de estado incluye superseded (excluido por defecto, W1)', async () => {
-    const user = userEvent.setup()
+  it('C3: sin parámetros ningún estado está marcado y la petición no lleva include_superseded', async () => {
     renderWithProviders(<Events />, { route: '/events' })
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
 
+    for (const status of ALL_STATUS_CHECKBOXES) {
+      expect(screen.getByRole('checkbox', { name: status })).not.toBeChecked()
+    }
     expect(lastEventsRequestParams()?.status).toBeUndefined()
-
-    await user.click(screen.getByRole('checkbox', { name: 'rejected' }))
-    await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['rejected']))
-    expect(lastEventsRequestParams()?.status).not.toContain('superseded')
+    expect(lastEventsRequestParams()?.include_superseded).toBeUndefined()
   })
 
-  it('cambiar un filtro de estado dispara una nueva petición con los parámetros actualizados', async () => {
+  it('C4: encender el toggle emite include_superseded=true y apagarlo con superseded marcado lo desmarca y lo quita de la petición', async () => {
     const user = userEvent.setup()
     renderWithProviders(<Events />, { route: '/events' })
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    const toggle = screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })
+    await user.click(toggle)
+    await waitFor(() => expect(lastEventsRequestParams()?.include_superseded).toBe(true))
+
+    await user.click(screen.getByRole('checkbox', { name: 'superseded' }))
+    await waitFor(() =>
+      expect(lastEventsRequestParams()?.status).toEqual(['superseded']),
+    )
+
+    await user.click(toggle)
+    await waitFor(() => expect(toggle).not.toBeChecked())
+    expect(screen.getByRole('checkbox', { name: 'superseded' })).not.toBeChecked()
+    expect(lastEventsRequestParams()?.include_superseded).toBeUndefined()
+    expect(lastEventsRequestParams()?.status).toBeUndefined()
+  })
+
+  it('C5: desmarcar el último estado emite una petición nueva sin status', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    await user.click(screen.getByRole('checkbox', { name: 'approved' }))
+    await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['approved']))
 
     const callsBefore = apiGet.mock.calls.filter(([url]: [string]) => url === '/events').length
-
     await user.click(screen.getByRole('checkbox', { name: 'approved' }))
 
     await waitFor(() => {
       const callsAfter = apiGet.mock.calls.filter(([url]: [string]) => url === '/events').length
       expect(callsAfter).toBeGreaterThan(callsBefore)
     })
-    expect(lastEventsRequestParams()?.status).toEqual(['approved'])
+    expect(lastEventsRequestParams()?.status).toBeUndefined()
+  })
 
-    // Quitar el filtro dispara otra petición más, sin 'approved'.
-    await user.click(screen.getByRole('checkbox', { name: 'approved' }))
-    await waitFor(() => expect(lastEventsRequestParams()?.status).toBeUndefined())
+  // Escenarios del requisito ADDED de frontend-events.
+
+  it('marcar superseded en el selector activa include_superseded=true', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    await user.click(screen.getByRole('checkbox', { name: 'superseded' }))
+
+    await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['superseded']))
+    expect(lastEventsRequestParams()?.include_superseded).toBe(true)
+    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })).toBeChecked()
+  })
+
+  it('desmarcar superseded conserva el toggle activo', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events?status=pending&status=superseded&include_superseded=true' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    await user.click(screen.getByRole('checkbox', { name: 'superseded' }))
+
+    await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['pending']))
+    expect(lastEventsRequestParams()?.include_superseded).toBe(true)
+    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })).toBeChecked()
+  })
+
+  it('un deep-link con status=superseded arranca con el checkbox y el toggle activos', async () => {
+    renderWithProviders(<Events />, { route: '/events?status=superseded' })
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+
+    expect(screen.getByRole('checkbox', { name: 'superseded' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })).toBeChecked()
+    await waitFor(() => expect(lastEventsRequestParams()?.include_superseded).toBe(true))
   })
 })
 

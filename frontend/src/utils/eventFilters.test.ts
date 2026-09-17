@@ -32,6 +32,23 @@ describe('parseEventFilters', () => {
     expect(result.include_superseded).toBeUndefined()
   })
 
+  // US-07 C3, W1, D-2 del design: el backend excluye superseded antes de
+  // aplicar status, así que status=superseded sin include_superseded=true
+  // siempre devolvería vacío. El parser normaliza el deep-link.
+  it('status=superseded sin el toggle en la URL se parsea con include_superseded: true', () => {
+    const sp = new URLSearchParams('status=superseded')
+    const result = parseEventFilters(sp)
+    expect(result.status).toEqual(['superseded'])
+    expect(result.include_superseded).toBe(true)
+  })
+
+  it('sin superseded en status, include_superseded sigue undefined por default', () => {
+    const sp = new URLSearchParams('status=pending')
+    const result = parseEventFilters(sp)
+    expect(result.status).toEqual(['pending'])
+    expect(result.include_superseded).toBeUndefined()
+  })
+
   it('parsea page, path_prefix, date_from, date_to', () => {
     const sp = new URLSearchParams(
       'page=3&path_prefix=/etc&date_from=2026-01-01T00:00:00&date_to=2026-06-01T00:00:00'
@@ -98,5 +115,15 @@ describe('round-trip parse/serialize', () => {
     const parsed = parseEventFilters(sp)
     const serialized = serializeEventFilters(parsed)
     expect(serialized.toString()).toBe('')
+  })
+
+  it('round-trip conserva superseded en status e include_superseded juntos (US-07 C3)', () => {
+    const original = new URLSearchParams('status=superseded')
+    const parsed = parseEventFilters(original)
+    const serialized = serializeEventFilters(parsed)
+    const reparsed = parseEventFilters(serialized)
+
+    expect(reparsed.status).toEqual(['superseded'])
+    expect(reparsed.include_superseded).toBe(true)
   })
 })

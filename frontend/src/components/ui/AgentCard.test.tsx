@@ -17,6 +17,10 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     status: 'online',
     watch_paths: ['/etc'],
     queue_pressure: 0.1,
+    // D72/RN-166: default explícito en el fixture — el banner depende del
+    // flag, no del ratio, así que los tests que no lo overridean no deben
+    // mostrarlo por accidente.
+    queue_pressure_high: false,
     last_heartbeat: null,
     ruleset_version_applied: 3,
     ...overrides,
@@ -209,21 +213,49 @@ describe('AgentCard — indicador de drenaje graceful (US-30)', () => {
   })
 })
 
-// ── US-21 (W3): banner de queue_pressure > 80% ───────────────────────────────
+// ── US-21 (W3), D72/RN-166: banner derivado del flag queue_pressure_high ─────
 
-describe('AgentCard — banner de presión de cola alta (US-21/W3)', () => {
-  it('queue_pressure > 80% muestra un banner de alerta específico del agente', () => {
+describe('AgentCard — banner de presión de cola alta (US-21/W3, D72/RN-166)', () => {
+  it('queue_pressure_high: true muestra el banner de alerta específico del agente', () => {
     renderWithProviders(
-      <AgentCard agent={makeAgent({ queue_pressure: 0.85 })} onConfigSave={noop} onRescan={noop} />
+      <AgentCard agent={makeAgent({ queue_pressure_high: true })} onConfigSave={noop} onRescan={noop} />
     )
     expect(screen.getByRole('alert')).toBeInTheDocument()
   })
 
-  it('queue_pressure <= 80% no muestra el banner', () => {
+  it('el flag decide aunque el ratio diga otra cosa: ratio 0.95 con flag false no muestra el banner y la barra dice 95%', () => {
     renderWithProviders(
-      <AgentCard agent={makeAgent({ queue_pressure: 0.5 })} onConfigSave={noop} onRescan={noop} />
+      <AgentCard
+        agent={makeAgent({ queue_pressure: 0.95, queue_pressure_high: false })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
     )
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('95%')).toBeInTheDocument()
+  })
+
+  it('el flag en verdadero muestra el banner con cualquier ratio: 0.5 con flag true', () => {
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ queue_pressure: 0.5, queue_pressure_high: true })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
+    )
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('un agente anterior a la clave (queue_pressure_high null/ausente) no muestra el banner ni rompe la tarjeta', () => {
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ queue_pressure: 0.9, queue_pressure_high: null })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('90%')).toBeInTheDocument()
   })
 })
 

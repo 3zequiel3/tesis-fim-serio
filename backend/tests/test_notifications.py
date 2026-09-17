@@ -634,6 +634,31 @@ def test_get_failed_alerts_returns_only_failed(session, agent):
     app.dependency_overrides.clear()
 
 
+def test_get_failed_alerts_expone_last_error_retry_count_failed_at(session, agent):
+    """US-29 (D6/RN-107, reescritura de RN-102): GET /alerts/failed expone
+    last_error, retry_count y failed_at con valores conocidos, failed_at en
+    ISO-8601 con zona."""
+    event = _make_event(session)
+    failed = _make_alert(session, event.id, failed=True)
+
+    app = _make_test_app(session)
+    with TestClient(app) as client:
+        response = client.get("/alerts/failed")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    item = data["items"][0]
+    assert item["id"] == failed.id
+    assert item["last_error"] == "test_error"
+    assert item["retry_count"] == 3
+    assert item["failed_at"] is not None
+    parsed_failed_at = datetime.fromisoformat(item["failed_at"])
+    assert parsed_failed_at.tzinfo is not None
+
+    app.dependency_overrides.clear()
+
+
 def test_get_failed_alerts_empty(session, agent):
     """GET /alerts/failed retorna lista vacía si no hay fallos."""
     app = _make_test_app(session)

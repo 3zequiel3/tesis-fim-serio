@@ -8,6 +8,10 @@ import { Pagination } from '@/components/ui/Pagination'
 import { parseEventFilters, serializeEventFilters } from '@/utils/eventFilters'
 import type { EventFilters } from '@/api/events'
 
+// US-07 C1, W1, D-2 del design: los siete estados canónicos (RN-71), siempre
+// visibles y en este orden. `superseded` NO depende del toggle "Mostrar
+// superseded" para aparecer en el selector — sólo el toggle decide si el
+// listado los incluye (ver handleStatusToggle y el onChange del toggle).
 const ALL_STATUSES = [
   'pending',
   'approved',
@@ -15,6 +19,7 @@ const ALL_STATUSES = [
   'auto_restored',
   'quarantined',
   'alert_only',
+  'superseded',
 ] as const
 
 // Orden de precedencia descendente (critical > high > medium > low): el
@@ -52,9 +57,17 @@ export function Events() {
 
   function handleStatusToggle(status: string) {
     const current = filters.status ?? []
-    const next = current.includes(status)
-      ? current.filter((s) => s !== status)
-      : [...current, status]
+    const marking = !current.includes(status)
+    const next = marking ? [...current, status] : current.filter((s) => s !== status)
+    // D-2 del design: GET /events excluye superseded antes de aplicar status,
+    // así que status=superseded sin include_superseded=true siempre devuelve
+    // vacío. Marcarlo en el selector activa también el toggle; desmarcarlo
+    // sólo lo quita del filtro de estado y deja el toggle como estaba (tiene
+    // sentido propio: ver los reemplazados junto al resto sin filtrar).
+    if (marking && status === 'superseded') {
+      updateFilter({ status: next, include_superseded: true })
+      return
+    }
     updateFilter({ status: next.length > 0 ? next : undefined })
   }
 
@@ -104,17 +117,6 @@ export function Events() {
                 <span className="font-mono text-xs">{s}</span>
               </label>
             ))}
-            {showSuperseded && (
-              <label className="flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={(filters.status ?? []).includes('superseded')}
-                  onChange={() => handleStatusToggle('superseded')}
-                  className="rounded"
-                />
-                <span className="font-mono text-xs">superseded</span>
-              </label>
-            )}
           </div>
         </div>
 
@@ -177,9 +179,21 @@ export function Events() {
           <input
             type="checkbox"
             checked={showSuperseded}
-            onChange={(e) =>
-              updateFilter({ include_superseded: e.target.checked || undefined })
-            }
+            onChange={(e) => {
+              const on = e.target.checked
+              // Apagar el toggle también quita superseded del filtro de
+              // estado (D-2): dejarlo marcado con el toggle apagado volvería
+              // a pedir status=superseded sin include_superseded, que el
+              // backend siempre responde vacío. Encenderlo no marca
+              // superseded en el selector — sólo reincorpora los eventos al
+              // listado sin filtrar por ese estado.
+              if (!on) {
+                const next = (filters.status ?? []).filter((s) => s !== 'superseded')
+                updateFilter({ status: next.length > 0 ? next : undefined, include_superseded: undefined })
+                return
+              }
+              updateFilter({ include_superseded: true })
+            }}
             className="rounded"
           />
           Mostrar eventos superseded

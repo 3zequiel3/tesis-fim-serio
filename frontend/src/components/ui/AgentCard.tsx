@@ -97,9 +97,12 @@ export function AgentCard({
   const [rescanPaths, setRescanPaths] = useState<string[]>(agent.watch_paths)
 
   const pressurePct = Math.round((agent.queue_pressure ?? 0) * 100)
-  // W3/RN-84: banner de alerta específico del agente cuando la cola local
-  // supera el 80% de presión.
-  const showQueuePressureBanner = pressurePct > 80
+  // W3/RN-84, D72/RN-166: banner de alerta específico del agente cuando la
+  // cola local supera el 80% de presión. El umbral se calcula en el agente,
+  // no acá: el banner depende únicamente del flag `queue_pressure_high`. Sin
+  // respaldo por umbral en el cliente para agentes que no envían la clave
+  // (D72/RN-166) — reintroduciría la divergencia que esta decisión cierra.
+  const showQueuePressureBanner = agent.queue_pressure_high === true
 
   function toggleRescanPath(path: string) {
     setRescanPaths((prev) =>

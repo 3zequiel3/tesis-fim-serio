@@ -868,6 +868,55 @@ async def test_change_password_deja_fila_en_audit_log(auth_client):
         assert len(rows) == 1
 
 
+async def test_login_deja_fila_en_audit_log(auth_client):
+    """US-27 (RN-94): un login exitoso deja una fila de audit_log con
+    action='login' y el user_id del usuario autenticado."""
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.modules.audit.models import AuditLog
+    from app.modules.auth.models import User
+
+    resp = await _login(auth_client)
+    assert resp.status_code == 200
+
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.username == os.environ["ADMIN_USERNAME"])
+        ).one()
+        rows = session.exec(
+            select(AuditLog).where(AuditLog.action == "login", AuditLog.user_id == user.id)
+        ).all()
+        assert len(rows) == 1
+
+
+async def test_logout_deja_fila_en_audit_log(blacklist_client):
+    """US-27 (RN-94): un logout exitoso deja una fila de audit_log con
+    action='logout' y el user_id del usuario autenticado."""
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.modules.audit.models import AuditLog
+    from app.modules.auth.models import User
+
+    access_token, refresh_cookies = await _full_access_login(blacklist_client)
+    logout_resp = await blacklist_client.post(
+        "/auth/logout",
+        headers={"Authorization": f"Bearer {access_token}"},
+        cookies=refresh_cookies,
+    )
+    assert logout_resp.status_code == 200
+
+    with Session(engine) as session:
+        user = session.exec(
+            select(User).where(User.username == os.environ["ADMIN_USERNAME"])
+        ).one()
+        rows = session.exec(
+            select(AuditLog).where(AuditLog.action == "logout", AuditLog.user_id == user.id)
+        ).all()
+        assert len(rows) == 1
+
+
 async def test_change_password_no_completado_se_vuelve_a_exigir(auth_client):
     """Login del seed sin completar el cambio, segundo login → sigue en password_change_only."""
     first = await _login(auth_client)

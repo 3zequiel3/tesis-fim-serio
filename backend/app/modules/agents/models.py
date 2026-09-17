@@ -61,6 +61,12 @@ class Agent(SQLModel, table=True):
     # diferencia de discarded_events, un positivo acá es **esperado**, no una
     # anomalía. Migración 020.
     out_of_scope_drops: int | None = Field(default=None)
+    # D72/RN-166: booleano calculado por el agente (una sola lectura de
+    # queue_pressure contra el umbral de 0.8, W3/RN-84) y persistido tal cual.
+    # Nullable sin default: None = "el agente nunca reportó la clave",
+    # deliberadamente distinto de False = "reportó y no hay presión".
+    # Migración 021.
+    queue_pressure_high: bool | None = Field(default=None)
 
 
 class RevokedCertificate(SQLModel, table=True):
@@ -131,6 +137,10 @@ class AgentResponse(BaseModel):
     # — distinto de 0. Un positivo es esperado (a diferencia de
     # discarded_events, que es siempre anómalo).
     out_of_scope_drops: int | None = None
+    # D72/RN-166: flag de presión de cola calculado por el agente, tal como
+    # lo persistió el consumer de heartbeat. None si el agente nunca reportó
+    # la clave — distinto de False.
+    queue_pressure_high: bool | None = None
 
 
 class AgentListResponse(BaseModel):

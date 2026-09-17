@@ -2,8 +2,13 @@
 Heartbeat periódico del agente FIM al stream Valkey 'agent_heartbeat' (RN-92, RN-93).
 
 Publica cada 10 s: {agent_id, timestamp, queue_size, ruleset_version,
-                    queue_pressure, shutdown, schema_version, watch_path_status,
-                    discarded_events}.
+                    queue_pressure, queue_pressure_high, shutdown, schema_version,
+                    watch_path_status, discarded_events}.
+
+D72/RN-166: `queue_pressure_high` es un booleano derivado por el agente de la
+misma lectura de `queue_pressure` usada para el ratio (`>` estricto contra
+`QUEUE_PRESSURE_HIGH_THRESHOLD` en `agent/queue.py`). El umbral del 80% (W3,
+RN-84) se decide en el agente, no en el cliente.
 
 D37/RN-131: `discarded_events` es el contador acumulativo de eventos que el
 publisher descartó localmente desde el arranque del proceso (techo de
@@ -30,6 +35,7 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from agent.queue import QUEUE_PRESSURE_HIGH_THRESHOLD
 from agent.streams import SCHEMA_VERSION, sign_payload
 
 if TYPE_CHECKING:
@@ -93,11 +99,15 @@ class HeartbeatPublisher:
         return shutdown_flag is not None and shutdown_flag.is_set()
 
     async def _publish(self, shutdown: bool = False) -> None:
+        # D-3 del design (D72/RN-166): una sola lectura de queue_pressure para
+        # derivar el ratio y el flag, así nunca quedan incoherentes entre sí.
+        queue_pressure = self._queue.queue_pressure
         payload: dict[str, Any] = {
             "agent_id": self._config.agent_id,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "queue_size": self._queue.queue_size,
-            "queue_pressure": self._queue.queue_pressure,
+            "queue_pressure": queue_pressure,
+            "queue_pressure_high": queue_pressure > QUEUE_PRESSURE_HIGH_THRESHOLD,
             "ruleset_version": self._state.ruleset_version,
             "shutdown": shutdown,
             "schema_version": SCHEMA_VERSION,

@@ -33,6 +33,11 @@ export interface Agent {
   // discarded_events, un positivo acá es **esperado**: es evidencia de que
   // el filtro de scope está funcionando, no una detección perdida.
   out_of_scope_drops?: number | null
+  // D72/RN-166: booleano calculado por el agente (umbral de 80% sobre
+  // queue_pressure), reportado en cada heartbeat. null/ausente cuando el
+  // agente nunca reportó la clave — el umbral lo decide el agente, no el
+  // cliente.
+  queue_pressure_high?: boolean | null
 }
 
 export interface AgentConfig {

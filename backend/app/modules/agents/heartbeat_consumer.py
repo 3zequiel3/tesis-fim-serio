@@ -9,6 +9,9 @@ Por heartbeat recibido:
     tolerancia hacia adelante: ausente no pisa, no numérico se ignora con log).
   - Persiste Agent.out_of_scope_drops si la clave viene y es numérica (D69/RN-163,
     mismo criterio tolerante que discarded_events/queue_pressure/watch_path_status).
+  - Persiste Agent.queue_pressure_high si la clave viene y es booleana (D72/RN-166,
+    mismo criterio tolerante; a diferencia de los contadores, el único tipo válido
+    acá es bool — 0/1 y "true"/"false" se rechazan).
 
 Barrido periódico (~10 s): marca offline a agentes con last_heartbeat > 30 s
 (RN-92), y dead a agentes offline con last_heartbeat > 5 min — o, si nunca
@@ -96,6 +99,10 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
     # queue_pressure y watch_path_status: clave ausente no toca el valor
     # guardado, valor no numérico se ignora con log.
     out_of_scope_drops = payload.get("out_of_scope_drops")
+    # D72/RN-166: flag booleano de presión de cola, mismo criterio tolerante
+    # que los campos anteriores. A diferencia de los contadores, el único
+    # tipo válido acá es bool: 0/1 y "true"/"false" se rechazan explícitamente.
+    queue_pressure_high = payload.get("queue_pressure_high")
 
     with Session(engine) as session:
         agent = session.exec(select(Agent).where(Agent.agent_id == agent_id)).first()
@@ -170,6 +177,15 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
                 agent.out_of_scope_drops = int(out_of_scope_drops)
             else:
                 log.warning("heartbeat_consumer.invalid_out_of_scope_drops", agent_id=agent_id)
+
+        # D72/RN-166: clave ausente o None → no tocar el valor guardado. Sólo
+        # un booleano JSON se persiste; cualquier otro tipo (incluidos 0, 1,
+        # "true", "false") se ignora con log, sin interrumpir el heartbeat.
+        if queue_pressure_high is not None:
+            if isinstance(queue_pressure_high, bool):
+                agent.queue_pressure_high = queue_pressure_high
+            else:
+                log.warning("heartbeat_consumer.invalid_queue_pressure_high", agent_id=agent_id)
 
         session.add(agent)
         session.commit()

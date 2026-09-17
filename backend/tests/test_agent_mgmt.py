@@ -203,6 +203,46 @@ def test_agents_expose_out_of_scope_drops(session, agent_with_secret):
     assert listed[0].out_of_scope_drops == 2748492
 
 
+# ── D72/RN-166: queue_pressure_high expuesto en los dos endpoints ────────────
+
+
+def test_agents_expose_queue_pressure_high(session, agent_with_secret):
+    """true/false/null en GET /agents y GET /agents/{id}; queue_pressure sigue
+    presente sin cambios (US-21, último criterio)."""
+    from app.modules.agents.service import get_agent, list_agents
+
+    agent, _ = agent_with_secret
+    agent.queue_pressure = 0.42
+    session.add(agent)
+    session.commit()
+
+    detail = get_agent(session, agent.agent_id)
+    assert detail.queue_pressure_high is None
+    assert detail.queue_pressure == pytest.approx(0.42)
+    listed = list_agents(session)
+    assert listed[0].queue_pressure_high is None
+    assert listed[0].queue_pressure == pytest.approx(0.42)
+
+    agent.queue_pressure_high = True
+    session.add(agent)
+    session.commit()
+
+    detail = get_agent(session, agent.agent_id)
+    assert detail.queue_pressure_high is True
+    assert detail.queue_pressure == pytest.approx(0.42)
+    listed = list_agents(session)
+    assert listed[0].queue_pressure_high is True
+
+    agent.queue_pressure_high = False
+    session.add(agent)
+    session.commit()
+
+    detail = get_agent(session, agent.agent_id)
+    assert detail.queue_pressure_high is False
+    listed = list_agents(session)
+    assert listed[0].queue_pressure_high is False
+
+
 # ── 12.3 test_get_agent_not_found ─────────────────────────────────────────────
 
 

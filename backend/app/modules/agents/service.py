@@ -117,6 +117,9 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
         # D69/RN-163: None si el agente nunca reportó (distinto de 0). Sin
         # transformar: el nulo se propaga tal cual hasta la respuesta.
         out_of_scope_drops=agent.out_of_scope_drops,
+        # D72/RN-166: None si el agente nunca reportó (distinto de False).
+        # Sin transformar (sin `or False`): el nulo se propaga tal cual.
+        queue_pressure_high=agent.queue_pressure_high,
     )
 
 
