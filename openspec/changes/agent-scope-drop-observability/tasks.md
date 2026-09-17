@@ -7,13 +7,13 @@
 
 ## 1. Agente — bajar el nivel del log (slice 1, antes de la corrida del Capítulo 5)
 
-- [ ] 1.1 En `agent/detector.py:567-571`, cambiar `log.warning("detector.out_of_scope_drop", ...)` por `log.debug(...)`. Los argumentos (`path`, `total_drops`) no cambian: el nombre del evento y su contenido son los mismos, sólo baja el nivel.
-- [ ] 1.2 Comentar el cambio citando **D69/RN-163** y diciendo por qué: la marca de fanotify es de filesystem completo en modo FID (D46/RN-140), así que el descarte es el caso normal y no una anomalía. Nombrar la magnitud medida (2.748.492 descartes con el journal inundado) para que la próxima lectura no reconstruya el razonamiento desde cero ni "arregle" el nivel de vuelta.
-- [ ] 1.3 Verificar que `self._out_of_scope_drops += 1` sigue **exactamente donde estaba**, antes del log y del `continue`. El contador no cambia de posición ni de semántica: si el incremento se moviera detrás del log, un cambio futuro de nivel podría dejar de contarlo.
-- [ ] 1.4 Verificar que la property `out_of_scope_drops` (`agent/detector.py:723-725`) **no se toca**, incluido su docstring que cita RN-04.
-- [ ] 1.5 Verificar que `agent/heartbeat.py:105` **no se toca**: la clave `out_of_scope_drops` ya viaja en el payload junto a `event_drops`. El agente **no cambia su contrato** en esta change. Si el arreglo parece necesitar tocar el heartbeat, detenerse: el design dice que no hace falta, y esa discrepancia es información.
-- [ ] 1.6 Verificar con `rg -n "out_of_scope_drop" agent/tests/` que **ningún test fija el nivel** de ese log. `agent/tests/test_scope_filter.py` afirma el contador y su presencia en el payload (sección "4.2 out_of_scope_drops en el heartbeat"): esos tests deben seguir verdes **sin tocar el archivo**. Si alguno fallara, el cambio se pasó de alcance.
-- [ ] 1.7 Correr la suite del agente completa y dejar el resultado en el reporte de apply.
+- [x] 1.1 En `agent/detector.py:567-571`, cambiar `log.warning("detector.out_of_scope_drop", ...)` por `log.debug(...)`. Los argumentos (`path`, `total_drops`) no cambian: el nombre del evento y su contenido son los mismos, sólo baja el nivel.
+- [x] 1.2 Comentar el cambio citando **D69/RN-163** y diciendo por qué: la marca de fanotify es de filesystem completo en modo FID (D46/RN-140), así que el descarte es el caso normal y no una anomalía. Nombrar la magnitud medida (2.748.492 descartes con el journal inundado) para que la próxima lectura no reconstruya el razonamiento desde cero ni "arregle" el nivel de vuelta.
+- [x] 1.3 Verificar que `self._out_of_scope_drops += 1` sigue **exactamente donde estaba**, antes del log y del `continue`. El contador no cambia de posición ni de semántica: si el incremento se moviera detrás del log, un cambio futuro de nivel podría dejar de contarlo.
+- [x] 1.4 Verificar que la property `out_of_scope_drops` (`agent/detector.py:723-725`) **no se toca**, incluido su docstring que cita RN-04.
+- [x] 1.5 Verificar que `agent/heartbeat.py:105` **no se toca**: la clave `out_of_scope_drops` ya viaja en el payload junto a `event_drops`. El agente **no cambia su contrato** en esta change. Si el arreglo parece necesitar tocar el heartbeat, detenerse: el design dice que no hace falta, y esa discrepancia es información.
+- [x] 1.6 Verificar con `rg -n "out_of_scope_drop" agent/tests/` que **ningún test fija el nivel** de ese log. `agent/tests/test_scope_filter.py` afirma el contador y su presencia en el payload (sección "4.2 out_of_scope_drops en el heartbeat"): esos tests deben seguir verdes **sin tocar el archivo**. Si alguno fallara, el cambio se pasó de alcance.
+- [x] 1.7 Correr la suite del agente completa y dejar el resultado en el reporte de apply. Resultado: `629 passed, 1 skipped in 176.91s` (exit code 0); `agent/tests/test_scope_filter.py` con sus 19 casos en verde sin modificaciones.
 - [ ] 1.8 **Punto de corte del despliegue**: desplegar el agente con este cambio **antes** de re-correr las baterías del Capítulo 5. Dejar constancia en el reporte de apply de que el orden se respetó, con la fecha del despliegue del agente y la de la corrida.
 
 ## 2. Backend — modelo y migración

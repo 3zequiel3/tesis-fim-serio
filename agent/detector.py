@@ -564,7 +564,16 @@ class FanotifyDetector:
                     continue
                 if not _path_location_in_scope(ev.path, self._watch_paths_real):
                     self._out_of_scope_drops += 1
-                    log.warning(
+                    # D69/RN-163: la marca de fanotify es de filesystem completo en
+                    # modo FID (D46/RN-140), así que este descarte es el caso normal,
+                    # no una anomalía — toda escritura del host fuera de watch_paths
+                    # cae acá. En el host del agente llegó a 2.748.492 descartes con
+                    # el journal inundado, sepultando los eventos de integridad y
+                    # compitiendo por I/O de journal durante la medición del
+                    # Capítulo 5. Por eso baja a debug; el contador acumulado sigue
+                    # viajando en el heartbeat (`out_of_scope_drops`, RN-04) sin
+                    # cambios.
+                    log.debug(
                         "detector.out_of_scope_drop",
                         path=ev.path,
                         total_drops=self._out_of_scope_drops,
