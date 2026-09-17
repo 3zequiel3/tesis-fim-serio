@@ -90,3 +90,75 @@ sha256sum n8n/e2e/evidence/20260910-durable-fallback.json
 (cd docs/cierre/evidencia/drenaje-20260910-run3 && sha256sum -c SHA256SUMS)
 (cd docs/cierre/evidencia/drenaje-20260910-run4-unit1 && sha256sum -c SHA256SUMS)
 ```
+
+## Playwright US-03 / US-25 — 2026-09-10
+
+- `us03-us25-playwright-20260910T205424Z/RESULTADO.md`: estado final; dos conjuntos consecutivos 2/2 PASS con login aislado.
+- `us03-us25-playwright-20260910T205424Z/individual-us03-final/` y `individual-us25/`: ejecuciones individuales finales.
+- `us03-us25-playwright-20260910T205424Z/combined-final-run1/` y `combined-final-run2/`: repetición consecutiva que prueba aislamiento del rate limit.
+- `us03-us25-playwright-20260910T205424Z/SHA256SUMS`: integridad del paquete final.
+- `us03-us25-playwright-20260910T205424Z/ARTIFACT_RETENTION.md`: retiro retrospectivo de trazas y medios no sanitizables; resultados textuales preservados sin reejecución.
+- `us03-us25-playwright-20260910T203527Z/` y `us03-us25-playwright-20260910T204339Z/`: descubrimiento y corrección previos, preservados como históricos; no son el estado final.
+
+### US-02 / US-20 / US-31 — Playwright real
+
+- `us02-us20-us31-playwright-20260910T212203Z/RESULTADO.md`: veredicto por criterio y bloqueos.
+- `us02-us20-us31-playwright-20260910T212203Z/COMMANDS.md`: comandos ejecutados y de repetición.
+- `us02-us20-us31-playwright-20260910T212203Z/CLEANUP.md`: aislamiento y conteos finales en cero.
+- `us02-us20-us31-playwright-20260910T212203Z/SHA256SUMS`: integridad del paquete sanitizado.
+
+Ese paquete es histórico. La corrección posterior y evidencia vigente están en:
+
+- `us02-us20-us31-fixed-20260910T233934Z/RESULTADO.md`: alcance exacto de la reevaluación.
+- `us02-us20-us31-fixed-20260910T233934Z/playwright-us02.log`, `playwright-us20.log` y `playwright-us31.log`: pruebas individuales 1/1, 2/2 y 2/2 PASS.
+- `us02-us20-us31-fixed-20260910T233934Z/playwright-combined.log`: conjunto 5/5 PASS.
+- `us02-us20-us31-fixed-20260910T233934Z/teardown-result.json`: cero contenedores, volúmenes y redes residuales; stack principal sin cambios.
+- `us02-us20-us31-fixed-20260910T233934Z/SHA256SUMS`: integridad del paquete sanitizado.
+- `us02-us20-us31-fixed-20260910T233934Z/ARTIFACT_RETENTION.md`: paquete textual; trazas y medios retirados sin reejecutar ni alterar resultados.
+- `us02-us20-us31-fixed-us20isolated20260911T0220Z/`: paquete vigente sobre snapshot congelado; US-20 2/2 dos veces y conjunto 5/5 dos veces. Sus cuatro `sse-reconnect.json` prueban cierre exclusivo de SSE, API/refresh 200 durante el corte, segunda respuesta establecida antes de publicar y toast real posterior.
+
+### US-03 / US-16 / US-17 / US-25 — laboratorio aislado real
+
+- `us03-us16-us17-us25-isolated-20260910T235332Z/RESULTADO.md`: veredicto vigente y límites contractuales.
+- `us03-us16-us17-us25-isolated-20260910T235332Z/us03-multikey-result.json`: rotación CURRENT/PREVIOUS live y uso del token nuevo contra `/rules`, sin tokens persistidos.
+- `us03-us16-us17-us25-isolated-20260910T235332Z/playwright-us16-us17.log` y `playwright-us25.log`: casos individuales PASS.
+- `us03-us16-us17-us25-isolated-20260910T235332Z/playwright-combined.log`: conjunto 2/2 PASS.
+- `us03-us16-us17-us25-isolated-20260910T235332Z/teardown-result.json`: cero recursos lab y stack principal sin cambios.
+- `us03-us16-us17-us25-isolated-20260910T235332Z/ARTIFACT_INVENTORY.md`: inventario de las dos trazas textuales retenidas y referencias relativas verificadas.
+- `us03-us16-us17-us25-isolated-20260910T235332Z/SHA256SUMS`: integridad completa.
+
+Los paquetes `...T221818Z/`, `...T222631Z/`, `...T224506Z/`, `...T230300Z/`, `...T234339Z/` y `...T234725Z/` son históricos y no constituyen evidencia vigente. El paquete `...T235332Z/` incorpora las aserciones, elimina evidencia visual no sanitizable, sanitiza variantes percent-encoded y verifica identidad y salud del stack principal.
+
+### US-03 / US-16 / US-17 / US-25 — contratos canónicos, 2026-09-11
+
+- Paquete vigente: `us03-us16-us17-us25-isolated-20260911T015529Z/`.
+- Individuales: US-03 1/1, US-16/17 1/1, US-25 1/1 PASS.
+- Combinado: 3/3 PASS, repetido dos veces.
+- Incluye multi-key real, cookie canónica, RuleForm por labels, wire `event_ids[]`, comando firmado, ACK y efecto en baseline.
+- Las carpetas anteriores se conservan como historial y no describen el estado contractual vigente.
+
+## A-3 — Ensayo multianfitrión con mTLS y TLS de Valkey — 2026-09-12
+
+- `v10-closure-20260912T190052Z/a3-multihost/README.md`: resumen del ensayo, anfitriones, resultados por punto de control, métricas clave y hallazgos.
+- `v10-closure-20260912T190052Z/a3-multihost/RUNBOOK_WSL2_MTLS.md`: registro paso a paso completo (72 KB); el nombre se conserva por trazabilidad con un plan preliminar sobre WSL2 que se descartó antes de instalar el agente — el ensayo ejecutado usó una segunda PC física con Ubuntu 26.04.1 LTS instalado en disco, sin virtualización.
+- `v10-closure-20260912T190052Z/a3-multihost/MANIFEST_EXCLUSION.md`: historial de por qué la carpeta quedó excluida del manifiesto de integridad mientras el ensayo estaba en curso, y de su inclusión posterior.
+- `v10-closure-20260912T190052Z/a3-multihost/SHA256SUMS`: manifiesto propio del paquete. **Este paquete está íntegramente versionado en git** (66 archivos verificados con `git ls-files`); se verifica con:
+
+  ```bash
+  cd docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost
+  sha256sum -c SHA256SUMS
+  ```
+
+- Código base: rama `devel`, HEAD inicial `223f85c` más las correcciones `f9a536a` (listener TLS de bootstrap dedicado, D52/RN-146), `f552aa6` (Authority Key Identifier en el certificado de Valkey) y `656b101` (preflight de escritura con `effective_ids`). **No corresponde al candidato consolidado `7a7ee50`.**
+- Hallazgos abiertos, no corregidos durante el ensayo: `process_exe` vacío en eventos de la PC; archivo nuevo reportado como `file_modified` en vez de `file_created`, con `diff_text` vacío en los `file_created` observados; avalancha de 38.794 mensajes históricos en el stream `commands` compartido (más de 22.000 `detector.out_of_scope_drop` en los primeros 20 s, ~65/min en régimen estable); reinstalación de `agent/install.sh` que anida el árbol de código; listener 8443 sin alerta TLS legible al rechazar un certificado de cliente inválido.
+- Límites: red local doméstica, un único agente monitoreado, una sola corrida por prueba; orquestador de notificaciones degradado durante el ensayo (sin prueba de notificación entre dos anfitriones); no acredita WAN, alta disponibilidad ni rendimiento extrapolable.
+- El resto del paquete `v10-closure-20260912T190052Z/` (`lanes/`, `m3/`, `m4/`, `m8/`, `m9/`, `build/`, `backlog/`, `figures/`) **no está versionado en git**; el manifiesto `../SHA256SUMS` de ese directorio padre lo incluye, pero un clon del repositorio no puede verificarlo. Sólo `a3-multihost/` es una excepción versionada dentro de ese paquete.
+
+## A-4 — Aceptación de despliegue en un servidor remoto (VPS) — 2026-09-14/15
+
+- `a4-vps-acceptance-20260915T153824Z/README.md`: entorno (VPS HostGator Ubuntu 22.04.5 kernel 6.8 + PC del operador Ubuntu 26.04 kernel 7.0), resultados por tarea del grupo 12 del change `vps-deployment-readiness`, y los siete hallazgos del grupo 14 con su commit de corrección.
+- `a4-vps-acceptance-20260915T153824Z/SHA256SUMS`: manifiesto propio de esta carpeta.
+- `a4-vps-20260915T145238Z/`: carpeta hermana de una corrida previa del mismo ensayo. **No tiene `README.md` ni `SHA256SUMS` propio.**
+- Código base: rama `devel`, commit inicial `2f84d60`; correcciones de hallazgos en `ed286d9..277a458`. **No corresponde al candidato consolidado `7a7ee50`.**
+- No verificado en este entorno: deduplicación de tickets con el mismo `event_id` (el VPS no tiene un sistema de tickets controlado); los arreglos 14.5 y 14.7 se reverificaron en un proyecto Docker aislado con n8n real, no en el VPS.
+- **Ninguna de las dos carpetas A-4 está versionada en git.** Ambas quedan excluidas por `.gitignore` (patrón `/docs/cierre/evidencia/a4-vps-*/`); son evidencia local del equipo de trabajo, no parte del paquete de cierre distribuido con el repositorio. Verificado con `git ls-files` (0 archivos) y `git check-ignore -v`.

@@ -2,11 +2,24 @@
 
 > Este documento propone redacción para el informe académico. **No afirma que la tesis haya sido modificada.** “Nueva evaluación” no reescribe retrospectivamente las baterías históricas.
 
+## Continuación: correcciones sobre la auditoría V10
+
+Este documento cubre el ciclo de la auditoría V5. Las correcciones sobre
+`docs/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md` (§13 y §17) — la declaración de
+uso de IA (N-1), el ensayo multianfitrión y la aceptación de despliegue en
+VPS (A-3/A-4), las correcciones puntuales de Anexo E/Anexo D/Tabla 18/Tabla
+20/Tailwind/US-08/US-09 (N-6, N-7, N-8) y las limitaciones de cuarentena y
+diff a declarar — están en
+**[`docs/cierre/CAMBIOS_PARA_TESIS_V11.md`](CAMBIOS_PARA_TESIS_V11.md)**, con
+el mismo formato de este documento (texto actual, texto propuesto, fuentes y
+límites). Ese documento no reemplaza este archivo; lo continúa para el corte
+de auditoría siguiente.
+
 | Sección afectada | Afirmación anterior | Hecho comprobado | Corrección sugerida | Evidencia |
 |---|---|---|---|---|
 | Resumen / §4.9 | 675 pruebas | La corrida histórica preserva 494 backend + 418 agente = 912; 911 aprobadas y una omitida | Usar “912 pruebas históricas (911 aprobadas y una omitida)” y separar cualquier corrida posterior | JUnit Batería 2 |
 | §4.9 coverage | 2711/3003 o 90,3 % | Run 3: 2484/2780 statements = 89,35 %; 570/572 aprobadas y 2 omitidas | Reemplazar por el denominador comprobado e indicar que branch coverage estaba deshabilitada y el snapshot era anterior a HEAD final | `docs/cierre/evidencia/20260909-coverage-run3/` |
-| Trazabilidad | 31/31 historias cubiertas | Matriz actual: 4 completas, 27 parciales, 0 sin cobertura funcional | Informar la distribución; no equiparar código o una prueba parcial con aceptación completa | `docs/cierre/MATRIZ_TRAZABILIDAD.md` |
+| Trazabilidad | 31/31 historias cubiertas | Matriz actual: 9 completas, 22 parciales, 0 sin cobertura funcional | Informar la distribución; no equiparar código o una prueba parcial con aceptación completa | `docs/cierre/MATRIZ_TRAZABILIDAD.md` |
 | US-09 | Sin implementación o sólo comparación de hashes | `8039624` + `f08626a` implementan diff textual real, acotado y validado sobre snapshot limpio | Describir el unified patch, sus descartes legítimos y las verificaciones; no llamarlo diff para binarios | commits y tests US-09 |
 | Atribución de proceso | UID `0` podía representar dato no disponible | `b70934d` usa `null` cuando `/proc` no permite resolver identidad; UID `0` queda reservado para root real | Diferenciar atribución observada de atribución no resuelta; no imputar acciones a root por defecto | D49/RN-143; commit `b70934d` |
 | Brechas de detección | La saturación fanotify podía quedar invisible | `FAN_Q_OVERFLOW` genera `detection_gap`, acotado a una emisión por ventana monotónica de 60 s y con supresiones contabilizadas | Afirmar observabilidad de la brecha, no recuperación de los eventos perdidos | D50/RN-144; commits `b70934d` + `b8e9513` |
@@ -53,3 +66,9 @@
 - 31/31 historias completas; cero pérdidas históricas; validación multianfitrión; TLS habilitado en la corrida histórica; entrega SMTP real; exactamente una vez extremo a extremo; cuarentena resistente a root/adquisición con secreto o con borrado seguro garantizado; aptitud productiva. El `<30 s` sólo puede afirmarse para Run 4 y sus condiciones, no como garantía productiva.
 
 La ejecución ampliada de 62 pruebas no debe presentarse como aprobada: 55 pasaron y 7 fallaron por el harness mTLS preexistente. La evidencia focal n8n es de 9 pruebas aprobadas y los escenarios runtime registrados.
+
+## Cierre posterior de US-03 y US-25 — 2026-09-11
+
+**PREPARADO — EJECUTADO — VALIDACIÓN REGISTRADA**
+
+Los hallazgos contractuales de la auditoría sobre cookie y wire bulk fueron corregidos en la implementación y revalidados en el laboratorio aislado `us03-us16-us17-us25-isolated-20260911T015529Z/`. La auditoría V5 se conserva como fotografía anterior; para el estado vigente prevalecen la matriz y este paquete posterior. También se cerró la asociación programática de labels de RuleForm, sin afirmar accesibilidad global.

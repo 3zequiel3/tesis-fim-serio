@@ -50,3 +50,53 @@
 4. Aplicar las correcciones de redacción de [`CAMBIOS_PARA_TESIS.md`](CAMBIOS_PARA_TESIS.md).
 5. Repetir ensayos con [`REPRODUCIR.md`](REPRODUCIR.md).
 6. Validar hashes en [`evidencia/INDICE.md`](evidencia/INDICE.md).
+
+## Playwright US-03 / US-25 — 2026-09-10
+
+| Evidencia | Evaluación | Estado | Límite |
+|---|---|---|---|
+| `docs/cierre/evidencia/us03-us25-playwright-20260910T205424Z/RESULTADO.md` | Refresh/revocación y bulk parcial con usuario/rate-limit aislados | **PASS funcional** | Contratos y tramos live exclusivos continúan BLOCKED. |
+| `docs/cierre/evidencia/us03-us25-playwright-20260910T205424Z/combined-final-run1/` | Primera corrida conjunta final | **2/2 PASS** | No acredita multi-key live ni comando/ACK. |
+| `docs/cierre/evidencia/us03-us25-playwright-20260910T205424Z/combined-final-run2/` | Segunda corrida consecutiva | **2/2 PASS** | Prueba que el bucket de una corrida no agota la siguiente. |
+| `docs/cierre/evidencia/us03-us25-playwright-20260910T203527Z/` y `us03-us25-playwright-20260910T204339Z/` | Descubrimiento/corrección previa | **HISTÓRICO** | No representan el estado final. |
+
+## Laboratorio aislado US-03 / US-16 / US-17 / US-25
+
+| Evidencia | Qué acredita | Resultado | Límite |
+|---|---|---|---|
+| `docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260910T235332Z/RESULTADO.md` | Rotación JWT live, edición/eliminación con agente real y bulk approve con ACK/efecto | **PASS ejecutado** | Cookie US-03 y wire US-25 siguen BLOCKED contractuales. |
+| `.../playwright-us16-us17.log` + `.../playwright-us25.log` | Casos individuales | **1/1 + 1/1 PASS** | Sin mocks de red. |
+| `.../playwright-combined.log` | Orden conjunto semánticamente válido | **2/2 PASS** | Un worker, archivos propios por historia. |
+| `.../teardown-result.json` | Eliminación de recursos y no alteración del stack principal | **0/0/0; true/true** | Verificable por SHA-256. |
+
+## Playwright US-02 / US-20 / US-31
+
+| Evidencia | Resultado |
+|---|---|
+| `evidencia/us02-us20-us31-playwright-20260910T212203Z/` | US-02 FAIL; US-20 1 PASS + reconexión INCONCLUSA/BLOCKED por método; US-31 1 PASS/1 FAIL; conjunto aprobado 2/2 PASS; build PASS |
+| `evidencia/us02-us20-us31-fixed-20260910T233934Z/` | Corrección posterior: individuales US-02 1/1, US-20 2/2 y US-31 2/2; conjunto 5/5 PASS; evidencia textual sanitizada y medios/traces retirados sin reejecución; build, integridad y teardown PASS |
+| `evidencia/us02-us20-us31-fixed-us20isolated20260911T0220Z/` | Evidencia vigente: snapshot congelado; US-20 individual 2/2 dos veces y conjunto US-02/20/31 5/5 dos veces; corte físico sólo de SSE con API/refresh 200; integridad, sanitización y teardown PASS |
+
+El primer paquete se conserva como resultado histórico de descubrimiento. El segundo es la evidencia vigente de estas tres historias; no se suman como una única suite.
+
+## Cierre canónico US-03 / US-16 / US-17 / US-25 — 2026-09-11
+
+| Evidencia | Alcance | Estado |
+|---|---|---|
+| `docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T015529Z/RESULTADO.md` | Cookie/ruta/revocación y multi-key US-03; labels RuleForm; wire y agente/ACK/efecto US-25 | **PASS ejecutado** |
+| `docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T015529Z/SHA256SUMS` | Integridad del paquete sanitizado | **PASS** |
+
+## Ensayo multianfitrión A-3 y aceptación VPS A-4 — 2026-09-12 / 2026-09-15
+
+> Redacción propuesta para el cuerpo de la tesis: `docs/cierre/CAMBIOS_PARA_TESIS_V11.md` §4. Ninguno de los dos ensayos corrió sobre el candidato consolidado `7a7ee50`.
+
+| Evidencia | Resultado verificable | Código / evidencia |
+|---|---|---|
+| A-3 — mTLS agente-backend y TLS de Valkey, dos equipos físicos por LAN | 9/9 rechazos negativos (Valkey V1–V4; backend B1–B3, E1–E2); capturas de tráfico sin cadenas en claro en ambos extremos | `docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md`, `RUNBOOK_WSL2_MTLS.md`; `devel` `223f85c`+`f9a536a`+`f552aa6`+`656b101` |
+| A-4 — aceptación de despliegue en VPS público | 6/6 tareas del grupo 12 PASA; 7 hallazgos operativos corregidos con pruebas en el grupo 14 | `docs/cierre/evidencia/a4-vps-acceptance-20260915T153824Z/README.md`; `devel` `2f84d60`+`ed286d9..277a458` |
+
+**Límites declarados de A-3:** red local doméstica, un único agente monitoreado, una sola corrida por prueba; orquestador de notificaciones degradado (sin ensayo de notificación entre dos anfitriones); hallazgos abiertos no corregidos (`process_exe` vacío, `file_created`/`file_modified` de un archivo nuevo, avalancha de 38.794 mensajes históricos del stream `commands`, reinstalación que anida el código, listener 8443 sin alerta TLS legible al rechazar).
+
+**Límites declarados de A-4:** deduplicación de tickets con mismo `event_id` no verificada en este entorno (sin sistema de tickets controlado en el VPS).
+
+**Estado de versionado:** `a3-multihost/` está íntegramente versionado en git (66 archivos) y trae su propio `SHA256SUMS`. Las carpetas `a4-vps-acceptance-20260915T153824Z/` y `a4-vps-20260915T145238Z/` **no están versionadas** (excluidas por `.gitignore`, patrón `/docs/cierre/evidencia/a4-vps-*/`); sólo la primera trae `SHA256SUMS` propio, la segunda no tiene README ni `SHA256SUMS`.

@@ -416,6 +416,25 @@ Una repetición crea una evaluación nueva: no sobrescribir `stdout.log`,
 
 En dos hosts Linux distintos, registrar versiones y relojes; ubicar agente y backend/Valkey en hosts diferentes; habilitar TLS/mTLS; capturar únicamente metadatos sanitizados. Verificar conectividad válida y rechazos negativos. No denominar multianfitrión a dos contenedores del mismo host.
 
+Este ensayo ya se ejecutó una vez como A-3 (dos equipos físicos por LAN doméstica, `docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/`) y una segunda vez, sobre infraestructura real, como A-4 (VPS público + PC del operador, `docs/cierre/evidencia/a4-vps-acceptance-20260915T153824Z/`). Ninguna de las dos corrió sobre el candidato consolidado `7a7ee50`; una repetición sobre ese candidato exige recongelarlo y repetir ambos procedimientos íntegros, no sólo esta sección.
+
+## 13a. Reproducir el despliegue multianfitrión / servidor remoto
+
+La guía operativa completa es `docs/despliegue_servidor_remoto.md`. Resumen de su procedimiento, verificado por lectura completa de esa guía:
+
+1. **Requisitos.** Servidor con Docker Engine + Compose v2, puertos publicables para la consola (80/443 según el modo TLS elegido), 8443 (mTLS agente-backend), 8444 (bootstrap) y 6380 (Valkey TLS); IP pública o nombre DNS. Host monitoreado con systemd, kernel ≥ 5.1 y Python 3.13 exacto (`agent/install.sh` valida la versión antes de crear el venv y admite `--python` para apuntar a un intérprete alternativo cuando el del sistema es otra versión).
+2. **Preparar el `.env` del servidor** con `scripts/prepare_server_env.py --fim-public-hosts <ip-o-dominio> --console-tls-mode off|self_signed|provided`; nunca sobrescribe un `.env` existente; las contraseñas generadas se muestran una sola vez.
+3. **Elegir el modo de consola** (`off`, `self_signed` o `provided`) según haya sólo IP, un dominio sin certificado, o un certificado real.
+4. **Levantar el stack** con `docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d --build`, sin editar ningún YAML; verificar `certs-init` (`Exited (0)` es el resultado esperado) y `n8n` en `healthy`.
+5. **Restringir los puertos publicados** insertando reglas en la cadena `DOCKER-USER` (no en `ufw` directamente, porque Docker las evalúa antes) para 8443/8444/6380.
+6. **Registrar el agente** con `scripts/register-agent.sh <agent_id>` desde el servidor; exporta la CA, la huella y un secreto de bootstrap de un solo uso.
+7. **Instalar el agente** en el host monitoreado con `agent/install.sh --non-interactive --server-host <host> --agent-id <agent_id> --watch-path ... --ca-cert ./fim-ca.pem --ca-fingerprint <huella> --bootstrap-secret-file <archivo>`.
+8. **Verificar el despliegue**: `systemctl status fim-agent` activo; bootstrap visible en el log del backend; un cambio en un `watch_path` aparece como evento en la consola; `GET /health/components` reporta `n8n: ok` una vez sano; un `POST` real contra el webhook del enrutador de n8n entrega el canal habilitado.
+9. **Reinstalar/actualizar** el agente es idempotente y reemplaza el código instalado sin anidarlo (verificar explícitamente este punto: A-3 documentó un hallazgo abierto de anidamiento con una versión anterior del instalador; A-4 lo corrigió con prueba, hallazgo 14.1/14.3 de su evidencia).
+10. **Reset de contraseña de administrador** y **renovación del certificado de consola en modo `provided`** tienen procedimientos explícitos en las secciones 10 y 11 de la guía.
+
+Esta guía es el procedimiento que efectivamente se siguió, con hallazgos y correcciones propios, en A-3 (`docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md`) y A-4 (`docs/cierre/evidencia/a4-vps-acceptance-20260915T153824Z/README.md`); ver también `docs/cierre/CAMBIOS_PARA_TESIS_V11.md` §4 para la redacción propuesta hacia el cuerpo de la tesis.
+
 ## 14. Cerrar y verificar evidencia
 
 ```bash
@@ -430,3 +449,64 @@ git status --short >> "$EVIDENCE_DIR/identidad.txt"
 ```
 
 Antes de publicar, sanitizar hostnames, rutas absolutas, payloads, destinatarios, certificados y secretos. Una copia sanitizada recibe nombre y hash nuevos; nunca se reemplaza silenciosamente el original.
+
+## 12. Playwright real para US-03 y US-25
+
+Instalar sólo Chromium y ejecutar cada historia antes del conjunto:
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
+FIM_E2E_RUN_DIR="../docs/cierre/evidencia/<run>/individual-us03" \
+  pnpm exec playwright test e2e/us03-session-refresh.spec.ts
+FIM_E2E_RUN_DIR="../docs/cierre/evidencia/<run>/individual-us25" \
+  pnpm exec playwright test e2e/us25-bulk-actions.spec.ts
+FIM_E2E_RUN_DIR="../docs/cierre/evidencia/<run>/combined" \
+  pnpm exec playwright test e2e/us03-session-refresh.spec.ts e2e/us25-bulk-actions.spec.ts
+cd ..
+python3 scripts/sanitize-playwright-artifacts.py "docs/cierre/evidencia/<run>"
+```
+
+El harness usa Vite como frontend actual y proxy same-origin, pero no mockea red: backend, PostgreSQL y Valkey son reales. Cada caso crea un usuario administrador único, elimina exclusivamente su bucket `fim:rl:login:<usuario>:<IP observada>` después del login y borra usuario/auditoría al cerrar. US-25 crea y limpia fixtures DB por IDs/paths únicos. El resultado funcional vigente es exit `0`; los criterios BLOCKED se consultan en `RESULTADO.md` y no se cuentan como PASS.
+
+## Laboratorio efímero aislado — US-03, US-16, US-17 y US-25
+
+**PREPARADO — EJECUTADO — VALIDACIÓN REGISTRADA**
+
+```bash
+scripts/run-isolated-acceptance-lab.sh
+```
+
+El comando usa exclusivamente `docker-compose.acceptance-lab.yml` con un project name aleatorio. Genera secretos, configuración, PKI, estado, baseline y dos archivos vigilados dentro del lab; no lee `.env` para sus valores `FIM_LAB_*`, no publica DB/Valkey, no inicia n8n y deja vacíos todos los canales externos. Ejecuta, en orden: build, health real, cambio de clave CURRENT/PREVIOUS, bootstrap mTLS del agente, los dos casos Playwright individuales y el conjunto.
+
+La trampa de salida siempre corre `docker compose down -v --remove-orphans`, elimina el directorio temporal y compara el inventario del stack principal antes/después. El aislamiento cubre estado, datos y recursos de Compose, no el kernel del host: fanotify puede observar eventos fuera de `/watch`, pero el filtro de alcance los descarta y no se contabilizan como eventos FIM aceptados. El resultado vigente y sus checksums están en `evidencia/us03-us16-us17-us25-isolated-20260910T235332Z/`.
+
+## Playwright dirigido — US-02, US-20 y US-31
+
+El paquete histórico de descubrimiento está en `docs/cierre/evidencia/us02-us20-us31-playwright-20260910T212203Z/`. No debe sobrescribirse ni sumarse a la reevaluación posterior.
+
+```bash
+cd frontend
+FIM_E2E_RUN_DIR=../docs/cierre/evidencia/playwright-recheck-us02 pnpm exec playwright test e2e/us02-logout.spec.ts
+FIM_E2E_RUN_DIR=../docs/cierre/evidencia/playwright-recheck-us20 pnpm exec playwright test e2e/us20-realtime-alerts.spec.ts
+FIM_E2E_RUN_DIR=../docs/cierre/evidencia/playwright-recheck-us31 pnpm exec playwright test e2e/us31-superseded-toggle.spec.ts
+```
+
+La corrección posterior se reproduce en un laboratorio aislado con:
+
+```bash
+scripts/run-us02-us20-us31-acceptance-lab.sh
+```
+
+El script construye y levanta PostgreSQL, Valkey, backend, frontend y un proxy exclusivo de SSE, deja vacíos los canales externos, ejecuta las historias individualmente y luego dos veces como conjunto, sanitiza la evidencia y elimina todos los recursos. Para US-20 detiene únicamente el proxy de `/alerts/stream`, exige el cierre observable del stream, verifica API y refresh 200 durante el corte, restaura el proxy, espera una segunda respuesta SSE exitosa antes de publicar y exige el toast del evento real posterior. El resultado vigente está en `evidencia/us02-us20-us31-fixed-us20isolated20260911T0220Z/`.
+
+## 14. Reproducir cierre canónico US-03 / US-25
+
+**PREPARADO — EJECUTADO — VALIDACIÓN REGISTRADA**
+
+```bash
+scripts/run-isolated-acceptance-lab.sh
+```
+
+El runner ejecuta US-03, US-16/17 y US-25 individualmente, luego la suite combinada dos veces. Usa recursos Compose, PKI, estado, baseline y watch directory propios; el trap elimina todos los recursos incluso ante fallo. El resultado vigente está en `docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T015529Z/`.

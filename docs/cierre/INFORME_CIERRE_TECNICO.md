@@ -151,3 +151,77 @@ Run 3 redujo el drenaje desde 153 s históricos a 51,773 s y delimitó la ingest
 Puede sostenerse que US-09, el límite mTLS agente/backend y los flujos n8n controlado y durable fueron implementados y verificados en evaluaciones nuevas y acotadas. También quedaron corregidos la atribución falsa a root, la invisibilidad de `FAN_Q_OVERFLOW`, el recorrido de eventos sin ruta, la promoción de baseline ligada al evento y el almacenamiento/retención de cuarentena. Puede sostenerse la cobertura Run 3 con su denominador, la reagregación correcta de latencia y el cumplimiento de drenaje Run 4 sólo para el laboratorio documentado.
 
 No puede sostenerse validación integral: aunque el drenaje Run 4 cumple 30 s bajo condiciones controladas, la causalidad runtime de los 19 históricos no puede reconstruirse, falta la evaluación en dos anfitriones y SMTP real no fue acreditado. El estado correcto es **cierre parcial**, no aptitud productiva.
+
+## 11. Aceptación de navegador añadida para US-03 y US-25
+
+Playwright 1.63.0 con Chromium 1243 ejecutó ambas historias contra frontend actual, backend, PostgreSQL y Valkey reales. El paquete durable está en `docs/cierre/evidencia/us03-us25-playwright-20260910T205424Z/`.
+
+US-03 quedó funcionalmente verde después de basar el scheduling en la duración `exp - iat` recibida, con validación y clamp; esto elimina el loop ante clock skew sin usar claims locales para autorizar. US-25 validó UX y parcialidad real con auditoría. El build productivo también pasó.
+
+Ambas historias continúan PARCIAL únicamente por sus contratos divergentes: cookie Strict+`/auth/refresh` y bulk `event_ids[]` siguen BLOCKED. La rotación multi-key live y el comando/ACK/efecto de agente se ejecutaron sin mocks en un laboratorio aislado de estado, datos y recursos.
+
+## Laboratorio aislado de reglas, rotación y acciones
+
+**PREPARADO — EJECUTADO — VALIDACIÓN REGISTRADA**
+
+Se incorporó un harness opt-in separado del Compose principal. Usa PostgreSQL, Valkey, PKI mTLS, estado del agente, baseline y watch directory propios. Aísla estado, datos y recursos de Compose, no el kernel del host: fanotify puede observar eventos fuera de `/watch`, que el filtro de alcance descarta y que no se persisten en la evidencia. Validó la rotación JWT live de US-03, cerró la aceptación funcional de US-16/US-17 y acreditó para US-25 la cadena firmada/versionada backend → agente → ACK → baseline cifrada. El defecto de accesibilidad de `RuleForm` queda registrado por separado.
+
+La evidencia NO elimina divergencias de producto por decreto: US-03 continúa bloqueada por el contrato de cookie y US-25 por el wire canónico. Tampoco se atribuye `event_ack` a `rule_sync`; su recepción se midió mediante el `ruleset_version` persistido por el agente.
+
+## Actualización Playwright: US-02, US-20 y US-31
+
+La primera ejecución real del 2026-09-10 no completó estas historias. US-02 expuso que el frontend llamaba logout sin la autenticación exigida por backend; US-20 acreditó la cadena hasta el toast, mientras la reconexión quedó INCONCLUSA porque el modo offline no cerró el SSE abierto; US-31 acreditó toggle/URL/backend/reload, pero el ID del padre permanecía sólo en el tooltip. Ese resultado histórico se conserva en `evidencia/us02-us20-us31-playwright-20260910T212203Z/`.
+
+Una corrección y reevaluación posterior resolvió US-02 y US-31. Para US-20 se observó cierre, reinicio, nueva request y un evento posterior, pero una revisión independiente detectó que el harness publicaba antes de acreditar la segunda respuesta SSE establecida. Por eso US-20 permanece parcial hasta repetir el ensayo con ese límite explícito. `evidencia/us02-us20-us31-fixed-20260910T233934Z/` se conserva como evidencia histórica y no se suma a la corrida inicial.
+
+La repetición sobre un snapshot congelado (`evidencia/us02-us20-us31-fixed-us20cdp20260911T0205Z/`) eliminó la publicación anticipada, pero no produjo un resultado consecutivo: la primera corrida US-20 pasó 2/2 y la segunda falló 1/2 al no observar la segunda respuesta SSE dentro del límite. El fail-fast impidió ejecutar las combinadas previstas. La evidencia fue sanitizada y sellada en el camino de error; US-20 continúa parcial y el resultado no se presenta como defecto productivo concluyente.
+
+El cierre metodológico posterior aisló el transporte mediante un proxy de laboratorio usado únicamente por `/alerts/stream`, manteniendo backend, API y refresh disponibles. En `evidencia/us02-us20-us31-fixed-us20isolated20260911T0220Z/`, dos corridas individuales US-20 2/2 y dos combinadas 5/5 pasaron sobre el mismo snapshot congelado. Cada reconexión acreditó stream inicial, cierre físico, API y refresh 200 durante el corte, segunda respuesta SSE establecida antes de publicar y toast de un evento real posterior. US-20 queda completa para sus criterios enumerados; el ensayo local no acredita HA ni todas las particiones de red posibles.
+
+## 13. Resolución de los bloqueos contractuales de US-03 y US-25
+
+**PREPARADO — EJECUTADO — VALIDACIÓN REGISTRADA**
+
+La implementación posterior adoptó los contratos canónicos en vez de adaptar las pruebas al wire anterior. US-03 restringe la cookie de refresh a `SameSite=Strict; Path=/auth/refresh`, con migración de la cookie legacy y revocación enlazada por `refresh_jti`. La ventana de gracia valida también el JTI del refresh ganador, evitando que el replay de R0 resucite R1 después de logout o cambio de contraseña. US-25 usa exclusivamente `event_ids[]` y una acción compartida para reject; la forma `items[]` se rechaza con 422 y la respuesta bulk ya no expone `baseline_absent`.
+
+La evidencia vigente es `docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T015529Z/`: casos individuales PASS y conjunto de tres casos PASS dos veces, con backend, PostgreSQL, Valkey, frontend, PKI mTLS y agente reales dentro del laboratorio efímero. Los labels de RuleForm se validaron por nombre accesible; no se extrapola a accesibilidad global.
+
+## 14. Ensayo multianfitrión con mTLS y TLS de Valkey (A-3) — 2026-09-12
+
+> Corrección de redacción propuesta con detalle en `docs/cierre/CAMBIOS_PARA_TESIS_V11.md` §4.
+
+El ensayo A-3 verificó, por primera vez, el sistema sobre **dos equipos físicos** distintos conectados por una red local doméstica: un servidor central en una laptop (`192.168.1.43`) y un agente FIM nativo bajo `systemd`, corriendo en un entorno virtual Python 3.13, en una **segunda PC física con Ubuntu 26.04.1 LTS instalado en disco** (`192.168.1.36`, sin virtualización). El plan preliminar consideraba monitorear esa PC mediante WSL2; se descartó antes de instalar el agente en favor del anfitrión de metal desnudo, y el nombre del runbook (`RUNBOOK_WSL2_MTLS.md`) se conserva sólo por trazabilidad con esa referencia anterior — el ensayo ejecutado no usó WSL2.
+
+Se ejecutó sobre la línea de desarrollo `devel` a la fecha del ensayo (HEAD inicial `223f85c`), con las correcciones `f9a536a` (listener TLS de bootstrap dedicado en el puerto 8444, D52/RN-146), `f552aa6` (Authority Key Identifier en el certificado de Valkey) y `656b101` (preflight de escritura con `effective_ids`). **No se ejecutó sobre el candidato consolidado `7a7ee50`.**
+
+**Resultados:** los siete puntos de control del runbook (preparación de la PC, preparación de la laptop, servidor central con TLS en Valkey, instalación/registro/bootstrap del agente, pruebas positivas, pruebas negativas y capturas, y cierre) aprobaron, con un punto parcial documentado. mTLS agente-backend y TLS con certificado de cliente en Valkey quedaron verificados de punta a punta, incluidos 9/9 rechazos negativos (V1–V4 en Valkey; B1–B3, E1–E2 en el backend) y capturas de tráfico en ambos extremos sin cadenas del protocolo en claro (413/297 paquetes en la laptop, 220/135 en la PC, en dos rondas).
+
+**Hallazgos abiertos, no corregidos durante el ensayo:**
+
+- `process_exe` llega vacío en los eventos generados en la PC.
+- Un archivo nuevo se reportó como `file_modified` en lugar de `file_created`; los eventos `file_created` observados llegan con `diff_text` vacío.
+- El primer arranque del agente frente a un stream `commands` compartido con historial (38.794 mensajes de agentes de laboratorio anteriores) generó más de 22.000 advertencias `detector.out_of_scope_drop` en los primeros 20 s y ruido transitorio en la bitácora; en régimen estable persisten del orden de 65 `detector.out_of_scope_drop` por minuto por superposición de sistemas de archivos.
+- Reinstalar con `agent/install.sh` sobre una instalación existente anida el árbol de código (`cp -r` lo copia dentro de sí mismo) en lugar de reemplazarlo.
+- El listener 8443 no emite una alerta TLS legible al rechazar un certificado de cliente inválido (corta la conexión con `unexpected eof`/`errno=104`), a diferencia de Valkey.
+
+**Límites declarados:** red de área local doméstica con un único agente monitoreado y una sola corrida por prueba; no acredita despliegue en red de área amplia, alta disponibilidad ni rendimiento extrapolable (la prueba de 100 modificaciones del punto de control 5 no es una medición de rendimiento generalizable). El orquestador de notificaciones permaneció degradado durante el ensayo, por lo que no se ejerció la notificación externa entre dos anfitriones.
+
+**Evidencia:** `docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md` y `RUNBOOK_WSL2_MTLS.md`. El paquete está íntegramente versionado en git (66 archivos) y se verifica con su propio `SHA256SUMS`.
+
+## 15. Aceptación de despliegue en un servidor remoto (A-4) — 2026-09-14/15
+
+> Corrección de redacción propuesta con detalle en `docs/cierre/CAMBIOS_PARA_TESIS_V11.md` §4.
+
+El ensayo A-4 verificó el procedimiento operativo de `docs/despliegue_servidor_remoto.md` contra infraestructura real: un **VPS público** (HostGator, Ubuntu 22.04.5, kernel 6.8, IP pública) como servidor central, y una **PC del operador** (Ubuntu 26.04, kernel 7.0) como host monitoreado, sin túnel ni red compartida. Código en `devel`, commit inicial `2f84d60`; las correcciones de hallazgos llegaron en `ed286d9..277a458`. **No se ejecutó sobre `7a7ee50`.**
+
+**Resultados:** las seis tareas del grupo 12 del change `vps-deployment-readiness` aprobaron (arranque del stack sin editar YAML; puertos publicados correctos desde otro host; registro e instalación del agente con bootstrap por 8444 y eventos por 6380; consola HTTP/HTTPS con login y refresh; reinstalación sin anidar el código; `n8n: ok` con un POST real entregado por Gmail). Los siete hallazgos operativos detectados durante la corrida se corrigieron con pruebas en el grupo 14 antes de cerrar la evidencia: validación de versión de Python en `install.sh`, rutas relativas del instalador, secreto opcional en reinstalación de un agente ya enrolado, aplicación silenciosa de `ADMIN_PASSWORD` sobre un admin preexistente, reprovisioning de n8n en un `up -d` posterior, orígenes CORS del modo `self_signed`, y cuerpo vacío del correo de alerta.
+
+**No verificado en este entorno:** que dos solicitudes con el mismo `event_id` produzcan un único ticket (el VPS no dispone de un sistema de tickets controlado); esa propiedad se cubrió en un ensayo aislado con n8n real, no en esta corrida. Los arreglos 14.5 y 14.7 se reverificaron con n8n real en un proyecto Docker aislado, pero no se repitieron en el VPS.
+
+**Evidencia:** `docs/cierre/evidencia/a4-vps-acceptance-20260915T153824Z/README.md`. La carpeta hermana `docs/cierre/evidencia/a4-vps-20260915T145238Z/` corresponde a una corrida previa sin README ni `SHA256SUMS` propio. **Ninguna de las dos carpetas A-4 está versionada en git** (`.gitignore` las excluye con el patrón `/docs/cierre/evidencia/a4-vps-*/`); son evidencia local, no parte del paquete de cierre entregable en el repositorio.
+
+## 16. Nota sobre la unificación de los commits V10 en `devel`
+
+El 2026-09-15 se incorporaron a `devel` los commits del candidato V10 (carriles L1–L8 y L10, backlog y la corrección E2E; el carril L9 quedó excluido por superado) y se publicaron como `devel` `925dab5`. La regresión completa sobre esa rama aprobó: agente 597 pruebas aprobadas + 1 omitida; backend 754/754 con `TEST_VALKEY_TLS=1`; frontend 197/197 con comprobación de tipos y construcción; OpenSpec 44 especificaciones/249 requisitos.
+
+**Esta regresión no es un candidato consolidado congelado con custodia** equivalente a los paquetes `final-consolidated-v10-*`: es una corrida de verificación posterior a la unificación de rama, sin bundle ni manifiesto de custodia propios. No sustituye una nueva validación consolidada, que sigue pendiente. Su evidencia primaria (`summary.json`) reside fuera de este repositorio, en un worktree local de la máquina de desarrollo, y no forma parte del paquete de cierre. **[CONFIRMAR POR EL AUTOR: si corresponde citar esta unificación en el cuerpo de la tesis y con qué alcance exacto.]**
