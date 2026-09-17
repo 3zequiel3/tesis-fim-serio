@@ -134,7 +134,7 @@
 - [ ] Se muestra el estado de conectividad de los agentes registrados (`online` / `offline` / `draining` / `dead`).
 - [ ] Se destacan visualmente las situaciones críticas (eventos `pending` con severidad `critical` o `high`).
 - [ ] Si hay componentes degradados (`postgres`, `valkey`, `n8n` o algún agente en estado `down` / `degraded`), se muestra banner rojo persistente (ver US-28).
-- [ ] Si hay notificaciones externas en fallo terminal (`alerts` con `delivered_at IS NULL AND failed_at IS NOT NULL`, D6/RN-102), se muestra banner amarillo persistente (ver US-29).
+- [ ] Si hay notificaciones externas en fallo terminal (`alerts` con `delivered_at IS NULL AND failed_at IS NOT NULL`, D6/RN-107, reescritura de RN-102), se muestra banner amarillo persistente (ver US-29).
 
 **Prioridad:** Media
 **Módulo:** Frontend / Backend (Dashboard)
@@ -227,7 +227,7 @@
 - [ ] En el detalle de un evento `pending`, existe un botón "Aprobar".
 - [ ] Al aprobar, el backend aplica un UPDATE optimista usando `version = :expected_version` (C5).
 - [ ] Al tener éxito, el estado del evento cambia a `approved` y se registran `resolved_at` y `resolved_by`.
-- [ ] El baseline del archivo se actualiza con el **hash actual** del archivo (no con el hash del momento del evento), para reflejar el estado real del filesystem al momento del approve.
+- [ ] El baseline del archivo se actualiza con el **hash reportado por el evento aprobado**, es decir, el contenido que el administrador revisó, y no con un hash releído del filesystem al momento del approve; una modificación posterior genera un evento nuevo que reemplaza al anterior (D71/RN-165, ratifica D2).
 - [ ] Se envía la actualización de baseline al agente vía Valkey Streams, firmada con HMAC-SHA256 (C7) e incluyendo `ruleset_version` monotónico (C11).
 - [ ] El agente rechaza el comando si la firma HMAC es inválida o si `ruleset_version` es menor que el último aplicado.
 - [ ] El agente actualiza su baseline local, re-cifrado con AES-256-GCM (W10) y confirma mediante `event_ack` (C3).
@@ -550,7 +550,7 @@
 **Como** administrador, **quiero** ver las notificaciones externas que fallaron y poder reintentarlas o descartarlas, **para** no perder alertas críticas cuando n8n está caído.
 
 **Criterios de aceptación:**
-- [ ] Cuando `alerts` tiene al menos 1 fila en fallo terminal (`delivered_at IS NULL AND failed_at IS NOT NULL`, D6/RN-102), el frontend muestra un banner amarillo en el header: "Notificaciones pendientes: N alertas no pudieron ser enviadas".
+- [ ] Cuando `alerts` tiene al menos 1 fila en fallo terminal (`delivered_at IS NULL AND failed_at IS NOT NULL`, D6/RN-107, reescritura de RN-102), el frontend muestra un banner amarillo en el header: "Notificaciones pendientes: N alertas no pudieron ser enviadas".
 - [ ] El banner incluye un link que abre la vista `/alerts/failed`.
 - [ ] La vista muestra tabla con: `event_id` (link al evento), timestamp del primer intento, último error, `retry_count`.
 - [ ] Por cada fila, el admin puede: "Reintentar" (dispara un intento inmediato contra la cascada de fallbacks) o "Descartar" (elimina la fila).

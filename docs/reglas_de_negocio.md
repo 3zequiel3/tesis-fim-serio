@@ -29,7 +29,7 @@
 | 15 | [Configuración del agente](#15-configuración-del-agente) | RN-68 a RN-70 |
 | Apx | [Decisiones de auditoría — Abril 2026](#appendix-decisiones-de-auditoría--abril-2026) | RN-71 a RN-100 |
 | 16 | [Observabilidad y degradación](#16-observabilidad-y-degradación-dominio-nuevo) | RN-101 a RN-103 |
-| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-160 |
+| Apx | [Decisiones de implementación — Abril 2026](#appendix-decisiones-de-implementación--abril-2026) | RN-104 a RN-166 |
 
 ---
 
@@ -771,8 +771,9 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ### RN-102: Visibilidad de DLQ de notificaciones
 **Descripción:** El admin siempre puede ver y actuar sobre notificaciones que fallaron.
-**Condición:** Existen filas en `failed_notifications`.
-**Resultado:** Banner amarillo persistente. Vista `/notifications/failed` permite reintentar (individual o bulk) o descartar. Banner desaparece cuando la tabla queda vacía. Cada acción se registra en `audit_log` (RN-94).
+**Condición:** Existe al menos una fila de `alerts` en fallo terminal (`delivered_at IS NULL AND failed_at IS NOT NULL`), sin umbral de `retry_count` (D6/RN-107).
+**Resultado:** Banner amarillo persistente. Vista `/alerts/failed` (D70/RN-164) permite reintentar (individual o bulk) o descartar. Banner desaparece cuando no quedan alertas en fallo terminal. Cada acción se registra en `audit_log` (RN-94).
+**Nota de reescritura (2026-09-17):** el texto original mencionaba la tabla `failed_notifications` y la vista `/notifications/failed`. D6/RN-107 eliminó esa tabla y la implementación sirve la vista en `/alerts/failed` desde `f8508eb` (2026-06-21); esta regla se alinea a ambas sin cambiar su comportamiento.
 **Excepciones:** Ninguna.
 
 ### RN-103: Degradación no bloquea UI
@@ -784,7 +785,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17; D70–D72 (RN-164 a RN-166) se agregaron el 2026-09-17; D73 (RN-167) se agregó el 2026-09-17; D74 (RN-168) se agregó el 2026-09-17. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -2230,6 +2231,192 @@ cambia su contrato.
 
 **Reglas afectadas:** precisa el criterio de presentación de contadores del agente de D37/RN-131; no
 modifica el filtro de scope ni el contrato del heartbeat.
+
+#### D70 / RN-164: Rutas del frontend fijadas por la implementación — `/change-password` y `/alerts/failed`
+
+**Descripción:** La vista del cambio obligatorio de contraseña (W20) SHALL servirse en la ruta
+`/change-password`. El redireccionamiento forzado que emite un token con scope `password_change_only`
+SHALL apuntar a esa ruta. Los criterios de US-01 y US-27 que mencionaban `/account/change-password`
+SHALL leerse con la ruta de esta decisión. La vista de notificaciones en fallo terminal (RN-102) SHALL
+servirse en `/alerts/failed`, y el enlace del banner amarillo SHALL apuntar a esa ruta. Los criterios de
+US-05 y US-29 y el texto de RN-102 que mencionaban `/notifications/failed` SHALL leerse con esta ruta.
+
+**Ampliación (2026-09-17):** la segunda ruta se incorporó a esta decisión el mismo día de su registro.
+`/alerts/failed` existe desde `f8508eb` (2026-06-21) en `frontend/src/App.tsx` y en
+`backend/app/modules/alerts/router.py` (`GET /alerts/failed`), coherente con la tabla `alerts` de
+D6/RN-107. El texto de US-29 se alineó en `cc73c2d` (2026-09-15) sin decisión que lo respaldara, y RN-102
+conservaba la ruta anterior hasta su reescritura del 2026-09-17.
+
+**Motivo:** la ruta `/change-password` existe desde el scaffold del frontend (`3b62b97`, 2026-06-21) y
+es la que implementan `frontend/src/App.tsx` y el gate de `ProtectedRoute`. El texto canónico de US-01 y
+US-27 decía `/account/change-password` y fue alineado a la implementación en `cc73c2d` (2026-09-15)
+**sin** una decisión que lo respaldara. Esta entrada se registra el 2026-09-17 en forma **retroactiva**:
+declara que el texto se ajustó **después** de implementar, para que el cambio de criterio sea visible y
+no una reinterpretación silenciosa. La ruta no tiene consecuencias de seguridad: el gate es el scope del
+token en el backend, no el nombre de la ruta.
+
+**Condición:** Login de un usuario con `must_change_password = true`; existencia de alertas en fallo
+terminal.
+
+**Resultado:** El frontend redirige a `/change-password` y el banner de fallos enlaza a `/alerts/failed`;
+los criterios de US-01, US-05, US-27 y US-29 quedan cumplidos con el texto corregido en `cc73c2d`, y la
+trazabilidad los lista como ajustes de criterio declarados.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** precisa W20 y la vista de RN-102 (reescrita el 2026-09-17); no modifica RN-43 a
+RN-46, el scope `password_change_only` ni el lifecycle de `alerts` de D6/RN-107.
+
+#### D71 / RN-165: El approve adopta el hash del evento aprobado — ratificación de D2 sobre US-11
+
+**Descripción:** Al aprobar un evento, el baseline SHALL actualizarse con el hash que reportó el evento
+aprobado (`hash_detected`), y SHALL NOT releer el hash actual del archivo en el filesystem. El criterio
+4 de US-11, que pedía el hash actual, SHALL leerse según esta decisión y su texto canónico queda
+alineado con ella.
+
+**Motivo:** el operador aprueba **el contenido que revisó**: el diff y el hash del evento. Adoptar el hash
+releído al momento del approve abriría una ventana TOCTOU: una modificación posterior al evento y
+todavía no revisada quedaría incorporada al baseline por la aprobación de un contenido distinto, y el
+cambio desaparecería de la bandeja sin que nadie lo viera. D2 ya había cerrado el comportamiento; lo que
+faltaba era alinear el texto de la historia, que seguía describiendo la alternativa descartada. La
+cadena de eventos (RN-21) cubre el caso que motivaba el texto original: cualquier cambio posterior
+genera un evento nuevo que marca al anterior como `superseded`, y aprobar un `superseded` responde 409
+(RN-77). Desde `8d37075`, además, el agente sólo promueve baseline cuando identidad, ruta, hash y bytes
+coinciden con el candidato ligado al evento.
+
+**Condición:** Approve de un evento `pending`.
+
+**Resultado:** El baseline refleja el contenido aprobado; una modificación posterior aparece como un
+evento `pending` nuevo. El criterio 4 de US-11 queda cumplido con el texto alineado.
+
+**Excepciones:** Approve con archivo ausente mantiene RN-60 (`hash: null`, `status: 'absent'`).
+
+**Reglas afectadas:** ratifica D2 (reescritura de RN-17); no modifica RN-21 ni RN-77.
+
+#### D72 / RN-166: Flag booleano `queue_pressure_high` en el heartbeat, junto al ratio `queue_pressure`
+
+**Descripción:** El heartbeat del agente SHALL incluir la clave booleana `queue_pressure_high`, `true`
+cuando el ratio de ocupación de la cola offline supera 0,8 (más del 80 % de los 100 MB, W3) y `false` en
+caso contrario. El umbral SHALL calcularse en el agente. La clave existente `queue_pressure` (ratio
+float 0..1) SHALL conservarse sin cambios. El backend SHALL persistir el flag en `Agent` en una columna
+booleana **nullable** y SHALL exponerlo en `GET /agents` y `GET /agents/{id}`; `None` significa "el
+agente nunca reportó la clave". El banner de alerta específico del agente (US-21, W3) SHALL derivarse
+exclusivamente del flag: se muestra sólo cuando vale `true`.
+
+**Motivo:** W3 y el último criterio de US-21 especifican un flag booleano emitido por el agente; el
+sistema transportaba sólo el ratio y decidía el umbral en el cliente. Se cambia el código para cumplir
+el texto canónico, y no al revés, porque el umbral es una propiedad de la cola del agente y no de la
+presentación. El ratio se conserva porque alimenta la barra de presión de la tarjeta y porque retirarlo
+rompería agentes y backends ya desplegados. No se agrega un respaldo que recalcule el umbral en el
+cliente cuando el flag falta: reintroduciría la divergencia que esta decisión cierra; la barra sigue
+mostrando el ratio, así que la presión no deja de ser visible.
+
+**Condición:** Publicación y consumo de cada heartbeat.
+
+**Resultado:** Migración aditiva e idempotente sin backfill ni `NOT NULL`. Ingesta tolerante, con el
+mismo criterio que `discarded_events` y `out_of_scope_drops` (D37/RN-131, D69/RN-163): una clave
+ausente no pisa el valor guardado y un valor que no es booleano se ignora con un log sin impedir el
+procesamiento del resto del heartbeat. Un agente anterior a esta decisión sigue funcionando: su flag se
+lee `null` y la tarjeta no muestra el banner.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** implementa W3 y RN-84 sin modificarlos; no cambia el cálculo del ratio ni el límite
+de 100 MB.
+
+#### D73 / RN-167: El agente filtra sus logs por nivel
+
+**Descripción:** El agente SHALL filtrar la salida de `structlog` por el nivel configurado
+(`--log-level`, sobreescribible con la variable de entorno `LOG_LEVEL`; default `info`), con el mismo
+mecanismo que ya usa el backend (`structlog.make_filtering_bound_logger`). A nivel `info` los logs de
+nivel `debug` SHALL NOT emitirse a stdout. Un nivel desconocido o mal formado SHALL resolverse a
+`info`, nunca fallar el arranque del agente.
+
+**Motivo:** D69/RN-163 asumió que bajar el nivel de `detector.out_of_scope_drop` de `warning` a
+`debug` silenciaba el log. `agent/logging.py` (`configure_logging`) nunca filtró la salida de
+`structlog` por nivel: usa `wrapper_class=structlog.stdlib.BoundLogger` junto con
+`logger_factory=structlog.PrintLoggerFactory(sys.stdout)`, y el nivel sólo llegaba a
+`logging.basicConfig`, que no intercepta la salida de `structlog`. El resultado es que **toda**
+entrada, sin importar su nivel, se imprime. Se midieron 82 líneas `"level": "debug"` en los primeros
+15 segundos tras el despliegue del agente con D69/RN-163 (2026-09-17, 17:44:05 UTC), es decir, el
+journal siguió inundado después de aplicar esa decisión. Es una precondición de la corrida del
+Capítulo 5 (el ruido compite por I/O de journal con la latencia que se mide).
+
+**Condición:** Arranque del agente y cada llamada a un logger de `structlog` en su proceso.
+
+**Resultado:** A nivel `info` (default), ningún log de nivel `debug` —incluido
+`detector.out_of_scope_drop`— llega a stdout. A nivel `debug`, sí. El formato JSON/consola, la
+sanitización de campos sensibles (`sanitize_logs`) y el resto del contrato de logging del agente no
+cambian.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** completa el resultado de D69/RN-163 (el log baja de nivel, pero además el nivel
+configurado debe filtrarse); no cambia su criterio ni el nivel al que se emite
+`detector.out_of_scope_drop`.
+
+#### D74 / RN-168: Descartes por path nulo del kernel — posible brecha de cobertura, no ruido confirmado
+
+**Descripción:** El log por evento `detector.event_null_path` (`agent/detector.py:561-564`) SHALL
+emitirse a nivel `debug`, no `warning`. El agente SHALL mantener un contador acumulativo
+`null_path_drops`, incrementado exactamente una vez por evento con `ev.path is None`, expuesto como
+property pública del detector y publicado en el heartbeat junto a `out_of_scope_drops` y
+`event_drops`. A diferencia de D69/RN-163, un valor positivo de este contador SHALL NOT presentarse
+como ruido esperado: el filtro de scope (`_path_location_in_scope`, `agent/detector.py:565`) corre
+**después** de este chequeo y necesita un path para decidir, así que un evento con path nulo puede
+corresponder tanto a un cambio fuera de `watch_paths` como a uno dentro. Esta decisión es
+estrictamente de agente: no persiste el contador en el backend ni lo presenta en el frontend — ambas
+quedan para una decisión posterior.
+
+**Motivo:** Investigación de causa raíz (`agent/_fanotify.py:265-337`). El detector reconstruye el
+path de cada evento a partir de sus registros FID (`_resolve_path`), prefiriendo `DFID_NAME` (handle
+del directorio padre + nombre) y cayendo a `FID`/`DFID` (handle directo) si no hay nombre. La
+resolución final pasa por `_open_by_handle` (`:324-337`), que prueba `open_by_handle_at` contra cada
+fd de montaje ya abierto —uno por `watch_path` (`:224-236`)— y devuelve `None` cuando **todos**
+fallan: típicamente `ESTALE` porque el directorio referenciado por el handle ya fue borrado o
+renombrado entre la generación del evento en el kernel y su procesamiento en el hilo lector, o un
+error análogo si el handle pertenece a un filesystem sin fd de montaje abierto. `ev.path is None` es
+entonces un fallo de resolución del handle, no una propiedad del evento en sí — el kernel identificó
+un objeto real con un pid real (`ev.pid`, preservado en el log).
+
+La marca de fanotify es de filesystem completo en modo FID (D46/RN-140, el mismo mecanismo que hace
+normal a `out_of_scope_drop` en D69/RN-163), y el chequeo de path nulo corre **antes** del filtro de
+scope (`agent/detector.py:561` frente a `:565`) precisamente porque `_path_location_in_scope`
+necesita un path para decidir. Sin path, el agente no puede determinar si el objeto perdido estaba
+dentro de un `watch_path` — a diferencia de `out_of_scope_drop`, donde el path se conoce y su
+exterioridad está confirmada. Por eso este contador no hereda el marco de "ruido esperado" de D69:
+es estructuralmente comparable a `discarded_events` (D37/RN-131) en que un valor positivo **puede**
+ser una detección perdida, aunque —a diferencia de `discarded_events`— no hay certeza de que lo sea.
+De ahí "posible brecha de cobertura" y no "detección perdida confirmada" ni "ruido esperado".
+
+Magnitud medida en el journal del host del agente: 135.547 líneas `detector.event_null_path` desde
+el 2026-09-16, 71.833 entre las 13:00 y las 14:44 hora local del 2026-09-17 (~12 líneas/s), y 79
+líneas en los primeros 40 segundos tras un reinicio del agente, concentradas en 3 PIDs. El volumen es
+órdenes de magnitud menor que los 2.748.492 de `out_of_scope_drop` (D69/RN-163), pero el log por
+evento igual compite por I/O de journal con la latencia de detección, uno de los indicadores del
+Capítulo 5.
+
+Se evaluó agregar un resumen periódico acotado (`info`/`warning` a lo sumo una vez por intervalo de
+heartbeat, con el delta), al estilo de la deduplicación de `detection_gap` (D50/RN-144). Se descarta
+por el mismo motivo que la decisión D-2 del design de `agent-scope-drop-observability` rechazó esa
+alternativa para `out_of_scope_drop`: agrega estado y una ventana que hay que razonar, y el contador
+acumulativo ya viaja en cada heartbeat — un segundo canal agregado duplicaría esa señal sin sumar
+información nueva. `debug` por evento más el contador acumulativo es la respuesta proporcional.
+
+**Condición:** Recepción de un evento del backend fanotify interno cuyo path no pudo resolverse
+(`ev.path is None`).
+
+**Resultado:** El journal del agente deja de recibir un `warning` por evento sin path. El contador
+`null_path_drops` queda visible en el heartbeat para diagnóstico y para una futura decisión de
+persistencia/presentación en backend y frontend, que esta decisión no cierra. El log por evento a
+nivel `debug` conserva el `pid` para diagnóstico manual subiendo el nivel del agente.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** agrega una clave nueva al contrato del heartbeat del agente (RN-04, sección de
+contadores); no modifica el filtro de scope, `out_of_scope_drops` (D69/RN-163) ni `discarded_events`
+(D37/RN-131). No autoriza persistencia en `Agent` ni presentación en la tarjeta del agente — ambas
+quedan fuera de alcance de esta decisión.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

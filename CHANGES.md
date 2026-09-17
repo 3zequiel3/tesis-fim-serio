@@ -1177,6 +1177,26 @@ Reglas: RN-04 (ratificada sin cambio), RN-71, RN-92. Decisiones aplicadas: **D69
 
 ---
 
+### Change 57 — `backlog-full-stories-completion`
+
+**Capa**: agente + backend + frontend + tests + trazabilidad · **Depende de**: 55 (`backlog-partial-stories-completion`, archivado) y 56 (`agent-scope-drop-observability`, **archivado antes de aplicar este**) · **Paralelizable con**: 53, 54; con 56 **no** (aplicar en serie: primero 56, después 57) · **Origen**: corte de trazabilidad del 2026-09-16 (`devel`, `2475de8`), backlog 25/6/0 · **Decisiones**: D70/RN-164, D71/RN-165, D72/RN-166; declara D6/RN-107 (reescritura de RN-102), D66/RN-160
+
+> **Nota**: lleva el backlog de 25/6/0 a 31/0/0 sin reinterpretaciones silenciosas, en dos partes que se verifican y commitean por separado. La **parte 1** cambia código y agrega tests: US-07 (el selector lista los 7 estados, con `superseded` desmarcado y excluido por defecto y coherente con `include_superseded`), US-21 (flag booleano `queue_pressure_high` en el heartbeat según W3, sin retirar el float `queue_pressure`), y los tests faltantes de US-22 (toast de rescan), US-27 (`audit_log` de `login`/`logout`) y US-29 (`last_error`/`retry_count`/`failed_at` en la respuesta HTTP). La **parte 2** declara los ajustes de criterio: US-11 (D71/RN-165 ratifica D2 y alinea el texto), US-01 (D70/RN-164, registro retroactivo de la ruta `/change-password`), US-05 y US-23 (D6/RN-107) y US-12 (D66/RN-160), con una tabla explícita "Ajustes de criterio declarados" y el conteo estricto visible junto a 31/0/0.
+
+> **Coordinación con el change 56**: los dos tocan `agent/heartbeat.py`, `backend/app/modules/agents/{models,heartbeat_consumer,service}.py`, `frontend/src/api/agents.ts`, `AgentCard.tsx` y sus tests. El 56 es dueño de la migración `020_add_agent_out_of_scope_drops.sql`; este change usa **`021`**. El flag de US-21 sigue el mismo patrón de ingesta tolerante y nullable que el 56 introduce para `out_of_scope_drops`. **Orden de despliegue**: el slice del agente (clave nueva en el heartbeat) va antes de re-correr las baterías del Capítulo 5 (tarea 12.4 del change 51), igual que el del 56.
+
+Capacidades:
+- **US-07**: `ALL_STATUSES` con los 7 estados; marcar `superseded` activa `include_superseded`, apagar el toggle lo quita del filtro; un deep-link con `status=superseded` se normaliza; se conserva el ícono de cadena rota (US-31).
+- **US-21**: `queue_pressure_high` calculado en el agente (`> 0.8`), columna booleana nullable por migración aditiva `021`, ingesta tolerante, exposición en `GET /agents` y `GET /agents/{id}`, banner W3 derivado sólo del flag.
+- **US-22 / US-27 / US-29**: un test por criterio sin aserción.
+- **Trazabilidad**: `docs/cierre/MATRIZ_TRAZABILIDAD.md` y `docs/trazabilidad_us_tests.md` a 31/0/0 con la tabla de ajustes declarados (texto original, texto vigente, decisión, fecha, commit).
+
+Reglas: W3, RN-84, RN-92, RN-94, RN-22, RN-98, W20, RN-17 (vía D2), RN-102 (reescrita el 2026-09-17: tabla `alerts` y vista `/alerts/failed`). Decisiones nuevas: **D70/RN-164**, **D71/RN-165**, **D72/RN-166**. Fuera de alcance: un nuevo candidato consolidado con cadena de custodia.
+
+**Done**: el selector de eventos lista los 7 estados y `superseded` sigue excluido por defecto; un heartbeat con presión mayor al 80 % persiste `queue_pressure_high = true`, los dos endpoints lo exponen, un agente sin la clave se lee `null` y la tarjeta muestra el banner sólo con el flag en `true`; los tests de US-22, US-27 y US-29 pasan; las dos matrices muestran 31/0/0 junto al conteo estricto y la tabla de ajustes; `scripts/check_spec_integrity.py` y las suites completas de agente, backend y frontend pasan.
+
+---
+
 ## Decisiones de implementación cerradas — Abril 2026
 
 Las 8 suposiciones que estaban abiertas en una versión anterior de este roadmap se cerraron el 2026-04-24 y se documentaron formalmente en los appendices "Decisiones de implementación — Abril 2026" de:
