@@ -32,6 +32,40 @@ medidos, y el ruido del journal compite por el mismo I/O.
 **Decisión de gobierno.** D69/RN-163 (`docs/reglas_de_negocio.md:2202`) ya está cerrada y
 commiteada. Este design la implementa; no la reinterpreta ni la amplía.
 
+**Hallazgo posterior al despliegue (2026-09-17).** El agente con D69/RN-163 aplicado (`bfe2c57`) se
+desplegó el 2026-09-17 17:44:05 UTC (tarea 1.8) y el journal siguió inundado: 82 líneas
+`"level": "debug"` en los primeros 15 segundos. Causa raíz: `agent/logging.py`
+(`configure_logging`) nunca filtró la salida de `structlog` por nivel —
+`wrapper_class=structlog.stdlib.BoundLogger` junto con
+`logger_factory=structlog.PrintLoggerFactory(sys.stdout)` imprime **todo** nivel, y el nivel
+configurado sólo llegaba a `logging.basicConfig`, que no intercepta esa salida—, así que bajar
+`detector.out_of_scope_drop` a `debug` no tuvo efecto real. **D73/RN-167**
+(`docs/reglas_de_negocio.md`) cierra este hallazgo: el agente SHALL filtrar por nivel con
+`structlog.make_filtering_bound_logger`, mismo mecanismo que ya usa el backend
+(`backend/app/core/logging.py:245`). Este design incorpora esa decisión como D-10.
+
+**Segundo hallazgo posterior al despliegue (2026-09-17, D73/RN-167 ya redesplegado 17:57:16 UTC, 0
+líneas `debug` en el journal del proceso nuevo).** Con el filtro de nivel funcionando, el journal
+mostró un flujo distinto: `detector.event_null_path` (`agent/detector.py:561-564`, `log.warning`
+cuando `ev.path is None`), 71.833 líneas entre las 13:00 y las 14:44 hora local del 2026-09-17
+(~12/s), 135.547 desde el 2026-09-16, 79 en los primeros 40 s tras un reinicio, concentradas en 3
+PIDs. Investigación de causa raíz (`agent/_fanotify.py`): el path de cada evento se reconstruye a
+partir de sus registros FID (`_resolve_path`, `:265-311`), y la resolución final pasa por
+`_open_by_handle` (`:324-337`), que prueba `open_by_handle_at` contra cada fd de montaje abierto —uno
+por `watch_path` (`_open_mount_fd`, `:224-236`)— y devuelve `None` si **todos** fallan, típicamente
+`ESTALE` cuando el directorio referenciado ya fue borrado o renombrado entre la generación del
+evento en el kernel y su procesamiento en el hilo lector.
+
+A diferencia de `out_of_scope_drop`, este descarte **no** es estructuralmente seguro: el chequeo de
+path nulo (`:561`) corre **antes** del filtro de scope (`:565`) precisamente porque
+`_path_location_in_scope` necesita un path para decidir, así que un evento sin path puede
+corresponder a un cambio dentro de `watch_paths` tanto como a uno fuera. **D74/RN-168**
+(`docs/reglas_de_negocio.md`) cierra este hallazgo con un marco distinto al de D69/RN-163: el log
+baja a `debug` igual (el ruido por evento es inútil en cualquier caso), pero el contador nuevo se
+documenta como **posible brecha de cobertura**, no como ruido confirmado, y queda estrictamente del
+lado del agente — sin persistencia en el backend ni presentación en el frontend, que una decisión
+posterior deberá cerrar. Este design incorpora esa decisión como D-11.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -44,14 +78,24 @@ commiteada. Este design la implementa; no la reinterpreta ni la amplía.
   positivo acá no le enseñe al operador a ignorar un indicador rojo allá.
 - Que "nunca reportó" siga siendo distinguible de "cero", como en el resto de los contadores.
 - Que el slice del agente pueda desplegarse solo, antes de la corrida de medición.
+- Que el descarte por path nulo del kernel (`detector.event_null_path`) también deje de inundar el
+  journal, y que su magnitud quede visible en el heartbeat sin afirmar que es ruido confirmado
+  cuando no hay evidencia de eso (D74/RN-168).
 
 **Non-Goals:**
 
 - **No** se toca el filtro de scope: qué se descarta no cambia (RN-04 intacta).
-- **No** se toca el contrato del heartbeat: la clave ya viaja, el agente no cambia lo que publica.
+- **No** se toca el contrato del heartbeat para `out_of_scope_drops`: la clave ya viaja, el agente
+  no cambia lo que publica. `null_path_drops` (D74/RN-168) sí es una clave nueva, pero aditiva: un
+  backend anterior a esta change simplemente la ignora, igual que ignoraba `out_of_scope_drops`
+  antes de esta change.
 - **No** se persiste ni se presenta `event_drops`, la otra clave que el consumer ignora (ver D-6).
-- **No** se agrega retención, agregación por ventana ni serie temporal del contador: es un
-  acumulado desde el arranque del proceso, y así se muestra.
+- **No** se persiste `null_path_drops` en el backend ni se presenta en el frontend en esta change
+  (D-11): es estrictamente agente — contador, property y clave de heartbeat. Presentación queda
+  para una decisión posterior, precisamente porque su semántica de riesgo (posible brecha de
+  cobertura) exige una discusión propia, no la reutilización del criterio "informativo" de D69.
+- **No** se agrega retención, agregación por ventana ni serie temporal de ningún contador: son
+  acumulados desde el arranque del proceso, y así se muestran/publican.
 - **No** se cambia la presentación de `discarded_events`, `queue_size` ni `queue_pressure`.
 
 ## Decisions
@@ -157,12 +201,67 @@ frontend no tocan `agent/`, así que desplegarlos después no invalida la corrid
 
 **Rollback**: revertir el código de cualquier slice es seguro y no requiere revertir la migración —
 la columna es nullable y sin default, de modo que queda sin uso y no rompe ningún `INSERT`. Revertir
-el slice del agente restaura el `warning` y el ruido, sin pérdida de datos.
+el slice del agente restaura el `warning` y el ruido, sin pérdida de datos. Revertir D-10 restaura
+el filtrado ausente y, con él, el flood — el `warning`-a-`debug` de D-1 volvería a imprimirse igual
+que antes de esta change. Revertir D-11 restaura el `warning` de `detector.event_null_path` y retira
+`null_path_drops` del payload del heartbeat; un backend/frontend que nunca leyó esa clave no se ve
+afectado, porque es aditiva.
+
+**D-10 — El agente filtra su salida de `structlog` por nivel (D73/RN-167).**
+`configure_logging` pasa a `wrapper_class=structlog.make_filtering_bound_logger(log_level_int)`, el
+mismo mecanismo que `backend/app/core/logging.py:245`. Alternativa considerada: agregar un processor
+manual que descarte el evento si su nivel es menor al configurado. Rechazada: reimplementaría, con
+más código y peor mantenido, lo que `make_filtering_bound_logger` ya resuelve en el wrapper — y lo
+haría *después* de que el evento pasara por el resto de la cadena de processors, en vez de antes,
+perdiendo la ventaja de no ejecutar `sanitize_logs`/el renderer para líneas que igual se descartan.
+Un nivel desconocido o mal formado (typo en `--log-level`, valor inesperado en `LOG_LEVEL`) SHALL
+resolverse a `INFO` y no debe impedir el arranque del agente — un fallo de parseo del nivel no es
+motivo para que el agente no levante. `structlog.stdlib.add_log_level` se reemplaza por
+`structlog.processors.add_log_level`: son el mismo objeto desde structlog 20.2 (verificado en la
+instancia instalada, 25.1.0), pero el segundo nombre no sugiere una dependencia del wrapper
+`stdlib.BoundLogger` que este cambio retira. El resto del contrato de logging del agente —formato
+JSON/consola, `sanitize_logs`, `TimeStamper`, salida por `sys.stdout`— no cambia.
+
+**D-11 — El descarte por path nulo baja a `debug` y suma un contador con un marco distinto al de
+D-1 (D74/RN-168).**
+`detector.event_null_path` (`agent/detector.py:561-564`) pasa de `log.warning` a `log.debug`, igual
+mecanismo que D-1 aplicó a `out_of_scope_drop`. La diferencia está en lo que el contador nuevo,
+`null_path_drops`, afirma: causa raíz investigada en `agent/_fanotify.py:265-337` — `_open_by_handle`
+devuelve `None` cuando `open_by_handle_at` falla (típicamente `ESTALE`) contra todos los fds de
+montaje abiertos, y el chequeo de path nulo corre **antes** del filtro de scope (`:561` frente a
+`:565`) porque ese filtro necesita el path para decidir. No hay, entonces, forma de saber si el
+objeto perdido estaba dentro de `watch_paths`. Alternativa considerada: presentarlo con el mismo
+marco "informativo" que D69/RN-163 le da a `out_of_scope_drops`, por similitud superficial (los dos
+son descartes en el mismo hilo lector). Rechazada: allí el path se conoce y su exterioridad está
+confirmada; acá no hay path, así que no hay confirmación posible, y llamarlo "esperado" afirmaría
+una certeza que no existe. El contador se documenta como posible brecha de cobertura, comparable en
+ese sentido a `discarded_events` (D37/RN-131), aunque sin la certeza de pérdida que ese contador sí
+tiene.
+
+Se evaluó, además, agregar un resumen periódico acotado (`info`/`warning` a lo sumo una vez por
+intervalo de heartbeat, con el delta), al estilo de la deduplicación de `detection_gap` (D50/RN-144).
+Rechazada por el mismo motivo que D-2 rechazó esa alternativa para `out_of_scope_drop`: agrega estado
+y una ventana que hay que razonar, y el contador acumulativo ya viaja en cada heartbeat — un segundo
+canal agregado no suma información. `debug` por evento más el contador es la respuesta proporcional
+también acá.
+
+Alcance deliberadamente estrecho: esta decisión NO persiste `null_path_drops` en el backend ni lo
+presenta en el frontend (ver Non-Goals). Es una clave aditiva nueva en el payload del heartbeat —un
+backend anterior a esta change la ignora sin romperse, con el mismo criterio tolerante que ya aplica
+a claves desconocidas—, pero decidir su persistencia y su tratamiento visual (¿neutro como
+`out_of_scope_drops`, o con alguna forma de alerta como `discarded_events`, dado que puede esconder
+una pérdida?) es una discusión propia que esta decisión no cierra a propósito.
 
 ## Open Questions
 
-Ninguna. D69/RN-163 cierra el nivel del log, la persistencia, la nulabilidad y el criterio de
-presentación. Si durante el apply aparece una suposición que esta decisión no cubre —por ejemplo,
-la necesidad de presentar `event_drops` (D-6) o de agregar un umbral de alerta sobre el contador—,
+D69/RN-163 cierra el nivel del log, la persistencia, la nulabilidad y el criterio de presentación de
+`out_of_scope_drops`; D73/RN-167 cierra el filtrado por nivel que D69/RN-163 daba por sentado y que
+no existía; D74/RN-168 cierra el nivel del log y el contador de `event_null_path`, pero
+**deliberadamente no cierra** su persistencia en el backend ni su presentación en el frontend —queda
+abierta para una decisión posterior, que deberá decidir si el tratamiento visual es neutro (como
+`out_of_scope_drops`) o de alerta (como `discarded_events`), dado que un valor positivo puede
+esconder una detección perdida. Si durante el apply aparece una suposición que estas decisiones no
+cubren —por ejemplo, la necesidad de presentar `event_drops` (D-6), de agregar un umbral de alerta
+sobre cualquiera de los contadores, o de persistir/presentar `null_path_drops`—,
 **detener el flujo** y cerrarla en el appendix "Decisiones de implementación — Abril 2026" antes de
 continuar.

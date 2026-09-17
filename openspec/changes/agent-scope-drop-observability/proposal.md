@@ -20,6 +20,30 @@ La decisión que gobierna esta change ya está cerrada y no se reinterpreta acá
 (`docs/reglas_de_negocio.md:2202`), con su contraparte técnica en la fila D69 de la tabla de
 decisiones D63–D65 de `docs/arquitectura_stack.md:2707`. No se abre ninguna suposición nueva.
 
+**Hallazgo posterior (2026-09-17).** El agente con D69/RN-163 se desplegó a las 17:44:05 UTC (tarea
+1.8) y el journal siguió inundado: 82 líneas `"level": "debug"` en los primeros 15 segundos. Causa
+raíz: `agent/logging.py` nunca filtró la salida de `structlog` por nivel —el nivel sólo llegaba a
+`logging.basicConfig`, que no intercepta esa salida—, así que **todo** nivel se imprimía sin
+importar `--log-level`/`LOG_LEVEL`. Se cierra con **D73/RN-167**
+(`docs/reglas_de_negocio.md`), que esta change también implementa.
+
+**Segundo hallazgo posterior (2026-09-17, tras el redespliegue de D73/RN-167).** Con el filtro de
+nivel ya funcionando, el journal siguió mostrando flujo de `detector.event_null_path` a nivel
+`warning` (`agent/detector.py:561-564`, emitido cuando `ev.path is None`): 71.833 líneas entre las
+13:00 y las 14:44 hora local del 2026-09-17 (~12/s), 135.547 desde el 2026-09-16, y 79 líneas en los
+primeros 40 segundos tras un reinicio, concentradas en 3 PIDs. Investigación de causa raíz
+(`agent/_fanotify.py:265-337`): el path se reconstruye a partir de los registros FID del evento del
+kernel, y falla (`ev.path is None`) cuando `_open_by_handle` no puede resolver el handle contra
+ningún fd de montaje abierto —típicamente `ESTALE` porque el objeto referenciado ya fue borrado o
+renombrado entre la generación del evento y su procesamiento—. A diferencia de `out_of_scope_drop`,
+el chequeo de path nulo corre **antes** del filtro de scope (`agent/detector.py:561` frente a
+`:565`), así que un path nulo no confirma que el objeto estuviera fuera de `watch_paths`: puede
+esconder un cambio en scope. Se cierra con **D74/RN-168** (`docs/reglas_de_negocio.md`), que esta
+change también implementa, con un marco deliberadamente distinto al de D69/RN-163: el log baja a
+`debug` igual, pero el contador nuevo (`null_path_drops`) se documenta como posible brecha de
+cobertura, no como ruido confirmado, y esta change no lo persiste en el backend ni lo presenta en el
+frontend.
+
 ## What Changes
 
 - **Agente — el log por ruta baja a `debug` (D69/RN-163).** `detector.out_of_scope_drop`
@@ -43,6 +67,19 @@ decisiones D63–D65 de `docs/arquitectura_stack.md:2707`. No se abre ninguna su
   re-correr las baterías del Capítulo 5 (tarea 12.4 de `agent-attribution-and-detection-gap`). Los
   slices de backend y frontend no tocan el agente, así que pueden desplegarse después de la corrida
   sin invalidarla.
+- **Agente — el logging del agente filtra por nivel (D73/RN-167).** `agent/logging.py`
+  (`configure_logging`) pasa a `wrapper_class=structlog.make_filtering_bound_logger(...)`, mismo
+  mecanismo que ya usa el backend. A nivel `info` (default) ningún log `debug` —incluido
+  `detector.out_of_scope_drop`— llega a stdout; esto es lo que hace efectivo el cambio de nivel de
+  D69/RN-163. Un nivel desconocido cae a `info` sin romper el arranque.
+- **Agente — el log por evento de path nulo baja a `debug` y suma un contador (D74/RN-168).**
+  `detector.event_null_path` (`agent/detector.py:561-564`) pasa de `log.warning` a `log.debug`, y se
+  agrega el contador acumulativo `null_path_drops` (incrementado antes del log, property pública) que
+  viaja en el heartbeat junto a `out_of_scope_drops` y `event_drops`. A diferencia de D69/RN-163, el
+  contador se documenta como **posible brecha de cobertura** —el chequeo de path nulo corre antes del
+  filtro de scope, así que no hay certeza de que el objeto perdido estuviera fuera de `watch_paths`—,
+  no como ruido confirmado. Esta change no persiste el contador en el backend ni lo presenta en el
+  frontend: queda para una decisión posterior.
 
 ## Capabilities
 
@@ -55,7 +92,8 @@ decisiones D63–D65 de `docs/arquitectura_stack.md:2707`. No se abre ninguna su
 
 - `agent-fanotify-detector`: el nivel del log del descarte fuera de scope pasa a `debug` y queda
   fijado como requisito; el contador acumulativo y su publicación en el heartbeat quedan ratificados
-  sin cambio.
+  sin cambio. Se agrega, además, el descarte por path nulo del kernel: el log pasa a `debug` y se
+  suma el contador `null_path_drops` (D74/RN-168), documentado como posible brecha de cobertura.
 - `backend-agent-management`: el consumer de heartbeat persiste el contador de descartes fuera de
   scope en una columna nullable y los dos endpoints de agentes lo exponen.
 - `frontend-agents`: la tarjeta del agente presenta el contador como informativo, con tratamiento
@@ -63,12 +101,20 @@ decisiones D63–D65 de `docs/arquitectura_stack.md:2707`. No se abre ninguna su
 
 ## Impact
 
-**Agente** (una línea, sin cambio de contrato):
+**Agente** (una línea, sin cambio de contrato para `out_of_scope_drop`; contrato del heartbeat
+extendido de forma aditiva para `null_path_drops`):
 - `agent/detector.py:567-571` — nivel del log.
 - `agent/detector.py:723-725`, `agent/heartbeat.py:105` — **no se tocan**; se verifica que sigan
   intactos.
-- `agent/tests/test_scope_filter.py` — **no se toca**; la sección "4.2 out_of_scope_drops en el
-  heartbeat" debe seguir verde sin modificaciones. Ningún test fija hoy el nivel de ese log.
+- `agent/tests/test_scope_filter.py` — la sección "4.2 out_of_scope_drops en el heartbeat" **no se
+  toca** y sigue verde; se agrega una sección "4.3 null_path_drops en el heartbeat" nueva.
+- `agent/detector.py:561-564` (D74/RN-168) — `detector.event_null_path` pasa de `log.warning` a
+  `log.debug`; se agrega `self._null_path_drops` (incrementado antes del log) y la property pública
+  `null_path_drops`.
+- `agent/heartbeat.py:105` (D74/RN-168) — se agrega la clave `null_path_drops` al payload, junto a
+  `out_of_scope_drops`.
+- `agent/tests/test_detector_multi_event.py`, `agent/tests/test_detection_gap.py` — tests existentes
+  que referencian `event_null_path`; ver Impact detallado en `design.md` (D-11).
 
 **Backend**:
 - `backend/app/modules/agents/models.py` — `Agent.out_of_scope_drops` y `AgentResponse.out_of_scope_drops`.
@@ -81,9 +127,11 @@ decisiones D63–D65 de `docs/arquitectura_stack.md:2707`. No se abre ninguna su
 - `frontend/src/utils/` — mapper puro nuevo + su test.
 - `frontend/src/components/ui/AgentCard.tsx` — indicador neutro junto a la presión de cola.
 
-**Sin impacto**: contrato del heartbeat, filtro de scope, transporte Valkey, esquema de `events`,
-`discarded_events` y su presentación de anomalía. `event_drops` queda deliberadamente fuera de
-alcance (ver design, decisión D-6).
+**Sin impacto**: filtro de scope, transporte Valkey, esquema de `events`, `discarded_events` y su
+presentación de anomalía. `event_drops` queda deliberadamente fuera de alcance (ver design, decisión
+D-6). Persistencia en backend y presentación en frontend de `null_path_drops` quedan deliberadamente
+fuera de alcance de esta change (D74/RN-168, ver design D-11).
 
 Reglas cubiertas: RN-04 (filtro de scope, ratificada sin cambio), RN-71 (léxico snake_case),
-RN-92 (estado operacional del agente en la consola). Decisión aplicada: **D69/RN-163**.
+RN-92 (estado operacional del agente en la consola). Decisiones aplicadas: **D69/RN-163**,
+**D73/RN-167**, **D74/RN-168**.
