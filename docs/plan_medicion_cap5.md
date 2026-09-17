@@ -20,10 +20,10 @@ Ninguna batería debe ejecutarse hasta cerrar estos siete puntos.
 | P1 | ~~**Parametrizar el rate limit de ingesta vía `Settings`**~~ — **hecha** | Estaba hardcodeado en `_RateLimiter()` con `limit=100, window_s=60.0`; estrangulaba la Batería 4 y hacía infalsable el ítem 43. Ahora sale de `RATE_LIMIT_INGEST_EVENTS` / `RATE_LIMIT_INGEST_WINDOW_SECONDS` (defaults 100 / 60.0 = comportamiento previo) | `backend/app/core/config.py` · `backend/app/modules/events/consumer.py` · `docker-compose.yml` · `.env.example` |
 | P2 | ~~**Escribir el generador de carga con `--seed` y `--rate`**~~ — **hecha** | Sin él el ítem 54 era irreproducible y ninguna batería repetible. `--seed`, `--rate`, `--count`, `--mix` y `--dir` son obligatorios; loguea su configuración completa al arrancar y emite el manifiesto con el timestamp real de cada cambio. Incluye a propósito los tres patrones ciegos para el escáner periódico (revertido, colapsado, efímero) que el ítem 49 necesita para medir algo real | `scripts/generador_carga.py` · `scripts/README.md` |
 | P3 | ~~**Escribir el script del grupo de control (cron 15 min)**~~ — **hecha** | Ítems 45, 47, 49, 50 ya tienen fuente empírica: escáner por hashing SHA-256 cada 900 s, corrible por cron (`--print-cron`), por `--loop` o bajo demanda. El cruce contra el manifiesto lo hace `analisis_control.py` y produce 45, 47, 49 y 50 | `scripts/control_hashing.py` · `scripts/analisis_control.py` |
-| P4 | **Cerrar `stream-ack-durability` (0/109 tasks)** | Es el ACK del stream: si cambia después de medir, invalida 9, 38, 39, 40, 41 | `openspec/changes/stream-ack-durability/` |
+| P4 | ~~**Cerrar `stream-ack-durability`**~~ — **hecha** (archivado 2026-09-16) | Es el ACK del stream: si cambiaba después de medir, invalidaba 9, 38, 39, 40, 41. Verificado contra el despliegue real (drenaje offline, backpressure, compatibilidad con agente viejo, migración de cola legada) antes de archivar | `openspec/changes/archive/2026-09-16-stream-ack-durability/` |
 | P5 | ~~**Arreglar los tests de backend en rojo**~~ — **hecha** | Contra base de datos limpia eran **5** (no 6: `lastfailed` arrastraba uno viejo). Ninguno era un defecto de producción: 4 tests con expectativas obsoletas y 1 test con FK faltante. Ver "Nota P5" abajo — el rojo de `test_notifications.py` NO era la fachada de n8n, pero la fachada sigue en pie | `backend/tests/{test_auth,test_c31_backend_event_correctness,test_notifications}.py` |
 | P6 | ~~**Configurar reglas de severidad `high`/`critical`**~~ — **hecha** | Solo esos niveles generan `Alert` (RN-52). El sembrado es reproducible e idempotente vía la API REST (mismo camino que la UI, dispara `rule_sync`): `/watch/*` → `high` y `/watch/critico/*` → `critical`, ambas con acción `alert_only` para no inyectar cambios ajenos al manifiesto | `scripts/seed-reglas-lab.sh` · `backend/app/modules/alerts/service.py:96` |
-| P7 | **Definir formalmente "tiempo de recuperación" (ítem 43)** | Con 3.000 eventos y rate limit vigente el drenaje tarda ~30 min. El umbral < 30 s no se puede cumplir ni refutar tal como está redactado | appendix de decisiones |
+| P7 | ~~**Definir formalmente "tiempo de recuperación" (ítem 43)**~~ — **hecha** | Con 3.000 eventos y rate limit vigente el drenaje tarda ~30 min y el umbral < 30 s no se podía cumplir ni refutar. D38/RN-132 lo define como **drenaje completo** (reconexión → cola local vacía con todo persistido) y exige declarar el rate limit efectivo usado en la corrida | `docs/reglas_de_negocio.md` (D38/RN-132) |
 
 **Además, antes de arrancar:** commitear los archivos untracked y crear el tag de la corrida
 (ítem 51 exige un árbol limpio y un identificador estable).
@@ -351,7 +351,7 @@ Dos caminos, elegir uno antes de la corrida:
 | 40 | Orden FIFO preservado (Sí/No) | Sí | Verificar monotonía del sufijo del generador ordenando por `detected_at` |
 | 41 | Duplicaciones detectadas (n) | 0 | ver query abajo |
 | 42 | Comandos antes que eventos encolados (Sí/No) | Sí | Encolar un comando durante el corte y verificar en el log del agente que se procesa **primero**. Forzado por `agent/publisher.py:75-79` (RN-109) |
-| 43 | **Tiempo de recuperación total (s)** — umbral < 30 | < 30 | **Depende de P7.** Ver abajo |
+| 43 | **Tiempo de recuperación total (s)** — umbral < 30 | < 30 | Drenaje completo según D38/RN-132; declarar el rate limit efectivo. Ver abajo |
 
 ```sql
 -- Ítem 41: debe devolver 0 filas.
@@ -362,7 +362,11 @@ GROUP BY event_id
 HAVING count(*) > 1;
 ```
 
-### Ítem 43 — no se puede medir sin cerrar P7
+### Ítem 43 — criterio cerrado por D38/RN-132 (P7)
+
+> **Resuelto**: se adoptó la opción **(a)**. El tiempo de recuperación es el drenaje completo, y la
+> corrida puede elevar el rate limit (P1) siempre que **declare el valor efectivo** junto al resultado.
+> El análisis de abajo queda como registro de por qué hizo falta decidirlo.
 
 Con el rate limit vigente (100 ev/60 s), drenar 3.000 eventos tarda **~30 minutos**. El umbral de
 30 s no se puede cumplir **ni refutar**. Un criterio infalsable no es un criterio.
