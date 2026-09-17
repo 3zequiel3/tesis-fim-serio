@@ -1156,6 +1156,25 @@ Reglas: RN-94, RN-102, RN-107, RN-62. Decisiones nuevas: **D66/RN-160**.
 
 ---
 
+### Change 56 — `agent-scope-drop-observability`
+
+**Capa**: agente + backend + frontend · **Depende de**: 37 (`agent-fanotify-scope-filter`, dueño del filtro de scope y del contador `out_of_scope_drops`) y 42 (`stream-ack-durability`, dueño del criterio de contador nullable reportado por heartbeat) · **Paralelizable con**: 53, 54, 55 · **Origen**: journal del host del agente inundado, 2.748.492 descartes medidos · **Decisiones**: D69/RN-163
+
+> **Nota**: la marca de fanotify cubre el filesystem completo en modo FID (D46/RN-140), así que **toda** escritura del host fuera de los `watch_paths` produce un descarte y, hoy, un `log.warning` por ruta. El descarte es el caso normal, no una anomalía. El daño es doble: el ruido sepulta los eventos de integridad que el sistema existe para mostrar, y durante una corrida de medición cronometrada compite por I/O de journal con la latencia de detección, que es uno de los indicadores del Capítulo 5. El agregado, en cambio, **ya** viaja en el payload del heartbeat (`agent/heartbeat.py:105`) y el backend lo ignoraba: no hay ni referencia en el consumer ni columna en `Agent`.
+
+Capacidades:
+- **Agente**: `detector.out_of_scope_drop` pasa de `warning` a `debug`. El contador `out_of_scope_drops`, su property y el payload del heartbeat **no cambian**: el agente no cambia su contrato, sólo el nivel al que habla.
+- **Backend**: columna `out_of_scope_drops` nullable en `Agent` (`None` = nunca reportado, distinto de `0`), migración aditiva idempotente `020_add_agent_out_of_scope_drops.sql` sin backfill ni `NOT NULL`, ingesta tolerante en el consumer de heartbeat (mismo criterio que `queue_pressure` y `watch_path_status`) y exposición en los dos endpoints de agentes.
+- **Frontend**: contador **informativo** en la tarjeta del agente, junto a la presión de cola, con mapper puro propio y tratamiento **neutro** — deliberadamente distinto del de `discarded_events` (D37/RN-131), donde un positivo es una detección perdida y por eso se resalta como anomalía.
+
+**Orden de despliegue (restricción, no preferencia)**: el slice del agente va **antes** de re-correr las baterías del Capítulo 5 (tarea 12.4 del change 51); los de backend y frontend no tocan `agent/`, así que pueden ir después sin invalidar la corrida.
+
+Reglas: RN-04 (ratificada sin cambio), RN-71, RN-92. Decisiones aplicadas: **D69/RN-163**, D3 (migración aplicada a mano), D46/RN-140 (modo FID, causa raíz del volumen), D37/RN-131 (contraste de presentación, sin alterar).
+
+**Done**: el journal del agente deja de recibir un warning por ruta descartada y la sección 4.2 de `agent/tests/test_scope_filter.py` sigue verde sin tocar el archivo; un heartbeat con el contador lo persiste y los dos endpoints lo exponen; una clave ausente no resetea el valor guardado y un agente que nunca reportó lee `null`, no `0`; la tarjeta del agente muestra el contador con tratamiento neutro, distinguible del indicador de descartes locales, y distingue "nunca reportó" de cero.
+
+---
+
 ## Decisiones de implementación cerradas — Abril 2026
 
 Las 8 suposiciones que estaban abiertas en una versión anterior de este roadmap se cerraron el 2026-04-24 y se documentaron formalmente en los appendices "Decisiones de implementación — Abril 2026" de:
