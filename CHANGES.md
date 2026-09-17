@@ -62,7 +62,7 @@ Este documento define la **secuencia ordenada de changes** (en sentido OpenSpec)
 | 38 | [`frontend-contract-fixes`](#change-38--frontend-contract-fixes) | frontend + backend | — (auditorías 2026-07-02) ✓ | 35 |
 | 39 | [`agent-scope-filter-symlink-hardening`](#change-39--agent-scope-filter-symlink-hardening) | agente + backend + frontend | — (dual-review C37, 2026-07-02) ✓ | 37 |
 | 40 | [`event-status-contract`](#change-40--event-status-contract) | backend + agente + frontend | — (auditoría 2026-08-13) ✓ | 38, 39 |
-| 41 | [`agent-deployment-caps`](#change-41--agent-deployment-caps) | agente + backend + frontend | — (auditoría 2026-08-14) | 40 |
+| 41 | [`agent-deployment-caps`](#change-41--agent-deployment-caps) | agente + backend + frontend | — (auditoría 2026-08-14) ✓ | 40 |
 | 42 | [`stream-ack-durability`](#change-42--stream-ack-durability) | agente + backend + frontend | — (auditoría 2026-08-16) ✓ | 40, 41 |
 | 43 | [`agent-restore-feedback-loop`](#change-43--agent-restore-feedback-loop) | agente | — (incidente 2026-08-20) ✓ | 41 |
 | 44 | [`timestamps-timezone-aware`](#change-44--timestamps-timezone-aware) | backend + frontend + base | — (defecto 2026-08-20) | 40 |
