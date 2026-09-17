@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Agent } from '@/api/agents'
 import { getWatchPathStatusMeta } from '@/utils/watchPathStatus'
 import { getDiscardedEventsMeta } from '@/utils/discardedEvents'
+import { getOutOfScopeDropsMeta } from '@/utils/outOfScopeDrops'
 import { formatAbsolute, formatRelative } from '@/utils/timeDisplay'
 
 interface AgentCardProps {
@@ -59,6 +60,24 @@ function DiscardedEventsIndicator({ count }: { count: number | null | undefined 
       className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap ${meta.className}`}
     >
       Descartes: {meta.label}
+    </span>
+  )
+}
+
+// D69/RN-163: contador de eventos descartados por caer fuera de los
+// watch_paths, mostrado junto a DiscardedEventsIndicator a propósito: los
+// dos están al lado y DEBEN verse distintos. Acá un positivo es esperado
+// (evidencia de que el filtro de scope funciona), no una detección perdida
+// como en discarded_events — por eso getOutOfScopeDropsMeta nunca usa la
+// paleta de alarma, ni siquiera en el estado positivo.
+function OutOfScopeDropsIndicator({ count }: { count: number | null | undefined }) {
+  const meta = getOutOfScopeDropsMeta(count)
+  return (
+    <span
+      title={meta.title}
+      className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap ${meta.className}`}
+    >
+      Fuera de scope: {meta.label}
     </span>
   )
 }
@@ -145,6 +164,7 @@ export function AgentCard({
           <span className="flex items-center gap-2 text-xs">
             <span className="text-gray-300 tabular-nums">{pressurePct}%</span>
             <DiscardedEventsIndicator count={agent.discarded_events} />
+            <OutOfScopeDropsIndicator count={agent.out_of_scope_drops} />
           </span>
         </div>
         <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">

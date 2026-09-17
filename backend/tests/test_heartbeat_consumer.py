@@ -59,6 +59,7 @@ def _make_hb(
     queue_pressure: float = 0.1,
     discarded_events: object = None,
     queue_size: object = 0,
+    out_of_scope_drops: object = None,
 ) -> dict:
     from app.core.streams import sign_payload
     payload = {
@@ -73,6 +74,8 @@ def _make_hb(
         payload["queue_size"] = queue_size
     if discarded_events is not None:
         payload["discarded_events"] = discarded_events
+    if out_of_scope_drops is not None:
+        payload["out_of_scope_drops"] = out_of_scope_drops
     payload["signature"] = sign_payload(secret, payload)
     return {"data": json.dumps(payload)}
 
@@ -229,6 +232,82 @@ def test_discarded_events_never_reported_reads_as_null(mem_engine, agent) -> Non
     with Session(mem_engine) as session:
         a = session.get(Agent, "hb-agent")
     assert a.discarded_events is None
+
+
+# ── out_of_scope_drops (D69/RN-163) ────────────────────────────────────────────
+
+
+def test_out_of_scope_drops_persisted(mem_engine, agent, shared_secret) -> None:
+    """Heartbeat con out_of_scope_drops numérico → se persiste en Agent.out_of_scope_drops
+    y viaja hacia los dos endpoints vía AgentResponse (5.1)."""
+    import app.modules.agents.heartbeat_consumer as hc
+    with patch.object(hc, "engine", mem_engine):
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, out_of_scope_drops=2748492))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.out_of_scope_drops == 2748492
+
+    from app.modules.agents.service import _agent_to_response
+    response = _agent_to_response(a)
+    assert response.out_of_scope_drops == 2748492
+
+
+def test_out_of_scope_drops_absent_does_not_reset(mem_engine, agent, shared_secret) -> None:
+    """Un heartbeat sin la clave NO pisa el valor guardado (5.2)."""
+    import app.modules.agents.heartbeat_consumer as hc
+
+    with patch.object(hc, "engine", mem_engine):
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, out_of_scope_drops=42))
+        # Segundo heartbeat, sin la clave.
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.out_of_scope_drops == 42
+
+
+def test_out_of_scope_drops_non_numeric_ignored_processes_rest(mem_engine, agent, shared_secret) -> None:
+    """Un valor no numérico se ignora, se registra el log de inválido y el resto
+    del heartbeat se procesa igual: el agente queda online con last_heartbeat
+    actualizado (5.3)."""
+    import app.modules.agents.heartbeat_consumer as hc
+
+    with patch.object(hc, "engine", mem_engine) as _, patch.object(hc, "log") as mock_log:
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, out_of_scope_drops="not-a-number"))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.status == AgentStatus.online
+    assert a.last_heartbeat is not None
+    assert a.out_of_scope_drops is None
+    mock_log.warning.assert_any_call("heartbeat_consumer.invalid_out_of_scope_drops", agent_id="hb-agent")
+
+
+def test_out_of_scope_drops_boolean_rejected(mem_engine, agent, shared_secret) -> None:
+    """Un booleano se rechaza por la misma rama que el no numérico —
+    isinstance(True, int) es True en Python (5.4)."""
+    import app.modules.agents.heartbeat_consumer as hc
+
+    with patch.object(hc, "engine", mem_engine), patch.object(hc, "log") as mock_log:
+        hc._handle_heartbeat(_make_hb("hb-agent", shared_secret, out_of_scope_drops=True))
+
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.out_of_scope_drops is None
+    mock_log.warning.assert_any_call("heartbeat_consumer.invalid_out_of_scope_drops", agent_id="hb-agent")
+
+
+def test_out_of_scope_drops_never_reported_reads_as_null(mem_engine, agent) -> None:
+    """Un agente que nunca envió out_of_scope_drops expone None, no 0, en los
+    dos endpoints (5.5)."""
+    with Session(mem_engine) as session:
+        a = session.get(Agent, "hb-agent")
+    assert a.out_of_scope_drops is None
+
+    from app.modules.agents.service import _agent_to_response
+    response = _agent_to_response(a)
+    assert response.out_of_scope_drops is None
 
 
 # ── US-21: queue_size persistido ──────────────────────────────────────────────

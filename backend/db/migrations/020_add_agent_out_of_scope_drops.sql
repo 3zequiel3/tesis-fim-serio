@@ -1,0 +1,26 @@
+-- Migration 020: Agrega `out_of_scope_drops` (INTEGER, nullable) a agents (D69/RN-163).
+--
+-- El agente ya publica el contador acumulativo de eventos descartados por caer fuera de
+-- los `watch_paths` en cada heartbeat (agent/heartbeat.py, clave "out_of_scope_drops"),
+-- desde antes de esta migración. El backend lo ignoraba: ni el consumer de heartbeat ni
+-- `Agent` tenían dónde guardarlo, así que el agregado nunca llegaba a la consola pese a
+-- viajar en cada latido.
+--
+-- A diferencia de `discarded_events` (migración 010, D37/RN-131), un valor positivo acá
+-- es **esperado**: la marca de fanotify es de filesystem completo en modo FID
+-- (D46/RN-140), así que toda escritura ajena al alcance del agente produce un descarte.
+-- El contador es la evidencia de que el filtro de scope está funcionando, no una señal
+-- de pérdida.
+--
+-- Sin backfill, a propósito: no existe forma de reconstruir cuántos descartes acumuló un
+-- agente antes de esta columna, y `NULL` ("nunca reportó la clave") es exactamente la
+-- respuesta correcta para las filas existentes — distinto de `0` ("reportó y no descartó
+-- nada"). Por eso, a diferencia de la migración 019, esta no lleva `UPDATE` de backfill,
+-- `SET DEFAULT` ni `SET NOT NULL`: es una sola sentencia, estrictamente aditiva.
+--
+-- Idempotente: ADD COLUMN IF NOT EXISTS. Ejecutar el script dos veces no produce error.
+--
+-- Migrations are applied by hand (D3) — this one included. Apply with:
+--   psql $DATABASE_URL -f 020_add_agent_out_of_scope_drops.sql
+
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS out_of_scope_drops INTEGER;

@@ -26,6 +26,13 @@ export interface Agent {
   // event_nack terminal). null/undefined cuando el agente nunca reportó
   // heartbeat con esta clave — distinto de 0 (ver frontend/src/utils/discardedEvents.ts).
   discarded_events?: number | null
+  // D69/RN-163: contador acumulativo de eventos descartados por caer fuera
+  // de los watch_paths (marca de fanotify de filesystem completo en modo
+  // FID). null/undefined cuando el agente nunca reportó — distinto de 0
+  // (ver frontend/src/utils/outOfScopeDrops.ts). A diferencia de
+  // discarded_events, un positivo acá es **esperado**: es evidencia de que
+  // el filtro de scope está funcionando, no una detección perdida.
+  out_of_scope_drops?: number | null
 }
 
 export interface AgentConfig {

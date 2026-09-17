@@ -52,6 +52,15 @@ class Agent(SQLModel, table=True):
     # actualizar a D37, o sin heartbeat todavía), deliberadamente distinto
     # de 0 = "reportó y no descartó nada". Migración 010.
     discarded_events: int | None = Field(default=None)
+    # D69/RN-163: contador acumulativo de eventos descartados por caer fuera
+    # de los watch_paths (marca de fanotify de filesystem completo en modo
+    # FID, D46/RN-140). El agente ya publica esta clave en cada heartbeat
+    # desde antes de esta columna; acá sólo empieza a persistirse. Nullable
+    # sin default, mismo criterio que discarded_events: None = "el agente
+    # nunca reportó", distinto de 0 = "reportó y no descartó nada". A
+    # diferencia de discarded_events, un positivo acá es **esperado**, no una
+    # anomalía. Migración 020.
+    out_of_scope_drops: int | None = Field(default=None)
 
 
 class RevokedCertificate(SQLModel, table=True):
@@ -117,6 +126,11 @@ class AgentResponse(BaseModel):
     # el agente, tal como lo persistió el consumer de heartbeat. None si el
     # agente nunca reportó — distinto de 0.
     discarded_events: int | None = None
+    # D69/RN-163: contador acumulativo de descartes fuera de scope, tal como
+    # lo persistió el consumer de heartbeat. None si el agente nunca reportó
+    # — distinto de 0. Un positivo es esperado (a diferencia de
+    # discarded_events, que es siempre anómalo).
+    out_of_scope_drops: int | None = None
 
 
 class AgentListResponse(BaseModel):

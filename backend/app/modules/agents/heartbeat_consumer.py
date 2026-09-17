@@ -7,6 +7,8 @@ Por heartbeat recibido:
   - Si shutdown=true → status = draining (RN-93).
   - Persiste Agent.discarded_events si la clave viene y es numérica (D37/RN-131,
     tolerancia hacia adelante: ausente no pisa, no numérico se ignora con log).
+  - Persiste Agent.out_of_scope_drops si la clave viene y es numérica (D69/RN-163,
+    mismo criterio tolerante que discarded_events/queue_pressure/watch_path_status).
 
 Barrido periódico (~10 s): marca offline a agentes con last_heartbeat > 30 s
 (RN-92), y dead a agentes offline con last_heartbeat > 5 min — o, si nunca
@@ -89,6 +91,11 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
     # D37/RN-131: clave nueva, opcional, mismo criterio tolerante que
     # queue_pressure y watch_path_status.
     discarded_events = payload.get("discarded_events")
+    # D69/RN-163: contador de descartes fuera de scope, ya publicado por el
+    # agente desde antes de esta change. Mismo criterio tolerante que
+    # queue_pressure y watch_path_status: clave ausente no toca el valor
+    # guardado, valor no numérico se ignora con log.
+    out_of_scope_drops = payload.get("out_of_scope_drops")
 
     with Session(engine) as session:
         agent = session.exec(select(Agent).where(Agent.agent_id == agent_id)).first()
@@ -151,6 +158,18 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
                 agent.discarded_events = int(discarded_events)
             else:
                 log.warning("heartbeat_consumer.invalid_discarded_events", agent_id=agent_id)
+
+        # D69/RN-163: mismo criterio tolerante que discarded_events. Clave
+        # ausente → no tocar el valor guardado. Bool rechazado explícitamente
+        # (isinstance(True, int) es True en Python). Un contador malformado
+        # nunca interrumpe el procesamiento del resto del heartbeat.
+        if out_of_scope_drops is not None:
+            if isinstance(out_of_scope_drops, bool):
+                log.warning("heartbeat_consumer.invalid_out_of_scope_drops", agent_id=agent_id)
+            elif isinstance(out_of_scope_drops, (int, float)):
+                agent.out_of_scope_drops = int(out_of_scope_drops)
+            else:
+                log.warning("heartbeat_consumer.invalid_out_of_scope_drops", agent_id=agent_id)
 
         session.add(agent)
         session.commit()

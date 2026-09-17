@@ -179,6 +179,30 @@ def test_get_agent_detail_exposes_queue_size(session, agent_with_secret):
     assert result.queue_size == 42
 
 
+# ── D69/RN-163: out_of_scope_drops expuesto en los dos endpoints ─────────────
+
+
+def test_agents_expose_out_of_scope_drops(session, agent_with_secret):
+    """None si el agente nunca reportó (distinto de 0), el valor persistido si
+    sí — en GET /agents y GET /agents/{id} (5.1, 5.5)."""
+    from app.modules.agents.service import get_agent, list_agents
+
+    agent, _ = agent_with_secret
+    detail = get_agent(session, agent.agent_id)
+    assert detail.out_of_scope_drops is None
+    listed = list_agents(session)
+    assert listed[0].out_of_scope_drops is None
+
+    agent.out_of_scope_drops = 2748492
+    session.add(agent)
+    session.commit()
+
+    detail = get_agent(session, agent.agent_id)
+    assert detail.out_of_scope_drops == 2748492
+    listed = list_agents(session)
+    assert listed[0].out_of_scope_drops == 2748492
+
+
 # ── 12.3 test_get_agent_not_found ─────────────────────────────────────────────
 
 

@@ -122,6 +122,53 @@ describe('AgentCard — queue_size local (US-21)', () => {
   })
 })
 
+// ── D69/RN-163: descartes fuera de scope (informativo, tratamiento neutro) ──
+
+describe('AgentCard — descartes fuera de scope (D69/RN-163)', () => {
+  it('un valor positivo se renderiza con tratamiento neutro, no de alarma', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ out_of_scope_drops: 2748492 })} onConfigSave={noop} onRescan={noop} />
+    )
+    const indicator = screen.getByText(/Fuera de scope: 2748492/)
+    expect(indicator).toBeInTheDocument()
+    expect(indicator.className).not.toContain('red')
+    expect(indicator.className).not.toContain('yellow')
+    expect(indicator.className).not.toContain('amber')
+  })
+
+  it('cero se renderiza como cero', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ out_of_scope_drops: 0 })} onConfigSave={noop} onRescan={noop} />
+    )
+    expect(screen.getByText(/Fuera de scope: 0/)).toBeInTheDocument()
+  })
+
+  it('un agente sin el campo muestra el estado desconocido y no cero', () => {
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ out_of_scope_drops: undefined })} onConfigSave={noop} onRescan={noop} />
+    )
+    expect(screen.queryByText(/Fuera de scope: 0/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Fuera de scope: —/)).toBeInTheDocument()
+  })
+
+  it('descartes locales positivos y descartes fuera de scope positivos conviven con tratamientos distintos', () => {
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ discarded_events: 4, out_of_scope_drops: 2748492 })}
+        onConfigSave={noop}
+        onRescan={noop}
+      />
+    )
+    const discarded = screen.getByText(/Descartes: 4/)
+    const outOfScope = screen.getByText(/Fuera de scope: 2748492/)
+    expect(discarded).toBeInTheDocument()
+    expect(outOfScope).toBeInTheDocument()
+    expect(discarded.className).not.toBe(outOfScope.className)
+    expect(discarded.className).toContain('red')
+    expect(outOfScope.className).not.toContain('red')
+  })
+})
+
 // ── US-30: indicador "Drenando N eventos" + tooltip canónico ────────────────
 
 describe('AgentCard — indicador de drenaje graceful (US-30)', () => {
