@@ -19,7 +19,10 @@ El agente SHALL leer su configuración inicial desde `/etc/fim-agent/config.yaml
 - **THEN** el agente termina con exit code 1 y loguea un mensaje indicando qué campo falta
 
 ### Requirement: Structured JSON logging with sanitization
+
 El agente SHALL emitir todos sus logs en formato JSON estructurado vía structlog. Cada entrada MUST incluir `timestamp` (ISO 8601), `level`, y `event` (mensaje). El agente MUST filtrar valores de claves que contengan `password`, `token`, `secret`, `key`, o `credential` (case-insensitive) en cualquier campo del log, reemplazándolos con `"[REDACTED]"`.
+
+El agente SHALL filtrar su salida por el nivel configurado (`--log-level`, sobreescribible por la variable de entorno `LOG_LEVEL`; default `info`), con el mismo mecanismo que ya usa el backend (`structlog.make_filtering_bound_logger`, D73/RN-167). A nivel `info`, una entrada de nivel `debug` MUST NOT llegar a stdout. Un nombre de nivel desconocido o mal formado SHALL resolverse a `info` y MUST NOT impedir el arranque del agente.
 
 #### Scenario: Log de evento normal
 - **WHEN** el agente loguea `log.info("agent started", agent_id="host-01")`
@@ -36,6 +39,22 @@ El agente SHALL emitir todos sus logs en formato JSON estructurado vía structlo
 #### Scenario: Formato console en desarrollo
 - **WHEN** `LOG_FORMAT=console`
 - **THEN** los logs se emiten en formato humano-legible (ConsoleRenderer de structlog)
+
+#### Scenario: A nivel info, un log debug no llega a stdout
+- **WHEN** el agente arranca con el nivel `info` (default, sin `LOG_LEVEL` ni `--log-level` a `debug`) y ejecuta `log.debug("detector.out_of_scope_drop", path=..., total_drops=...)`
+- **THEN** esa línea no aparece en stdout
+
+#### Scenario: A nivel debug, un log debug sí llega a stdout
+- **WHEN** el agente arranca con `--log-level debug` o `LOG_LEVEL=debug` y ejecuta `log.debug(...)`
+- **THEN** la línea se emite en stdout como cualquier otro nivel
+
+#### Scenario: LOG_LEVEL sobreescribe el nivel por argumento
+- **WHEN** el agente arranca con `--log-level info` pero `LOG_LEVEL=debug` está definida en el entorno
+- **THEN** el nivel efectivo es `debug` y los logs `debug` se emiten
+
+#### Scenario: Nivel desconocido cae a info sin romper el arranque
+- **WHEN** `LOG_LEVEL` o `--log-level` traen un valor que no es un nivel válido de `logging`
+- **THEN** el agente arranca igual, con el nivel efectivo `info`
 
 ### Requirement: Persistent state with atomic writes
 El agente SHALL persistir `ruleset_version: int`, `last_stream_command_id: str` y `rules: list` en `/var/lib/fim-agent/state.json`. Al iniciar, si el archivo no existe, MUST usarse `ruleset_version: 0`, `last_stream_command_id: "0-0"` y `rules: []` como defaults. Toda escritura de `state.json` MUST pasar por un único punto de serialización que preserva los tres campos de forma no destructiva: actualizar un campo MUST NOT borrar los demás (F2). Cuando `RulesCache` persiste reglas, MUST delegar la escritura a ese punto único (vía `AgentState`) en lugar de escribir `state.json` por su cuenta. Las escrituras MUST ser atómicas: escribir a `.tmp` y luego `os.replace()` al path final. El archivo MUST tener permisos `0600` y owner `fim-agent`.
