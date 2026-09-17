@@ -41,14 +41,28 @@ def configure_logging(level: str = "info", fmt: str = "json") -> None:
         else structlog.processors.JSONRenderer()
     )
 
+    # D73/RN-167: `wrapper_class=structlog.stdlib.BoundLogger` combined with
+    # `logger_factory=structlog.PrintLoggerFactory` never filtered by level —
+    # the level only reached `logging.basicConfig` below, which does not
+    # intercept structlog's own output path. Every level got printed
+    # regardless of `--log-level`/`LOG_LEVEL`, which is why D69/RN-163
+    # (lowering `detector.out_of_scope_drop` to `debug`) did not stop the
+    # journal flood (82 "debug" lines measured in the 15s after the
+    # 2026-09-17 deploy). `make_filtering_bound_logger` is the same mechanism
+    # the backend already uses (`backend/app/core/logging.py`). An unknown or
+    # malformed level name MUST NOT crash startup, so it falls back to INFO.
+    log_level_int = getattr(logging, level, logging.INFO)
+    if not isinstance(log_level_int, int):
+        log_level_int = logging.INFO
+
     structlog.configure(
         processors=[
-            structlog.stdlib.add_log_level,
+            structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             sanitize_logs,
             renderer,
         ],
-        wrapper_class=structlog.stdlib.BoundLogger,
+        wrapper_class=structlog.make_filtering_bound_logger(log_level_int),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(sys.stdout),
         cache_logger_on_first_use=True,
@@ -57,5 +71,5 @@ def configure_logging(level: str = "info", fmt: str = "json") -> None:
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
-        level=getattr(logging, level, logging.INFO),
+        level=log_level_int,
     )

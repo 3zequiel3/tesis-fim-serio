@@ -451,6 +451,10 @@ async def test_event_drops_in_heartbeat(tmp_path: Path) -> None:
     detector = FanotifyDetector.__new__(FanotifyDetector)
     detector._event_drops = 42
     detector._out_of_scope_drops = 0
+    # D74/RN-168: __new__ salta __init__, así que el atributo privado nuevo
+    # necesita seteo explícito o el property `null_path_drops` (leído por el
+    # heartbeat) lanzaría AttributeError.
+    detector._null_path_drops = 0
     detector._hardlink_suspected = 0
 
     hb = HeartbeatPublisher(

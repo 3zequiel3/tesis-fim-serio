@@ -103,6 +103,11 @@ class HeartbeatPublisher:
             "schema_version": SCHEMA_VERSION,
             "event_drops": self._detector.event_drops if self._detector is not None else 0,
             "out_of_scope_drops": self._detector.out_of_scope_drops if self._detector is not None else 0,
+            # D74/RN-168: contador de descartes por path nulo del kernel. A
+            # diferencia de out_of_scope_drops, un valor positivo no confirma que
+            # el objeto estuviera fuera de watch_paths (posible brecha de
+            # cobertura, no ruido esperado).
+            "null_path_drops": self._detector.null_path_drops if self._detector is not None else 0,
             # D33/RN-127: contador detective opcional, sin cambio de comportamiento.
             "hardlink_suspected": self._detector.hardlink_suspected if self._detector is not None else 0,
             # D37/RN-131: contador acumulativo de eventos descartados localmente.

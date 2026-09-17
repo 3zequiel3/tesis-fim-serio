@@ -372,6 +372,10 @@ async def test_heartbeat_payload_includes_out_of_scope_drops() -> None:
     detector = MagicMock()
     detector.event_drops = 3
     detector.out_of_scope_drops = 7
+    # D74/RN-168: MagicMock resuelve cualquier atributo no seteado a otro
+    # MagicMock, que json.dumps no puede serializar — seteo explícito requerido
+    # desde que el heartbeat también publica esta clave.
+    detector.null_path_drops = 0
     detector.hardlink_suspected = 0
 
     queue = MagicMock()
@@ -452,3 +456,57 @@ async def test_heartbeat_out_of_scope_drops_zero_without_detector() -> None:
 
     data = json.loads(client.xadd.call_args[0][1]["data"])
     assert data["out_of_scope_drops"] == 0
+
+
+# ── 4.3 null_path_drops en el heartbeat (D74/RN-168) ──────────────────────────
+
+@pytest.mark.asyncio
+async def test_heartbeat_payload_includes_null_path_drops() -> None:
+    detector = MagicMock()
+    detector.event_drops = 3
+    detector.out_of_scope_drops = 7
+    detector.null_path_drops = 5
+    detector.hardlink_suspected = 0
+
+    queue = MagicMock()
+    queue.queue_size = 0
+    queue.queue_pressure = 0.0
+    state = MagicMock()
+    state.ruleset_version = 1
+    client = MagicMock()
+    client.xadd = AsyncMock(return_value="1-0")
+
+    hb = HeartbeatPublisher(
+        config=_make_heartbeat_config(),
+        queue=queue,
+        state=state,
+        client=client,
+        detector=detector,
+    )
+    await hb._publish(False)
+
+    data = json.loads(client.xadd.call_args[0][1]["data"])
+    assert data["null_path_drops"] == 5
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_null_path_drops_zero_without_detector() -> None:
+    queue = MagicMock()
+    queue.queue_size = 0
+    queue.queue_pressure = 0.0
+    state = MagicMock()
+    state.ruleset_version = 1
+    client = MagicMock()
+    client.xadd = AsyncMock(return_value="1-0")
+
+    hb = HeartbeatPublisher(
+        config=_make_heartbeat_config(),
+        queue=queue,
+        state=state,
+        client=client,
+        detector=None,
+    )
+    await hb._publish(False)
+
+    data = json.loads(client.xadd.call_args[0][1]["data"])
+    assert data["null_path_drops"] == 0

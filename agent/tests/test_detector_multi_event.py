@@ -203,10 +203,10 @@ async def test_fanotify_create_file_vanished_no_publish(tmp_path: Path) -> None:
     publisher.publish.assert_not_called()
 
 
-# ── ev.path is None → drop + warning ─────────────────────────────────────────
+# ── ev.path is None → drop + debug (D74/RN-168) ──────────────────────────────
 
 def test_fanotify_null_path_dropped() -> None:
-    """_read_loop descarta eventos con ev.path is None y emite warning."""
+    """_read_loop descarta eventos con ev.path is None y emite debug (D74/RN-168)."""
     import structlog
     from agent.detector import FanotifyDetector
 
@@ -236,7 +236,16 @@ def test_fanotify_null_path_dropped() -> None:
     detector._raw_queue = MagicMock()
     detector._raw_queue.put_nowait = raw_queue_items.append
 
-    with patch.object(detector, "_read_fan_events", return_value=[null_ev]):
+    # side_effect con generador: el evento se entrega UNA sola vez y después
+    # listas vacías, para no reprocesar el mismo evento en cada iteración del
+    # loop durante la ventana de 0.05s (habría inflado el contador).
+    def _batches():
+        yield [null_ev]
+        while True:
+            yield []
+
+    gen = _batches()
+    with patch.object(detector, "_read_fan_events", side_effect=lambda: next(gen)):
         # Forzar una iteración: stop_event ya está set, pero necesitamos que no sea visto antes
         detector._stop_event = asyncio.Event()
         import threading
@@ -253,7 +262,71 @@ def test_fanotify_null_path_dropped() -> None:
 
     # El evento null no fue encolado
     assert raw_queue_items == []
+    # D74/RN-168: el contador se incrementa exactamente una vez por evento.
+    assert detector.null_path_drops == 1
     loop.close()
+
+
+def test_fanotify_null_path_logs_at_debug_not_warning() -> None:
+    """D74/RN-168: detector.event_null_path se emite a debug, nunca a warning."""
+    from agent.detector import FanotifyDetector
+
+    stop = asyncio.Event()
+    stop.set()
+
+    detector = FanotifyDetector(
+        agent_id="agent-null-level-test",
+        watch_paths=["/tmp"],
+        baseline=MagicMock(),
+        publisher=MagicMock(),
+        stop_event=stop,
+    )
+
+    null_ev = MagicMock()
+    null_ev.path = None
+    null_ev.pid = 999
+    null_ev.mask = 0
+
+    loop = asyncio.new_event_loop()
+    detector._loop = loop
+    detector._raw_queue = MagicMock()
+    detector._raw_queue.put_nowait = lambda *_a, **_kw: None
+    detector._stop_event = asyncio.Event()
+
+    import threading
+    import time
+
+    def _run_then_stop() -> None:
+        time.sleep(0.05)
+        detector._stop_event.set()
+
+    # side_effect con generador: una sola entrega del evento (ver comentario
+    # equivalente en test_fanotify_null_path_dropped).
+    def _batches():
+        yield [null_ev]
+        while True:
+            yield []
+
+    gen = _batches()
+    with (
+        patch.object(detector, "_read_fan_events", side_effect=lambda: next(gen)),
+        patch("agent.detector.log") as mock_log,
+    ):
+        t = threading.Thread(target=_run_then_stop)
+        t.start()
+        detector._read_loop()
+        t.join()
+
+    loop.close()
+
+    warning_calls = [
+        c for c in mock_log.warning.call_args_list if c.args and c.args[0] == "detector.event_null_path"
+    ]
+    debug_calls = [
+        c for c in mock_log.debug.call_args_list if c.args and c.args[0] == "detector.event_null_path"
+    ]
+    assert warning_calls == []
+    assert len(debug_calls) == 1
 
 
 # ── operation_type en payload ─────────────────────────────────────────────────

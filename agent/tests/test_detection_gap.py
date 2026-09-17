@@ -109,8 +109,15 @@ def test_overflow_does_not_hit_null_path_discard(tmp_path: Path) -> None:
     with patch("agent.detector.log") as mock_log:
         _run_read_loop_once(detector, [_make_overflow_event()])
 
+    # D74/RN-168: detector.event_null_path bajó de warning a debug, así que la
+    # verificación de "no cayó en el descarte por path nulo" tiene que mirar
+    # todos los niveles del mock, no solo .warning, para no volverse un
+    # no-op silencioso tras el cambio de nivel.
     null_path_calls = [
-        c for c in mock_log.warning.call_args_list if c.args and c.args[0] == "detector.event_null_path"
+        c
+        for method in (mock_log.warning, mock_log.debug)
+        for c in method.call_args_list
+        if c.args and c.args[0] == "detector.event_null_path"
     ]
     detection_gap_calls = [
         c for c in mock_log.warning.call_args_list if c.args and c.args[0] == "detector.detection_gap"

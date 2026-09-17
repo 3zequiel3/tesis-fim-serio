@@ -656,6 +656,9 @@ async def test_heartbeat_payload_includes_hardlink_suspected() -> None:
     detector = MagicMock()
     detector.event_drops = 0
     detector.out_of_scope_drops = 0
+    # D74/RN-168: seteo explícito requerido, ver comentario equivalente en
+    # test_scope_filter.py::test_heartbeat_payload_includes_out_of_scope_drops.
+    detector.null_path_drops = 0
     detector.hardlink_suspected = 5
 
     queue = MagicMock()

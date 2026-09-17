@@ -375,6 +375,7 @@ class FanotifyDetector:
         self._raw_queue: asyncio.Queue[FanotifyEvent | None] = asyncio.Queue(maxsize=1000)
         self._event_drops: int = 0
         self._out_of_scope_drops: int = 0
+        self._null_path_drops: int = 0
         self._hardlink_suspected: int = 0
         self._pending: dict[str, str] = {}          # path → event_id del último evento encolado
         self._event_to_path: dict[str, str] = {}    # event_id → path (índice inverso para ack O(1))
@@ -559,8 +560,20 @@ class FanotifyDetector:
                     self._handle_overflow()
                     continue
                 if ev.path is None:
+                    self._null_path_drops += 1
                     self._trace_record("kernel_dropped", operation="kernel", reason="null_path", outcome="dropped")
-                    log.warning("detector.event_null_path", pid=ev.pid)
+                    # D74/RN-168: baja a debug, igual que D69/RN-163 hizo con
+                    # out_of_scope_drop, pero por un motivo distinto — acá NO hay
+                    # certeza de que el objeto perdido estuviera fuera de scope
+                    # (el filtro de scope corre después, en la línea de abajo, y
+                    # necesita un path para decidir). Es una posible brecha de
+                    # cobertura, no ruido confirmado; el contador acumulado sigue
+                    # viajando en el heartbeat (`null_path_drops`) para diagnóstico.
+                    log.debug(
+                        "detector.event_null_path",
+                        pid=ev.pid,
+                        total_drops=self._null_path_drops,
+                    )
                     continue
                 if not _path_location_in_scope(ev.path, self._watch_paths_real):
                     self._out_of_scope_drops += 1
@@ -732,6 +745,18 @@ class FanotifyDetector:
     def out_of_scope_drops(self) -> int:
         """Contador acumulado de eventos descartados por caer fuera de watch_paths (RN-04)."""
         return self._out_of_scope_drops
+
+    @property
+    def null_path_drops(self) -> int:
+        """
+        Contador acumulado de eventos del kernel cuyo path no pudo resolverse
+        (D74/RN-168). A diferencia de `out_of_scope_drops`, un valor positivo NO
+        implica que el objeto perdido estuviera fuera de `watch_paths`: el chequeo
+        de path nulo corre antes del filtro de scope, así que la ubicación del
+        objeto es desconocida. Se documenta como posible brecha de cobertura, no
+        como ruido esperado.
+        """
+        return self._null_path_drops
 
     @property
     def hardlink_suspected(self) -> int:
