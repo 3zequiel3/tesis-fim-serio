@@ -63,19 +63,21 @@
 
 ## 7. Frontend — tarjeta del agente y tests
 
-- [ ] 7.1 En `frontend/src/components/ui/AgentCard.tsx`, agregar un `OutOfScopeDropsIndicator` que consuma `getOutOfScopeDropsMeta`, con la misma forma que `DiscardedEventsIndicator` (`:54-64`) pero sin su tratamiento de anomalía. Etiqueta en prosa de UI, contenido del contador en `tabular-nums` como sus vecinos.
-- [ ] 7.2 Ubicarlo en el bloque de presión de cola (`:141-177`), junto a `DiscardedEventsIndicator` (`:147`), de modo que los dos contadores se vean a la vez y su diferencia de tratamiento sea evidente en pantalla.
-- [ ] 7.3 Comentar la ubicación citando D69/RN-163 y nombrando explícitamente el contraste con `discarded_events`: los dos están al lado y **deben** verse distintos.
-- [ ] 7.4 Test del mapper (`frontend/src/utils/outOfScopeDrops.test.ts`): los tres estados retornan resultados distintos, ninguno lanza, y ninguno usa la paleta de alarma. El test del color es el que impide que un futuro cambio de estilo convierta el contador en un indicador rojo en silencio.
-- [ ] 7.5 Test en `AgentCard.test.tsx`: un valor positivo se renderiza con tratamiento neutro; un cero se renderiza como cero; un agente sin el campo muestra el estado desconocido y **no** cero.
-- [ ] 7.6 Test en `AgentCard.test.tsx`: con descartes locales positivos y descartes fuera de scope positivos a la vez, los dos indicadores se renderizan y sus tratamientos visuales difieren.
-- [ ] 7.7 Verificar que los tests existentes de `AgentCard` y de `discardedEvents` siguen verdes **sin modificarlos**: esta change no altera la presentación de `discarded_events`.
-- [ ] 7.8 Correr la suite del frontend completa y dejar el resultado en el reporte de apply.
+- [x] 7.1 En `frontend/src/components/ui/AgentCard.tsx`, agregar un `OutOfScopeDropsIndicator` que consuma `getOutOfScopeDropsMeta`, con la misma forma que `DiscardedEventsIndicator` (`:54-64`) pero sin su tratamiento de anomalía. Etiqueta en prosa de UI, contenido del contador en `tabular-nums` como sus vecinos.
+- [x] 7.2 Ubicarlo en el bloque de presión de cola (`:141-177`), junto a `DiscardedEventsIndicator` (`:147`), de modo que los dos contadores se vean a la vez y su diferencia de tratamiento sea evidente en pantalla.
+- [x] 7.3 Comentar la ubicación citando D69/RN-163 y nombrando explícitamente el contraste con `discarded_events`: los dos están al lado y **deben** verse distintos.
+- [x] 7.4 Test del mapper (`frontend/src/utils/outOfScopeDrops.test.ts`): los tres estados retornan resultados distintos, ninguno lanza, y ninguno usa la paleta de alarma. El test del color es el que impide que un futuro cambio de estilo convierta el contador en un indicador rojo en silencio.
+- [x] 7.5 Test en `AgentCard.test.tsx`: un valor positivo se renderiza con tratamiento neutro; un cero se renderiza como cero; un agente sin el campo muestra el estado desconocido y **no** cero.
+- [x] 7.6 Test en `AgentCard.test.tsx`: con descartes locales positivos y descartes fuera de scope positivos a la vez, los dos indicadores se renderizan y sus tratamientos visuales difieren.
+- [x] 7.7 Verificar que los tests existentes de `AgentCard` y de `discardedEvents` siguen verdes **sin modificarlos**: esta change no altera la presentación de `discarded_events`.
+- [x] 7.8 Correr la suite del frontend completa y dejar el resultado en el reporte de apply.
 
 ## 8. Cierre del change
 
-- [ ] 8.1 Verificar que la entrada del Change 56 en `CHANGES.md` refleja lo efectivamente implementado. Si el alcance cambió durante el apply, actualizar la entrada: el roadmap es índice, no historia.
-- [ ] 8.2 Correr `python3 scripts/check_spec_integrity.py` antes y después del archive (D47/RN-141, sección MANDATORIA de `CLAUDE.md`).
-- [ ] 8.3 Correr `openspec validate agent-scope-drop-observability --strict` y dejar el resultado en el reporte.
-- [ ] 8.4 **No tocar** `docs/cierre/**`, `.env.example`, `docs/trazabilidad_us_tests.md` ni `docs/residuales_declarados.md` en esta change: quedan fuera de alcance.
-- [ ] 8.5 Documentar en el reporte de apply cualquier suposición que haya aparecido y que D69/RN-163 no cubra —en particular la presentación de `event_drops` (D-6) o un umbral de alerta sobre el contador—. En ese caso **detener el flujo** y cerrar la decisión en el appendix "Decisiones de implementación — Abril 2026" antes de continuar.
+- [x] 8.1 Verificar que la entrada del Change 56 en `CHANGES.md` refleja lo efectivamente implementado. Si el alcance cambió durante el apply, actualizar la entrada: el roadmap es índice, no historia.
+- [x] 8.2 Correr `python3 scripts/check_spec_integrity.py` antes y después del archive (D47/RN-141, sección MANDATORIA de `CLAUDE.md`).
+- [x] 8.3 Correr `openspec validate agent-scope-drop-observability --strict` y dejar el resultado en el reporte. Resultado: `Change 'agent-scope-drop-observability' is valid`; `scripts/check_spec_integrity.py` → `OK — 54 main specs, 378 requisitos, sin problemas` (8.2, antes del archive).
+- [x] 8.4 **No tocar** `docs/cierre/**`, `.env.example`, `docs/trazabilidad_us_tests.md` ni `docs/residuales_declarados.md` en esta change: quedan fuera de alcance.
+- [x] 8.5 Documentar en el reporte de apply cualquier suposición que haya aparecido y que D69/RN-163 no cubra —en particular la presentación de `event_drops` (D-6) o un umbral de alerta sobre el contador—. En ese caso **detener el flujo** y cerrar la decisión en el appendix "Decisiones de implementación — Abril 2026" antes de continuar.
+
+> **Suposiciones aparecidas durante el apply (8.5)**: dos hallazgos post-despliegue, ambos cerrados como decisión antes de tocar código — D73/RN-167 (el logger del agente nunca filtraba por nivel, así que D69/RN-163 no tuvo efecto real) y D74/RN-168 (`detector.event_null_path` a `warning`, con path de ubicación desconocida: posible brecha de cobertura, no ruido confirmado). La presentación de `event_drops` (D-6) y la persistencia/presentación de `null_path_drops` siguen fuera de alcance y sin decidir. La migración `020` no se aplicó a ninguna base (D3): queda para el despliegue manual.
