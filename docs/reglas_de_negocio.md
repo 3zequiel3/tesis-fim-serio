@@ -784,7 +784,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -2198,6 +2198,38 @@ aditiva; las filas existentes toman el instante de la migración como `registere
 
 **Reglas afectadas:** cierra la pregunta abierta que `backend-residual-fixes` registró como candidata
 D30/D32; precisa la transición a `dead` (D-C14-04) sin modificar sus umbrales ni el contrato de heartbeat.
+
+#### D69 / RN-163: Descartes fuera de scope — ruido esperado, contador informativo
+
+**Descripción:** El log por ruta `detector.out_of_scope_drop` SHALL emitirse a nivel `debug`, no
+`warning`. El contador acumulativo `out_of_scope_drops`, que el agente ya publica en cada heartbeat,
+SHALL persistirse en el backend y mostrarse en la tarjeta del agente como **contador informativo**.
+Un valor positivo SHALL considerarse esperado y normal, y SHALL NOT recibir tratamiento visual de
+anomalía. La columna SHALL ser nullable: `None` significa "nunca reportado", distinto de `0`, mismo
+criterio que `queue_size` (US-21) y `discarded_events` (D37/RN-131).
+
+**Motivo:** la marca de fanotify cubre el filesystem completo (modo FID), así que **toda** escritura
+del host fuera de los `watch_paths` produce un descarte. En el host del agente el contador llegó a
+2.748.492 con el journal inundado. El daño es doble: el ruido sepulta los eventos de integridad que
+el sistema existe para mostrar, y durante una corrida de medición cronometrada compite por I/O de
+journal con lo que se está midiendo — la latencia de detección es justamente uno de los indicadores.
+Pero el agregado no debe desaparecer: es la evidencia de que el filtro de scope está funcionando.
+
+La distinción con `discarded_events` (D37/RN-131) es deliberada y no cosmética: allí un valor
+positivo **es una detección perdida** y por eso se resalta como anomalía. Acá los descartes son
+estructurales. Presentarlos con el mismo énfasis le enseñaría al operador a ignorar un indicador
+rojo, que es exactamente cómo se pierde una alerta real.
+
+**Condición:** Emisión del log por ruta descartada y presentación del contador en la consola.
+
+**Resultado:** El journal del agente deja de inundarse; el contador queda visible junto a la presión
+de cola, con tratamiento neutro; la clave ya viaja en el payload del heartbeat, así que el agente no
+cambia su contrato.
+
+**Excepciones:** Ninguna.
+
+**Reglas afectadas:** precisa el criterio de presentación de contadores del agente de D37/RN-131; no
+modifica el filtro de scope ni el contrato del heartbeat.
 
 ### Decisiones técnicas referenciadas en otros documentos
 
