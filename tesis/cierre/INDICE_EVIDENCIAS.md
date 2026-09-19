@@ -1,6 +1,7 @@
 # Índice de evidencias de cierre
 
-> **Corte:** 2026-09-10. Este índice conduce primero a los resultados que
+> **Corte:** 2026-09-19. La sección «Cierre del Capítulo 5» reúne el trabajo del 17 al 19 de
+> septiembre; lo anterior conserva el corte del 2026-09-10 y su redacción original. Este índice conduce primero a los resultados que
 > sostienen el cierre. El inventario con hashes SHA-256 y las precauciones de
 > publicación está en [`evidencia/INDICE.md`](evidencia/INDICE.md).
 
@@ -100,3 +101,42 @@ El primer paquete se conserva como resultado histórico de descubrimiento. El se
 **Límites declarados de A-4:** deduplicación de tickets con mismo `event_id` no verificada en este entorno (sin sistema de tickets controlado en el VPS).
 
 **Estado de versionado:** `a3-multihost/` está íntegramente versionado en git (66 archivos) y trae su propio `SHA256SUMS`. Las carpetas `a4-vps-acceptance-20260915T153824Z/` y `a4-vps-20260915T145238Z/` **no están versionadas** (excluidas por `.gitignore`, patrón `/docs/cierre/evidencia/a4-vps-*/`); sólo la primera trae `SHA256SUMS` propio, la segunda no tiene README ni `SHA256SUMS`.
+
+
+---
+
+## Cierre del Capítulo 5 — 17 al 19 de septiembre de 2026
+
+Todo lo de esta sección corre sobre el candidato **`v1.0-tesis` (`7a906c2`)**, con la imagen del
+backend reconstruida desde ese commit y la procedencia verificada por hash agregado entre el
+contenedor y el árbol de trabajo.
+
+| Tema | Resultado | Acta |
+|---|---|---|
+| Batería 3 — latencia | n=480; mediana 35,594 ms; P95 40,556; P99 42,602; 0 negativos. Agregado con pandas, como exige el capítulo | `evidencia/oficial-cap5-20260917T223823Z/bateria3/latencia_resumen.txt` |
+| Batería 5 — resiliencia | Corte de Valkey (el del protocolo): 2.920 preservados, **2.920 entregados**, 0 descartados, 0 rechazos, 0 duplicados | `evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey/` |
+| Batería 7 — grupo de control | Mediana 591.050,981 ms; P99 898.842,935 ms; 422 de 500 cambios nunca reportados; mejora 16.605,4× en mediana | [`control/RESULTADO.md`](evidencia/oficial-cap5-20260917T223823Z/control/RESULTADO.md) |
+| Ítem 9 — eventos perdidos | **0.** 513 eventos del núcleo para 500 operaciones; 31 supresiones, todas con causa `matches_active_baseline`; las 19 sin evento explicadas 19 de 19 | [`diagnostico-deteccion/RESULTADO.md`](evidencia/oficial-cap5-20260917T223823Z/diagnostico-deteccion/RESULTADO.md) |
+| Inferencia pareada | McNemar χ²(1) = 386,5409; p = 4,69 × 10⁻⁸⁶; diferencia 0,8040; IC 95 % de Newcombe [0,7618, 0,8377] | [`control/MCNEMAR.md`](evidencia/oficial-cap5-20260917T223823Z/control/MCNEMAR.md) |
+| Ítems 40 y 41 | 0 inversiones de orden y 0 duplicados en 5.571 eventos, antes y después de la Change 58 | `evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey-post-d75/verificacion-items-40-41.txt` |
+| Ítem 43 — drenaje | **No cumple.** 58,809 s contra un umbral de 30. Causa raíz en el agente: `_ACK_TIMEOUT_S = 60` más la cadencia de 5 s del bucle de reintentos, no rendimiento | `evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey-post-d75/` |
+| Corridas invalidadas | Preservadas con su motivo: imagen del backend anterior al candidato, y un intento con el arnés sin el override de TLS | [`MOTIVO.md`](evidencia/oficial-cap5-20260917T223823Z/invalido-imagen-desactualizada/MOTIVO.md) |
+
+## Mapa de documentos de esta carpeta
+
+Los documentos **no se unifican a propósito**. Las auditorías son instantáneas fechadas y su
+sucesión es parte de la evidencia: muestra qué se observó, cuándo y qué se hizo al respecto. Las
+actas viven dentro de paquetes sellados, donde fusionarlas invalidaría su `SHA256SUMS`. Y el
+documento de la tesis cita varios por nombre.
+
+| Cuándo leerlo | Documento |
+|---|---|
+| Para saber qué falta para la próxima versión | `DATOS_PARA_TESIS_V15.md` |
+| Para reproducir un resultado desde cero | `REPRODUCIR.md` |
+| Para ver qué está verificado y con qué alcance | `RESULTADOS_VERIFICADOS.md` |
+| Para el estado técnico consolidado | `INFORME_CIERRE_TECNICO.md`, `CIERRE_CONSOLIDADO.md` |
+| Para la trazabilidad historia ↔ prueba | `MATRIZ_TRAZABILIDAD.md` |
+| Para el inventario con hashes | `evidencia/INDICE.md` |
+| Para la evolución del dictamen | `AUDITORIA_INTEGRAL_TESIS_V5..V11.md` y sus `_METRICAS.json`, en orden |
+| Para qué cambió entre versiones del documento | `REGISTRO_CAMBIOS_TESIS_V5/V12/V13.md`, `CAMBIOS_PARA_TESIS*.md` |
+| Para la reorganización del repositorio | `../MIGRACION_DOCS_A_TESIS.md` |
