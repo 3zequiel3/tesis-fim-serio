@@ -103,6 +103,45 @@ Probar detección, restauración y cuarentena por separado. Se requieren `CAP_SY
 
 ## 7. Ejecutar suites consolidadas
 
+> **Servicios que la suite del backend necesita, y por qué el procedimiento de abajo no alcanza
+> tal cual.** `backend/tests/conftest.py` apunta por defecto a
+> `postgresql+psycopg://fim:test@localhost:5432/fim_test` y a `valkey://localhost:6379`. Si en esos
+> puertos está el laboratorio, la suite entera falla por autenticación —835 errores en la corrida del
+> 2026-09-19— porque la contraseña del laboratorio no es `test`. El `conftest` admite
+> `TEST_DATABASE_URL` y `TEST_VALKEY_URL` justamente para esto; hay que levantar contenedores propios
+> y apuntarlos ahí.
+>
+> Además, la aplicación levanta el servidor mTLS en el **8443** durante su `lifespan`
+> (`backend/app/main.py:92`, puerto fijo en `backend/app/core/pki.py`), de modo que el backend del
+> laboratorio tiene que estar detenido mientras corre la suite, y el material TLS se escribe en
+> `/certs` —ruta interna del contenedor, no escribible en el anfitrión—, así que las cuatro rutas de
+> certificados se redirigen a un directorio propio.
+>
+> El procedimiento completo, con cada una de esas causas comentada donde se maneja, está en
+> `scripts/correr_suites_candidato.sh`. Aun así quedan **8 fallas conocidas** por conflicto de puerto
+> entre pruebas que ejecutan el `lifespan` real; el análisis está en
+> `evidencia/oficial-cap5-20260917T223823Z/suites/RESULTADO.md`.
+
+```bash
+# Servicios aislados para la suite del backend.
+docker run --rm -d --name fim-test-pg \
+  -e POSTGRES_USER=fim -e POSTGRES_PASSWORD=test -e POSTGRES_DB=fim_test \
+  -p 127.0.0.1:55440:5432 postgres:18.3
+docker run --rm -d --name fim-test-valkey \
+  -p 127.0.0.1:55441:6379 valkey/valkey:9.0.3
+
+# Liberar 8443/8444, que el lifespan de la aplicación necesita bindear.
+docker compose -f docker-compose.yml -f docker-compose.tls.yml stop backend
+
+export TEST_DATABASE_URL='postgresql+psycopg://fim:test@127.0.0.1:55440/fim_test'
+export TEST_VALKEY_URL='valkey://127.0.0.1:55441'
+export CA_CERT_PATH="$PWD/.suites-certs/ca.pem"
+export CA_KEY_PATH="$PWD/.suites-certs/ca-key.pem"
+export BACKEND_CERT_PATH="$PWD/.suites-certs/backend.pem"
+export BACKEND_KEY_PATH="$PWD/.suites-certs/backend-key.pem"
+mkdir -p "$PWD/.suites-certs"
+```
+
 ```bash
 uv venv backend/.venv --python 3.13
 uv pip install --python backend/.venv/bin/python \
