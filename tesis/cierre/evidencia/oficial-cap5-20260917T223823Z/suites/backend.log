@@ -1,0 +1,1901 @@
+/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: /home/ezequiel/tesis-worktrees/candidato-v1.0/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 839 items
+
+../../../tesis-worktrees/candidato-v1.0/backend/tests/core/test_notification_settings.py . [  0%]
+...                                                                      [  0%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/core/test_rate_limit_load.py . [  0%]
+........                                                                 [  1%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/core/test_rate_limit_semantics.py . [  1%]
+.                                                                        [  1%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/modules/events/test_retention.py . [  1%]
+.....                                                                    [  2%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/modules/users/test_user_management.py . [  2%]
+...........                                                              [  3%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_actions.py .. [  4%]
+.............                                                            [  5%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_actions_router.py . [  5%]
+........................                                                 [  8%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_agent_cert_renewal.py . [  8%]
+.......                                                                  [  9%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_agent_cert_renewal_e2e.py . [  9%]
+                                                                         [  9%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_agent_mgmt.py . [  9%]
+......................                                                   [ 12%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_agent_watch_path_status.py . [ 12%]
+........                                                                 [ 13%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_auth.py ..... [ 14%]
+...........................................                              [ 19%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_auth_cli.py . [ 19%]
+....                                                                     [ 19%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_auth_cookie_console_mode.py . [ 20%]
+.....                                                                    [ 20%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_bootstrap_tls_listener.py . [ 20%]
+......                                                                   [ 21%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_c22_auth.py . [ 21%]
+.....                                                                    [ 22%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_c22_consumer.py . [ 22%]
+....                                                                     [ 22%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_c22_fk_chain.py . [ 22%]
+..                                                                       [ 23%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_c22_pki.py .. [ 23%]
+....                                                                     [ 23%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_c22_scope_gate.py . [ 23%]
+....                                                                     [ 24%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_c31_backend_event_correctness.py . [ 24%]
+.............                                                            [ 26%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_c32_sse_security_fixes.py . [ 26%]
+............                                                             [ 27%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_certs_init.py . [ 27%]
+......                                                                   [ 28%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_command_ack_consumer.py . [ 28%]
+...................                                                      [ 30%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_consumer.py . [ 30%]
+........                                                                 [ 31%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_domain_models.py . [ 32%]
+.................                                                        [ 34%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_drain_backend_unit1.py . [ 34%]
+.....                                                                    [ 34%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_ack_status_field.py . [ 34%]
+..                                                                       [ 35%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_action_error.py . [ 35%]
+........                                                                 [ 36%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_consumer_c11.py . [ 36%]
+........                                                                 [ 37%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_listing_contract.py . [ 37%]
+.............................                                            [ 40%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_router.py . [ 41%]
+.......                                                                  [ 41%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_service.py . [ 41%]
+....................................                                     [ 46%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_severity.py . [ 46%]
+........                                                                 [ 47%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_status_derivation.py . [ 47%]
+...........................                                              [ 50%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_event_symlink_metadata.py . [ 50%]
+.....                                                                    [ 51%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_health.py ... [ 51%]
+..                                                                       [ 51%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_health_n8n_check.py . [ 52%]
+............                                                             [ 53%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_heartbeat_consumer.py . [ 53%]
+...............................                                          [ 57%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_integration_transport.py . [ 57%]
+.                                                                        [ 57%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_jwt_key_rotation.py . [ 57%]
+.                                                                        [ 57%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_logging_sanitize.py . [ 57%]
+.................                                                        [ 59%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_logging_trace_id.py . [ 60%]
+...                                                                      [ 60%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_mtls_transport.py . [ 60%]
+                                                                         [ 60%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_n8n_workflow_contract.py . [ 60%]
+............                                                             [ 62%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_n8n_workflow_lint.py . [ 62%]
+..........                                                               [ 63%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_notification_payload_contract.py . [ 63%]
+..........                                                               [ 64%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_notifications.py . [ 64%]
+.................................--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/pytest", line 10, in <module>
+    sys.exit(console_main())
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 201, in console_main
+    code = main()
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 175, in main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 330, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 283, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 337, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 362, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 113, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 132, in runtestprotocol
+    reports.append(call_and_report(item, "call", log))
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 244, in call_and_report
+    report: TestReport = ihook.pytest_runtest_makereport(item=item, call=call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 368, in pytest_runtest_makereport
+    return TestReport.from_item_and_call(item, call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/reports.py", line 376, in from_item_and_call
+    longrepr = item.repr_failure(excinfo)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/python.py", line 1669, in repr_failure
+    return self._repr_failure_py(excinfo, style=style)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/nodes.py", line 456, in _repr_failure_py
+    return excinfo.getrepr(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 690, in getrepr
+    return fmt.repr_excinfo(self)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 1058, in repr_excinfo
+    reprtraceback = self.repr_traceback(excinfo_)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 992, in repr_traceback
+    self.repr_traceback_entry(entry, excinfo if last == entry else None)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 930, in repr_traceback_entry
+    source = self._getentrysource(entry)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 828, in _getentrysource
+    source = entry.getsource(self.astcache)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 262, in getsource
+    astnode, _, end = getstatementrange_ast(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/source.py", line 181, in getstatementrange_ast
+    astnode = ast.parse(content, "source", "exec")
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/ast.py", line 50, in parse
+    return compile(source, filename, mode, flags,
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1917, in call_exception_handler
+    self.default_exception_handler(context)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1889, in default_exception_handler
+    logger.error('\n'.join(log_lines), exc_info=exc_info)
+Message: "Task exception was never retrieved\nfuture: <Task finished name='Task-1336' coro=<Server.serve() done, defined at /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py:68> exception=SystemExit(1)>"
+Arguments: ()
+F..............                         [ 70%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_openspec_artifact_integrity.py . [ 70%]
+....                                                                     [ 71%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_pki_leaf_certs.py . [ 71%]
+.......                                                                  [ 72%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_pki_public_hosts.py . [ 72%]
+..................                                                       [ 74%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_published_command_ack_tracking.py . [ 74%]
+.....                                                                    [ 75%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_register_agent_cli.py . [ 75%]
+.....                                                                    [ 75%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_rejected_events_retention.py . [ 75%]
+.........                                                                [ 76%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_retention_task.py . [ 77%]
+...                                                                      [ 77%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_rule_sync_outbox.py . [ 77%]
+...                                                                      [ 77%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_rules_router.py . [ 78%]
+...................                                                      [ 80%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_rules_service.py . [ 80%]
+.........................................                                [ 85%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_ruleset_version_atomic.py . [ 85%]
+.                                                                        [ 85%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_smtp_tls_modes.py . [ 85%]
+......                                                                   [ 86%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py . [ 86%]
+.............F.--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/pytest", line 10, in <module>
+    sys.exit(console_main())
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 201, in console_main
+    code = main()
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 175, in main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 330, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 283, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 337, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 362, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 113, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 132, in runtestprotocol
+    reports.append(call_and_report(item, "call", log))
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 244, in call_and_report
+    report: TestReport = ihook.pytest_runtest_makereport(item=item, call=call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 368, in pytest_runtest_makereport
+    return TestReport.from_item_and_call(item, call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/reports.py", line 376, in from_item_and_call
+    longrepr = item.repr_failure(excinfo)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/python.py", line 1669, in repr_failure
+    return self._repr_failure_py(excinfo, style=style)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/nodes.py", line 456, in _repr_failure_py
+    return excinfo.getrepr(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 690, in getrepr
+    return fmt.repr_excinfo(self)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 1058, in repr_excinfo
+    reprtraceback = self.repr_traceback(excinfo_)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 992, in repr_traceback
+    self.repr_traceback_entry(entry, excinfo if last == entry else None)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 930, in repr_traceback_entry
+    source = self._getentrysource(entry)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 828, in _getentrysource
+    source = entry.getsource(self.astcache)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 262, in getsource
+    astnode, _, end = getstatementrange_ast(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/source.py", line 181, in getstatementrange_ast
+    astnode = ast.parse(content, "source", "exec")
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/ast.py", line 50, in parse
+    return compile(source, filename, mode, flags,
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1917, in call_exception_handler
+    self.default_exception_handler(context)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1889, in default_exception_handler
+    logger.error('\n'.join(log_lines), exc_info=exc_info)
+Message: "Task exception was never retrieved\nfuture: <Task finished name='Task-1744' coro=<Server.serve() done, defined at /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py:68> exception=SystemExit(1)>"
+Arguments: ()
+F..--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/pytest", line 10, in <module>
+    sys.exit(console_main())
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 201, in console_main
+    code = main()
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 175, in main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 330, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 283, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 337, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 362, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 113, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 132, in runtestprotocol
+    reports.append(call_and_report(item, "call", log))
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 244, in call_and_report
+    report: TestReport = ihook.pytest_runtest_makereport(item=item, call=call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 368, in pytest_runtest_makereport
+    return TestReport.from_item_and_call(item, call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/reports.py", line 376, in from_item_and_call
+    longrepr = item.repr_failure(excinfo)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/python.py", line 1669, in repr_failure
+    return self._repr_failure_py(excinfo, style=style)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/nodes.py", line 456, in _repr_failure_py
+    return excinfo.getrepr(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 690, in getrepr
+    return fmt.repr_excinfo(self)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 1058, in repr_excinfo
+    reprtraceback = self.repr_traceback(excinfo_)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 992, in repr_traceback
+    self.repr_traceback_entry(entry, excinfo if last == entry else None)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 930, in repr_traceback_entry
+    source = self._getentrysource(entry)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 828, in _getentrysource
+    source = entry.getsource(self.astcache)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 262, in getsource
+    astnode, _, end = getstatementrange_ast(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/source.py", line 181, in getstatementrange_ast
+    astnode = ast.parse(content, "source", "exec")
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/ast.py", line 50, in parse
+    return compile(source, filename, mode, flags,
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1917, in call_exception_handler
+    self.default_exception_handler(context)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1889, in default_exception_handler
+    logger.error('\n'.join(log_lines), exc_info=exc_info)
+Message: "Task exception was never retrieved\nfuture: <Task finished name='Task-1804' coro=<Server.serve() done, defined at /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py:68> exception=SystemExit(1)>"
+Arguments: ()
+F--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/pytest", line 10, in <module>
+    sys.exit(console_main())
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 201, in console_main
+    code = main()
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 175, in main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 330, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 283, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 337, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 362, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 113, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 132, in runtestprotocol
+    reports.append(call_and_report(item, "call", log))
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 244, in call_and_report
+    report: TestReport = ihook.pytest_runtest_makereport(item=item, call=call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 368, in pytest_runtest_makereport
+    return TestReport.from_item_and_call(item, call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/reports.py", line 376, in from_item_and_call
+    longrepr = item.repr_failure(excinfo)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/python.py", line 1669, in repr_failure
+    return self._repr_failure_py(excinfo, style=style)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/nodes.py", line 456, in _repr_failure_py
+    return excinfo.getrepr(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 690, in getrepr
+    return fmt.repr_excinfo(self)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 1058, in repr_excinfo
+    reprtraceback = self.repr_traceback(excinfo_)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 992, in repr_traceback
+    self.repr_traceback_entry(entry, excinfo if last == entry else None)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 930, in repr_traceback_entry
+    source = self._getentrysource(entry)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 828, in _getentrysource
+    source = entry.getsource(self.astcache)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 262, in getsource
+    astnode, _, end = getstatementrange_ast(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/source.py", line 181, in getstatementrange_ast
+    astnode = ast.parse(content, "source", "exec")
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/ast.py", line 50, in parse
+    return compile(source, filename, mode, flags,
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1917, in call_exception_handler
+    self.default_exception_handler(context)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1889, in default_exception_handler
+    logger.error('\n'.join(log_lines), exc_info=exc_info)
+Message: "Task exception was never retrieved\nfuture: <Task finished name='Task-1822' coro=<Server.serve() done, defined at /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py:68> exception=SystemExit(1)>"
+Arguments: ()
+F.--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/pytest", line 10, in <module>
+    sys.exit(console_main())
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 201, in console_main
+    code = main()
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 175, in main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 330, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 283, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 337, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 362, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 113, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 132, in runtestprotocol
+    reports.append(call_and_report(item, "call", log))
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 244, in call_and_report
+    report: TestReport = ihook.pytest_runtest_makereport(item=item, call=call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 368, in pytest_runtest_makereport
+    return TestReport.from_item_and_call(item, call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/reports.py", line 376, in from_item_and_call
+    longrepr = item.repr_failure(excinfo)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/python.py", line 1669, in repr_failure
+    return self._repr_failure_py(excinfo, style=style)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/nodes.py", line 456, in _repr_failure_py
+    return excinfo.getrepr(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 690, in getrepr
+    return fmt.repr_excinfo(self)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 1058, in repr_excinfo
+    reprtraceback = self.repr_traceback(excinfo_)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 992, in repr_traceback
+    self.repr_traceback_entry(entry, excinfo if last == entry else None)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 930, in repr_traceback_entry
+    source = self._getentrysource(entry)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 828, in _getentrysource
+    source = entry.getsource(self.astcache)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 262, in getsource
+    astnode, _, end = getstatementrange_ast(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/source.py", line 181, in getstatementrange_ast
+    astnode = ast.parse(content, "source", "exec")
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/ast.py", line 50, in parse
+    return compile(source, filename, mode, flags,
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1917, in call_exception_handler
+    self.default_exception_handler(context)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1889, in default_exception_handler
+    logger.error('\n'.join(log_lines), exc_info=exc_info)
+Message: "Task exception was never retrieved\nfuture: <Task finished name='Task-1861' coro=<Server.serve() done, defined at /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py:68> exception=SystemExit(1)>"
+Arguments: ()
+FF........                                          [ 90%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_stream_ticket.py . [ 90%]
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/pytest", line 10, in <module>
+    sys.exit(console_main())
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 201, in console_main
+    code = main()
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/config/__init__.py", line 175, in main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 330, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 283, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 337, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/main.py", line 362, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 113, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 132, in runtestprotocol
+    reports.append(call_and_report(item, "call", log))
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 244, in call_and_report
+    report: TestReport = ihook.pytest_runtest_makereport(item=item, call=call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/runner.py", line 368, in pytest_runtest_makereport
+    return TestReport.from_item_and_call(item, call)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/reports.py", line 376, in from_item_and_call
+    longrepr = item.repr_failure(excinfo)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/python.py", line 1669, in repr_failure
+    return self._repr_failure_py(excinfo, style=style)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/nodes.py", line 456, in _repr_failure_py
+    return excinfo.getrepr(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 690, in getrepr
+    return fmt.repr_excinfo(self)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 1058, in repr_excinfo
+    reprtraceback = self.repr_traceback(excinfo_)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 992, in repr_traceback
+    self.repr_traceback_entry(entry, excinfo if last == entry else None)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 930, in repr_traceback_entry
+    source = self._getentrysource(entry)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 828, in _getentrysource
+    source = entry.getsource(self.astcache)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/code.py", line 262, in getsource
+    astnode, _, end = getstatementrange_ast(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/_pytest/_code/source.py", line 181, in getstatementrange_ast
+    astnode = ast.parse(content, "source", "exec")
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/ast.py", line 50, in parse
+    return compile(source, filename, mode, flags,
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1917, in call_exception_handler
+    self.default_exception_handler(context)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1889, in default_exception_handler
+    logger.error('\n'.join(log_lines), exc_info=exc_info)
+Message: "Task exception was never retrieved\nfuture: <Task finished name='Task-1966' coro=<Server.serve() done, defined at /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py:68> exception=SystemExit(1)>"
+Arguments: ()
+F..............                                                          [ 92%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_stream_ack_durability_consumer.py . [ 92%]
+............................                                             [ 95%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_stream_ack_durability_outbox.py . [ 95%]
+........                                                                 [ 96%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_timestamps_timezone_aware.py . [ 96%]
+.......                                                                  [ 97%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_valkey_tls.py . [ 97%]
+...............                                                          [ 99%]
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_valkey_tls_integration.py s [ 99%]
+sss                                                                      [100%]
+
+=================================== FAILURES ===================================
+____________ test_post_retry_alert_masivo_deja_una_fila_por_alerta _____________
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_notifications.py:881: in test_post_retry_alert_masivo_deja_una_fila_por_alerta
+    with TestClient(app) as client:
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:708: in __exit__
+    self.exit_stack.close()
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:627: in close
+    self.__exit__(None, None, None)
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:619: in __exit__
+    raise exc
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:604: in __exit__
+    if cb(*exc_details):
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:482: in _exit_wrapper
+    callback(*args, **kwds)
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:701: in wait_shutdown
+    portal.call(self.wait_shutdown)
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:380: in start_task_soon
+    self._check_running()
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:214: in _check_running
+    raise RuntimeError("This portal is not running")
+E   RuntimeError: This portal is not running
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-19T17:09:43.493348Z"}
+{"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-09-19T17:09:43.493472Z"}
+{"cert_path": "/home/ezequiel/fim-lab/suites_certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-19T17:09:43.494007Z"}
+{"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-19T17:09:43.578402Z"}
+{"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-09-19T17:09:43.579459Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-19T17:09:43.586205Z"}
+----------------------------- Captured stderr call -----------------------------
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 163, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1640, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 85, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 171, in startup
+    logger.error(exc)
+Message: OSError(98, "error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use")
+Arguments: ()
+_____________________ test_get_alerts_filter_severity_high _____________________
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py:356: in test_get_alerts_filter_severity_high
+    with TestClient(app) as tc:
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:708: in __exit__
+    self.exit_stack.close()
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:627: in close
+    self.__exit__(None, None, None)
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:619: in __exit__
+    raise exc
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:604: in __exit__
+    if cb(*exc_details):
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:482: in _exit_wrapper
+    callback(*args, **kwds)
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:701: in wait_shutdown
+    portal.call(self.wait_shutdown)
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:380: in start_task_soon
+    self._check_running()
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:214: in _check_running
+    raise RuntimeError("This portal is not running")
+E   RuntimeError: This portal is not running
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-19T17:10:07.380486Z"}
+{"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-09-19T17:10:07.380613Z"}
+{"cert_path": "/home/ezequiel/fim-lab/suites_certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-19T17:10:07.381179Z"}
+{"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:07.462062Z"}
+{"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:07.463026Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-19T17:10:07.468959Z"}
+----------------------------- Captured stderr call -----------------------------
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 163, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1640, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 85, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 171, in startup
+    logger.error(exc)
+Message: OSError(98, "error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use")
+Arguments: ()
+______________ test_get_alerts_status_delivered_gana_sobre_failed ______________
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py:393: in test_get_alerts_status_delivered_gana_sobre_failed
+    with TestClient(app) as tc:
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:708: in __exit__
+    self.exit_stack.close()
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:627: in close
+    self.__exit__(None, None, None)
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:619: in __exit__
+    raise exc
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:604: in __exit__
+    if cb(*exc_details):
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:482: in _exit_wrapper
+    callback(*args, **kwds)
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:701: in wait_shutdown
+    portal.call(self.wait_shutdown)
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:380: in start_task_soon
+    self._check_running()
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:214: in _check_running
+    raise RuntimeError("This portal is not running")
+E   RuntimeError: This portal is not running
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-19T17:10:07.891537Z"}
+{"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-09-19T17:10:07.891667Z"}
+{"cert_path": "/home/ezequiel/fim-lab/suites_certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-19T17:10:07.892013Z"}
+{"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:07.976692Z"}
+{"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:07.977219Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-19T17:10:07.981108Z"}
+----------------------------- Captured stderr call -----------------------------
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 163, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1640, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 85, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 171, in startup
+    logger.error(exc)
+Message: OSError(98, "error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use")
+Arguments: ()
+___________________ test_get_alerts_order_desc_by_created_at ___________________
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py:452: in test_get_alerts_order_desc_by_created_at
+    with TestClient(app) as tc:
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:708: in __exit__
+    self.exit_stack.close()
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:627: in close
+    self.__exit__(None, None, None)
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:619: in __exit__
+    raise exc
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:604: in __exit__
+    if cb(*exc_details):
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:482: in _exit_wrapper
+    callback(*args, **kwds)
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:701: in wait_shutdown
+    portal.call(self.wait_shutdown)
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:380: in start_task_soon
+    self._check_running()
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:214: in _check_running
+    raise RuntimeError("This portal is not running")
+E   RuntimeError: This portal is not running
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-19T17:10:08.654932Z"}
+{"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-09-19T17:10:08.655084Z"}
+{"cert_path": "/home/ezequiel/fim-lab/suites_certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-19T17:10:08.655470Z"}
+{"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:08.726486Z"}
+{"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:08.726941Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-19T17:10:08.730967Z"}
+----------------------------- Captured stderr call -----------------------------
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 163, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1640, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 85, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 171, in startup
+    logger.error(exc)
+Message: OSError(98, "error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use")
+Arguments: ()
+________________ test_get_alerts_includes_path_and_action_taken ________________
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py:485: in test_get_alerts_includes_path_and_action_taken
+    with TestClient(app) as tc:
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:708: in __exit__
+    self.exit_stack.close()
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:627: in close
+    self.__exit__(None, None, None)
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:619: in __exit__
+    raise exc
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:604: in __exit__
+    if cb(*exc_details):
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:482: in _exit_wrapper
+    callback(*args, **kwds)
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:701: in wait_shutdown
+    portal.call(self.wait_shutdown)
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:380: in start_task_soon
+    self._check_running()
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:214: in _check_running
+    raise RuntimeError("This portal is not running")
+E   RuntimeError: This portal is not running
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-19T17:10:08.911607Z"}
+{"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-09-19T17:10:08.911755Z"}
+{"cert_path": "/home/ezequiel/fim-lab/suites_certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-19T17:10:08.912083Z"}
+{"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:08.997550Z"}
+{"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:08.998013Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-19T17:10:09.001989Z"}
+----------------------------- Captured stderr call -----------------------------
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 163, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1640, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 85, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 171, in startup
+    logger.error(exc)
+Message: OSError(98, "error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use")
+Arguments: ()
+____________ test_get_failed_alerts_includes_path_and_action_taken _____________
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py:532: in test_get_failed_alerts_includes_path_and_action_taken
+    with TestClient(app) as tc:
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:708: in __exit__
+    self.exit_stack.close()
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:627: in close
+    self.__exit__(None, None, None)
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:619: in __exit__
+    raise exc
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:604: in __exit__
+    if cb(*exc_details):
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:482: in _exit_wrapper
+    callback(*args, **kwds)
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:701: in wait_shutdown
+    portal.call(self.wait_shutdown)
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:380: in start_task_soon
+    self._check_running()
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:214: in _check_running
+    raise RuntimeError("This portal is not running")
+E   RuntimeError: This portal is not running
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-19T17:10:09.606877Z"}
+{"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-09-19T17:10:09.607087Z"}
+{"cert_path": "/home/ezequiel/fim-lab/suites_certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-19T17:10:09.607450Z"}
+{"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:09.708661Z"}
+{"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:09.709596Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-19T17:10:09.716342Z"}
+----------------------------- Captured stderr call -----------------------------
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 163, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1640, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 85, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 171, in startup
+    logger.error(exc)
+Message: OSError(98, "error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use")
+Arguments: ()
+________________ test_stream_alerts_invalid_ticket_returns_401 _________________
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py:559: in test_stream_alerts_invalid_ticket_returns_401
+    with TestClient(app) as tc:
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:708: in __exit__
+    self.exit_stack.close()
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:627: in close
+    self.__exit__(None, None, None)
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:619: in __exit__
+    raise exc
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:604: in __exit__
+    if cb(*exc_details):
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:482: in _exit_wrapper
+    callback(*args, **kwds)
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:701: in wait_shutdown
+    portal.call(self.wait_shutdown)
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:380: in start_task_soon
+    self._check_running()
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:214: in _check_running
+    raise RuntimeError("This portal is not running")
+E   RuntimeError: This portal is not running
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-19T17:10:09.864855Z"}
+{"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-09-19T17:10:09.864952Z"}
+{"cert_path": "/home/ezequiel/fim-lab/suites_certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-19T17:10:09.865258Z"}
+{"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:09.950414Z"}
+{"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:09.950897Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-19T17:10:09.954985Z"}
+----------------------------- Captured stderr call -----------------------------
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 163, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1640, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 85, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 171, in startup
+    logger.error(exc)
+Message: OSError(98, "error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use")
+Arguments: ()
+_____________ test_issue_ticket_without_jwt_returns_401_and_no_key _____________
+../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_stream_ticket.py:184: in test_issue_ticket_without_jwt_returns_401_and_no_key
+    with TestClient(app) as tc:
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:708: in __exit__
+    self.exit_stack.close()
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:627: in close
+    self.__exit__(None, None, None)
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:619: in __exit__
+    raise exc
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:604: in __exit__
+    if cb(*exc_details):
+../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/contextlib.py:482: in _exit_wrapper
+    callback(*args, **kwds)
+backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:701: in wait_shutdown
+    portal.call(self.wait_shutdown)
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:380: in start_task_soon
+    self._check_running()
+backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:214: in _check_running
+    raise RuntimeError("This portal is not running")
+E   RuntimeError: This portal is not running
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-19T17:10:11.603366Z"}
+{"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-09-19T17:10:11.603493Z"}
+{"cert_path": "/home/ezequiel/fim-lab/suites_certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-19T17:10:11.603988Z"}
+{"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:11.693312Z"}
+{"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-09-19T17:10:11.694365Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-19T17:10:11.700945Z"}
+----------------------------- Captured stderr call -----------------------------
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 83, in _serve
+    logger.info(message, process_id, extra={"color_message": color_message})
+Message: 'Started server process [%d]'
+Arguments: (2820664,)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 163, in startup
+    server = await loop.create_server(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 1640, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/logging/__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: I/O operation on closed file.
+Call stack:
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1015, in _bootstrap
+    self._bootstrap_inner()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 1044, in _bootstrap_inner
+    self.run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/threading.py", line 995, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py", line 536, in run_blocking_portal
+    run_eventloop(
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_core/_eventloop.py", line 83, in run
+    return async_backend.run(func, args, {}, backend_options)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2432, in run
+    return runner.run(wrapper())
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 712, in run_until_complete
+    self.run_forever()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 683, in run_forever
+    self._run_once()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 2060, in _run_once
+    handle._run()
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 70, in serve
+    await self._serve(sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 85, in _serve
+    await self.startup(sockets=sockets)
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 171, in startup
+    logger.error(exc)
+Message: OSError(98, "error while attempting to bind on address ('0.0.0.0', 8443): [errno 98] address already in use")
+Arguments: ()
+=============================== warnings summary ===============================
+backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1
+  /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/modules/users/test_user_management.py: 11 warnings
+tests/test_actions_router.py: 22 warnings
+tests/test_auth.py: 54 warnings
+tests/test_auth_cookie_console_mode.py: 1 warning
+tests/test_c22_auth.py: 5 warnings
+tests/test_c31_backend_event_correctness.py: 2 warnings
+tests/test_event_listing_contract.py: 34 warnings
+tests/test_event_router.py: 6 warnings
+tests/test_event_severity.py: 3 warnings
+tests/test_jwt_key_rotation.py: 2 warnings
+tests/test_rules_router.py: 12 warnings
+tests/test_sse_stream_ticket.py: 5 warnings
+tests/test_timestamps_timezone_aware.py: 8 warnings
+  /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+tests/test_actions_router.py::test_approve_absent_file_without_confirmation_returns_422
+tests/test_auth.py::test_change_password_short_retorna_422
+tests/test_auth.py::test_change_password_sin_complejidad_retorna_422[sin_mayuscula]
+tests/test_auth.py::test_change_password_sin_complejidad_retorna_422[sin_minuscula]
+tests/test_auth.py::test_change_password_sin_complejidad_retorna_422[sin_digito]
+tests/test_rules_router.py::test_post_rules_duplicate_pattern_returns_422
+tests/test_rules_router.py::test_post_rules_empty_pattern_returns_422
+  /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py:328: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    return await dependant.call(**values)
+
+tests/test_agent_cert_renewal_e2e.py::test_agent_near_expiry_renews_unattended_and_keeps_authenticating
+  /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_agent_cert_renewal_e2e.py::test_agent_near_expiry_renews_unattended_and_keeps_authenticating
+  /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_auth.py: 24 warnings
+tests/test_auth_cookie_console_mode.py: 1 warning
+  /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/httpx/_client.py:1859: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return await self.request(
+
+tests/test_notifications.py::test_health_all_ok
+tests/test_notifications.py::test_health_n8n_degraded_when_not_configured
+tests/test_notifications.py::test_health_check_reads_health_url_not_webhook_url
+  /home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py:2045: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    handle = self._ready.popleft()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/ezequiel/Facultad/tesis/tesis-fim-serio/tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/suites/backend.xml -
+=========================== short test summary info ============================
+FAILED ../../../tesis-worktrees/candidato-v1.0/backend/tests/test_notifications.py::test_post_retry_alert_masivo_deja_una_fila_por_alerta
+FAILED ../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py::test_get_alerts_filter_severity_high
+FAILED ../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py::test_get_alerts_status_delivered_gana_sobre_failed
+FAILED ../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py::test_get_alerts_order_desc_by_created_at
+FAILED ../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py::test_get_alerts_includes_path_and_action_taken
+FAILED ../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py::test_get_failed_alerts_includes_path_and_action_taken
+FAILED ../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_alerts.py::test_stream_alerts_invalid_ticket_returns_401
+FAILED ../../../tesis-worktrees/candidato-v1.0/backend/tests/test_sse_stream_ticket.py::test_issue_ticket_without_jwt_returns_401_and_no_key
+====== 8 failed, 827 passed, 4 skipped, 203 warnings in 115.08s (0:01:55) ======

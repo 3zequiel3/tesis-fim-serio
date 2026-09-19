@@ -13,10 +13,12 @@ ee374d0ccc49f2d81a4636b6dfa225c7fb4d325e868ca3e6d6405251a2e1107b  ./bateria5/cor
 aaa8460322bde5121e9c4bfc5a106218339d201cfd7ea537d68c454ef1d0be7c  ./bateria5/corte-valkey-post-d75/bateria5_corte-valkey-post-d75.log
 d4c6a2d3bf5543a9936beb4b5f57f771b06abf14312621c9171baac235931d3b  ./bateria5/corte-valkey-post-d75/bateria5_corte-valkey-post-d75_manifiesto.json
 a8a801686d109e70bf6cba1079a06fc64eae509b4d9a286bcf35aa7111471068  ./bateria5/corte-valkey-post-d75/bateria5_corte-valkey-post-d75_manifiesto.jsonl
+165f0e9bf4d195eb37c10633854e06a6f4d79374247056cac5c0e6296729c36c  ./bateria5/corte-valkey-post-d75/distribucion-llegadas.txt
 4cd241e6f9401bd3684c23b3031b84408033b1580d84f1bf51e6ee538842a6ae  ./bateria5/corte-valkey-post-d75/eventos_backend.csv
 c63ce1a2d1bebe26ec92549a4d611536294b3ea8033f5640f76dd1ba22167fa8  ./bateria5/corte-valkey-post-d75/item43.txt
 e52ad68645ebda6723155a0b4055ab6d21df5ccf5f590fd057c846f42a4d21ce  ./bateria5/corte-valkey-post-d75/procedencia.txt
 aca08c93391ca0daa8bcc80d9cf351f176f6ba7f19d0382e495922206f26bc16  ./bateria5/corte-valkey-post-d75/rechazos.csv
+0ce87342a88532479126419829aa14198e5b6f0646fefd5aba9a10e3db952757  ./bateria5/corte-valkey-post-d75/verificacion-items-40-41.txt
 aca08c93391ca0daa8bcc80d9cf351f176f6ba7f19d0382e495922206f26bc16  ./bateria5/corte-valkey/rechazos.csv
 0a6592ea4c64279c6701b5f93922545fd85ebcf3c76b453d06111404f24e336f  ./bateria5/item42/agente_journal.log
 f534a33027ff14405b2fee7eaf31edcc6ebbbb2845b5b6eba24d4c00772b5ce7  ./bateria5/item42/generador.log
@@ -67,3 +69,11 @@ d1d6ccc7b24de120ea24b844d32829d1708e51038ebef49b2f59b79941d58b17  ./invalido-ima
 de0fcad4eb91003c7cd6614bbd06c79368c8739dcc53e7b88a996d61e1d189fe  ./invalido-imagen-desactualizada/invalido-nominal-20260917T224118Z/INTENTO_INVALIDO.md
 63645848fc9bc34d7fbbd885be8646a843be5befaf179c1a9a435b626436fb4c  ./invalido-imagen-desactualizada/MOTIVO.md
 7f33eb077c932e60404f3ad814c3e324c5796c2f1cf3dff9fcd09fe1426a2b7e  ./metadata/entorno.txt
+c6973b43d73f87472c19f47b8611a720204196e5dc9fdd7ea27406002a453acc  ./suites/agente.log
+0d4fe4e4cf865ed6c0706135325fde116d642dddfcc9a4942c79cc0579ed8b8e  ./suites/agente.xml
+e0b28d53185aeded23966945a073e4144bf4fb31a77527b78909602c7656a1d4  ./suites/backend.log
+cbb17e3f640acd8a634d00698441c1e3771446723bf2c0303d1ff30ba7db9f2c  ./suites/backend.xml
+2cd9dff7037cb400a4325ead46fd6d0aae6ef3580ea71b3db11231ab789bdcf8  ./suites/frontend.log
+76b9a19a7e7c2d6835e7212f8cbc87832674e4e799f5b1bdc41610585fe60f0f  ./suites/frontend.xml
+06238a8b70d73f261fcaf66bf6c82531048b40c55649eb8272754b509f7892ba  ./suites/procedencia.txt
+a316d84f1977328cc8d1d7c2b4ef4912b4bbc95af2fa546b2e334b6040fa931e  ./suites/RESULTADO.md
