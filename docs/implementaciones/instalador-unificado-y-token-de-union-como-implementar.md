@@ -48,7 +48,7 @@
   terminada.
 - Desde la lectura del documento fuente se agregaron los hallazgos 14.1–14.8 de la aceptación en VPS
   (`tasks.md:106-113`) y la evidencia A-4
-  (`docs/cierre/evidencia/a4-vps-acceptance-20260915T153824Z`, `tasks.md:100`). Afectan a esta
+  (`tesis/cierre/evidencia/a4-vps-acceptance-20260915T153824Z`, `tasks.md:100`). Afectan a esta
   propuesta así:
   - **14.3**: reinstalar un agente enrolado ya no exige el secreto
     (`agent/installer.py:189` `is_already_enrolled`, `:212` `secret_required`). Esto cubre la fila
@@ -1176,8 +1176,8 @@ Sobre el fixture `container` de `agent/tests/integration/test_install_sh_contain
 
 ### 6.3 Ensayo real de dos hosts (A-5)
 
-- Nueva carpeta `docs/cierre/evidencia/a5-join-token-lifecycle-<ts>/`. Nunca se modifican A-3 ni A-4.
-- Misma estructura que `docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md`:
+- Nueva carpeta `tesis/cierre/evidencia/a5-join-token-lifecycle-<ts>/`. Nunca se modifican A-3 ni A-4.
+- Misma estructura que `tesis/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md`:
   Anfitriones, Qué se puede afirmar, Qué no se puede afirmar, Resultados por punto de control, Métricas
   clave, Hallazgos, Índice de evidencia, Cómo verificar el paquete, y `SHA256SUMS`.
 - Puntos de control mínimos:
@@ -1251,8 +1251,8 @@ Depende de 54 y del archive de 52.
 ## 9. Impacto en la tesis
 
 - **Candidato vigente:** el consolidado auditado en V10 es `7a7ee50`, con suites PASS
-  (`docs/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md:41`), más la aceptación A-4 de 52
-  (`docs/cierre/evidencia/a4-vps-acceptance-20260915T153824Z`).
+  (`tesis/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md:41`), más la aceptación A-4 de 52
+  (`tesis/cierre/evidencia/a4-vps-acceptance-20260915T153824Z`).
 - **Todo cambio de código de este documento exige un candidato consolidado nuevo**, con las mismas
   capas que V10 (agente, backend con TLS de Valkey, frontend, scripts, E2E y OpenSpec) y custodia
   íntegra, antes de citarlo en la tesis.
@@ -1308,4 +1308,4 @@ trabajo futuro con este documento como diseño ya verificado contra el código.
 - `frontend/src/{api/agents.ts,hooks/useAgents.ts,pages/Agents.tsx,App.tsx}`, `frontend/src/components/ui/{ModalDialog.tsx,AgentCard.tsx}`, `frontend/src/components/layout/Sidebar.tsx`
 - `frontend/playwright.isolated-lab.config.ts`, `frontend/e2e/us-isolated-lab.spec.ts`
 - `docs/despliegue_servidor_remoto.md`
-- `docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md`, `docs/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md`
+- `tesis/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md`, `tesis/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md`

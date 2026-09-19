@@ -2,7 +2,7 @@
 """
 Grupo de control: escáner periódico por hashing — precondición P3 del Cap. 5.
 
-Ver docs/plan_medicion_cap5.md §0 (P3) y "Batería 7 — Grupo de control".
+Ver tesis/plan_medicion_cap5.md §0 (P3) y "Batería 7 — Grupo de control".
 
 QUÉ ES
 ------
@@ -45,21 +45,21 @@ Corrida bajo demanda (y baseline inicial — correr ANTES del generador):
 
     python3 scripts/control_hashing.py \
         --dir fim-watch \
-        --csv resultados/bateria7_control.csv \
-        --state resultados/control_estado.json
+        --csv tesis/resultados/bateria7_control.csv \
+        --state tesis/resultados/control_estado.json
 
 Modo loop en primer plano, sin tocar crontab (declarar cuál se usó en el Cap. 5):
 
     python3 scripts/control_hashing.py --dir fim-watch \
-        --csv resultados/bateria7_control.csv \
-        --state resultados/control_estado.json --loop --interval 900
+        --csv tesis/resultados/bateria7_control.csv \
+        --state tesis/resultados/control_estado.json --loop --interval 900
 
 Entrada de crontab (cada 15 minutos = 900 s, alineada a :00 :15 :30 :45).
 `crontab -e` y pegar, ajustando la ruta absoluta del repo:
 
     */15 * * * * cd /ruta/al/repo && /usr/bin/python3 scripts/control_hashing.py \
-      --dir fim-watch --csv resultados/bateria7_control.csv \
-      --state resultados/control_estado.json >> resultados/control_cron.log 2>&1
+      --dir fim-watch --csv tesis/resultados/bateria7_control.csv \
+      --state tesis/resultados/control_estado.json >> tesis/resultados/control_cron.log 2>&1
 
 O directamente:  python3 scripts/control_hashing.py --print-cron --dir fim-watch
 
@@ -299,7 +299,7 @@ def print_cron(args: argparse.Namespace) -> int:
     print(
         f"*/{minutos} * * * * cd {repo} && {sys.executable} scripts/control_hashing.py "
         f"--dir {args.dir} --csv {args.csv} --state {args.state} "
-        f"--agent-prefix {args.agent_prefix} >> resultados/control_cron.log 2>&1"
+        f"--agent-prefix {args.agent_prefix} >> tesis/resultados/control_cron.log 2>&1"
     )
     return 0
 
@@ -311,9 +311,9 @@ def main(argv: list[str] | None = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument("--dir", required=True, help="Directorio vigilado en el host (ej: fim-watch)")
-    ap.add_argument("--csv", default="resultados/bateria7_control.csv",
+    ap.add_argument("--csv", default="tesis/resultados/bateria7_control.csv",
                     help="CSV acumulativo de detecciones (ítems 45, 47, 49).")
-    ap.add_argument("--state", default="resultados/control_estado.json",
+    ap.add_argument("--state", default="tesis/resultados/control_estado.json",
                     help="Estado del scan previo — el equivalente a la base de AIDE.")
     ap.add_argument("--agent-prefix", default="/watch",
                     help="Prefijo con el que el agente ve el directorio (join con el manifiesto).")

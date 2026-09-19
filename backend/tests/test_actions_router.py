@@ -1,7 +1,7 @@
 """
 Tests HTTP del router de acciones (POST /actions/*).
 
-Cierra la brecha 11 del anexo docs/trazabilidad_us_tests.md §7 (nivel 2): el
+Cierra la brecha 11 del anexo tesis/trazabilidad_us_tests.md §7 (nivel 2): el
 módulo `actions` estaba probado sólo a nivel de servicio, de modo que el
 mapeo de excepciones de dominio a códigos HTTP, el gate `require_admin` y la
 forma de las respuestas no los verificaba ningún test. Afecta a US-11

@@ -297,7 +297,7 @@ explícitamente en D51/RN-145 y se documenta en el encabezado de la migración. 
 acotado por el punto siguiente.
 
 **[Los resultados del Capítulo 5 corresponden al esquema y al comportamiento previos]** → **Los
-datos actuales de `resultados/` no son reportables tal cual.** Fueron producidos contra un esquema
+datos actuales de `tesis/resultados/` no son reportables tal cual.** Fueron producidos contra un esquema
 sin `event_type`, con `path` NOT NULL, y contra un agente que atribuía a root toda atribución no
 resuelta. Toda afirmación de la tesis sobre la fiabilidad de la atribución de procesos medida sobre
 esos datos es insostenible: el sistema no distinguía «fue root» de «no sé quién fue», así que la
@@ -321,7 +321,7 @@ después de arrancar es información valiosa, no ruido.
    ausente cae en el default del modelo y `path` siempre viene. Un agente nuevo contra un backend
    viejo pierde `event_type` (como hoy) y falla al ingerir un `detection_gap` por `NOT NULL` en
    `path`; el evento queda en el PEL y se reintenta tras el paso 1, sin pérdida.
-4. Re-correr las baterías del Capítulo 5 contra el sistema migrado y regenerar `resultados/`.
+4. Re-correr las baterías del Capítulo 5 contra el sistema migrado y regenerar `tesis/resultados/`.
 
 **Rollback.** El código revierte por despliegue. El esquema **no necesita revertirse**: `event_type`
 es una columna extra que el backend anterior ignora, y `path` nullable acepta todo lo que el backend

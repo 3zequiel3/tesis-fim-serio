@@ -59,14 +59,14 @@ El repositorio SHALL proveer un script que, ejecutado en el servidor con el stac
 
 ### Requirement: Guía de despliegue de producto
 
-El repositorio SHALL incluir una guía de despliegue en `docs/`, fuera de `docs/cierre/evidencia/`, que cubra en orden: requisitos del servidor y de los hosts monitoreados; preparación del `.env`; elección del modo de consola con la advertencia del modo `off`; arranque con `docker-compose.yml` + `docker-compose.tls.yml` y el perfil `app`; restricción de acceso a 8443, 8444 y 6380 considerando que Docker omite las reglas de `ufw` para puertos publicados; registro del agente; instalación del agente con los datos entregados; verificación del despliegue; reinstalación y actualización del agente; y renovación del certificado provisto de la consola. `README.md` SHALL enlazar la guía. La guía SHALL NOT requerir editar YAML, editar `/etc/hosts` ni ejecutar archivos de `docs/cierre/evidencia/`.
+El repositorio SHALL incluir una guía de despliegue en `docs/`, fuera de `tesis/cierre/evidencia/`, que cubra en orden: requisitos del servidor y de los hosts monitoreados; preparación del `.env`; elección del modo de consola con la advertencia del modo `off`; arranque con `docker-compose.yml` + `docker-compose.tls.yml` y el perfil `app`; restricción de acceso a 8443, 8444 y 6380 considerando que Docker omite las reglas de `ufw` para puertos publicados; registro del agente; instalación del agente con los datos entregados; verificación del despliegue; reinstalación y actualización del agente; y renovación del certificado provisto de la consola. `README.md` SHALL enlazar la guía. La guía SHALL NOT requerir editar YAML, editar `/etc/hosts` ni ejecutar archivos de `tesis/cierre/evidencia/`.
 
 #### Scenario: Enlace desde el README
 - **WHEN** se inspecciona `README.md`
 - **THEN** contiene un enlace a la guía de despliegue
 
 #### Scenario: Sin dependencias de la evidencia
-- **WHEN** se buscan referencias a `docs/cierre/evidencia/` entre los comandos de la guía
+- **WHEN** se buscan referencias a `tesis/cierre/evidencia/` entre los comandos de la guía
 - **THEN** no hay ninguna
 
 #### Scenario: Reproducción multi-host siguiendo la guía

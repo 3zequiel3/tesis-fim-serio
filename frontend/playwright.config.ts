@@ -3,7 +3,7 @@ import path from 'node:path'
 
 const evidenceRoot = process.env.FIM_E2E_RUN_DIR
   ? path.resolve(process.env.FIM_E2E_RUN_DIR)
-  : path.resolve('../docs/cierre/evidencia/playwright-local')
+  : path.resolve('../tesis/cierre/evidencia/playwright-local')
 
 export default defineConfig({
   testDir: './e2e',

@@ -13,9 +13,9 @@ Start the agent with the same run id and append-only trace destination:
     FIM_EXPERIMENT_TRACE_FILE="/evidence/$RUN_ID/agent_trace.jsonl" \\
       docker compose --profile app up agent
     python3 scripts/bateria_reversion.py --dir fim-watch --run-id "$RUN_ID" \\
-      --salida "docs/cierre/evidencia/$RUN_ID"
+      --salida "tesis/cierre/evidencia/$RUN_ID"
 
-The compose mount maps ``./docs/cierre/evidencia`` to ``/evidence``. The trace
+The compose mount maps ``./tesis/cierre/evidencia`` to ``/evidence``. The trace
 path is therefore valid inside the container and the host writes operations in the
 same controlled, unique run directory.
 
@@ -225,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repeticiones", type=int, default=10)
     parser.add_argument("--espera-baseline", type=float, default=5.0)
     parser.add_argument("--espera-evento", type=float, default=5.0)
-    parser.add_argument("--salida", type=Path, default=Path("resultados/bateria9"))
+    parser.add_argument("--salida", type=Path, default=Path("tesis/resultados/bateria9"))
     parser.add_argument("--agent-prefix", default=None)
     parser.add_argument("--run-id", default=None, help="Must match FIM_EXPERIMENT_RUN_ID in the agent")
     parser.add_argument("--dry-run", action="store_true")

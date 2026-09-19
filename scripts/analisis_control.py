@@ -2,7 +2,7 @@
 """
 Cruce manifiesto (P2) x grupo de control (P3) — ítems 45, 47, 49 y 50 del Cap. 5.
 
-Ver docs/plan_medicion_cap5.md, "Batería 7 — Grupo de control".
+Ver tesis/plan_medicion_cap5.md, "Batería 7 — Grupo de control".
 
 QUÉ HACE
 --------
@@ -44,9 +44,9 @@ fila por latencia lista para `pd.read_csv(...)["latencia_ms"]`.
 USO
 ---
     python3 scripts/analisis_control.py \
-        --manifiesto resultados/bateria3_manifiesto.json \
-        --control    resultados/bateria7_control.csv \
-        --salida     resultados/bateria7_latencias.csv \
+        --manifiesto tesis/resultados/bateria3_manifiesto.json \
+        --control    tesis/resultados/bateria7_control.csv \
+        --salida     tesis/resultados/bateria7_latencias.csv \
         --mediana-fim-ms 13.92
 
 NOTAS
@@ -109,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--manifiesto", required=True, help="bateria3_manifiesto.json (P2)")
     ap.add_argument("--control", required=True, help="bateria7_control.csv (P3)")
-    ap.add_argument("--salida", default="resultados/bateria7_latencias.csv",
+    ap.add_argument("--salida", default="tesis/resultados/bateria7_latencias.csv",
                     help="CSV con una fila por detección atribuida.")
     ap.add_argument("--criterio", choices=("primer_cambio", "ultimo_cambio"),
                     default="primer_cambio", help="Cambio al que se atribuye cada detección.")

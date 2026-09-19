@@ -1,0 +1,4 @@
+[control] scan_id=1 (baseline) ts=2026-09-17T21:52:35.352031+00:00 archivos=0 cambios=0 duracion_scan_s=0.000 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=2 (diff) ts=2026-09-17T22:07:35.355771+00:00 archivos=17 cambios=17 duracion_scan_s=0.002 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=3 (diff) ts=2026-09-17T22:22:35.359846+00:00 archivos=38 cambios=47 duracion_scan_s=0.006 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=4 (diff) ts=2026-09-17T22:37:35.362462+00:00 archivos=50 cambios=42 duracion_scan_s=0.008 csv=/srv/evidencia/bateria7_control.csv

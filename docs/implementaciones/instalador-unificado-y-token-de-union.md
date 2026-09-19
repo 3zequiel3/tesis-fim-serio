@@ -210,7 +210,7 @@ genera ni lo muestra.
 
 ### 2.7 Hallazgos del ensayo A-3 (dolor manual observado)
 
-`docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md`
+`tesis/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md`
 documenta, entre los hallazgos **ya corregidos** por D52/RN-146 y D53/RN-147
 (bootstrap sin TLS, SAN fijo en código), y entre los **abiertos, no
 corregidos**: reinstalar el agente anidaba el código (`install.sh` actual ya
@@ -911,7 +911,7 @@ Paquetes de trabajo ordenados, cada uno con su propia estrategia de prueba
 | P4 | Consola — botón "Agregar agente" | UI + hooks + revocación | Componente (React Testing Library) + E2E (Playwright) del flujo completo mint→copiar→revocar |
 | P5 | Instalador unificado — modo servidor | `install.sh` raíz, `scripts/install_server.py`, modo no interactivo | Unitarias sobre las funciones puras de resolución de inputs; script de humo que corre `install.sh --non-interactive` contra un `.env` descartable |
 | P6 | Instalador unificado — modo servidor+agente | Orquestación del modo 2, minteo in-proceso del primer token | Aceptación real de un solo host (el mismo que corre el compose) |
-| P7 | Aceptación real de dos hosts | Repetir el ensayo A-3 (`docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/`) con el flujo nuevo de punta a punta, midiendo cuántos pasos manuales quedan | Runbook nuevo, evidencia con `SHA256SUMS`, comparación explícita contra el runbook A-3 original |
+| P7 | Aceptación real de dos hosts | Repetir el ensayo A-3 (`tesis/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/`) con el flujo nuevo de punta a punta, midiendo cuántos pasos manuales quedan | Runbook nuevo, evidencia con `SHA256SUMS`, comparación explícita contra el runbook A-3 original |
 | P8 (opcional) | Let's Encrypt automatizado | Sidecar de certbot, modo `letsencrypt` | Integración contra un dominio real controlado por el operador (no simulable sin DNS público) |
 | P9 (opcional) | Sub-path de consola | `base` de Vite + nginx + decisión sobre la cookie de refresh | E2E navegando `/fim/*`; regresión sobre el flujo de login/refresh existente |
 | P10 (opcional) | Página web de configuración | Servidor Python efímero, bind loopback, token de URL, timeout | Unitaria del ciclo de vida del proceso; manual con túnel SSH real |

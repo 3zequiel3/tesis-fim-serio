@@ -43,8 +43,8 @@ agente detecta por hashear tarde, no por haber visto la escritura.
 Esto acota la limitación, no la cierra: la ventana de evasión existe y es del orden
 de esos 10 ms. Un adversario que demore la escritura sobre el mapeo más que la
 latencia de detección debería seguir evadiendo. ESA VARIANTE NO SE MIDIÓ.
-Ver docs/informe/Tabla 17-datos.md (los artefactos crudos quedan en
-resultados/bateria8/, que está en .gitignore).
+Ver tesis/informe/Tabla 17-datos.md (los artefactos crudos quedan en
+tesis/resultados/bateria8/, que está en .gitignore).
 
 Alcance de la afirmación: el resultado es empírico, no una prueba de determinismo.
 El desenlace del caso A depende de una carrera entre la secuencia in-process

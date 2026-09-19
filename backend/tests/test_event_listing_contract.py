@@ -1,7 +1,7 @@
 """
 Tests de contrato del listado y el detalle de eventos (GET /events, GET /events/{id}).
 
-Cierra las brechas 1-4 del nivel 1 de docs/trazabilidad_us_tests.md §7:
+Cierra las brechas 1-4 del nivel 1 de tesis/trazabilidad_us_tests.md §7:
 
   1. `superseded` excluido por defecto y visible con `include_superseded=true`
      (US-13 criterio 3, US-31 criterio 5, US-06 criterio 4, US-07 criterio 3).

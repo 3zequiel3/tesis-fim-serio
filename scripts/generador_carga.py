@@ -2,7 +2,7 @@
 """
 Generador de carga reproducible — precondición P2 del plan de medición del Cap. 5.
 
-Ver docs/plan_medicion_cap5.md §0 (P2) y el "Entregable esperado".
+Ver tesis/plan_medicion_cap5.md §0 (P2) y el "Entregable esperado".
 
 QUÉ HACE
 --------
@@ -50,15 +50,15 @@ Batería 3 (500 eventos, 30 min sostenidos, mezcla 20/70/10):
         --rate 0.2778 \
         --count 500 \
         --mix 20/70/10 \
-        --manifest resultados/bateria3_manifiesto.json \
-        --log resultados/bateria3_generador.log
+        --manifest tesis/resultados/bateria3_manifiesto.json \
+        --log tesis/resultados/bateria3_generador.log
 
 Batería 5 (3.000 eventos durante el corte de 300 s -> 10 ev/s):
 
     python3 scripts/generador_carga.py \
         --dir fim-watch --seed 20260818 --rate 10 --count 3000 --mix 20/70/10 \
-        --manifest resultados/bateria5_manifiesto.json \
-        --log resultados/bateria5_generador.log
+        --manifest tesis/resultados/bateria5_manifiesto.json \
+        --log tesis/resultados/bateria5_generador.log
 
 Inspeccionar el plan sin tocar el filesystem:
 
@@ -394,9 +394,9 @@ def main(argv: list[str] | None = None) -> int:
         type=parse_mix,
         help="Mezcla creacion/modificacion/borrado, ej: 20/70/10",
     )
-    ap.add_argument("--manifest", default="resultados/bateria3_manifiesto.json",
+    ap.add_argument("--manifest", default="tesis/resultados/bateria3_manifiesto.json",
                     help="Manifiesto JSON de salida (ítems 9, 48, 54).")
-    ap.add_argument("--log", default="resultados/bateria3_generador.log",
+    ap.add_argument("--log", default="tesis/resultados/bateria3_generador.log",
                     help="Log de configuración y progreso (ítem 54).")
     ap.add_argument("--agent-prefix", default="/watch",
                     help="Prefijo con el que el agente ve el directorio (join con events.path).")

@@ -8,7 +8,7 @@ tener que releer la tesis ni auditar el repositorio de cero.
 **Estado en una línea:** la integración con n8n **no existe funcionalmente**. Hay tres archivos JSON,
 una variable de entorno y un cliente HTTP que no se conocen entre sí, y un contenedor apagado.
 
-Fuentes: `docs/Tesis.pdf` §2.7 (p. 14), §4.7 (pp. 38-40, Figura 6, Tabla 8), Anexo D (p. 79);
+Fuentes: `tesis/Tesis.pdf` §2.7 (p. 14), §4.7 (pp. 38-40, Figura 6, Tabla 8), Anexo D (p. 79);
 `docs/reglas_de_negocio.md` RN-52 a RN-54, RN-86, RN-87, RN-101, RN-102, RN-107, D23/RN-120;
 auditoría del backend del 2026-08-20.
 

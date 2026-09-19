@@ -75,7 +75,7 @@ enruta `baseline_update`, `restore_file`, `quarantine_file`, `update_config` y `
 | U-1 | Media | La consola muestra Aprobar/Rechazar para `alert_only`, pero el backend sólo acepta `pending`: siempre termina en 409 | `frontend/src/pages/EventDetail.tsx:59`; `actions/service.py:202`, `:289` | Sí (`EventDetail.tsx:68`) |
 | D-1 | Alta (para `devel`) | Modo binario, detección automática y `react-diff-viewer-continued` sólo existen en `integration/v10`; `devel` conserva la dependencia sin uso | §2.1 | No aplica |
 | D-2 | Baja | El diff de modificaciones sucesivas sobre un archivo pendiente es acumulado contra la baseline aprobada, no incremental, y la consola no lo aclara | `agent/detector.py:684`, `:911-919`, `:989-993` | Sí |
-| D-3 | Baja | Sin prueba E2E de US-09 ni de los flujos visuales de US-12 | `frontend/e2e/`; `docs/trazabilidad_us_tests.md:407-421` | Sí |
+| D-3 | Baja | Sin prueba E2E de US-09 ni de los flujos visuales de US-12 | `frontend/e2e/`; `tesis/trazabilidad_us_tests.md:407-421` | Sí |
 | X-1 | A confirmar | El `unlink` del origen realizado por el propio agente podría generar un evento `file_deleted` posterior; no se verificó cómo se filtra ni si altera la baseline en el camino del operador | `agent/quarantine.py:626` | Sin verificar |
 | X-2 | A confirmar | Un archivo creado inmediatamente después de su directorio puede clasificarse como `file_modified` (hallazgo del ensayo A-3); consistente con la prioridad de `FAN_CLOSE_WRITE` en `_classify_event` | `agent/detector.py:662-678`; README de A-3 | Sin verificar con prueba dedicada |
 

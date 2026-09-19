@@ -60,7 +60,7 @@
 | U-1 | Confirmado | `canApprove = status === 'pending' \|\| status === 'alert_only'` en `frontend/src/pages/EventDetail.tsx:59`; los botones están en `:133-174`. La guarda del backend es `Event.status == EventStatus.pending` (`actions/service.py:202`, `:289`), por lo que la acción termina en 409. Precisión: en bulk no hay 409, porque el nuevo contrato devuelve `failed` con `not_pending`. No existe prueba que cubra `alert_only`: `rg` sin coincidencias en `EventDetail.test.tsx`, `backend/tests/test_actions.py` y `test_actions_router.py` [lectura]. | Presente en `EventDetail.tsx:68` |
 | D-1 | Confirmado | `frontend/src/components/ui/DiffViewer.tsx:1-29` renderiza un `<pre>`, invocado en `EventDetail.tsx:242-251`. `react-diff-viewer-continued` está declarada en `frontend/package.json:22` y no se importa. **Además:** `devel` no cumple su propia main spec: `openspec/specs/frontend-events/spec.md:83-101` ya exige detección binaria y hex dump de 256 bytes. RN-03 también lo exige (`docs/reglas_de_negocio.md:50-54`). | No aplica |
 | D-2 | Confirmado | El diff se genera contra `entry.content_b64` (`agent/detector.py:911-924`). Ante modificaciones no aprobadas sólo se archiva un snapshot y el contenido activo queda fijado (`:989-994`, BUG-03), así que el diff es acumulado [lectura]. | Presente |
-| D-3 | Confirmado | `frontend/e2e/` contiene `helpers.ts`, `us-isolated-lab.spec.ts` (US-03, US-16/17, US-25), `us02-…`, `us03-…`, `us20-…`, `us25-…` y `us31-…`, pero ninguna prueba de US-09 ni de cuarentena. La trazabilidad de US-09 está en `docs/trazabilidad_us_tests.md:123` y `:342`. | Presente |
+| D-3 | Confirmado | `frontend/e2e/` contiene `helpers.ts`, `us-isolated-lab.spec.ts` (US-03, US-16/17, US-25), `us02-…`, `us03-…`, `us20-…`, `us25-…` y `us31-…`, pero ninguna prueba de US-09 ni de cuarentena. La trazabilidad de US-09 está en `tesis/trazabilidad_us_tests.md:123` y `:342`. | Presente |
 
 ### 1.2 X-1 — resuelto: hay eco y altera la baseline en ambos caminos
 
@@ -110,7 +110,7 @@
 Resultado: **cada cuarentena automática deja un evento `file_deleted` `pending` espurio**, con
 `action_error="file_not_found"`, en la cola del operador [lectura]. No existe prueba de detector que lo
 cubra: `test_decision_quarantine_file_gone` sólo ejercita el motor. Tampoco se encontró evidencia de
-laboratorio: las coincidencias de `file_not_found` en `docs/cierre/evidencia/` son JUnit y logs de suites que
+laboratorio: las coincidencias de `file_not_found` en `tesis/cierre/evidencia/` son JUnit y logs de suites que
 no se revisaron en detalle [no verificado en runtime].
 
 **Ventana de crash [lectura]:** `rehydrate` reintenta la cuarentena (`agent/decision.py:166-171`) pero no toca
@@ -139,7 +139,7 @@ directorio y nombre. Eso hace posible que el kernel fusione ambos eventos en uno
    `update_from_command`.
 
 La observación original está en
-`docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md:97-98`. La propuesta de arreglo
+`tesis/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/README.md:97-98`. La propuesta de arreglo
 es el change 63 (§4.7).
 
 ### 1.4 Afirmaciones del diagnóstico que son incorrectas o imprecisas
@@ -161,13 +161,13 @@ es el change 63 (§4.7).
      `docs/reglas_de_negocio.md:1077-1090`). C3/RN-73 es el ack de ingesta.
 5. **§4.3, comandos de liberación «con `ruleset_version` (C11)».** RN-75 no lo exige para comandos de
    filesystem: `restore_file` y `quarantine_file` lo excluyen por diseño
-   (`backend/app/modules/actions/streams.py:174`, `:211`; `docs/trazabilidad_us_tests.md:757`). Hay que
+   (`backend/app/modules/actions/streams.py:174`, `:211`; `tesis/trazabilidad_us_tests.md:757`). Hay que
    decidirlo por comando (D74).
 6. **§7, «la tesis describe la cuarentena como conservación de evidencia sin modificar la baseline (RN-37)».**
-   No se encontró esa afirmación en los markdown de cierre. `docs/cierre/CAMBIOS_PARA_TESIS.md:29`, `:49` e
+   No se encontró esa afirmación en los markdown de cierre. `tesis/cierre/CAMBIOS_PARA_TESIS.md:29`, `:49` e
    `INFORME_CIERRE_TECNICO.md:31-32`, `:71-72`, `:134` sólo afirman cifrado, retención y store único. Puede
    estar en el `.docx` [no verificado].
-7. **§3, D-3, cita `docs/trazabilidad_us_tests.md:407-421`.** Es la sección de US-12; US-09 está en `:123` y
+7. **§3, D-3, cita `tesis/trazabilidad_us_tests.md:407-421`.** Es la sección de US-12; US-09 está en `:123` y
    `:342`.
 8. **§2.2, «Nombre opaco `sha256(action_id‖ruta)`».** Precisión: es `sha256(action_id + NUL + abspath)`
    (`agent/quarantine.py:162-169`). `action_id` es el `event_id` UUID del agente en el camino automático y el
@@ -479,7 +479,7 @@ versión aprobada». No se implementa diff incremental.
 **Motivo:** un diff incremental exige conservar el contenido de cada versión pendiente. Hoy
 `stage_approval_candidate` guarda sólo el candidato más reciente por ruta (`agent/baseline.py:662-676`), así
 que habría que agregar una cadena de candidatos. Eso amplía la superficie de contenido sensible descrita en
-la Tabla 21a (cola y descarte sin cifrar, `docs/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md:381`).
+la Tabla 21a (cola y descarte sin cifrar, `tesis/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md:381`).
 
 ### Contraparte técnica (tabla para `docs/arquitectura_stack.md`)
 
@@ -746,7 +746,7 @@ la Tabla 21a (cola y descarte sin cifrar, `docs/cierre/AUDITORIA_INTEGRAL_TESIS_
 | `frontend/src/pages/EventDetail.tsx` | 18 ±, +/− | idéntico | Pasa `isBinary`, hashes y hex dumps a `DiffViewer`; retira el ternario de `:244-250`. |
 | `frontend/src/api/events.ts` | +7 | idéntico | Campos en el tipo de detalle. |
 | `frontend/src/vite-env.d.ts` | −2 | idéntico | Retira la declaración manual del módulo. |
-| Pruebas | `agent/tests/test_detector_binary_diff.py` (nuevo, 180), `agent/tests/test_log_inspection.py` (nuevo, 142), `agent/tests/test_logging.py` (+18), `backend/tests/test_consumer.py` (+91), `backend/tests/test_event_service.py` (+77), `backend/tests/test_logging_sanitize.py` (+12), `frontend/src/components/ui/DiffViewer.test.ts` (+56), `frontend/src/pages/EventDetail.test.tsx` (+24) | idénticos o nuevos | Cobertura de los criterios 2 a 6 de US-09, según `docs/cierre/evidencia/v10-closure-20260912T190052Z/lanes/l6/CRITERIOS.md`. |
+| Pruebas | `agent/tests/test_detector_binary_diff.py` (nuevo, 180), `agent/tests/test_log_inspection.py` (nuevo, 142), `agent/tests/test_logging.py` (+18), `backend/tests/test_consumer.py` (+91), `backend/tests/test_event_service.py` (+77), `backend/tests/test_logging_sanitize.py` (+12), `frontend/src/components/ui/DiffViewer.test.ts` (+56), `frontend/src/pages/EventDetail.test.tsx` (+24) | idénticos o nuevos | Cobertura de los criterios 2 a 6 de US-09, según `tesis/cierre/evidencia/v10-closure-20260912T190052Z/lanes/l6/CRITERIOS.md`. |
 
 **Factibilidad verificada:**
 
@@ -893,7 +893,7 @@ para `alert_only`.
 **Laboratorio privilegiado (patrón L7):**
 
 - Base: `docker-compose.acceptance-lab.yml` con agente `cap_add: [SYS_ADMIN, DAC_READ_SEARCH]` y script en el
-  estilo de `docs/cierre/evidencia/v10-closure-20260912T190052Z/lanes/l7/us24/scripts/run_us24_fanotify_lab.sh`.
+  estilo de `tesis/cierre/evidencia/v10-closure-20260912T190052Z/lanes/l7/us24/scripts/run_us24_fanotify_lab.sh`.
 - **Antes del arreglo**, en `devel` actual, capturar la evidencia de X-1 para declararla con respaldo:
   - aprobar un archivo, crear una regla `quarantine`, modificar;
   - esperado: un evento `quarantined` más un `file_deleted` `pending` con `action_error=file_not_found`;
@@ -976,7 +976,7 @@ para `alert_only`.
 | **Replay de comandos** | Libro local persistente de `command_id` destructivos (`quarantine_file`, `restore_file`, `quarantine_release`, `quarantine_discard`, `quarantine_restore`); idempotencia por artefacto ausente (liberar, descartar); `ruleset_version` con guarda en liberar; índice único de resolución en backend; el ack consumer toma `command_type` de la fila (`backend/app/modules/agents/command_ack_consumer.py:182-198`). | Sin expiración por `issued_at`, por el desfase de relojes. Hoy un cursor reiniciado a `"0-0"` relee el stream completo (H-3); el libro lo neutraliza sólo para comandos registrados tras su despliegue. |
 | **Manipulación del artefacto** | AES-256-GCM autenticado con metadatos cifrados (`agent/quarantine.py:540-560`, `:576-579`); identidad `fstat` contra `lstat` al leer (`:524-526`); directorio `0700` (`:150-160`) y artefactos `0400` (RN-36); identidad `action_id`/`original_path` (`:584-586`); `expected_sha256` independiente, enviado por el backend. | Root con `master_secret` puede forjar artefactos válidos (RN-35 lo declara). |
 | **Carrera en la reubicación** | Temporal `O_EXCL`; `RENAME_NOREPLACE` o `link` (sin reemplazo); `O_NOFOLLOW` al verificar; symlinks recreados con `os.symlink`, sin seguirlos. | Un proceso puede crear la ruta entre la verificación y la colocación: la operación falla cerrada (`path_occupied`). |
-| **Privacidad de hex dumps y diffs (Tabla 21)** | Detalle sólo admin (D57/RN-151, `backend/app/modules/events/router.py:145`); redacción por clave en logs de agente y backend y en `payload_dump` (L6); cota de 256 bytes y 4096 caracteres; sin diff incremental (D76); la liberación no transfiere contenido. | Los hex dumps viajan por la cola local sin cifrar y por Valkey, igual que `diff_text` (Tabla 21a, `docs/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md:381`), y se retienen con el evento. **Agregar filas para `hex_dump_before`/`hex_dump_after` y `quarantine_resolutions` (sin contenido) en la Tabla 21.** |
+| **Privacidad de hex dumps y diffs (Tabla 21)** | Detalle sólo admin (D57/RN-151, `backend/app/modules/events/router.py:145`); redacción por clave en logs de agente y backend y en `payload_dump` (L6); cota de 256 bytes y 4096 caracteres; sin diff incremental (D76); la liberación no transfiere contenido. | Los hex dumps viajan por la cola local sin cifrar y por Valkey, igual que `diff_text` (Tabla 21a, `tesis/cierre/AUDITORIA_INTEGRAL_TESIS_V10.md:381`), y se retienen con el evento. **Agregar filas para `hex_dump_before`/`hex_dump_after` y `quarantine_resolutions` (sin contenido) en la Tabla 21.** |
 | **Supresión del eco como punto ciego** | Criterio por estado (D71) acotado a entradas `quarantined`; una creación en esa ruta sí se reporta. | El borrado de un archivo recreado en una ruta cuarentenada no se reporta (D71). |
 
 ---

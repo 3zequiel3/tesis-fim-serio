@@ -44,6 +44,7 @@ skills-lock.json
 /fim-0*.png
 # Artefactos de corridas de medicion (Cap. 5). Los de la corrida oficial
 # se archivan deliberadamente junto a las planillas (Anexo F), no por git add.
+tesis/resultados/
 resultados/
 
 # Certificado provisto del operador para la consola (CONSOLE_TLS_DIR,
@@ -55,15 +56,15 @@ resultados/
 # El paquete del ensayo A-3 (a3-multihost/) sí se versiona.
 /.env.lab-backup
 /fim-ca.pem
-/docs/cierre/AUDITORIA_INTEGRAL_TESIS_V*
-/docs/cierre/REGISTRO_CAMBIOS_TESIS_V*.md
-/docs/cierre/Tesis_v*_cierre_tecnico*.docx
-/docs/cierre/Tesis_v*_cierre_tecnico*.pdf
-/docs/cierre/evidencia/a4-vps-*/
-/docs/cierre/evidencia/experiments-closure-*/
-/docs/cierre/evidencia/final-consolidated-*/
-/docs/cierre/evidencia/us02-us20-us31-*/
-/docs/cierre/evidencia/us03-us16-us17-us25-isolated-*/
-/docs/cierre/evidencia/us03-us25-playwright-*/
-/docs/cierre/evidencia/v10-closure-20260912T190052Z/*
-!/docs/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/
+/tesis/cierre/AUDITORIA_INTEGRAL_TESIS_V*
+/tesis/cierre/REGISTRO_CAMBIOS_TESIS_V*.md
+/tesis/cierre/Tesis_v*_cierre_tecnico*.docx
+/tesis/cierre/Tesis_v*_cierre_tecnico*.pdf
+/tesis/cierre/evidencia/a4-vps-*/
+/tesis/cierre/evidencia/experiments-closure-*/
+/tesis/cierre/evidencia/final-consolidated-*/
+/tesis/cierre/evidencia/us02-us20-us31-*/
+/tesis/cierre/evidencia/us03-us16-us17-us25-isolated-*/
+/tesis/cierre/evidencia/us03-us25-playwright-*/
+/tesis/cierre/evidencia/v10-closure-20260912T190052Z/*
+!/tesis/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/

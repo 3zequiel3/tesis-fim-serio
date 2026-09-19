@@ -30,7 +30,7 @@ tar -C "$ROOT" \
   --exclude='frontend/node_modules' \
   --exclude='frontend/dist' \
   --exclude='frontend/test-results' \
-  --exclude='docs/cierre/evidencia' \
+  --exclude='tesis/cierre/evidencia' \
   -cf - backend frontend agent db scripts docker-compose.us02-us20-us31-lab.yml \
   | tar -C "$RUN_ROOT" -xf -
 COMPOSE="$RUN_ROOT/docker-compose.us02-us20-us31-lab.yml"
@@ -39,7 +39,7 @@ export FIM_LAB_AGENT_CONFIG="$LAB_ROOT/unused-agent-config.yaml"
 export FIM_LAB_BASE_URL="http://127.0.0.1:$FIM_LAB_FRONTEND_PORT"
 export FIM_E2E_COMPOSE_PROJECT="$FIM_LAB_PROJECT"
 export FIM_E2E_COMPOSE_FILE="$COMPOSE"
-EVIDENCE="$ROOT/docs/cierre/evidencia/us02-us20-us31-fixed-${STAMP}"
+EVIDENCE="$ROOT/tesis/cierre/evidencia/us02-us20-us31-fixed-${STAMP}"
 mkdir -p "$FIM_LAB_WATCH_DIR" "$EVIDENCE"
 printf 'unused: true\n' > "$FIM_LAB_AGENT_CONFIG"
 

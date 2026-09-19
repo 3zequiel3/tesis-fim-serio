@@ -121,6 +121,6 @@ idempotente, misma convención que 005–011; el proyecto no usa Alembic, D3).
 `test_restore_metadata.py:77` y `test_symlink_hardening.py:565` son helpers `_make_change()` que
 representan un proceso root **real** y **no se modifican**.
 
-**Resultados de la tesis** — los datos de `resultados/` corresponden al esquema previo a la
+**Resultados de la tesis** — los datos de `tesis/resultados/` corresponden al esquema previo a la
 migración `012` y a un agente que atribuía a root la atribución no resuelta. La re-corrida de las
 baterías del Capítulo 5 es **condición para reportar**.

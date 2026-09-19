@@ -1,0 +1,19 @@
+candidate_commit=7a906c202e417aec5f03d9a7545e216a724aca81
+candidate_tag=v1.0-tesis
+git_status_clean=no
+uncommitted_change=ingest-offload-blocking-db (Change 58, D75/RN-169)
+backend_tree_sha256=d55fb734ae22a90c431c643cd73db2d4822fc4e057b686e80a128d6bd7de009d
+modified_files:
+   M .env.example
+   M CHANGES.md
+   M backend/app/core/config.py
+   M backend/app/core/database.py
+   M backend/app/main.py
+   M backend/app/modules/alerts/service.py
+   M backend/app/modules/events/consumer.py
+   M backend/tests/test_notification_payload_contract.py
+   M docs/arquitectura_stack.md
+   M docs/reglas_de_negocio.md
+  ?? backend/tests/test_ingest_offload_blocking_db.py
+  ?? docs/cierre/evidencia/oficial-cap5-20260917T223823Z/
+  ?? openspec/changes/ingest-offload-blocking-db/

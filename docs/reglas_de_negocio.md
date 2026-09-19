@@ -785,7 +785,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17; D70–D72 (RN-164 a RN-166) se agregaron el 2026-09-17; D73 (RN-167) se agregó el 2026-09-17; D74 (RN-168) se agregó el 2026-09-17. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17; D70–D72 (RN-164 a RN-166) se agregaron el 2026-09-17; D73 (RN-167) se agregó el 2026-09-17; D74 (RN-168) se agregó el 2026-09-17; D75 (RN-169) se agregó el 2026-09-18. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -1482,7 +1482,7 @@ login sin error explícito. El correo del owner no puede pertenecer a otro usuar
   deseable acá —el estado del owner queda declarado en el compose y no deriva—, pero significa que
   el owner deja de ser editable desde la interfaz.
 - La corrección de este pin **no se propaga a los registros de medición del Capítulo 5**. Las corridas
-  documentadas en `docs/entrega_valores_cap5.md` y `docs/plan_medicion_cap5.md` se ejecutaron contra
+  documentadas en `tesis/entrega_valores_cap5.md` y `tesis/plan_medicion_cap5.md` se ejecutaron contra
   **2.16.1**, y esos documentos registran lo que efectivamente se midió. Reescribirlos convertiría un
   registro en una afirmación falsa. **El cambio de versión debe declararse** en el capítulo, junto con
   la observación ya pendiente de que la Batería 4 se midió contra un receptor de laboratorio y no
@@ -1525,7 +1525,7 @@ importación degrada a `_HAS_FAN=False` y el detector lo contempla.
 
 **Por qué esta decisión aparece recién ahora.** El reemplazo se hizo en el commit `f1e8681`
 (*feat(agent): backend fanotify propio (ctypes, modo FID) reemplaza pyfanotify*) y **se documentó**
-en `docs/operations.md` y en `docs/valores_planillas_cap5.md`. Lo que no se actualizó fueron las
+en `docs/operations.md` y en `tesis/valores_planillas_cap5.md`. Lo que no se actualizó fueron las
 reglas de negocio, el stack de arquitectura y las specs de OpenSpec — y las specs del agente
 llevaban meses vaciadas por archives defectuosos (ver D47/RN-141), así que su contradicción con el
 código era literalmente invisible para el tooling. El desalineamiento se detectó al recuperarlas.
@@ -2417,6 +2417,65 @@ nivel `debug` conserva el `pid` para diagnóstico manual subiendo el nivel del a
 contadores); no modifica el filtro de scope, `out_of_scope_drops` (D69/RN-163) ni `discarded_events`
 (D37/RN-131). No autoriza persistencia en `Agent` ni presentación en la tarjeta del agente — ambas
 quedan fuera de alcance de esta decisión.
+
+#### D75 / RN-169: El carril de ingesta feliz no bloquea el event loop, y el pool se dimensiona junto con el executor
+
+**Descripción:** Toda función síncrona que acceda a PostgreSQL desde un consumer SHALL ejecutarse
+fuera del event loop vía `run_in_executor`, **sin excepción para el carril ordenado de ingesta**.
+Esto extiende la lista cerrada de D21 —`_get_shared_secret`, `_event_exists`, `_reject`,
+`_handle_heartbeat`, `_sweep_offline`— para incorporar `_get_agent_auth`
+(`backend/app/modules/events/consumer.py:305`), `_ingest` (`:400`) y **las cinco sesiones que el
+camino de notificación por evento abre por su cuenta** en `backend/app/modules/alerts/service.py`:
+`:116` (creación de la fila `Alert` en `notify_if_applicable`), `:203`, `:246` y `:268`
+(`notify_event`) y `:286` (`_mark_delivered`). La enumeración es exhaustiva sobre el camino que
+corre **por evento**; las sesiones de `:335` y `:361` pertenecen al barrido de reintentos y quedan
+fuera de alcance. Desbloquear sólo `:116` no serviría: los ~5,7 ms medidos van de
+`notify.alert_created` a `notify.delivered`, de modo que atraviesan las cinco, y las cuatro
+restantes seguirían frenando el event loop.
+
+El despacho de mensajes SHALL permanecer **secuencial**: el lote sigue procesándose mensaje a
+mensaje, sin `gather` ni concurrencia entre eventos. La ganancia buscada es de **solapamiento** —que
+la cadena de notificación de eventos previos avance mientras la ingesta del evento actual espera a
+la base en un hilo—, no de paralelismo de ingesta. El orden FIFO del ítem 40 y la ausencia de
+duplicados del ítem 41 SHALL NOT degradarse.
+
+El pool del engine y el executor SHALL dimensionarse en conjunto y de forma explícita. Hoy
+`backend/app/core/database.py:20-24` construye el engine sólo con `pool_pre_ping=True` y `echo=False`,
+de modo que rigen los defaults de SQLAlchemy: `pool_size=5` más `max_overflow=10`, verificado en
+ejecución (`QueuePool size=5 overflow_max=10`). El executor por defecto de asyncio en Python 3.13 es
+`min(32, cpu_count + 4)`, que en el anfitrión de medición (12 CPUs) da 16 hilos. **Mandar el trabajo
+bloqueante al executor sin tocar el pool cambia un cuello de botella por agotamiento de conexiones**,
+que además falla en vez de degradar. El número de hilos del executor SHALL ser menor o igual que
+`pool_size + max_overflow`, descontando las conexiones que consumen las dependencias HTTP de FastAPI
+y el consumer de heartbeat, y ambos valores SHALL quedar configurables.
+
+**Condición:** Consumers de `events` y `agent_heartbeat`, y cualquier camino que abra una `Session`
+síncrona dentro de una corrutina.
+
+**Motivo:** Medición del drenaje del Capítulo 5 (ítem 43) sobre el candidato, con el límite de
+ingesta elevado a 100000/60 s y declarado según D38/RN-132: 2.893 eventos en 59,389 s, es decir
+48,7 ev/s o ~20,4 ms por evento. El perfilado por componente dentro del contenedor, con el engine y
+el cliente reales, atribuye ese costo a operaciones de base de datos bloqueantes serializadas y
+**descarta al broker**: sesión más `SELECT` de agente 1,493 ms, `_get_agent_auth` real 1,329 ms,
+`INSERT` más `commit` 1,564 ms, frente a `XADD` de Valkey en 0,149 ms y `PING` en 0,267 ms. La cadena
+de notificación agrega unos 5,7 ms por evento medidos entre `notify.alert_created` y
+`notify.delivered`, y corre en **todos** los eventos: en el laboratorio se crea una alerta por cada
+evento (481 alertas para 481 eventos) porque las reglas sembradas los clasifican `high`.
+
+El comentario de `consumer.py:305` justifica la llamada síncrona como un "cambio de executor
+redundante" en el carril ordenado. Esa premisa queda derogada: el carril ordenado es precisamente
+donde el bloqueo se acumula, porque cada evento espera a que el anterior termine su viaje a la base.
+
+**Excepciones:** No se migra a `AsyncSession`. El fundamento de D21 sigue vigente —el costo del
+refactor es desproporcionado para un backend single-instance (RN-76)— y esta decisión no lo reabre.
+
+**Reglas afectadas:** amplía D21 (`arquitectura_stack.md`), cuya enumeración era cerrada y no
+contemplaba el carril de ingesta ni `alerts/service.py`. No modifica D38/RN-132: el valor por
+defecto de producción del rate limit sigue sin cambiarse en función de las mediciones, y el umbral
+de 30 s del ítem 43 **no se redefine acá**. Si tras implementar y medir el drenaje siguiera por
+encima del umbral, eso abre un ajuste de criterio declarado propio, con el número nuevo a la vista;
+declararlo antes de medir sería exactamente la reinterpretación silenciosa que la tabla de ajustes
+del Change 57 existe para evitar.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

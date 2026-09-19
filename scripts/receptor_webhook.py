@@ -22,7 +22,7 @@ QUÉ REGISTRA
     El cruce con `events.received_at` produce los ítems 11-22.
 
 USO
-    python3 scripts/receptor_webhook.py --puerto 9099 --out resultados/bateria4_webhook.jsonl
+    python3 scripts/receptor_webhook.py --puerto 9099 --out tesis/resultados/bateria4_webhook.jsonl
 
     Y apuntar el backend al receptor (misma red que el compose):
       N8N_WEBHOOK_URL=http://<host>:9099/webhook docker compose up -d backend

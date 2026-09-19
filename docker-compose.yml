@@ -379,6 +379,6 @@ services:
       - ./agent/deploy/config.yaml.docker:/etc/fim-agent/config.yaml:ro
       # Opt-in experimental evidence. Use /evidence/<unique-run>/agent_trace.jsonl,
       # never a host-only path, when FIM_EXPERIMENT_TRACE_FILE is enabled.
-      - ./docs/cierre/evidencia:/evidence
+      - ./tesis/cierre/evidencia:/evidence
     networks:
       - fim_internal

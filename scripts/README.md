@@ -2,8 +2,8 @@
 
 Estos scripts **no son código de producto**: son el arnés experimental que produce
 los archivos crudos exigidos por el Anexo F. El plan que los especifica es
-[`docs/plan_medicion_cap5.md`](../docs/plan_medicion_cap5.md); la auditoría de qué
-existe y qué falta está en [`docs/entrega_valores_cap5.md`](../docs/entrega_valores_cap5.md).
+[`tesis/plan_medicion_cap5.md`](../tesis/plan_medicion_cap5.md); la auditoría de qué
+existe y qué falta está en [`tesis/entrega_valores_cap5.md`](../tesis/entrega_valores_cap5.md).
 
 Ninguno requiere root ni dependencias externas: solo Python 3 de la stdlib
 (y `curl` + `python3` en los de bash, igual que `setup-agent.sh`).
@@ -46,50 +46,50 @@ scripts/seed-reglas-lab.sh <password_admin>
 # P3 — línea de base del grupo de control. ANTES de generar carga.
 python3 scripts/control_hashing.py \
   --dir fim-watch \
-  --csv resultados/bateria7_control.csv \
-  --state resultados/control_estado.json
+  --csv tesis/resultados/bateria7_control.csv \
+  --state tesis/resultados/control_estado.json
 
 # P3 — el cron corriendo durante toda la ventana (elegir cron o --loop y
 # declarar en el Cap. 5 cuál se usó).
 python3 scripts/control_hashing.py --dir fim-watch \
-  --csv resultados/bateria7_control.csv \
-  --state resultados/control_estado.json \
+  --csv tesis/resultados/bateria7_control.csv \
+  --state tesis/resultados/control_estado.json \
   --loop --interval 900 &
 
 # P2 — Batería 3: 500 eventos, 30 minutos sostenidos, mezcla 20/70/10.
-date -u --iso-8601=seconds >> resultados/cronologia_utc.txt   # ítem 52
+date -u --iso-8601=seconds >> tesis/resultados/cronologia_utc.txt   # ítem 52
 python3 scripts/generador_carga.py \
   --dir fim-watch \
   --seed 20260818 \
   --rate 0.2778 \
   --count 500 \
   --mix 20/70/10 \
-  --manifest resultados/bateria3_manifiesto.json \
-  --log resultados/bateria3_generador.log            # ítem 54: archivar este log
-date -u --iso-8601=seconds >> resultados/cronologia_utc.txt
+  --manifest tesis/resultados/bateria3_manifiesto.json \
+  --log tesis/resultados/bateria3_generador.log            # ítem 54: archivar este log
+date -u --iso-8601=seconds >> tesis/resultados/cronologia_utc.txt
 
 # Un scan final del control para cerrar la última ventana.
 python3 scripts/control_hashing.py --dir fim-watch \
-  --csv resultados/bateria7_control.csv --state resultados/control_estado.json
+  --csv tesis/resultados/bateria7_control.csv --state tesis/resultados/control_estado.json
 
 # Batería 7 — cruce manifiesto × control (ítems 45, 47, 49, 50).
 python3 scripts/analisis_control.py \
-  --manifiesto resultados/bateria3_manifiesto.json \
-  --control    resultados/bateria7_control.csv \
-  --salida     resultados/bateria7_latencias.csv \
+  --manifiesto tesis/resultados/bateria3_manifiesto.json \
+  --control    tesis/resultados/bateria7_control.csv \
+  --salida     tesis/resultados/bateria7_latencias.csv \
   --mediana-fim-ms <ítem 44> --p99-fim-ms <ítem 46>
 
 # Batería 8 — evasión por escritura mapeada (Tabla 17). Independiente de la
 # ventana de las Baterías 3/7: corre aparte, con el agente andando.
-date -u --iso-8601=seconds >> resultados/cronologia_utc.txt
+date -u --iso-8601=seconds >> tesis/resultados/cronologia_utc.txt
 ./scripts/bateria_mmap.py \
   --dir fim-watch --agent-prefix /watch \
-  --repeticiones 10 --salida resultados/bateria8
+  --repeticiones 10 --salida tesis/resultados/bateria8
 sleep 30                                            # drenar la ingesta
 python3 scripts/analisis_mmap.py \
-  --jsonl  resultados/bateria8/bateria8_cambios.jsonl \
-  --salida resultados/bateria8/bateria8_correlacion.csv
-date -u --iso-8601=seconds >> resultados/cronologia_utc.txt
+  --jsonl  tesis/resultados/bateria8/bateria8_cambios.jsonl \
+  --salida tesis/resultados/bateria8/bateria8_correlacion.csv
+date -u --iso-8601=seconds >> tesis/resultados/cronologia_utc.txt
 ```
 
 Las Baterías 3 y 7 **deben correr sobre la misma carga y la misma ventana
@@ -137,15 +137,15 @@ real del control: no se asume, se mide.
 # Batería 5 — 3.000 eventos durante el corte de 300 s (ítem 37).
 python3 scripts/generador_carga.py --dir fim-watch --seed 20260818 \
   --rate 10 --count 3000 --mix 20/70/10 \
-  --manifest resultados/bateria5_manifiesto.json \
-  --log resultados/bateria5_generador.log
+  --manifest tesis/resultados/bateria5_manifiesto.json \
+  --log tesis/resultados/bateria5_generador.log
 
 # Batería 4 — poblar el subdirectorio de severidad critical.
 python3 scripts/generador_carga.py --dir fim-watch --seed 20260818 \
   --rate 1 --count 200 --mix 20/70/10 \
   --critical-subdir critico --critical-frac 0.25 \
-  --manifest resultados/bateria4_manifiesto.json \
-  --log resultados/bateria4_generador.log
+  --manifest tesis/resultados/bateria4_manifiesto.json \
+  --log tesis/resultados/bateria4_generador.log
 
 # Inspeccionar el plan sin tocar el filesystem.
 python3 scripts/generador_carga.py --dir fim-watch --seed 20260818 \
@@ -194,25 +194,25 @@ comparación experimental. Este script es lo que cierra esa brecha.
 # Scan bajo demanda. El PRIMERO es la línea de base y no emite filas:
 # correrlo antes de arrancar el generador.
 python3 scripts/control_hashing.py --dir fim-watch \
-  --csv resultados/bateria7_control.csv --state resultados/control_estado.json
+  --csv tesis/resultados/bateria7_control.csv --state tesis/resultados/control_estado.json
 
 # Modo loop en primer plano, sin tocar crontab.
 python3 scripts/control_hashing.py --dir fim-watch \
-  --csv resultados/bateria7_control.csv --state resultados/control_estado.json \
+  --csv tesis/resultados/bateria7_control.csv --state tesis/resultados/control_estado.json \
   --loop --interval 900
 
 # Entrada de crontab lista para pegar en `crontab -e`.
 python3 scripts/control_hashing.py --print-cron --dir fim-watch \
-  --csv resultados/bateria7_control.csv --state resultados/control_estado.json
+  --csv tesis/resultados/bateria7_control.csv --state tesis/resultados/control_estado.json
 ```
 
 La entrada de cron que genera es:
 
 ```cron
 */15 * * * * cd /ruta/al/repo && /usr/bin/python3 scripts/control_hashing.py \
-  --dir fim-watch --csv resultados/bateria7_control.csv \
-  --state resultados/control_estado.json --agent-prefix /watch \
-  >> resultados/control_cron.log 2>&1
+  --dir fim-watch --csv tesis/resultados/bateria7_control.csv \
+  --state tesis/resultados/control_estado.json --agent-prefix /watch \
+  >> tesis/resultados/control_cron.log 2>&1
 ```
 
 `--state` es el equivalente a la base de datos de AIDE; `--reset` reinicia la
@@ -240,9 +240,9 @@ los ítems 45, 47, 49 y 50.
 
 ```bash
 python3 scripts/analisis_control.py \
-  --manifiesto resultados/bateria3_manifiesto.json \
-  --control    resultados/bateria7_control.csv \
-  --salida     resultados/bateria7_latencias.csv \
+  --manifiesto tesis/resultados/bateria3_manifiesto.json \
+  --control    tesis/resultados/bateria7_control.csv \
+  --salida     tesis/resultados/bateria7_latencias.csv \
   --criterio   primer_cambio \
   --mediana-fim-ms 13.92 --p99-fim-ms 19.60
 ```
@@ -286,8 +286,8 @@ Tres casos, 10 repeticiones cada uno por defecto:
 > **Resultado de la corrida del 2026-09-01: la evasión NO se observó.** El caso A fue
 > detectado 10/10, con `hash_detected` igual al contenido **posterior** a la modificación y
 > cero operaciones en `evento_sin_cambio`. Los números y la interpretación completa están en
-> [`docs/informe/Tabla 17-datos.md`](../docs/informe/Tabla%2017-datos.md).
-> (Los artefactos crudos quedan en `resultados/bateria8/`, que está en `.gitignore`.)
+> [`tesis/informe/Tabla 17-datos.md`](../tesis/informe/Tabla%2017-datos.md).
+> (Los artefactos crudos quedan en `tesis/resultados/bateria8/`, que está en `.gitignore`.)
 >
 > **El mecanismo no es el que la hipótesis suponía.** La premisa era correcta: el
 > `CLOSE_WRITE` se emite antes de la escritura sobre el mapeo, y el agente no tiene forma de
@@ -356,8 +356,8 @@ testigo no dé 100 %: prueba que el agente no estaba mirando el directorio.
 #             tesis-fim-serio-db-1 | awk '{print $1}')
 export DATABASE_URL="postgresql://fim:${DB_PASSWORD}@${DBIP}:5432/fim"
 python3 scripts/analisis_mmap.py \
-    --jsonl resultados/bateria8/bateria8_cambios.jsonl \
-    --salida resultados/bateria8/bateria8_correlacion.csv
+    --jsonl tesis/resultados/bateria8/bateria8_cambios.jsonl \
+    --salida tesis/resultados/bateria8/bateria8_correlacion.csv
 
 # Inspeccionar el plan sin tocar el filesystem.
 ./scripts/bateria_mmap.py --dir fim-watch --dry-run
@@ -383,7 +383,7 @@ agente (`agent/detector.py:265,400-406,769-778`), y esta batería no mide ese ma
 
 > **Los 7 falsos negativos del Cap. 5 no se explican por esto.**
 > `generador_carga.py:339-345` escribe con un solo `open/write/close` y no hay `mmap` en
-> ningún lado del repo. Ver `docs/dataset_cap5.md`, sección "Salvedades", punto 1.
+> ningún lado del repo. Ver `tesis/dataset_cap5.md`, sección "Salvedades", punto 1.
 
 ---
 
@@ -445,8 +445,8 @@ sleep 30    # drenar la ingesta
 
 # El servicio `db` del compose no publica el 5432 al host: usar la IP del contenedor.
 python3 scripts/analisis_mmap.py \
-    --jsonl  resultados/bateria9/bateria9_cambios.jsonl \
-    --salida resultados/bateria9/bateria9_correlacion.csv
+    --jsonl  tesis/resultados/bateria9/bateria9_cambios.jsonl \
+    --salida tesis/resultados/bateria9/bateria9_correlacion.csv
 ```
 
 No hace falta `sudo`: el script crea sus propios archivos en el directorio vigilado.
