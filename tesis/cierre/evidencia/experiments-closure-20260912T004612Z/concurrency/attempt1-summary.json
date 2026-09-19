@@ -1,0 +1,49 @@
+{
+  "acceptance": {
+    "complete_denominator": false,
+    "p99_under_5000_ms": true,
+    "passed": false,
+    "simultaneity_proven": true
+  },
+  "barrier": {
+    "release_monotonic_ns": 379932244468167,
+    "release_utc": "2026-09-12T00:50:01.049674+00:00",
+    "tasks_ready_before_release": 100
+  },
+  "client": {
+    "failed": 12,
+    "successful": 88
+  },
+  "client_roundtrip_ms": {
+    "max": 1690.342434,
+    "mean": 964.76195512,
+    "median": 1185.654635,
+    "min": 165.20913,
+    "n": 100,
+    "p95": 1581.8579126,
+    "p99": 1673.80507701
+  },
+  "criterion": {
+    "p99_ms_strictly_less_than": 5000,
+    "simultaneous_requests": 100
+  },
+  "experiment": "A-3 notification concurrency",
+  "latency_received_to_receiver_ms": {
+    "max": 1630.3300000000002,
+    "mean": 821.4318636363637,
+    "median": 609.9325000000001,
+    "min": 87.188,
+    "n": 88,
+    "p95": 1496.5565,
+    "p99": 1615.44343
+  },
+  "not_full_system_validation": true,
+  "receiver": {
+    "fixed_post_reception_hold_ms": 50,
+    "max_simultaneous_active_requests": 49,
+    "planned": 100,
+    "received": 88,
+    "unique_event_ids": 88
+  },
+  "scope": "production send_n8n transport function to controlled local HTTP receiver; synthetic pre-persisted notification payloads"
+}

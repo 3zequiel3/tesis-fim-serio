@@ -1,0 +1,99 @@
+{
+  "acceptance": {
+    "all_runs_pass": true,
+    "runs_failing": 0,
+    "runs_passing": 5,
+    "threshold_seconds_strictly_less_than": 30
+  },
+  "all_conditions_unchanged": true,
+  "experiment": "M-1 repeated Run 4 drain",
+  "limits": [
+    "single physical host",
+    "3000 events were pre-enqueued before reconnect timing",
+    "experimental rate limit 100000 events/60s instead of production default 100/60s",
+    "does not reproduce the full five-minute disconnection",
+    "descriptive five-run sample; no inferential population claim"
+  ],
+  "runs": [
+    {
+      "completed": true,
+      "duplicates": 0,
+      "exit_code": 0,
+      "persisted": 3000,
+      "planned": 3000,
+      "queue_remaining": 0,
+      "rejected": 0,
+      "run": "run-01",
+      "script_sha256": "d4b0c4feb09a467bbeac5193c6a2ab63b2fa7997d3dd52b9f55ab775af3a3000",
+      "seconds": 27.78426442,
+      "throughput_events_s": 107.97478582303242,
+      "under_30s": true
+    },
+    {
+      "completed": true,
+      "duplicates": 0,
+      "exit_code": 0,
+      "persisted": 3000,
+      "planned": 3000,
+      "queue_remaining": 0,
+      "rejected": 0,
+      "run": "run-02",
+      "script_sha256": "d4b0c4feb09a467bbeac5193c6a2ab63b2fa7997d3dd52b9f55ab775af3a3000",
+      "seconds": 29.042866652,
+      "throughput_events_s": 103.29558841235836,
+      "under_30s": true
+    },
+    {
+      "completed": true,
+      "duplicates": 0,
+      "exit_code": 0,
+      "persisted": 3000,
+      "planned": 3000,
+      "queue_remaining": 0,
+      "rejected": 0,
+      "run": "run-03",
+      "script_sha256": "d4b0c4feb09a467bbeac5193c6a2ab63b2fa7997d3dd52b9f55ab775af3a3000",
+      "seconds": 28.108855976,
+      "throughput_events_s": 106.72792953798867,
+      "under_30s": true
+    },
+    {
+      "completed": true,
+      "duplicates": 0,
+      "exit_code": 0,
+      "persisted": 3000,
+      "planned": 3000,
+      "queue_remaining": 0,
+      "rejected": 0,
+      "run": "run-04",
+      "script_sha256": "d4b0c4feb09a467bbeac5193c6a2ab63b2fa7997d3dd52b9f55ab775af3a3000",
+      "seconds": 29.188456585,
+      "throughput_events_s": 102.78035740819901,
+      "under_30s": true
+    },
+    {
+      "completed": true,
+      "duplicates": 0,
+      "exit_code": 0,
+      "persisted": 3000,
+      "planned": 3000,
+      "queue_remaining": 0,
+      "rejected": 0,
+      "run": "run-05",
+      "script_sha256": "d4b0c4feb09a467bbeac5193c6a2ab63b2fa7997d3dd52b9f55ab775af3a3000",
+      "seconds": 27.997015878,
+      "throughput_events_s": 107.15427719414176,
+      "under_30s": true
+    }
+  ],
+  "seconds": {
+    "max": 29.188456585,
+    "mean": 28.424291902200004,
+    "median": 28.108855976,
+    "min": 27.78426442,
+    "n": 5,
+    "sample_stdev": 0.6438715294789098
+  },
+  "unique_harness_hashes": 1,
+  "valid_runs": 5
+}

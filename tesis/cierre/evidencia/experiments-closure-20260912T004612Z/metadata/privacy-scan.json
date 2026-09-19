@@ -1,0 +1,18 @@
+{
+  "controlled_synthetic_secret_literal_copies": [
+    "drain/invalid-interrupted-run-02/run_profile.py",
+    "drain/run-01/run_profile.py",
+    "drain/run-02/run_profile.py",
+    "drain/run-03/run_profile.py",
+    "drain/run-04/run_profile.py",
+    "drain/run-05/run_profile.py"
+  ],
+  "note": "Long hexadecimal hashes and UUID event identifiers are expected evidence. The fixed 0x4f laboratory HMAC key in copied Run 4 harnesses is synthetic and never leaves localhost.",
+  "passed": true,
+  "patterns": {
+    "aws_access_key": [],
+    "jwt": [],
+    "password_assignment": [],
+    "private_key": []
+  }
+}

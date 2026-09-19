@@ -1,0 +1,2 @@
+/fim-exp-drain-pg-experiments-closure-20260912t004612z postgres:18.3 running
+/fim-exp-drain-vk-experiments-closure-20260912t004612z valkey/valkey:9.0.3 running

@@ -1,0 +1,76 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/integration/frontend
+      Coverage enabled with v8
+
+ ✓ src/utils/timeDisplay.test.ts (11 tests) 68ms
+ ✓ src/components/layout/SystemBanner.test.tsx (8 tests) 849ms
+   ✓ SystemBanner — US-05: banner rojo de degradacion > muestra un banner rojo que nombra el componente degradado 339ms
+ ✓ src/components/ui/EventsTable.test.tsx (11 tests) 1011ms
+   ✓ EventsTable — US-25 selección en lote > permite seleccionar una fila individual sin seleccionar las demás 487ms
+ ✓ src/components/ui/Pagination.test.tsx (9 tests) 1919ms
+   ✓ Pagination — US-26 navegación numerada > muestra primera, anterior, siguiente y última 536ms
+ ✓ src/components/ui/AgentCard.test.tsx (19 tests) 1991ms
+   ✓ AgentCard — indicador de drenaje graceful (US-30) > el botón de rescan tiene el tooltip canónico exacto durante el drenaje 361ms
+   ✓ AgentCard — agregar un nuevo path (US-24/C2) > agrega el path escrito al listado y lo envía en onConfigSave al guardar 460ms
+ ✓ src/pages/Dashboard.test.tsx (11 tests) 2012ms
+   ✓ Dashboard — US-04: metricas generales > carga las metricas al entrar al dashboard, sin interaccion del usuario 555ms
+ ✓ src/pages/Login.test.tsx (5 tests) 1962ms
+   ✓ Login — US-01 criterio 1 (formulario) > el botón de ingresar está deshabilitado hasta completar ambos campos 604ms
+   ✓ Login — US-01 criterio 3 (error genérico) > credenciales inválidas (401) muestran un único mensaje genérico, sin señalar qué campo falló 428ms
+   ✓ Login — US-01 criterio 3 (error genérico) > un 429 (rate limit) muestra un mensaje distinto al de credenciales inválidas 423ms
+   ✓ Login — US-01 criterio 3 (error genérico) > login exitoso no muestra ningún error y limpia el store 347ms
+ ✓ src/components/ui/BulkActionBar.test.tsx (4 tests) 1684ms
+   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > rechazar 3 eventos emite event_ids y una única action, sin items legacy 735ms
+   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > muestra un resumen expandible por evento y conserva seleccionados sólo los fallidos 344ms
+   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > aplica el resultado sobre la selección actual sin perder cambios hechos durante la petición 441ms
+ ✓ src/pages/EventDetail.test.tsx (12 tests) 1589ms
+   ✓ EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) > si el evento tiene parent_event_id, muestra un enlace al evento padre 465ms
+ ✓ src/pages/Rules.test.tsx (6 tests) 2001ms
+   ✓ Rules — US-16 edición y US-17 eliminación > abre el formulario de edición precargado con patrón, severidad y acción de la regla elegida 797ms
+   ✓ Rules — US-15 creación > criterio 1: existe un formulario para crear una regla con pattern (glob+negación), severidad y acción 758ms
+ ✓ src/stores/auth.store.test.ts (5 tests) 24ms
+ ✓ src/utils/eventFilters.test.ts (13 tests) 21ms
+ ✓ src/api/events.test.ts (5 tests) 16ms
+ ✓ src/pages/EventChain.test.tsx (3 tests) 636ms
+   ✓ EventChain (US-10) > cada evento de la cadena es navegable hacia su detalle 429ms
+ ✓ src/hooks/useAlertsSSE.test.tsx (2 tests) 78ms
+ ✓ src/components/layout/ProtectedRoute.test.tsx (3 tests) 136ms
+ ✓ src/api/events.contract.test.ts (1 test) 14ms
+ ✓ src/components/ui/DiffViewer.test.ts (6 tests) 846ms
+   ✓ DiffViewer > preserva encabezados y offsets de múltiples hunks sin crear continuidad falsa 449ms
+ ✓ src/components/layout/Navbar.test.tsx (2 tests) 591ms
+   ✓ Navbar — US-02 logout del cliente > muestra el botón y al usarlo limpia el token y el usuario, solicita logout y navega a /login con replace 511ms
+ ✓ src/pages/Alerts.test.tsx (3 tests) 625ms
+   ✓ Alerts — US-19 listado de alertas > cada alerta es navegable hacia el detalle del evento asociado 338ms
+ ✓ src/api/auth.test.ts (3 tests) 11ms
+ ✓ src/components/layout/AlertsBanner.test.tsx (5 tests) 476ms
+ ✓ src/utils/severity.test.ts (5 tests) 11ms
+ ✓ src/pages/Events.test.tsx (12 tests) 6666ms
+   ✓ Events — filtro por severidad (8.6) > activar un checkbox de severidad lo deja marcado y dispara una petición con esa severidad 848ms
+   ✓ Events — filtro por severidad (8.6) > desactivar el último nivel seleccionado lo saca del checkbox y de la petición 426ms
+   ✓ Events — US-31 toggle superseded > está desmarcado por defecto y al activarlo persiste en la URL lógica y llega a la petición 597ms
+   ✓ Events — US-26 paginación > muestra navegación numerada ademas de anterior/siguiente cuando hay varias páginas 395ms
+   ✓ Events — US-26 paginación > el input "ir a página" navega y conserva los filtros activos 381ms
+   ✓ Events — filtro por estado (US-07) > sin el toggle activo muestra los 6 checkboxes de estado base y NINGUNO de superseded 649ms
+   ✓ Events — filtro por estado (US-07) > con el toggle "Mostrar eventos superseded" activo aparecen los 7 checkboxes de estado 782ms
+   ✓ Events — filtro por estado (US-07) > seleccionar dos estados refleja ambos en la petición (selección múltiple) 962ms
+   ✓ Events — filtro por estado (US-07) > por defecto ningún filtro de estado incluye superseded (excluido por defecto, W1) 330ms
+   ✓ Events — filtro por estado (US-07) > cambiar un filtro de estado dispara una nueva petición con los parámetros actualizados 769ms
+ ✓ src/api/client.test.ts (1 test) 11ms
+ ✓ src/utils/discardedEvents.test.ts (7 tests) 13ms
+ ✓ src/utils/actionError.test.ts (5 tests) 8ms
+ ✓ src/api/actions.test.ts (3 tests) 10ms
+ ✓ src/utils/watchPathStatus.test.ts (6 tests) 8ms
+ ✓ src/utils/actionFailed.test.ts (2 tests) 5ms
+ ✓ src/config/viteProxy.test.ts (1 test) 6ms
+ ✓ src/components/ui/RescanConfirmModal.test.tsx (3 tests) 423ms
+   ✓ RescanConfirmModal — paths seleccionados (US-22) > confirmar dispara onConfirm 331ms
+ ✓ src/utils/ackStatus.test.ts (3 tests) 5ms
+ ✓ src/components/ui/RuleForm.test.tsx (2 tests) 281ms
+
+ Test Files  34 passed (34)
+      Tests  197 passed (197)
+   Start at  18:11:00
+   Duration  12.00s (transform 2.34s, setup 12.84s, collect 9.23s, tests 26.01s, environment 51.33s, prepare 5.21s)
+
+JUNIT report written to [HOME]/Facultad/tesis/tesis-fim-serio/docs/cierre/evidencia/final-consolidated-v10-20260912T210903Z/junit/frontend.xml

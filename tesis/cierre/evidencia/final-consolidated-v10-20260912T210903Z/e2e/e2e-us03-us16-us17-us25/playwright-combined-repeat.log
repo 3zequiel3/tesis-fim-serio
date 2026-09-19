@@ -1,0 +1,10 @@
+
+Running 3 tests using 1 worker
+
+  ✓  1 e2e/us-isolated-lab.spec.ts:49:1 › US-03 uses the canonical refresh path and revokes the rotated refresh on logout (1.8s)
+
+  ✓  2 e2e/us-isolated-lab.spec.ts:161:1 › US-16 and US-17 edit/delete a rule and synchronize the real isolated agent (11.5s)
+
+  ✓  3 e2e/us-isolated-lab.spec.ts:245:1 › US-25 bulk approve publishes a signed command, receives ACK, and updates the real baseline (8.3s)
+
+  3 passed (22.3s)

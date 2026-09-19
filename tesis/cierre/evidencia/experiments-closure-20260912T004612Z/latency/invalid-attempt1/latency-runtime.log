@@ -1,0 +1,43 @@
+backend-1  | {"event": "Started server process [1]", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-09-12T01:02:10.472822Z"}
+backend-1  | {"event": "Waiting for application startup.", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-09-12T01:02:10.472931Z"}
+backend-1  | {"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T01:02:10.473183Z"}
+backend-1  | {"cert_path": "/certs/ca.pem", "event": "pki.ca.initialized", "level": "info", "timestamp": "2026-09-12T01:02:10.482508Z"}
+agent-1    | [2m2026-09-12T01:02:13.642395Z[0m [[32m[1minfo     [0m] [1magent.bootstrap.start         [0m [36magent_id[0m=[35mlatency-agent[0m [36murl[0m=[35mhttp://backend:8000/agents/bootstrap[0m
+agent-1    | HTTP Request: POST http://backend:8000/agents/bootstrap "HTTP/1.1 200 OK"
+agent-1    | [2m2026-09-12T01:02:13.748405Z[0m [[32m[1minfo     [0m] [1magent.bootstrap.complete      [0m [36magent_id[0m=[35mlatency-agent[0m
+agent-1    | [2m2026-09-12T01:02:13.758879Z[0m [[32m[1minfo     [0m] [1mquarantine.maintenance.complete[0m [36mmigrated[0m=[35m0[0m [36mmigration_failed[0m=[35m0[0m [36mmigration_pending[0m=[35m0[0m [36mmigration_skipped[0m=[35m0[0m [36mretention_corrupt[0m=[35m0[0m [36mretention_deleted[0m=[35m0[0m [36mretention_failed[0m=[35m0[0m [36mretention_retained[0m=[35m0[0m
+agent-1    | [2m2026-09-12T01:02:13.759112Z[0m [[32m[1minfo     [0m] [1magent.preflight.summary       [0m [36mdegraded[0m=[35m0[0m [36mtotal[0m=[35m1[0m
+agent-1    | [2m2026-09-12T01:02:13.857877Z[0m [[32m[1minfo     [0m] [1mbaseline.init_scan.complete   [0m [36merrors[0m=[35m0[0m [36moversize[0m=[35m0[0m [36mscanned[0m=[35m100[0m [36mskipped[0m=[35m0[0m
+agent-1    | [2m2026-09-12T01:02:13.858011Z[0m [[32m[1minfo     [0m] [1magent started                 [0m [36magent_id[0m=[35mlatency-agent[0m [36mruleset_version[0m=[35m0[0m
+agent-1    | [2m2026-09-12T01:02:13.859450Z[0m [[33m[1mwarning  [0m] [1mjournal.scandir_failed        [0m [36mdir[0m=[35m/var/lib/fim-agent/journal[0m [36merror[0m=[35m"[Errno 2] No such file or directory: '/var/lib/fim-agent/journal'"[0m
+agent-1    | [2m2026-09-12T01:02:13.860738Z[0m [[32m[1minfo     [0m] [1mdetector.started              [0m [36mwatch_paths[0m=[35m['/watch'][0m
+agent-1    | [2m2026-09-12T01:02:13.862246Z[0m [[32m[1mdebug    [0m] [1mheartbeat.published           [0m [36magent_id[0m=[35mlatency-agent[0m [36mshutdown[0m=[35mFalse[0m
+agent-1    | [2m2026-09-12T01:02:13.897420Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1642249570[0m [36mtotal_drops[0m=[35m1[0m
+agent-1    | [2m2026-09-12T01:02:13.897578Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1642249570[0m [36mtotal_drops[0m=[35m2[0m
+agent-1    | [2m2026-09-12T01:02:13.927172Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1642249570[0m [36mtotal_drops[0m=[35m3[0m
+agent-1    | [2m2026-09-12T01:02:14.003308Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3066091177[0m [36mtotal_drops[0m=[35m4[0m
+agent-1    | [2m2026-09-12T01:02:14.003461Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3066091177[0m [36mtotal_drops[0m=[35m5[0m
+agent-1    | [2m2026-09-12T01:02:14.034506Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3066091177[0m [36mtotal_drops[0m=[35m6[0m
+agent-1    | [2m2026-09-12T01:02:14.263513Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3462399041[0m [36mtotal_drops[0m=[35m7[0m
+agent-1    | [2m2026-09-12T01:02:14.294131Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3462399041[0m [36mtotal_drops[0m=[35m8[0m
+agent-1    | [2m2026-09-12T01:02:14.338675Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3517435619[0m [36mtotal_drops[0m=[35m9[0m
+agent-1    | [2m2026-09-12T01:02:14.338925Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3517435619[0m [36mtotal_drops[0m=[35m10[0m
+agent-1    | [2m2026-09-12T01:02:14.357082Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2027188519[0m [36mtotal_drops[0m=[35m11[0m
+agent-1    | [2m2026-09-12T01:02:14.357305Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2027188519[0m [36mtotal_drops[0m=[35m12[0m
+agent-1    | [2m2026-09-12T01:02:14.369848Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3517435619[0m [36mtotal_drops[0m=[35m13[0m
+agent-1    | [2m2026-09-12T01:02:14.391043Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2027188519[0m [36mtotal_drops[0m=[35m14[0m
+backend-1  | {"cert_path": "/certs/backend.pem", "event": "pki.backend_cert.generated", "level": "info", "timestamp": "2026-09-12T01:02:10.484439Z"}
+backend-1  | {"username": "latency-admin", "event": "seed_admin.created", "level": "info", "timestamp": "2026-09-12T01:02:10.664594Z"}
+backend-1  | {"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-12T01:02:10.680334Z"}
+backend-1  | {"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T01:02:10.684924Z"}
+backend-1  | {"group": "fim-backend", "event": "consumer.group_created", "level": "info", "timestamp": "2026-09-12T01:02:10.686695Z"}
+backend-1  | {"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T01:02:10.687073Z"}
+backend-1  | {"group": "fim-command-ack", "event": "command_ack_consumer.group_created", "level": "info", "timestamp": "2026-09-12T01:02:10.687232Z"}
+backend-1  | {"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T01:02:10.687465Z"}
+backend-1  | INFO:     172.25.0.1:49266 - "GET /health HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:49274 - "GET /health HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:49290 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:49294 - "POST /users/change-password HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:49310 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:49326 - "POST /agents/register HTTP/1.1" 201 Created
+backend-1  | INFO:     172.25.0.5:40954 - "POST /agents/bootstrap HTTP/1.1" 200 OK

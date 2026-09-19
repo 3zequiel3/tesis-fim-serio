@@ -1,0 +1,12 @@
+[1/8] Build host frontend and isolated images
+[2/8] Start isolated DB, Valkey, backend and frontend
+curl: (56) Recv failure: Conexión reinicializada por la máquina remota
+curl: (56) Recv failure: Conexión reinicializada por la máquina remota
+[3/8] Activate lab admin and register isolated agent through real APIs
+[4/8] US-03 live dual-key rotation
+curl: (56) Recv failure: Conexión reinicializada por la máquina remota
+curl: (56) Recv failure: Conexión reinicializada por la máquina remota
+[5/8] Start and bootstrap the isolated real agent
+[6/8] Run US-03, US-16/17 and US-25 individually
+[7/8] Run the semantically ordered combined suite
+[8/8] Capture bounded sanitized diagnostics

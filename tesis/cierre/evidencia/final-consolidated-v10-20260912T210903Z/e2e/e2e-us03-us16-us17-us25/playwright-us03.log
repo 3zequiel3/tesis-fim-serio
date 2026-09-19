@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 e2e/us-isolated-lab.spec.ts:49:1 › US-03 uses the canonical refresh path and revokes the rotated refresh on logout (1.9s)
+
+  1 passed (2.6s)

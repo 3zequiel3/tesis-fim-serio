@@ -1,0 +1,14 @@
+argmining_comar_websocket_dev	argminingcomareze-websocket
+argmining_comar_worker_dev	argminingcomareze-worker
+impostor-postgres	postgres:17-alpine
+impostor-wsproxy	ghcr.io/neondatabase/wsproxy:latest
+orbit-db	postgres:18-alpine
+orbit-db-test	postgres:18-alpine
+portfolio_db	postgres:18.6
+portfolio_db_test	postgres:18.6
+tesis-fim-serio-agent-1	fim-agent:dev
+tesis-fim-serio-backend-1	fim-backend:dev
+tesis-fim-serio-db-1	postgres:18.3
+tesis-fim-serio-frontend-1	fim-frontend:dev
+tesis-fim-serio-n8n-1	n8nio/n8n:2.16.1
+tesis-fim-serio-valkey-1	valkey/valkey:9.0.3

@@ -1,0 +1,22 @@
+{
+  "candidate_commit": "7df4935f769a2e393a5e6a6330df605c77592e52",
+  "candidate_tree": "95455f919ec602b6cddf1440341652d99b784bd3",
+  "checksum_exclusions": [
+    "SHA256SUMS",
+    "metadata/checksum-verification.txt"
+  ],
+  "files_by_top_level": {
+    "MANIFEST.json": 1,
+    "README.md": 1,
+    "RESULTS.json": 1,
+    "concurrency": 9,
+    "drain": 48,
+    "latency": 22,
+    "metadata": 32,
+    "raw": 16,
+    "sanitized": 16,
+    "scripts": 9
+  },
+  "generated_at_utc": "2026-09-12T01:13:41.894008+00:00",
+  "sealed_file_count": 155
+}

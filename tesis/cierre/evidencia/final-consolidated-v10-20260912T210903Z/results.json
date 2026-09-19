@@ -1,0 +1,95 @@
+{
+  "frozen_commit": "7a7ee5011d9234023687687ed95a7cdda9437711",
+  "frozen_tree": "9e9e472bbdfc377674db5dec41224bcc15f48991",
+  "scripts": {
+    "junit": {
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "exit_code": 0
+  },
+  "agent": {
+    "junit": {
+      "tests": 541,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "exit_code": 0,
+    "coverage": {
+      "lines_covered": 2726,
+      "lines_valid": 3426,
+      "percent": 79.57
+    }
+  },
+  "backend": {
+    "junit": {
+      "tests": 689,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "exit_code": 0,
+    "coverage": {
+      "lines_covered": 2902,
+      "lines_valid": 3177,
+      "percent": 91.34
+    }
+  },
+  "frontend": {
+    "junit": {
+      "tests": 197,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "test_exit_code": 0,
+    "typecheck_exit_code": 0,
+    "build_exit_code": 0,
+    "coverage": {
+      "lines": {
+        "total": 3880,
+        "covered": 2836,
+        "skipped": 0,
+        "pct": 73.09
+      },
+      "statements": {
+        "total": 3880,
+        "covered": 2836,
+        "skipped": 0,
+        "pct": 73.09
+      },
+      "functions": {
+        "total": 234,
+        "covered": 158,
+        "skipped": 0,
+        "pct": 67.52
+      },
+      "branches": {
+        "total": 726,
+        "covered": 587,
+        "skipped": 0,
+        "pct": 80.85
+      }
+    }
+  },
+  "openspec_integrity": {
+    "exit_code": 0,
+    "report": {
+      "ok": true,
+      "problems": [],
+      "n_specs": 44,
+      "n_requirements": 249
+    }
+  },
+  "e2e_us02_us20_us31": {
+    "exit_code": 0
+  },
+  "e2e_us03_us16_us17_us25": {
+    "exit_code": 0
+  },
+  "stable_inventory_unchanged": true,
+  "overall_status": "PASS"
+}

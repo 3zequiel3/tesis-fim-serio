@@ -1,0 +1,114 @@
+ M .gitignore
+ M agent/tests/test_audit_fixes.py
+ M agent/tests/test_shutdown_heartbeat.py
+ M backend/app/core/security.py
+ M backend/app/modules/actions/router.py
+ M backend/app/modules/actions/schemas.py
+ M backend/app/modules/actions/service.py
+ M backend/app/modules/auth/router.py
+ M backend/app/modules/users/router.py
+ M backend/tests/test_actions.py
+ M backend/tests/test_actions_router.py
+ M backend/tests/test_auth.py
+ M backend/tests/test_c22_consumer.py
+ M backend/tests/test_event_consumer_c11.py
+ M backend/tests/test_event_status_derivation.py
+ M backend/tests/test_openspec_artifact_integrity.py
+ M contracts/actions.bulk-reject.request.json
+ M docs/cierre/CAMBIOS_PARA_TESIS.md
+ M docs/cierre/INDICE_EVIDENCIAS.md
+ M docs/cierre/INFORME_CIERRE_TECNICO.md
+ M docs/cierre/MATRIZ_TRAZABILIDAD.md
+ M docs/cierre/PRUEBAS_PARCIALES_PREPARADAS.md
+ M docs/cierre/REPRODUCIR.md
+ M docs/cierre/RESULTADOS_VERIFICADOS.md
+ M docs/cierre/evidencia/INDICE.md
+ M docs/trazabilidad_us_tests.md
+ M frontend/nginx.conf
+ M frontend/package.json
+ M frontend/pnpm-lock.yaml
+ M frontend/src/api/actions.test.ts
+ M frontend/src/api/actions.ts
+ M frontend/src/api/auth.test.ts
+ M frontend/src/api/auth.ts
+ M frontend/src/components/layout/Navbar.test.tsx
+ M frontend/src/components/layout/Navbar.tsx
+ M frontend/src/components/ui/BulkActionBar.test.tsx
+ M frontend/src/components/ui/BulkActionBar.tsx
+ M frontend/src/components/ui/EventsTable.test.tsx
+ M frontend/src/components/ui/EventsTable.tsx
+ M frontend/src/components/ui/RuleForm.tsx
+ M frontend/src/hooks/useEventActions.ts
+ M frontend/src/stores/auth.store.test.ts
+ M frontend/src/stores/auth.store.ts
+ M frontend/vite.config.ts
+ M frontend/vitest.config.ts
+ M openspec/changes/frontend-severity-triage/design.md
+ M openspec/changes/frontend-severity-triage/proposal.md
+ M openspec/changes/frontend-severity-triage/specs/api-contract-fixtures/spec.md
+ M openspec/changes/frontend-severity-triage/specs/frontend-events/spec.md
+ M openspec/changes/frontend-severity-triage/tasks.md
+ M openspec/specs/backend-approve-reject/spec.md
+ M openspec/specs/frontend-events/spec.md
+ M scripts/check_spec_integrity.py
+?? docker-compose.acceptance-lab.yml
+?? docker-compose.us02-us20-us31-lab.yml
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V5.md
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V5.pdf
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V5_METRICAS.json
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V6.md
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V6_METRICAS.json
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V7.md
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V7_METRICAS.json
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V8.md
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V8_METRICAS.json
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V9.md
+?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V9_METRICAS.json
+?? docs/cierre/REGISTRO_CAMBIOS_TESIS_V5.md
+?? docs/cierre/Tesis_v5_cierre_tecnico_corregida.docx
+?? docs/cierre/Tesis_v5_cierre_tecnico_corregida.pdf
+?? docs/cierre/Tesis_v6_cierre_tecnico.docx
+?? docs/cierre/Tesis_v7_cierre_tecnico.docx
+?? docs/cierre/Tesis_v8_cierre_tecnico.docx
+?? docs/cierre/Tesis_v9_cierre_tecnico.docx
+?? docs/cierre/evidencia/experiments-closure-20260912T004612Z/
+?? docs/cierre/evidencia/final-consolidated-20260911T214511Z/
+?? docs/cierre/evidencia/final-consolidated-fixed-20260911T225314Z/
+?? docs/cierre/evidencia/us02-us20-us31-fixed-20260910T233934Z/
+?? docs/cierre/evidencia/us02-us20-us31-fixed-us20cdp20260911T0205Z/
+?? docs/cierre/evidencia/us02-us20-us31-fixed-us20isolated20260911T0220Z/
+?? docs/cierre/evidencia/us02-us20-us31-fixed-us20stable20260911T0142Z/
+?? docs/cierre/evidencia/us02-us20-us31-fixed-us20stable20260911T0147Z/
+?? docs/cierre/evidencia/us02-us20-us31-fixed-us20stable20260911T0151Z/
+?? docs/cierre/evidencia/us02-us20-us31-fixed-us20stable20260911T0157Z/
+?? docs/cierre/evidencia/us02-us20-us31-playwright-20260910T212203Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260910T221818Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260910T222631Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260910T224506Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260910T230300Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260910T234339Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260910T234725Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260910T235332Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T005439Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T005805Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T010156Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T014154Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T015529Z/
+?? docs/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T020631Z/
+?? docs/cierre/evidencia/us03-us25-playwright-20260910T203527Z/
+?? docs/cierre/evidencia/us03-us25-playwright-20260910T204339Z/
+?? docs/cierre/evidencia/us03-us25-playwright-20260910T205424Z/
+?? frontend/e2e/
+?? frontend/nginx.us02-us20-us31-lab.conf
+?? frontend/nginx.us20-sse-proxy.conf
+?? frontend/playwright.config.ts
+?? frontend/playwright.isolated-lab.config.ts
+?? frontend/playwright.us02-us20-us31-lab.config.ts
+?? frontend/src/components/ui/RuleForm.test.tsx
+?? frontend/src/config/
+?? openspec/changes/archive/2026-06-19-backend-approve-reject/SUPERSEDED.md
+?? openspec/changes/archive/2026-06-21-frontend-events/SUPERSEDED.md
+?? openspec/changes/frontend-severity-triage/SUPERSEDED.md
+?? scripts/run-isolated-acceptance-lab.sh
+?? scripts/run-us02-us20-us31-acceptance-lab.sh
+?? scripts/sanitize-playwright-artifacts.py

@@ -160,27 +160,42 @@ misma migración. El paquete trae `SHA256SUMS` verificado 69/69 sobre sus archiv
 incluye las Baterías 3, 5 y 7 sobre el candidato `v1.0-tesis`, el diagnóstico causal de detección, la
 inferencia pareada de McNemar y el acta de las corridas puestas en cuarentena.
 
-### Lo que sigue faltando y por qué
+### Los dos paquetes que el plan reclamaba ya están versionados
 
-Los dos paquetes que el plan nombra están excluidos por reglas **explícitas** de `.gitignore`, no por
-olvido:
+Las reglas de `.gitignore` se acotaron con una excepción por paquete, de modo que los dos que la
+tesis cita como origen de sus resultados entran al repositorio y el resto de la serie sigue fuera:
 
-| Paquete | Candidato | Regla que lo excluye |
-|---|---|---|
-| `final-consolidated-*` | `7a7ee50` | `.gitignore:65` |
-| `experiments-closure-*` | `7df4935` | `.gitignore:64` |
+| Paquete | Candidato | Archivos | Custodia |
+|---|---|---|---|
+| `experiments-closure-20260912T004612Z` | `7df4935` | 155 | `SHA256SUMS` verificado **155/155** |
+| `final-consolidated-v10-20260912T210903Z` | `7a7ee50` | 130 | `SHA256SUMS` verificado **130/130** |
 
-Viven bajo el comentario «Artefactos locales de laboratorio y de cierre todavía no consolidados».
-Junto a ellas se excluyen `a4-vps-*`, `us02-us20-us31-*` y `us03-us16-us17-us25-isolated-*`.
+Con esto, quien clone el repositorio puede verificar los resultados que el documento atribuye a esos
+dos candidatos, que es lo que el punto 1.3 y el §4.5 piden.
 
-### Decisión que hay que tomar y declarar
+### Declaración para el Anexo F sobre lo que sigue excluido
 
-Versionarlos exige **quitar** esas dos reglas. Si se decide no hacerlo, el Anexo F debe decir
-textualmente que están excluidos por regla del repositorio y cuál es el motivo, en lugar de dejar la
-ausencia sin explicación. El plan admite las dos salidas; lo que no admite es el silencio.
+Texto propuesto, para incorporar donde el Anexo F enumera los paquetes:
 
-La tabla F.1 debe actualizarse con las rutas nuevas bajo `tesis/` y con los hashes del paquete
-incorporado.
+> Del conjunto de corridas de consolidación de septiembre de 2026 se versionan las dos que sustentan
+> resultados citados en este trabajo: `experiments-closure-20260912T004612Z`, correspondiente a los
+> ensayos sobre el candidato `7df4935`, y `final-consolidated-v10-20260912T210903Z`, correspondiente
+> al candidato `7a7ee50`. Ambas incluyen su manifiesto de custodia y verifican íntegramente.
+>
+> Las restantes corridas de esa serie quedan fuera del repositorio por regla explícita: dos intentos
+> que no completaron (`final-consolidated-v10-20260912T205729Z-attempt1-failed` y
+> `final-consolidated-v10-20260912T210821Z-aborted-dirty-worktree`, este último interrumpido al
+> detectarse el árbol de trabajo sucio) y dos consolidaciones previas superadas por las anteriores
+> (`final-consolidated-20260911T214511Z` y `final-consolidated-fixed-20260911T225314Z`). Ninguna
+> sustenta un resultado del documento. Su exclusión es una decisión de higiene del repositorio y no
+> una omisión: se deja constancia de su existencia porque forman parte del registro de cómo se llegó
+> a la corrida consolidada, y sus manifiestos quedan disponibles a pedido.
+
+Además siguen excluidos, por la misma regla y con el mismo criterio, los paquetes `a4-vps-*`,
+`us02-us20-us31-*` y `us03-us16-us17-us25-isolated-*`.
+
+La tabla F.1 debe actualizarse con las rutas nuevas bajo `tesis/` y con los hashes de los tres
+paquetes incorporados: los dos anteriores más `oficial-cap5-20260917T223823Z`.
 
 ---
 

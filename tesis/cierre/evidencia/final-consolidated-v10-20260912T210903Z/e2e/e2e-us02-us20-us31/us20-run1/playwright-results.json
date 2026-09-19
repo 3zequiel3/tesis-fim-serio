@@ -1,0 +1,181 @@
+{
+  "config": {
+    "argv": [
+      "[REDACTED-ABSOLUTE-PATH]",
+      "[REDACTED-ABSOLUTE-PATH]",
+      "test",
+      "--config",
+      "playwright.us02-us20-us31-lab.config.ts",
+      "e2e/us20-realtime-alerts.spec.ts"
+    ],
+    "configFile": "[REDACTED-ABSOLUTE-PATH]",
+    "rootDir": "[REDACTED-ABSOLUTE-PATH]",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "[REDACTED-ABSOLUTE-PATH]",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "[REDACTED-ABSOLUTE-PATH]",
+        "testIgnore": [],
+        "testMatch": [
+          "us02-logout.spec.ts",
+          "us20-realtime-alerts.spec.ts",
+          "us31-superseded-toggle.spec.ts"
+        ],
+        "timeout": 150000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "[REDACTED-ABSOLUTE-PATH]"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "[REDACTED-ABSOLUTE-PATH]"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "us20-realtime-alerts.spec.ts",
+      "file": "us20-realtime-alerts.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "US-20 consumer real crea Alert y SSE muestra toast sin reload",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 150000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10598,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-12T21:12:02.219Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "sse-chain.json",
+                      "contentType": "application/json",
+                      "body": "[REDACTED-OPAQUE]=="
+                    },
+                    {
+                      "name": "cleanup-sanitized.json",
+                      "contentType": "application/json",
+                      "body": "[REDACTED-OPAQUE]=="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "[REDACTED-OPAQUE]",
+          "file": "us20-realtime-alerts.spec.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "title": "US-20 EventSource reconecta tras un corte real sólo de la ruta SSE y recibe un evento nuevo",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 150000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 26460,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-12T21:12:12.930Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "sse-reconnect.json",
+                      "contentType": "application/json",
+                      "body": "[REDACTED-OPAQUE]="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "[REDACTED-OPAQUE]",
+          "file": "us20-realtime-alerts.spec.ts",
+          "line": 67,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-12T21:12:01.667Z",
+    "duration": 37793.998,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

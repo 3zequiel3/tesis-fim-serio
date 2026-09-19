@@ -1,0 +1,2 @@
+snapshot_removed=true
+removed_at_utc=2026-09-12T01:12:19Z

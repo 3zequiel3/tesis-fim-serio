@@ -1,0 +1,53 @@
+* 7a7ee50 test(e2e): reuse the US-25 rule when the combined run hits the US-15 duplicate check
+*   d35fb9c merge: lane/l9-multihost into integration/v10
+|\  
+| * 6871c99 feat(multihost): server prep, evidence collection and latency scripts
+| * f2aab35 feat(compose): multihost override for backend mTLS and Valkey TLS ports
+| * 4537f44 feat(pki): configurable extra SANs and dual EKU for backend/valkey certs
+* |   6b76869 merge: lane/l10-us24-ui into integration/v10
+|\ \  
+| * | 91a843e fix(frontend): disable save-paths button while agent is draining (US-24/C11)
+|/ /  
+* |   124a8de merge: lane/l5-agents into integration/v10
+|\ \  
+| * | 1b77db8 feat(agents): persist queue_size, notify n8n on dead, scope rescan by path
+| * | 310104d feat(frontend): agent queue_size, draining indicator and scoped rescan UI
+| * | e3fd991 feat(agent): scope rescan_baseline to specific paths and drain fanotify intake
+* | |   5f2d96e merge: lane/l4-events-chain into integration/v10
+|\ \ \  
+| * | | 3dc706b feat(events): add event chain view and complete detail fields
+| * | | 4b79bc4 feat(events): add chain endpoint and derive action_type for detail
+| |/ /  
+* | | 4c427c9 test(backlog): resolve US-07/US-26 test merge in Events.test.tsx
+* | | 0e87aea test(backlog): cover US-01 and US-07 acceptance criteria
+* | |   dd80e46 merge: lane/l8-valkey-tls into integration/v10
+|\ \ \  
+| | |/  
+| |/|   
+| * | 2472a3e feat(backend): connect to Valkey with mutual TLS
+| |/  
+* |   b1c8818 merge: lane/l7-infra into integration/v10
+|\ \  
+| * | 37fee44 test(agent): invoke reload_watch_paths instead of reimplementing its arithmetic
+| |/  
+* |   793bda2 merge: lane/l6-diff into integration/v10
+|\ \  
+| * | 1b62905 feat(events): binary diff mode and react-diff-viewer-continued for US-09
+| |/  
+* |   a6a9c0c merge: lane/l3-alerts into integration/v10
+|\ \  
+| * | f6ef9f7 feat(alerts): expose path and action_taken in US-19 alerts listing
+| |/  
+* |   a9397cb merge: lane/l2-frontend-ui into integration/v10
+|\ \  
+| * | 19fd47a feat(events): add numbered pagination with go-to-page navigation
+| * | 21c5812 feat(health): add degradation banner dismiss/reappear and last-healthy timestamp
+| |/  
+* |   8f2a484 merge: lane/l1-rules into integration/v10
+|\ \  
+| |/  
+|/|   
+| * e30cbcd feat(rules): close US-14/US-15/US-18 gaps in rules and rule_sync
+|/  
+* 6790e40 fix(privacy): restrict diff exposure and harden local queue
+* 7df4935 chore: freeze corrected consolidated validation candidate

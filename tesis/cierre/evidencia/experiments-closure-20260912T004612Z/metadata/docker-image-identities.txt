@@ -1,0 +1,4 @@
+[postgres:18.3] sha256:7e32e9833a6fb1c92c32552794cb6ed569d51b445a54907d35fc112ef39684db
+[valkey/valkey:9.0.3] sha256:3b55fbaa0cd93cf0d9d961f405e4dfcc70efe325e2d84da207a0a8e6d8fde4f9
+[fim-experiments-backend:local] sha256:8f31e32709a7baa2be1a2eb69686978b88551249860289234ff891acfbdbae36
+[fim-experiments-agent:local] sha256:f5a0db3471a8087c9f50d3a076e6566c0b2f93de337904b9f580086884f7e27c

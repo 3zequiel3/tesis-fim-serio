@@ -1,0 +1,13 @@
+{
+  "after_lines": 114,
+  "before_lines": 112,
+  "evidence_entry_present": true,
+  "unchanged_excluding_new_evidence": false,
+  "unexpected_added_or_changed": [
+    "?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V9.md",
+    "?? docs/cierre/AUDITORIA_INTEGRAL_TESIS_V9_METRICAS.json"
+  ],
+  "unexpected_removed": [
+    "?? docs/cierre/evidencia/experiments-closure-20260912T004612Z/"
+  ]
+}

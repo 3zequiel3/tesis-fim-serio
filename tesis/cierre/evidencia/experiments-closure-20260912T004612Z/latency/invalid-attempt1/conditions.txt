@@ -1,0 +1,9 @@
+project=fimlatexperimentsclosure20260912t004612z
+topology=single physical host; isolated Compose network, volumes and containers
+api_port=19421
+mtls_port=19821
+planned=100
+rate_operations_s=10
+start_observer=strace -ttt -T -yy close(2) completion
+end_observer=PostgreSQL events.received_at
+baseline_files_before=100

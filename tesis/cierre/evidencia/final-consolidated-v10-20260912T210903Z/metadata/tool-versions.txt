@@ -1,0 +1,9 @@
+timestamp_utc=2026-09-12T21:09:03Z
+os=Linux 7.0.0-31-generic x86_64
+git=git version 2.53.0
+test_python=Python 3.13.14
+pytest=pytest 8.3.4
+coverage=Coverage.py, version 7.14.3 with C extension
+node=v24.17.0
+pnpm=11.8.0
+docker=Docker version 29.7.2, build a7dcaa6

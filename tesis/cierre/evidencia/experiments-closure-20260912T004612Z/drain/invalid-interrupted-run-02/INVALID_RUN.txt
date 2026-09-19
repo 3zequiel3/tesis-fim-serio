@@ -1,0 +1,1 @@
+INVALID_RUN: execution transport terminated the multi-run shell before completion; no summary or exit code was produced. It is excluded and preserved.

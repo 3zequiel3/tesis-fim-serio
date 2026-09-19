@@ -1,0 +1,5 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/docs/cierre/evidencia/final-consolidated-v10-20260912T210903Z/custody/candidate.bundle está bien
+El bundle contiene esta referencia:
+7a7ee5011d9234023687687ed95a7cdda9437711 refs/heads/evidence-candidate-v10
+El bundle registra una historia completa.
+The bundle uses this hash algorithm: sha1

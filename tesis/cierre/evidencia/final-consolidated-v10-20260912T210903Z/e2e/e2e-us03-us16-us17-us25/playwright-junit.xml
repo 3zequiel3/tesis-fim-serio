@@ -1,0 +1,29 @@
+<testsuites id="" name="" tests="3" failures="0" skipped="0" errors="0" time="22.295261">
+<testsuite name="us-isolated-lab.spec.ts" timestamp="2026-09-12T21:18:05.641Z" hostname="" tests="3" failures="0" skipped="0" time="21.622" errors="0">
+<testcase name="US-03 uses the canonical refresh path and revokes the rotated refresh on logout" classname="us-isolated-lab.spec.ts" time="1.784">
+<system-out>
+<![CDATA[
+[Attachment reference removed by sanitization]
+]]>
+</system-out>
+</testcase>
+<testcase name="US-16 and US-17 edit/delete a rule and synchronize the real isolated agent" classname="us-isolated-lab.spec.ts" time="11.501">
+<system-out>
+<![CDATA[
+[Attachment reference removed by sanitization]
+]]>
+</system-out>
+<system-err>
+</system-err>
+</testcase>
+<testcase name="US-25 bulk approve publishes a signed command, receives ACK, and updates the real baseline" classname="us-isolated-lab.spec.ts" time="8.337">
+<system-out>
+<![CDATA[
+[Attachment reference removed by sanitization]
+]]>
+</system-out>
+<system-err>
+</system-err>
+</testcase>
+</testsuite>
+</testsuites>

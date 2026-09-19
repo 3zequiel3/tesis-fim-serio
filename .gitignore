@@ -61,8 +61,15 @@ resultados/
 /tesis/cierre/Tesis_v*_cierre_tecnico*.docx
 /tesis/cierre/Tesis_v*_cierre_tecnico*.pdf
 /tesis/cierre/evidencia/a4-vps-*/
+# Los dos paquetes que la tesis cita como origen de sus resultados se versionan:
+# sin ellos, quien clona el repositorio no puede verificar lo que el documento
+# afirma sobre los candidatos 7df4935 y 7a7ee50. El resto de las corridas de esa
+# serie —intentos fallidos, la abortada por árbol sucio y las dos previas— queda
+# fuera y declarado en el Anexo F.
 /tesis/cierre/evidencia/experiments-closure-*/
+!/tesis/cierre/evidencia/experiments-closure-20260912T004612Z/
 /tesis/cierre/evidencia/final-consolidated-*/
+!/tesis/cierre/evidencia/final-consolidated-v10-20260912T210903Z/
 /tesis/cierre/evidencia/us02-us20-us31-*/
 /tesis/cierre/evidencia/us03-us16-us17-us25-isolated-*/
 /tesis/cierre/evidencia/us03-us25-playwright-*/

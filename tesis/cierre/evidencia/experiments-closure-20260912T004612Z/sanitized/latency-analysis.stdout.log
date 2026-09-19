@@ -1,0 +1,41 @@
+{
+  "acceptance": {
+    "complete_denominator": true,
+    "p99_under_1000_ms": true,
+    "passed": true,
+    "threshold_p99_ms_strictly_less_than": 1000
+  },
+  "clock_and_scope": {
+    "backend_clock": "container wall clock on same host/kernel; Docker compose uses no time namespace",
+    "not_full_system_validation": true,
+    "not_historical_reaggregation": true,
+    "strace_clock": "host CLOCK_REALTIME rendering from ptrace observer; independent of generator-owned timestamps",
+    "topology": "single physical host, isolated Compose containers/network/volumes; Valkey plaintext"
+  },
+  "database_events": 100,
+  "definitions": {
+    "end": "backend PostgreSQL events.received_at for the same path/event",
+    "interval": "filesystem modification completion (a) to backend reception (c)",
+    "start": "completion of close(2) for the modified file, observed externally by strace -ttt -T -yy"
+  },
+  "experiment": "M-2 externally anchored detection latency",
+  "externally_correlated": 100,
+  "latency_ms": {
+    "max": 31.89682960510254,
+    "mean": 15.260059833526611,
+    "median": 13.331055641174316,
+    "min": 6.166934967041016,
+    "n": 100,
+    "p95": 26.505863666534424,
+    "p99": 31.53262853622437,
+    "sample_stdev": 6.168171962568086
+  },
+  "limits": [
+    "100 sequential modifications at 10 operations/s, not 500 historical operations",
+    "single host and shared kernel clock; no remote clock synchronization tested",
+    "strace provides independent observation of start, while end is the system PostgreSQL timestamp",
+    "no claim about encrypted Valkey transport or remote network latency"
+  ],
+  "negative_intervals": 0,
+  "planned": 100
+}

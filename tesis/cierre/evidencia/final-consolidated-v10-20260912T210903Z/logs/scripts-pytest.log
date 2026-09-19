@@ -1,0 +1,17 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/integration
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None
+collected 19 items
+
+scripts/tests/test_analisis_ausencias.py .....                           [ 26%]
+scripts/tests/test_bateria_reversion.py .....                            [ 52%]
+scripts/tests/test_emitir_cert_valkey.py .........                       [100%]
+
+- generated xml file: [HOME]/Facultad/tesis/tesis-fim-serio/docs/cierre/evidencia/final-consolidated-v10-20260912T210903Z/junit/scripts.xml -
+============================== 19 passed in 0.15s ==============================

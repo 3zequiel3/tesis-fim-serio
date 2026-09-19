@@ -1,0 +1,8 @@
+[1/6] Build frontend and isolated images
+[2/6] Start isolated DB, Valkey, backend, SSE proxy and frontend
+curl: (56) Recv failure: Conexión reinicializada por la máquina remota
+curl: (56) Recv failure: Conexión reinicializada por la máquina remota
+[3/6] Run each story independently
+[4/6] Run the three-story combined suite twice
+[5/6] Capture bounded diagnostics and sanitize artifacts
+[6/6] Structural checks

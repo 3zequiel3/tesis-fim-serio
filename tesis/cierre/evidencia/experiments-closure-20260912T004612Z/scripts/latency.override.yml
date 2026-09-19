@@ -1,0 +1,10 @@
+services:
+  backend:
+    image: fim-experiments-backend:local
+  agent:
+    image: fim-experiments-agent:local
+    environment:
+      FIM_EXPERIMENT_RUN_ID: ${FIM_EXPERIMENT_RUN_ID}
+      FIM_EXPERIMENT_TRACE_FILE: /evidence/latency/agent-trace.jsonl
+    volumes:
+      - ${FIM_EXPERIMENT_EVIDENCE_DIR}:/evidence

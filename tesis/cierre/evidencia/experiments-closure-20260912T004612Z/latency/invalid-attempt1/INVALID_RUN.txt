@@ -1,0 +1,1 @@
+INVALID_RUN: harness generated baseline names with two digits while the generator addressed three-digit names; generator stopped before any planned modification. No latency result is claimed.

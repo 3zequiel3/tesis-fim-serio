@@ -1,0 +1,9 @@
+run=04
+started_at_utc=2026-09-12T00:57:01Z
+count=3000
+timeout_s=300
+rate_limit_events=100000
+rate_limit_window_s=60
+postgres=postgres:18.3
+valkey=valkey/valkey:9.0.3
+finished_at_utc=2026-09-12T00:57:31Z

@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/docs/cierre/evidencia/experiments-closure-20260912T004612Z/drain/run-02/run_profile.py", line 431, in <module>
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 196, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/docs/cierre/evidencia/experiments-closure-20260912T004612Z/drain/run-02/run_profile.py", line 332, in main
+  File "/home/ezequiel/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/ezequiel/Facultad/tesis/tesis-fim-serio/docs/cierre/evidencia/experiments-closure-20260912T004612Z/drain/run-02/metrics.jsonl'

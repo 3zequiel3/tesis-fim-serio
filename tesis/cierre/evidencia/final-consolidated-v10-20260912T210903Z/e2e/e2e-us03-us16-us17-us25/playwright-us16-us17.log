@@ -1,0 +1,7 @@
+
+Running 1 test using 1 worker
+
+
+  ✓  1 e2e/us-isolated-lab.spec.ts:161:1 › US-16 and US-17 edit/delete a rule and synchronize the real isolated agent (11.9s)
+
+  1 passed (12.5s)

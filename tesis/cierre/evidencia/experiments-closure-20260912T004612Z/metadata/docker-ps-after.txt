@@ -1,0 +1,14 @@
+argmining_comar_websocket_dev	argminingcomareze-websocket	Up 4 days
+argmining_comar_worker_dev	argminingcomareze-worker	Restarting (1) 17 seconds ago
+impostor-postgres	postgres:17-alpine	Up 2 days (healthy)
+impostor-wsproxy	ghcr.io/neondatabase/wsproxy:latest	Up 2 days
+orbit-db	postgres:18-alpine	Up 4 days (healthy)
+orbit-db-test	postgres:18-alpine	Up 4 days (healthy)
+portfolio_db	postgres:18.6	Up 4 days (healthy)
+portfolio_db_test	postgres:18.6	Up 4 days (healthy)
+tesis-fim-serio-agent-1	fim-agent:dev	Up 29 hours
+tesis-fim-serio-backend-1	fim-backend:dev	Up 2 hours
+tesis-fim-serio-db-1	postgres:18.3	Up 4 days (healthy)
+tesis-fim-serio-frontend-1	fim-frontend:dev	Up 29 hours
+tesis-fim-serio-n8n-1	n8nio/n8n:2.16.1	Up 29 hours
+tesis-fim-serio-valkey-1	valkey/valkey:9.0.3	Up 4 days (healthy)

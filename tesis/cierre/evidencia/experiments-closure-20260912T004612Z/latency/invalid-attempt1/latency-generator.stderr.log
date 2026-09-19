@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/ezequiel/Facultad/tesis/tesis-fim-serio/docs/cierre/evidencia/experiments-closure-20260912T004612Z/scripts/latency_generator.py", line 12, in <module>
+    fd=os.open(path,os.O_WRONLY|os.O_TRUNC|os.O_CLOEXEC); os.write(fd,data); os.fsync(fd); os.close(fd)
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/fim-latency-lab-TpRPSA/watch/latency-ext-000.txt'

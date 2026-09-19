@@ -1,0 +1,9 @@
+{
+  "candidate_commit": "7df4935f769a2e393a5e6a6330df605c77592e52",
+  "candidate_tree": "95455f919ec602b6cddf1440341652d99b784bd3",
+  "concurrency": {"planned": 100, "accepted": 100, "max_active": 100, "p99_ms": 616.6260300000002, "threshold_ms": 5000, "passed": true},
+  "drain": {"valid_runs": 5, "times_s": [27.78426442, 29.042866652, 28.108855976, 29.188456585, 27.997015878], "mean_s": 28.424291902200004, "median_s": 28.108855976, "sample_stdev_s": 0.6438715294789098, "threshold_s": 30, "all_passed": true},
+  "latency_external": {"planned": 100, "correlated": 100, "p99_ms": 31.53262853622437, "threshold_ms": 1000, "passed": true},
+  "independent_verification": true,
+  "not_full_system_validation": true
+}

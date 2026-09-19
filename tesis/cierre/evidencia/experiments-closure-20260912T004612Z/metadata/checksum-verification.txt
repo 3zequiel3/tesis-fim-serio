@@ -1,0 +1,3 @@
+command=sha256sum -c SHA256SUMS
+verified_files=155
+result=PASS

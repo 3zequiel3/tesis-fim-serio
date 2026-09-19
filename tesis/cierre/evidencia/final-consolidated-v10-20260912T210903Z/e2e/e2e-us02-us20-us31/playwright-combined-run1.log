@@ -1,0 +1,10 @@
+
+Running 5 tests using 1 worker
+
+  ✓  1 e2e/us02-logout.spec.ts:6:1 › US-02 logout revoca la sesión real, borra cookie y Back no reabre la vista protegida (4.7s)
+  ✓  2 e2e/us20-realtime-alerts.spec.ts:19:1 › US-20 consumer real crea Alert y SSE muestra toast sin reload (10.3s)
+  ✓  3 e2e/us20-realtime-alerts.spec.ts:67:1 › US-20 EventSource reconecta tras un corte real sólo de la ruta SSE y recibe un evento nuevo (26.1s)
+  ✓  4 e2e/us31-superseded-toggle.spec.ts:14:1 › US-31 oculta superseded por defecto, togglea, persiste URL y consulta backend real (6.0s)
+  ✓  5 e2e/us31-superseded-toggle.spec.ts:47:1 › US-31 muestra vínculo e identificador parent_event_id de forma visible (5.9s)
+
+  5 passed (53.7s)

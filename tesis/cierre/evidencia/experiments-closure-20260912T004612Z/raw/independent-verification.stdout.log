@@ -1,0 +1,30 @@
+{
+  "checks": {
+    "candidate_identity": true,
+    "cleanup_and_isolation": true,
+    "concurrency_all_success": true,
+    "concurrency_p99_recomputed_matches": true,
+    "concurrency_records_100": true,
+    "concurrency_simultaneous_100_at_receiver": true,
+    "drain_all_under_30": true,
+    "drain_five_valid": true,
+    "drain_mean_matches": true,
+    "drain_median_matches": true,
+    "drain_same_harness_and_conditions": true,
+    "drain_stdev_matches": true,
+    "latency_100_correlated": true,
+    "latency_agent_trace_covers_paths": true,
+    "latency_no_negative": true,
+    "latency_p99_matches": true,
+    "latency_p99_under_1000": true
+  },
+  "passed": true,
+  "recomputed": {
+    "concurrency_p99_ms": 616.6260300000002,
+    "drain_mean_s": 28.424291902200004,
+    "drain_median_s": 28.108855976,
+    "drain_sample_stdev_s": 0.6438715294789098,
+    "latency_p99_ms": 31.53262853622437,
+    "latency_trace_rows": 700
+  }
+}

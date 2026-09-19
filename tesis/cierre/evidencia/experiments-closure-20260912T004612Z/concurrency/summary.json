@@ -1,0 +1,49 @@
+{
+  "acceptance": {
+    "complete_denominator": true,
+    "p99_under_5000_ms": true,
+    "passed": true,
+    "simultaneity_proven": true
+  },
+  "barrier": {
+    "release_monotonic_ns": 380021716806037,
+    "release_utc": "2026-09-12T00:51:30.522012+00:00",
+    "tasks_ready_before_release": 100
+  },
+  "client": {
+    "failed": 0,
+    "successful": 100
+  },
+  "client_roundtrip_ms": {
+    "max": 753.67622,
+    "mean": 456.13871462000003,
+    "median": 454.27747250000004,
+    "min": 194.073788,
+    "n": 100,
+    "p95": 690.1982390999999,
+    "p99": 712.6679974700003
+  },
+  "criterion": {
+    "p99_ms_strictly_less_than": 5000,
+    "simultaneous_requests": 100
+  },
+  "experiment": "A-3 notification concurrency",
+  "latency_received_to_receiver_ms": {
+    "max": 678.3059999999999,
+    "mean": 356.06156000000004,
+    "median": 354.84950000000003,
+    "min": 89.936,
+    "n": 100,
+    "p95": 595.0373999999999,
+    "p99": 616.6260300000002
+  },
+  "not_full_system_validation": true,
+  "receiver": {
+    "fixed_post_reception_hold_ms": 50,
+    "max_simultaneous_active_requests": 100,
+    "planned": 100,
+    "received": 100,
+    "unique_event_ids": 100
+  },
+  "scope": "production send_n8n transport function to controlled local HTTP receiver; synthetic pre-persisted notification payloads"
+}

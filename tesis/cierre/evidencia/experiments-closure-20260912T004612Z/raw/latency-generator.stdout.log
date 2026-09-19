@@ -1,0 +1,1 @@
+{"completed": 100, "planned": 100, "rate_operations_s": 10.0, "start_definition": "external strace close(2) completion is authoritative; generator stamps are secondary only"}

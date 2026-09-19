@@ -1,0 +1,115 @@
+ Image fim-experiments-backend:local Building 
+ Image fim-experiments-agent:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.09kB done
+#1 DONE 0.0s
+
+#2 [agent internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.86kB done
+#2 DONE 0.0s
+
+#3 [backend internal] load build definition from Dockerfile
+#3 transferring dockerfile: 3.49kB done
+#3 DONE 0.0s
+
+#4 [backend internal] load metadata for docker.io/library/python:3.13-slim
+#4 DONE 1.0s
+
+#5 [backend internal] load .dockerignore
+#5 transferring context: 162B done
+#5 DONE 0.0s
+
+#6 [agent internal] load .dockerignore
+#6 transferring context: 228B done
+#6 DONE 0.0s
+
+#7 [backend internal] load build context
+#7 transferring context: 5.28kB done
+#7 DONE 0.0s
+
+#8 [backend builder 1/5] FROM docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+#8 resolve docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285 0.0s done
+#8 DONE 0.0s
+
+#9 [agent internal] load build context
+#9 transferring context: 815B done
+#9 DONE 0.1s
+
+#10 [backend builder 4/5] COPY requirements.txt .
+#10 CACHED
+
+#11 [backend runtime 3/6] COPY --from=builder /opt/venv /opt/venv
+#11 CACHED
+
+#12 [backend builder 5/5] RUN pip install --no-cache-dir --upgrade pip  && pip install --no-cache-dir -r requirements.txt
+#12 CACHED
+
+#13 [backend runtime 5/6] RUN mkdir /certs && chown app:app /certs
+#13 CACHED
+
+#14 [backend runtime 4/6] WORKDIR /app
+#14 CACHED
+
+#15 [backend builder 3/5] WORKDIR /build
+#15 CACHED
+
+#16 [backend runtime 2/6] RUN useradd --create-home --uid 10001 app
+#16 CACHED
+
+#17 [backend builder 2/5] RUN python -m venv /opt/venv
+#17 CACHED
+
+#18 [backend runtime 6/6] COPY --chown=app:app app/ /app/app/
+#18 CACHED
+
+#19 [agent builder 5/5] RUN pip install --no-cache-dir --upgrade pip  && pip install --no-cache-dir -r requirements.txt
+#19 CACHED
+
+#20 [agent runtime 2/5] COPY --from=builder /opt/venv /opt/venv
+#20 CACHED
+
+#15 [agent builder 3/5] WORKDIR /build
+#15 CACHED
+
+#21 [agent builder 4/5] COPY requirements.txt .
+#21 CACHED
+
+#22 [agent runtime 4/5] COPY . /app/agent/
+#22 CACHED
+
+#23 [agent runtime 3/5] WORKDIR /app
+#23 CACHED
+
+#17 [agent builder 2/5] RUN python -m venv /opt/venv
+#17 CACHED
+
+#24 [agent runtime 5/5] RUN mkdir -p /var/lib/fim-agent /watch
+#24 CACHED
+
+#25 [backend] exporting to image
+#25 exporting layers done
+#25 exporting manifest sha256:bd6b95b05a3babeb73549dc17bf252cc70d8bdc1d2641ab7b5659976ff85e49d done
+#25 exporting config sha256:e3b8efa331f264cc33c1820c76e85e1f3b79c3af56ec9dd20bf8fbab0a363966 done
+#25 exporting attestation manifest sha256:6d7193601249f16468e4bf171057453ac39563234a7cefc5dea2259cedb0f2ac 0.0s done
+#25 exporting manifest list sha256:8f31e32709a7baa2be1a2eb69686978b88551249860289234ff891acfbdbae36 done
+#25 naming to docker.io/library/fim-experiments-backend:local done
+#25 unpacking to docker.io/library/fim-experiments-backend:local done
+#25 DONE 0.1s
+
+#26 [agent] exporting to image
+#26 exporting layers done
+#26 exporting manifest sha256:28093bbb2a4a3a0ab8c86146df16888803bbf09ec51f91136747f9776e2ad14b done
+#26 exporting config sha256:9318ba00cd13e4247845b863f5cc4af351e4cfe9a178c0a6d56523d28651c0ec done
+#26 exporting attestation manifest sha256:6695613f9f2f75ea514ac1c62b26977059beaebb5c5a90781bae495f1ab5f933 0.0s done
+#26 exporting manifest list sha256:f5a0db3471a8087c9f50d3a076e6566c0b2f93de337904b9f580086884f7e27c done
+#26 naming to docker.io/library/fim-experiments-agent:local done
+#26 unpacking to docker.io/library/fim-experiments-agent:local done
+#26 DONE 0.1s
+
+#27 [agent] resolving provenance for metadata file
+#27 DONE 0.0s
+
+#28 [backend] resolving provenance for metadata file
+#28 DONE 0.0s
+ Image fim-experiments-backend:local Built 
+ Image fim-experiments-agent:local Built 
