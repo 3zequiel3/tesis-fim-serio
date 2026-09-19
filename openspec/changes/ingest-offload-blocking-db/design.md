@@ -1,10 +1,10 @@
 ## Context
 
-**El número que abre esta change.** Ítem 43 del protocolo (`docs/plan_medicion_cap5.md:353`): el
+**El número que abre esta change.** Ítem 43 del protocolo (`tesis/plan_medicion_cap5.md:353`): el
 drenaje completo tras una reconexión debe tardar **< 30 s**. La corrida del 2026-09-18 sobre el
 candidato `v1.0-tesis` (`devel`, `7a906c2`), con el límite de ingesta elevado a 100000/60 s y
 declarado según D38/RN-132, drenó **2.893 eventos en 59,389 s** = 48,7 ev/s ≈ **20,4 ms por evento**.
-Evidencia: `docs/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey/`.
+Evidencia: `tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey/`.
 
 **El perfilado descarta al broker.** Medido dentro del contenedor del backend, con el engine y el
 cliente reales:
@@ -445,3 +445,66 @@ fuera de dimensionamiento y no de código, la mitigación intermedia es bajar
   concurrencia entre eventos, tocar el default de producción del rate limit, o redefinir el umbral—:
   **detenerse**, cerrar la decisión en el appendix "Decisiones de implementación — Abril 2026" del
   doc canónico que corresponda, y recién entonces continuar.
+
+## Resultado de la re-medición (2026-09-18) — cierre de D-9 y D-10
+
+D-9 dejó la conclusión sobre el ítem 43 **pospuesta hasta la re-medición**, explícitamente para no
+anticiparla. La re-medición ya se hizo. Esta sección la cierra con el número a la vista.
+
+**Evidencia:** `tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey-post-d75/`.
+Medido sobre el commit `7a906c2` con la Change 58 **sin commitear** (`procedencia.txt`,
+`git_status_clean=no`); procedencia del contenedor verificada contra el árbol, hash agregado del
+backend `d55fb734ae22a90c…`. Protocolo: corte de Valkey de 307,7 s reales, 3000 cambios a 10/s
+durante 300 s, límite de ingesta elevado a 100000/60 s y declarado según D38/RN-132, pool 10+10=20,
+executor de 10 hilos.
+
+### Ítem 43 — **no se cumple, y esta change no lo mejoró**
+
+| Corrida | Eventos | Ventana (desde `received_at`) | Tasa | ms/evento |
+|---|---|---|---|---|
+| Previa a D75 | 2893 | 59,389 s | 48,7 ev/s | ~20,4 ms |
+| Con D75 | 2678 | 58,809 s | **45,54 ev/s** | ~21,96 ms |
+
+El umbral del ítem 43 (drenaje completo en < 30 s) exigía **> 96,4 ev/s**. La medición quedó a menos
+de la mitad, y **por debajo** de la corrida previa. No hay lectura optimista disponible y no se
+ofrece ninguna. 0 eventos descartados y 0 rechazos de cualquier tipo.
+
+Confirmando D-10: el número válido es el de la base, **58,809 s**, no el `drain_duration_s=73,58` que
+reportó el arnés — esa diferencia es histéresis del bucle de estabilidad del propio arnés (~15-20 s),
+es decir instrumento, no sistema. Es exactamente la distinción que D-10 pedía hacer.
+
+**El umbral de 30 s no se redefine acá** (D-9 sigue vigente). El ajuste de criterio declarado que
+este incumplimiento habilita es una tarea posterior, fuera de esta change.
+
+### Ítems 40 y 41 — **no degradados**, que era el riesgo del diseño
+
+Orden FIFO (ítem 40) y no duplicación (ítem 41) verificados sobre las dos corridas: **5571 eventos,
+0 inversiones de `detected_at` ordenando por `received_at`, 0 `event_id` duplicados**. Sacar la
+ingesta del event loop a un executor de hilos ponía en riesgo precisamente el orden, y D-2 existe
+para protegerlo. **El orden sobrevivió.** Comando reproducible en `verificacion-items-40-41.txt`.
+
+### Causa raíz del ítem 43 — está en el agente, no en el backend
+
+D-9 anotaba que de los 20,4 ms por evento solo ~10,3 ms estaban atribuidos y que **el residual no se
+podía estimar antes de medir**. Medido, el residual resultó no ser trabajo sino **espera**, y la
+espera es del agente:
+
+- `agent/publisher.py:62` fija `_ACK_TIMEOUT_S = 60.0`; `agent/publisher.py:613` corre el bucle de
+  reintento con `await asyncio.sleep(5)`. Durante el corte los eventos quedan en `_pending` con su
+  timestamp original y **solo se republican al superar los 60 s**: los generados en el último minuto
+  del corte tienen que envejecer antes de volver a salir.
+- **Firma en la distribución de llegadas** (`distribucion-llegadas.txt`): los primeros 15 s traen
+  1047 eventos a ~69,9 ev/s —muy por encima del promedio de 45,54— y la cola llega en grupos
+  separados por huecos de ~4,6 s, la cadencia del `sleep(5)`. Si el límite fuera de rendimiento, las
+  llegadas serían aproximadamente uniformes a la tasa máxima; no lo son.
+- **Perfilado que descarta las otras hipótesis** (en la VM, con los módulos del agente):
+  `bump_attempts` 1,665 ms · escritura atómica 1,687 ms · la misma sin cripto 1,655 ms (el costo es
+  el **fsync**, no el cifrado) · firma HMAC 0,008 ms · `queue.remove` 0,033 ms · XADD sobre mTLS
+  0,457 ms. **Suma conocida ~2,2 ms contra 21,96 ms observados.**
+
+**Qué significa para esta change.** El trabajo que D75/RN-169 pedía —sacar del event loop las
+`Session` síncronas del carril de ingesta y del de notificación, con el pool y el executor
+dimensionados y verificados— está hecho, probado y no degradó nada. Pero el cuello del ítem 43 no
+estaba en el backend, así que la change **no mueve ese número**. Corregir la cadencia y el timeout
+del publisher es un cambio sobre `agent/`, que esta change declara fuera de alcance desde el
+principio y que no se improvisa acá.

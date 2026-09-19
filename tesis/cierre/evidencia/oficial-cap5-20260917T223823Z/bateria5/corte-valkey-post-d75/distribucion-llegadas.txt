@@ -1,0 +1,68 @@
+Distribución de llegadas del drenaje — evidencia de la causa raíz del ítem 43
+=============================================================================
+
+Procedencia
+-----------
+Verificación posterior sobre `eventos_backend.csv` de esta misma corrida (columna
+`received_at`). Reproducible con el comando de más abajo. t0 = primera llegada
+(2026-09-18 13:01:23.948502+00).
+
+Por qué importa
+---------------
+Si el drenaje estuviera limitado por rendimiento del backend, las llegadas serían
+aproximadamente uniformes a la tasa máxima sostenible. No lo son: arrancan a ~70 ev/s y
+después caen, y la cola llega en grupos separados por huecos de ~4,6 s. Eso es la firma de
+una espera, no de un cuello de botella de cómputo.
+
+Comando
+-------
+python3 - <<'PY'
+import csv, datetime as dt
+p="tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey-post-d75/eventos_backend.csv"
+ts=lambda s: dt.datetime.fromisoformat(s.replace(" ","T"))
+rows=sorted(ts(r["received_at"]) for r in csv.DictReader(open(p)))
+t0=rows[0]
+print("primeros 15 s:", sum(1 for r in rows if (r-t0).total_seconds()<15))
+b={}
+for r in rows: k=int((r-t0).total_seconds()//5)*5; b[k]=b.get(k,0)+1
+for k in sorted(b): print(f"[{k:>3}-{k+5:>3}) s : {b[k]}")
+print("huecos > 0,5 s:")
+for a,c in zip(rows,rows[1:]):
+    g=(c-a).total_seconds()
+    if g>0.5: print(f"  t={(a-t0).total_seconds():7.3f}s hueco={g:6.3f}s")
+PY
+
+Resultado
+---------
+Primeros 15 s: 1047 eventos  ->  ~69,9 ev/s
+(contra 45,54 ev/s promedio de toda la ventana de 58,809 s)
+
+Histograma por bucket de 5 s desde t0:
+  [  0-  5) s :   407
+  [  5- 10) s :   345
+  [ 10- 15) s :   295
+  [ 15- 20) s :   269
+  [ 20- 25) s :   298
+  [ 25- 30) s :   297
+  [ 30- 35) s :   293
+  [ 35- 40) s :   295
+  [ 40- 45) s :   110
+  [ 45- 50) s :    32
+  [ 50- 55) s :    28
+  [ 55- 60) s :     9
+
+Huecos entre llegadas consecutivas mayores a 0,5 s:
+  t= 41.641 s  hueco= 1.526 s
+  t= 43.745 s  hueco= 4.622 s
+  t= 48.923 s  hueco= 4.647 s
+  t= 54.079 s  hueco= 4.628 s
+
+Lectura
+-------
+El backend absorbe a ~70 ev/s cuando tiene material disponible. La cola final no llega a esa
+tasa porque el agente todavía no la ofreció: los huecos de ~4,6 s son la cadencia del bucle
+de reintento del publisher del agente (`await asyncio.sleep(5)`, agent/publisher.py:613), y
+el evento sólo se re-publica cuando su entrada en `_pending` supera `_ACK_TIMEOUT_S = 60.0`
+(agent/publisher.py:62). Los eventos generados en el último minuto del corte tienen que
+envejecer 60 s antes de volver a salir. El drenaje está limitado por esa espera, no por el
+rendimiento del backend.

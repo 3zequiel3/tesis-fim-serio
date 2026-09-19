@@ -1,0 +1,43 @@
+Verificación de los ítems 40 (orden FIFO) y 41 (no duplicación) — Change 58 (D75/RN-169)
+=========================================================================================
+
+Procedencia de esta verificación
+--------------------------------
+NO la produjo el arnés durante la corrida. Es una verificación posterior, hecha sobre los
+CSV ya almacenados en esta misma evidencia (`eventos_backend.csv` de las dos corridas), y
+por eso es reproducible byte a byte con el comando de más abajo. Los CSV son el volcado de
+la tabla `events` del backend al final de cada corrida.
+
+Criterio
+--------
+Ítem 40 — orden FIFO: ordenando las filas por `received_at` (el instante en que el backend
+las ingirió), `detected_at` (el instante en que el agente las detectó) nunca retrocede. Una
+inversión significaría que un evento detectado antes fue ingerido después que uno detectado
+después, es decir despacho fuera de orden.
+
+Ítem 41 — no duplicación: ningún `event_id` aparece más de una vez.
+
+Comando
+-------
+python3 - <<'PY'
+import csv
+base="tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5"
+for run in ("corte-valkey","corte-valkey-post-d75"):
+    rows=list(csv.DictReader(open(f"{base}/{run}/eventos_backend.csv")))
+    rows.sort(key=lambda r: r["received_at"])
+    inv=sum(1 for a,b in zip(rows,rows[1:]) if b["detected_at"]<a["detected_at"])
+    ids=[r["event_id"] for r in rows]
+    print(run, "filas=",len(rows), "inversiones=",inv, "duplicados=",len(ids)-len(set(ids)))
+PY
+
+Resultado
+---------
+corte-valkey          (previa a D75)  filas=2893  inversiones=0  duplicados=0
+corte-valkey-post-d75 (con D75)       filas=2678  inversiones=0  duplicados=0
+TOTAL                                 filas=5571  inversiones=0  duplicados=0
+
+Conclusión
+----------
+La Change 58 NO degradó el orden FIFO ni introdujo duplicación. Ese era el riesgo principal
+del diseño (sacar la ingesta del event loop a un executor de hilos) y los ítems 40 y 41 son
+no degradables por protocolo. Ambos se sostienen sobre la corrida nueva y sobre la previa.

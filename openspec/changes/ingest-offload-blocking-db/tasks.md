@@ -82,12 +82,73 @@
 - [x] 8.5 Levantar el stack completo y verificar en el arranque del backend que el pool y el executor reportan los valores configurados, y que ningún componente de `GET /health/components` se degradó respecto del estado previo.
 
 ## 9. Re-medición de la Batería 5 (después de los grupos 1 a 8)
+> **Estado del grupo 9.** La re-medición se hizo el **2026-09-18**. Evidencia:
+> `tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey-post-d75/`.
+> **El ítem 43 sigue sin cumplirse y la change no lo mejoró.** Ese resultado, y la causa raíz que
+> lo explica, están registrados abajo tarea por tarea y en la sección «Resultado de la re-medición»
+> de `design.md`. Ninguna tarea de este grupo declara un cumplimiento que no ocurrió.
 
-- [ ] 9.1 Desplegar el backend con la change aplicada y dejar constancia de la fecha y del commit desplegado en el reporte de apply.
-- [ ] 9.2 Re-correr la **Batería 5 (corte de Valkey)** con el protocolo del ítem 43: corte de Valkey con la duración **real** registrada (ítem 36), manifiesto del generador (ítem 37), cola local preservada verificada **antes** de reconectar (ítem 38) y cola drenada a 0 (ítem 39).
-- [ ] 9.3 Declarar el **límite de ingesta efectivo** usado en la corrida, según **D38/RN-132**, igual que se hizo en la corrida del 2026-09-18 (100000/60 s). El valor por defecto de producción del rate limit **no se cambia** en función de estas mediciones.
+- [x] 9.1 Desplegar el backend con la change aplicada y dejar constancia de la fecha y del commit desplegado en el reporte de apply.
+  - **Fecha:** 2026-09-18 (arnés 12:56:17Z → 13:02:41Z).
+  - **Commit desplegado:** `7a906c202e417aec5f03d9a7545e216a724aca81` (tag `v1.0-tesis`) **con la Change 58 aún sin commitear**. `procedencia.txt` lo declara explícitamente: `git_status_clean=no`, `uncommitted_change=ingest-offload-blocking-db (Change 58, D75/RN-169)`, y enumera los archivos modificados.
+  - **Trazabilidad del binario medido:** procedencia del contenedor verificada contra el árbol, hash agregado del backend `d55fb734ae22a90c431c643cd73db2d4822fc4e057b686e80a128d6bd7de009d`. Ese hash es lo que hace auditable una medición tomada sobre un árbol sucio: el commit solo no alcanzaría para identificar qué se corrió.
+- [x] 9.2 Re-correr la **Batería 5 (corte de Valkey)** con el protocolo del ítem 43: corte de Valkey con la duración **real** registrada (ítem 36), manifiesto del generador (ítem 37), cola local preservada verificada **antes** de reconectar (ítem 38) y cola drenada a 0 (ítem 39).
+  - Corte de **Valkey** —el que pide `tesis/plan_medicion_cap5.md:338`—, no el del backend.
+  - **Ítem 36:** Valkey caído 12:56:18.974Z, restaurado 13:01:26.667Z ⇒ **307,7 s** reales de corte.
+  - **Ítem 37:** manifiesto del generador presente (`..._manifiesto.json`, `..._manifiesto.jsonl`, 3000 cambios a 10/s en 299,901 s, 0 errores).
+  - **Ítem 38:** cola local preservada verificada **antes** de reconectar — `generator finished; queue+discarded=2678 0` a las 13:01:20.854Z, previo a la fase 3.
+  - **Ítem 39:** `DRAIN COMPLETE: events=2678 queue=0 discarded=0`; `final: events=2678 queue+discarded=0 0`.
+  - **0 descartados y 0 rechazos de cualquier tipo:** `rechazos.csv` solo tiene el encabezado.
+- [x] 9.3 Declarar el **límite de ingesta efectivo** usado en la corrida, según **D38/RN-132**, igual que se hizo en la corrida del 2026-09-18 (100000/60 s). El valor por defecto de producción del rate limit **no se cambia** en función de estas mediciones.
+  - Declarado en el encabezado del log del arnés: `=== Battery 5 — label=corte-valkey-post-d75 rate_limit=100000/60s ===`.
+  - El default de producción **no se tocó**. La elevación es del arnés de medición, para que el rate limit no sea la variable medida.
 - [ ] 9.4 Medir el drenaje **desde `received_at` en la base, no desde el sondeo del arnés**: los dos extremos de la ventana salen de la columna `received_at` de la tabla `events`. El sondeo del arnés tiene su propio período y su propia latencia, y midiendo desde él se estaría midiendo el instrumento además del sistema. Dejar la query usada en la evidencia.
-- [ ] 9.5 Re-verificar el **ítem 40** (monotonía del sufijo del generador ordenando por `detected_at`) y el **ítem 41** (la query de duplicados del protocolo, que debe devolver 0 filas). Si cualquiera de los dos se degradó, la change se detiene acá: son no degradables y no se ajusta el criterio.
-- [ ] 9.6 Registrar el resultado del ítem 43 con el número medido, junto al número previo (2.893 eventos en 59,389 s = 48,7 ev/s ≈ 20,4 ms por evento) para que la comparación sea directa. Guardar la evidencia con la misma estructura que `docs/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey/`.
-- [ ] 9.7 **No declarar incumplimiento anticipado ni redefinir el umbral de 30 s.** Si el drenaje medido queda por encima del umbral, eso abre un **ajuste de criterio declarado propio, con el número nuevo a la vista**, en la tabla de ajustes — y esa declaración es una tarea posterior a esta medición, nunca previa. Declararla antes de medir sería exactamente la reinterpretación silenciosa que la tabla de ajustes del Change 57 existe para evitar (D75/RN-169, D-9 del design).
-- [ ] 9.8 Volver a correr `python3 scripts/check_spec_integrity.py` antes de archivar la change (D47/RN-141) y dejar el resultado en el reporte.
+  - **Sin marcar a propósito.** La medición desde `received_at` **sí se hizo**; lo que falta es la segunda cláusula: **el texto de la query usada no quedó guardado en la evidencia**. Solo está su resultado (`item43.txt`) y el volcado de filas (`eventos_backend.csv`, con la columna `received_at`). Reconstruir el SQL a partir del encabezado de la salida sería escribir una query que nadie corrió, así que la tarea queda abierta en vez de aproximada.
+  - **Medición (la parte que sí se cumplió):** ventana **58,809 s** (`2026-09-18 13:01:23.948502+00` → `13:02:22.757883+00`), **2678 eventos**, **2678 únicos**, **45,54 ev/s**.
+  - **Por qué la distinción no es cosmética:** el arnés reportó `drain_duration_s=73,583476962` y `throughput_ev_s=36,3940`. Esos ~14,8 s de diferencia son histéresis de su propio bucle de estabilidad (~15-20 s), no del sistema. **El número válido es el de la base: 58,809 s.** Usar el del arnés habría inflado el incumplimiento con latencia del instrumento.
+- [x] 9.5 Re-verificar el **ítem 40** (monotonía del sufijo del generador ordenando por `detected_at`) y el **ítem 41** (la query de duplicados del protocolo, que debe devolver 0 filas). Si cualquiera de los dos se degradó, la change se detiene acá: son no degradables y no se ajusta el criterio.
+  - **Ítem 40 — orden FIFO: 0 inversiones.** Ordenando por `received_at`, `detected_at` nunca retrocede. Verificado sobre **las dos** corridas: 2893 filas (previa) + 2678 filas (post-D75) = **5571 eventos, 0 inversiones**.
+  - **Ítem 41 — duplicación: 0 duplicados** de `event_id` en las dos corridas.
+  - **Esto es el resultado más importante del grupo.** Sacar la ingesta del event loop a un executor de hilos ponía en riesgo justamente el orden FIFO, y ése era el riesgo principal del diseño (D-2). **La change no lo degradó.**
+  - Evidencia y comando reproducible: `verificacion-items-40-41.txt` en el directorio de la corrida.
+- [x] 9.6 Registrar el resultado del ítem 43 con el número medido, junto al número previo (2.893 eventos en 59,389 s = 48,7 ev/s ≈ 20,4 ms por evento) para que la comparación sea directa. Guardar la evidencia con la misma estructura que `tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey/`.
+  - | Corrida | Eventos | Ventana (desde `received_at`) | Tasa | ms/evento |
+    |---|---|---|---|---|
+    | Previa a D75 (`corte-valkey`) | 2893 | 59,389 s | 48,7 ev/s | ~20,4 ms |
+    | Con D75 (`corte-valkey-post-d75`) | 2678 | 58,809 s | 45,54 ev/s | ~21,96 ms |
+  - **La change NO mejoró el ítem 43.** La tasa bajó de 48,7 a 45,54 ev/s. El umbral del ítem 43 (drenaje completo en < 30 s) exigía **> 96,4 ev/s**; se está a menos de la mitad. No hay lectura optimista disponible acá y no se ofrece ninguna.
+  - Evidencia con la misma estructura que la corrida previa, más `procedencia.txt`, `item43.txt`, `verificacion-items-40-41.txt` y `distribucion-llegadas.txt`.
+- [x] 9.7 **No declarar incumplimiento anticipado ni redefinir el umbral de 30 s.** Si el drenaje medido queda por encima del umbral, eso abre un **ajuste de criterio declarado propio, con el número nuevo a la vista**, en la tabla de ajustes — y esa declaración es una tarea posterior a esta medición, nunca previa. Declararla antes de medir sería exactamente la reinterpretación silenciosa que la tabla de ajustes del Change 57 existe para evitar (D75/RN-169, D-9 del design).
+  - **Cumplida:** no se declaró incumplimiento antes de medir y **el umbral de 30 s no se redefinió en esta change**.
+  - El ajuste de criterio que el incumplimiento medido habilita **queda pendiente como tarea posterior**, fuera de esta change, exactamente como D-9 lo pide. Esta change cierra registrando el número, no reinterpretándolo.
+- [x] 9.8 Volver a correr `python3 scripts/check_spec_integrity.py` antes de archivar la change (D47/RN-141) y dejar el resultado en el reporte.
+  - **Antes de archivar:** `OK — 54 main specs, 385 requisitos, sin problemas.` (exit 0).
+
+## 10. Causa raíz del ítem 43 — identificada después de la re-medición
+
+> Esta sección **no agrega tareas**. Registra por qué el ítem 43 no se cumplió, para que la change
+> no se archive dejando el número sin explicación y para que la próxima lectura no vuelva a buscar
+> la causa en el backend.
+
+**El drenaje no está limitado por rendimiento. Está limitado por una espera en el agente.**
+
+- `agent/publisher.py:62` fija `_ACK_TIMEOUT_S = 60.0` y `agent/publisher.py:613` corre el bucle de
+  reintento con `await asyncio.sleep(5)`. Durante el corte los eventos quedan en `_pending` con su
+  timestamp original y **solo se republican cuando superan los 60 s**. Los eventos generados en el
+  último minuto del corte tienen que **envejecer** antes de volver a salir.
+- **Evidencia en la distribución de llegadas** (`distribucion-llegadas.txt`): los primeros 15 s traen
+  **1047 eventos a ~69,9 ev/s** —bastante por encima del promedio de 45,54— y después la cola llega
+  en **grupos separados por huecos de ~4,6 s** (medidos en t=43,7 s, 48,9 s y 54,1 s), que es la
+  cadencia del `sleep(5)`. El backend absorbe rápido cuando tiene material; se queda esperando
+  porque el agente todavía no se lo ofreció.
+- **Perfilado que descarta las otras hipótesis** (medido en la VM, con los módulos del agente):
+  `bump_attempts` 1,665 ms · escritura atómica 1,687 ms · lo mismo sin cripto 1,655 ms (o sea que el
+  costo es el **fsync**, no el cifrado) · firma HMAC 0,008 ms · `queue.remove` 0,033 ms · XADD sobre
+  mTLS 0,457 ms. **Suma conocida ~2,2 ms contra 21,96 ms observados: la diferencia es espera, no
+  trabajo.**
+
+**Consecuencia para esta change.** La Change 58 atacó el backend —sacar del event loop las `Session`
+síncronas del carril de ingesta y de notificación— y ese trabajo está hecho y verificado. Pero el
+cuello del ítem 43 **no estaba ahí**. Por eso la change no mueve el número. Corregir la cadencia y el
+timeout del publisher del agente es un cambio distinto, sobre `agent/`, que esta change declara
+explícitamente fuera de alcance (ver el bloque «Lo que NO se hace en ninguna tarea de esta change»).

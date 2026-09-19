@@ -1,10 +1,10 @@
 ## Why
 
-El ítem 43 del protocolo de medición (`docs/plan_medicion_cap5.md:353`) pide que el drenaje completo
+El ítem 43 del protocolo de medición (`tesis/plan_medicion_cap5.md:353`) pide que el drenaje completo
 tras una reconexión tarde **menos de 30 s**. La corrida del 2026-09-18 sobre el candidato
 `v1.0-tesis` (`devel`, `7a906c2`), con el límite de ingesta elevado a 100000/60 s y declarado según
 D38/RN-132, drenó **2.893 eventos en 59,389 s**: 48,7 ev/s, unos **20,4 ms por evento**. Evidencia en
-`docs/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey/`.
+`tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria5/corte-valkey/`.
 
 El perfilado por componente, medido **dentro del contenedor del backend con el engine y el cliente
 reales**, descarta al broker y señala a la base de datos:
@@ -149,3 +149,17 @@ archivada en `openspec/changes/archive/2026-06-27-backend-async-io-fixes/` ✔; 
 `agent-attribution-and-detection-gap`, de donde sale el instrumental de medición — sus artefactos de
 planificación están completos y el instrumental ya produjo la evidencia del 2026-09-18 sobre la que
 se funda esta propuesta ✔.
+
+## Resultado medido (addendum, 2026-09-18)
+
+**El ítem 43 sigue sin cumplirse y esta change no lo mejoró.** La re-medición de la Batería 5 con la
+change aplicada drenó **2678 eventos en 58,809 s = 45,54 ev/s**, contra los 48,7 ev/s previos y los
+> 96,4 ev/s que el umbral de < 30 s exigía. **Los ítems 40 (orden FIFO) y 41 (no duplicación) no se
+degradaron** —5571 eventos entre las dos corridas, 0 inversiones, 0 duplicados—, que era el riesgo
+principal del diseño.
+
+**La causa raíz no está en el backend**: el drenaje lo limita la espera del publisher del agente
+(`_ACK_TIMEOUT_S = 60.0` en `agent/publisher.py:62` más la cadencia de `await asyncio.sleep(5)` en
+`:613`), no el rendimiento de la ingesta. El desbloqueo del event loop que esta change entrega es
+correcto y está verificado; simplemente no era el cuello. Desarrollo completo, evidencia y perfilado
+en la sección «Resultado de la re-medición» de `design.md`. El umbral de 30 s **no se redefine acá**.
