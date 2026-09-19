@@ -11,6 +11,7 @@ Orden de inicialización:
 """
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -100,6 +101,22 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
         key_path=settings.backend_key_path,
     )
 
+    # Executor de DB único, acotado y propio del proceso (D75/RN-169, D-3 del
+    # design de `ingest-offload-blocking-db`). Se instala como executor por
+    # defecto del loop ANTES de arrancar los consumers para que todos los
+    # `run_in_executor(None, ...)` del proceso —los tres que ya existían por
+    # D21 y los nuevos del carril de ingesta y de notificaciones— tiren de un
+    # único presupuesto, contrastable con una sola cuenta contra la capacidad
+    # del pool (`db_pool_size + db_max_overflow`, ver `Settings`). Deliberado:
+    # NO se crea un executor separado para el carril de ingesta — eso
+    # partiría el presupuesto en dos números y volvería el invariante de
+    # dimensionamiento no verificable con una sola cuenta.
+    db_executor = ThreadPoolExecutor(
+        max_workers=settings.db_executor_max_workers,
+        thread_name_prefix="fim-db",
+    )
+    asyncio.get_running_loop().set_default_executor(db_executor)
+
     # Consumers asyncio — conexiones Valkey dedicadas (no bloquean el cliente HTTP)
     stop_event = asyncio.Event()
     async_valkey = build_async_valkey_client(settings.valkey_url)
@@ -142,6 +159,14 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
 
     await close_async_valkey()
     close_valkey()
+
+    # Cerrar el executor de DB DESPUÉS del gather de cancelación de arriba:
+    # para ese momento ya no hay ninguna task en vuelo que pueda someter
+    # trabajo nuevo al executor, así que `shutdown(wait=True)` espera sólo a
+    # los hilos que ya estaban corriendo y no puede colgarse indefinidamente
+    # (D75/RN-169, D-3 del design).
+    db_executor.shutdown(wait=True)
+
     log.info("backend.shutdown")
 
 

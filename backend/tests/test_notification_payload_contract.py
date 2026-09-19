@@ -143,23 +143,35 @@ def test_notification_id_differs_between_notifications() -> None:
 def test_notification_id_is_built_once_per_notify_event() -> None:
     """
     D41/RN-135 depends on the id being stable across the retry ladder. The
-    invariant is structural: `notify_event` calls `_build_payload` once, outside
-    the loop. This test pins that structure so a refactor that moves the call
-    inside the loop fails here instead of silently breaking deduplication.
+    invariant is structural: `_build_payload` is called exactly once, outside
+    the retry loop.
+
+    D75/RN-169 (`ingest-offload-blocking-db`, D-7 del design) moved that call
+    off the event loop: it now happens inside `_prepare_notification`, a sync
+    helper invoked via `run_in_executor` from `notify_event` BEFORE the retry
+    loop — same invariant, different call site. This test pins the new
+    structure so a refactor that moves the call inside the loop (in either
+    function) fails here instead of silently breaking deduplication.
     """
     import inspect
 
     from app.modules.alerts import service
 
-    source = inspect.getsource(service.notify_event)
-    build_line = next(
-        i for i, line in enumerate(source.splitlines()) if "_build_payload(" in line
-    )
-    loop_line = next(
-        i for i, line in enumerate(source.splitlines()) if "for attempt in range" in line
+    prepare_source = inspect.getsource(service._prepare_notification)
+    assert prepare_source.count("_build_payload(") == 1, (
+        "_build_payload must be called exactly once inside _prepare_notification"
     )
 
-    assert build_line < loop_line, (
-        "_build_payload must be called before the retry loop; calling it inside "
-        "would mint a new notification_id per attempt"
+    notify_source = inspect.getsource(service.notify_event)
+    prepare_call_line = next(
+        i for i, line in enumerate(notify_source.splitlines())
+        if "_prepare_notification" in line and "run_in_executor" in line
+    )
+    loop_line = next(
+        i for i, line in enumerate(notify_source.splitlines()) if "for attempt in range" in line
+    )
+
+    assert prepare_call_line < loop_line, (
+        "_prepare_notification must be invoked before the retry loop; calling "
+        "it inside would mint a new notification_id per attempt"
     )

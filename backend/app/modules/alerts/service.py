@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -87,6 +88,27 @@ def _determine_severity(event: Event, session: Session) -> RuleSeverity:
 
 # ── Punto de entrada post-ingesta ─────────────────────────────────────────────
 
+def _create_alert_row(alert: Alert) -> Alert:
+    """
+    Sync helper invocado via `run_in_executor` (D75/RN-169, D-1 del design de
+    `ingest-offload-blocking-db`): add + commit + refresh de la fila `Alert`
+    en un hilo del executor, no sobre el event loop.
+
+    `session.expunge(alert)` antes de cerrar el `with` desliga la instancia
+    con sus atributos ya materializados por el `refresh` — mismo criterio que
+    `events/service.py` ya aplica sobre `Event` (D-5.3 del design): el objeto
+    que cruza del hilo del executor al loop es un detached con todo cargado,
+    así que leer `id`, `event_id`, `severity`, `notification_id`,
+    `created_at` desde el loop no dispara ningún I/O ni toca ninguna Session.
+    """
+    with Session(engine) as session:
+        session.add(alert)
+        session.commit()
+        session.refresh(alert)
+        session.expunge(alert)
+    return alert
+
+
 async def notify_if_applicable(event: Event) -> None:
     """
     Fire-and-forget desde el consumer (D-C15-02).
@@ -106,17 +128,20 @@ async def notify_if_applicable(event: Event) -> None:
         log.debug("notify.skipped_low_severity", event_id=event.event_id, severity=severity)
         return
 
-    # Crear fila Alert
+    # Crear fila Alert. La Session sale del event loop (D75/RN-169, D-7 del
+    # design de `ingest-offload-blocking-db`): la notificación ya era
+    # fire-and-forget y por eso no bloqueaba a `_handle_message` de forma
+    # directa, pero su Session SÍ frenaba el event loop, y frenar el loop es
+    # frenar el bucle de despacho secuencial del consumer — de ahí sale
+    # exactamente el solapamiento que esta change busca.
     alert_severity = AlertSeverity(severity.value)
     alert = Alert(
         event_id=event.id,
         severity=alert_severity,
         notification_id=str(uuid.uuid4()),
     )
-    with Session(engine) as session:
-        session.add(alert)
-        session.commit()
-        session.refresh(alert)
+    loop = asyncio.get_running_loop()
+    alert = await loop.run_in_executor(None, _create_alert_row, alert)
 
     log.info("notify.alert_created", alert_id=alert.id, event_id=event.event_id, severity=severity)
 
@@ -177,6 +202,78 @@ def _build_payload(alert: Alert, event: Event) -> dict[str, Any]:
     }
 
 
+@dataclass(frozen=True)
+class _PreparedNotification:
+    payload: dict[str, Any]
+    starting_attempt: int
+    persisted_next_retry: datetime | None
+
+
+def _prepare_notification(alert_id: int) -> _PreparedNotification | None:
+    """
+    Sync helper invocado via `run_in_executor` (D75/RN-169, D-7 del design):
+    mintea `notification_id` si falta, resuelve el evento asociado y arma el
+    payload canónico (D40/RN-134) dentro de un hilo del executor. Devuelve
+    `None` si la alerta ya fue entregada — misma idempotencia de `notify_event`
+    que antes del cambio. Levanta `ValueError` si la alerta o el evento
+    asociado no existen, con el mismo texto que la versión previa sobre el
+    event loop, para que el caller no cambie su manejo de errores.
+    """
+    with Session(engine) as session:
+        db_alert = session.get(Alert, alert_id)
+        if db_alert is None:
+            raise ValueError("alert_not_found")
+        if db_alert.delivered_at is not None:
+            return None
+        if not db_alert.notification_id:
+            db_alert.notification_id = str(uuid.uuid4())
+            session.add(db_alert)
+            session.commit()
+            session.refresh(db_alert)
+        db_event = session.get(Event, db_alert.event_id)
+        if db_event is None:
+            raise ValueError("event_not_found")
+        payload = _build_payload(db_alert, db_event)
+        starting_attempt = min(max(db_alert.attempt_count, 0), len(RETRY_DELAYS) + 1)
+        persisted_next_retry = db_alert.next_retry_at
+    return _PreparedNotification(payload, starting_attempt, persisted_next_retry)
+
+
+def _record_retry_attempt(
+    alert_id: int, attempt: int, attempts: int, next_retry_at: datetime | None,
+) -> None:
+    """
+    Sync helper invocado via `run_in_executor` (D75/RN-169, D-7 del design):
+    persiste el estado de un intento de n8n fallido antes de la próxima
+    espera, para que un reinicio pueda continuar desde el próximo intento.
+    """
+    with Session(engine) as session:
+        db_alert = session.get(Alert, alert_id)
+        if db_alert:
+            db_alert.attempt_count = attempt + 1
+            db_alert.retry_count = attempt
+            db_alert.next_retry_at = next_retry_at
+            db_alert.failed_at = None
+            db_alert.last_error = f"n8n failed on attempt {attempt + 1} of {attempts}"
+            session.add(db_alert)
+            session.commit()
+
+
+def _record_all_attempts_failed(alert_id: int) -> None:
+    """
+    Sync helper invocado via `run_in_executor` (D75/RN-169, D-7 del design):
+    marca el fallo terminal de la cascada de canales (n8n + fallbacks).
+    """
+    with Session(engine) as session:
+        db_alert = session.get(Alert, alert_id)
+        if db_alert:
+            db_alert.failed_at = datetime.now(timezone.utc)
+            db_alert.next_retry_at = None
+            db_alert.last_error = "All configured notification channels failed"
+            session.add(db_alert)
+            session.commit()
+
+
 async def notify_event(alert: Alert, event: Event) -> None:
     """
     Retry durable con orden n8n inicial + 3 reintentos, seguido una sola vez por
@@ -200,23 +297,16 @@ async def notify_event(alert: Alert, event: Event) -> None:
 
     # Mint and commit the identity before any external effect. Legacy rows from
     # before migration 014 receive one on first retry/recovery.
-    with Session(engine) as session:
-        db_alert = session.get(Alert, alert.id)
-        if db_alert is None:
-            raise ValueError("alert_not_found")
-        if db_alert.delivered_at is not None:
-            return
-        if not db_alert.notification_id:
-            db_alert.notification_id = str(uuid.uuid4())
-            session.add(db_alert)
-            session.commit()
-            session.refresh(db_alert)
-        db_event = session.get(Event, db_alert.event_id)
-        if db_event is None:
-            raise ValueError("event_not_found")
-        payload = _build_payload(db_alert, db_event)
-        starting_attempt = min(max(db_alert.attempt_count, 0), len(RETRY_DELAYS) + 1)
-        persisted_next_retry = db_alert.next_retry_at
+    # Sale del event loop (D75/RN-169, D-7 del design): esta Session corre
+    # dentro de la misma corrutina fire-and-forget que el resto del camino de
+    # entrega, en TODOS los eventos que notifican.
+    loop = asyncio.get_running_loop()
+    prepared = await loop.run_in_executor(None, _prepare_notification, alert.id)
+    if prepared is None:
+        return
+    payload = prepared.payload
+    starting_attempt = prepared.starting_attempt
+    persisted_next_retry = prepared.persisted_next_retry
 
     attempts = len(RETRY_DELAYS) + 1  # 4 intentos totales (1 inicial + 3 reintentos)
 
@@ -234,7 +324,7 @@ async def notify_event(alert: Alert, event: Event) -> None:
                 await asyncio.sleep(delay)
 
             if await send_n8n(payload, settings.n8n_webhook_url):
-                _mark_delivered(alert.id, AlertChannel.n8n, attempt, attempt + 1)
+                await loop.run_in_executor(None, _mark_delivered, alert.id, AlertChannel.n8n, attempt, attempt + 1)
                 log.info("notify.delivered", alert_id=alert.id, channel=AlertChannel.n8n, attempt=attempt)
                 return
 
@@ -243,20 +333,17 @@ async def notify_event(alert: Alert, event: Event) -> None:
                 if attempt < len(RETRY_DELAYS)
                 else None
             )
-            with Session(engine) as session:
-                db_alert = session.get(Alert, alert.id)
-                if db_alert:
-                    db_alert.attempt_count = attempt + 1
-                    db_alert.retry_count = attempt
-                    db_alert.next_retry_at = next_retry_at
-                    db_alert.failed_at = None
-                    db_alert.last_error = f"n8n failed on attempt {attempt + 1} of {attempts}"
-                    session.add(db_alert)
-                    session.commit()
+            # Sale del event loop (D75/RN-169, D-7 del design): corre por
+            # evento, dentro de la cadena de reintentos de n8n.
+            await loop.run_in_executor(
+                None, _record_retry_attempt, alert.id, attempt, attempts, next_retry_at
+            )
 
     success, channel = await _try_fallbacks(payload)
     if success:
-        _mark_delivered(
+        await loop.run_in_executor(
+            None,
+            _mark_delivered,
             alert.id,
             channel,
             max(attempts - 1, 0) if settings.n8n_webhook_url else 0,
@@ -265,14 +352,9 @@ async def notify_event(alert: Alert, event: Event) -> None:
         log.info("notify.delivered", alert_id=alert.id, channel=channel)
         return
 
-    with Session(engine) as session:
-        db_alert = session.get(Alert, alert.id)
-        if db_alert:
-            db_alert.failed_at = datetime.now(timezone.utc)
-            db_alert.next_retry_at = None
-            db_alert.last_error = "All configured notification channels failed"
-            session.add(db_alert)
-            session.commit()
+    # Sale del event loop (D75/RN-169, D-7 del design): fallo terminal de la
+    # cascada de canales, corre por evento.
+    await loop.run_in_executor(None, _record_all_attempts_failed, alert.id)
     log.error("notify.all_attempts_failed", alert_id=alert.id)
 
 
@@ -282,7 +364,13 @@ def _mark_delivered(
     retry_count: int,
     attempt_count: int,
 ) -> None:
-    """Persist success only after a channel has confirmed acceptance."""
+    """
+    Persist success only after a channel has confirmed acceptance.
+
+    Invocado via `run_in_executor` desde `notify_event` (D75/RN-169, D-7 del
+    design de `ingest-offload-blocking-db`) — sigue siendo una función sync,
+    sin cambio de firma ni de cuerpo, sólo cambió el call site.
+    """
     with Session(engine) as session:
         db_alert = session.get(Alert, alert_id)
         if db_alert:

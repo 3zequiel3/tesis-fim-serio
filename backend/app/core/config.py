@@ -15,8 +15,22 @@ from typing import Literal
 from pydantic import Field
 from pydantic import PostgresDsn
 from pydantic import SecretStr
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
+
+# Conexiones reservadas para consumidores que NO pasan por el executor de DB
+# (D75/RN-169, D-4 del design de `ingest-offload-blocking-db`): 6 para las
+# dependencias HTTP de FastAPI (`get_session`, cada request en vuelo retiene
+# su conexión durante toda la request porque son endpoints async con Session
+# sync — D21) + 2 para el consumer de heartbeat (`_handle_heartbeat` y
+# `_sweep_offline`, que pueden coincidir) + 2 para las corrutinas del
+# lifespan que abren `Session` directamente sobre el loop (`retention_task` y
+# la lectura de `outbox_publisher_task`, D-8 del design). Es una CONSTANTE y
+# no un cuarto parámetro configurable a propósito: D75 pide que el pool y el
+# executor sean configurables, no la reserva — un knob acá permitiría
+# desactivar el invariante ajustándolo.
+_DB_CONNECTIONS_RESERVED_NON_EXECUTOR = 10
 
 
 class Settings(BaseSettings):
@@ -131,6 +145,45 @@ class Settings(BaseSettings):
     # audit_log NO tiene un setting equivalente: su retención es ilimitada y no
     # se purga (W18/RN-94, ratificada) — no confundir ambas tablas.
     rejected_events_retention_days: int = Field(default=90, ge=1)
+
+    # Dimensionamiento conjunto del pool de conexiones y del executor de
+    # hilos (D75/RN-169, que amplía D21). Hoy `core/database.py` construye el
+    # engine sólo con `pool_pre_ping=True` y `echo=False`, así que rigen los
+    # defaults de SQLAlchemy: `pool_size=5` + `max_overflow=10` = 15
+    # conexiones (verificado en ejecución: `QueuePool size=5 overflow_max=10`)
+    # contra un executor por defecto de asyncio de `min(32, cpu_count + 4)` =
+    # 16 hilos en el anfitrión de medición (12 CPUs). Mandar el trabajo
+    # bloqueante del carril de ingesta al executor sin tocar el pool cambia
+    # un cuello de botella por agotamiento de conexiones, que además falla en
+    # vez de degradar. Los tres campos pasan a ser explícitos y configurables,
+    # con el reparto de D-4 del design: capacidad total 20 = 6 (dependencias
+    # HTTP de FastAPI) + 2 (consumer de heartbeat) + 2 (corrutinas del
+    # lifespan con Session sobre el loop) + 10 (executor).
+    db_pool_size: int = Field(default=10, ge=1)
+    db_max_overflow: int = Field(default=10, ge=0)
+    db_executor_max_workers: int = Field(default=10, ge=1)
+
+    @model_validator(mode="after")
+    def _validate_db_executor_within_pool(self) -> "Settings":
+        """
+        Fail-fast: el executor no puede tener más hilos que conexiones
+        disponibles para él (D75/RN-169). Mismo criterio que
+        `rejected_events_retention_days` — una configuración capaz de agotar
+        el pool tiene que matar el arranque, no descubrirse bajo carga como
+        un `TimeoutError` intermitente.
+        """
+        max_allowed = (
+            self.db_pool_size + self.db_max_overflow - _DB_CONNECTIONS_RESERVED_NON_EXECUTOR
+        )
+        if self.db_executor_max_workers > max_allowed:
+            raise ValueError(
+                "db_executor_max_workers "
+                f"({self.db_executor_max_workers}) excede la capacidad disponible del pool: "
+                f"db_pool_size ({self.db_pool_size}) + db_max_overflow ({self.db_max_overflow}) "
+                f"- reserva no-executor ({_DB_CONNECTIONS_RESERVED_NON_EXECUTOR}) = {max_allowed}. "
+                "Bajá db_executor_max_workers o subí db_pool_size/db_max_overflow (D75/RN-169)."
+            )
+        return self
 
     def get_allowed_origins(self) -> list[str]:
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]

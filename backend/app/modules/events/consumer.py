@@ -36,8 +36,10 @@ Al arrancar releer pendientes con id '0' antes de nuevos '>' (RN-76).
 from __future__ import annotations
 
 import asyncio
+import functools
 import inspect
 import json
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -140,15 +142,31 @@ def _build_payload_dump(raw: str, payload: dict[str, Any]) -> str:
 
 class _RateLimiter:
     """
-    Ventana deslizante por agent_id (RN-88). Single-threaded asyncio.
+    Ventana deslizante por agent_id (RN-88).
+
+    Thread-safe (D75/RN-169, D-6 del design de `ingest-offload-blocking-db`):
+    desde que `_get_agent_auth` e `_ingest` corren en `run_in_executor`
+    (D-1 del design), `check()` se invoca desde un hilo del executor —llega
+    por el `accept_new=lambda: _rate_limiter.check(agent_id)` que `_ingest`
+    pasa a `_ingest_event_outcome`— mientras `seconds_until_available()` se
+    invoca desde el event loop, vía `_reject` en el camino de rechazo. Las
+    dos hacen lectura-modificación-escritura sobre el mismo `deque` del mismo
+    bucket (`popleft` en la purga, `append` en el alta), así que un
+    `threading.Lock` envuelve el cuerpo de `check()`, `seconds_until_available()`
+    y `reset()`. Ya NO vale la premisa histórica "single-threaded asyncio":
+    con el despacho secuencial (D-2 del design) no hay solapamiento efectivo
+    hoy porque `_handle_message` espera a que `_ingest` termine antes de
+    llegar a `_reject`, pero el invariante pasaría a depender de una
+    propiedad no local del bucle de despacho, y un refactor futuro del
+    despacho volvería esa dependencia una carrera real. El costo del lock es
+    despreciable (sin contención real) y el algoritmo NO cambia: mismos
+    `popleft`/`append`, mismo `_MIN_RETRY_AFTER_S`, mismo `retry_after`
+    derivado de RN-88 / D37/RN-131.
 
     Límite y ventana salen de `Settings` (`rate_limit_ingest_events` /
     `rate_limit_ingest_window_seconds`, defaults 100 / 60.0 = comportamiento
     histórico). Los argumentos explícitos siguen existiendo para los tests que
     necesitan una ventana chica; `_RateLimiter()` sin argumentos lee la config.
-    El algoritmo no cambia: `seconds_until_available()` deriva el `retry_after`
-    del nack de rate_limited (D37/RN-131) del MISMO `self._window_s`, así que
-    reconfigurar la ventana mantiene coherente el remanente informado al agente.
     """
 
     # D37/RN-131: piso positivo pequeño para el retry_after derivado — un
@@ -162,18 +180,20 @@ class _RateLimiter:
             window_s if window_s is not None else settings.rate_limit_ingest_window_seconds
         )
         self._buckets: dict[str, deque[float]] = {}
+        self._lock = threading.Lock()
 
     def check(self, key: str) -> bool:
         """Retorna True si está dentro del límite (registra el timestamp). False si excede."""
-        now = time.monotonic()
-        cutoff = now - self._window_s
-        bucket = self._buckets.setdefault(key, deque())
-        while bucket and bucket[0] < cutoff:
-            bucket.popleft()
-        if len(bucket) >= self._limit:
-            return False
-        bucket.append(now)
-        return True
+        with self._lock:
+            now = time.monotonic()
+            cutoff = now - self._window_s
+            bucket = self._buckets.setdefault(key, deque())
+            while bucket and bucket[0] < cutoff:
+                bucket.popleft()
+            if len(bucket) >= self._limit:
+                return False
+            bucket.append(now)
+            return True
 
     def seconds_until_available(self, key: str) -> float:
         """
@@ -186,20 +206,22 @@ class _RateLimiter:
         el timestamp más viejo salga de la ventana, nunca por debajo de
         `_MIN_RETRY_AFTER_S`.
         """
-        now = time.monotonic()
-        cutoff = now - self._window_s
-        bucket = self._buckets.get(key)
-        if not bucket:
-            return 0.0
-        while bucket and bucket[0] < cutoff:
-            bucket.popleft()
-        if len(bucket) < self._limit:
-            return 0.0
-        remaining = self._window_s - (now - bucket[0])
-        return max(remaining, self._MIN_RETRY_AFTER_S)
+        with self._lock:
+            now = time.monotonic()
+            cutoff = now - self._window_s
+            bucket = self._buckets.get(key)
+            if not bucket:
+                return 0.0
+            while bucket and bucket[0] < cutoff:
+                bucket.popleft()
+            if len(bucket) < self._limit:
+                return 0.0
+            remaining = self._window_s - (now - bucket[0])
+            return max(remaining, self._MIN_RETRY_AFTER_S)
 
     def reset(self) -> None:
-        self._buckets.clear()
+        with self._lock:
+            self._buckets.clear()
 
 
 _rate_limiter = _RateLimiter()
@@ -264,6 +286,15 @@ async def _process_batch(client: Any, start_id: str) -> None:
     )
     if not results:
         return
+    # Despacho SECUENCIAL por contrato (D-2 del design de
+    # `ingest-offload-blocking-db`, D75/RN-169): sin `gather`, sin
+    # `TaskGroup`, sin `create_task` por mensaje. En todo momento hay un
+    # solo `_handle_message` en vuelo — el orden FIFO (ítem 40) y la
+    # ausencia de duplicados (ítem 41) del protocolo dependen de este mismo
+    # bucle. La ganancia que D75 busca es de SOLAPAMIENTO: mientras el hilo
+    # del executor resuelve la ingesta del evento N, el loop queda libre
+    # para retomar la cadena de notificación fire-and-forget del evento
+    # N-1 — no de paralelismo entre eventos del lote.
     for _stream, messages in results:
         for msg_id, msg_data in messages:
             await _handle_message(client, msg_id, msg_data)
@@ -300,9 +331,15 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
 
     # ── 2. unknown_agent ─────────────────────────────────────────────────────
     loop = asyncio.get_running_loop()
-    # La ingesta ya usa SQLModel sincrónico en este carril ordenado; resolver
-    # la única fila de autenticación evita un cambio de executor redundante.
-    agent_auth = _get_agent_auth(agent_id)
+    # D75/RN-169 deroga la premisa previa ("resolver la única fila de
+    # autenticación evita un cambio de executor redundante"): el carril
+    # ordenado es precisamente donde el bloqueo se acumula, porque cada
+    # evento espera a que el anterior termine su viaje a la base. Medido:
+    # `_get_agent_auth` real cuesta 1,329 ms — sobre 2.893 eventos eso es
+    # ~3,8 s de event loop bloqueado sólo en esta llamada. El carril de
+    # rechazo del mismo archivo ya usaba `run_in_executor` (`:420`, `:554`,
+    # `:563`); este call site replica exactamente ese patrón.
+    agent_auth = await loop.run_in_executor(None, _get_agent_auth, agent_id)
     if agent_auth.shared_secret is None:
         await _reject(client, msg_id, event_id, agent_id, RejectionReason.unknown_agent, received_at, payload, payload_dump)
         return
@@ -397,7 +434,18 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
 
     # ── camino feliz ───────────────────────────────────────────────────────────
     try:
-        outcome = _ingest(payload, received_at, detected_at, agent_id)
+        # D75/RN-169: `_ingest` abre una `Session` bloqueante (`SELECT` de
+        # dedup + `INSERT` + `commit`, medidos en ~1,564 ms el INSERT+commit)
+        # y corría síncrona dentro de la corrutina — el mismo cuello de
+        # botella que `_get_agent_auth` arriba. `_ingest` NO cambia de
+        # interfaz (D-1 del design): mismo cuerpo, misma firma, mismas
+        # excepciones. `run_in_executor` re-lanza en el `await`, así que el
+        # `try/except InvalidTransitionError / SQLAlchemyError` de abajo
+        # sigue capturando exactamente lo mismo, en el mismo lugar, con la
+        # misma semántica de XACK / no-XACK que antes del cambio.
+        outcome = await loop.run_in_executor(
+            None, functools.partial(_ingest, payload, received_at, detected_at, agent_id)
+        )
     except InvalidTransitionError as exc:
         # Dato inválido, no reintentable → XACK + audit log + nack terminal
         # (D-3 del design): sin la respuesta, el agente republica para
