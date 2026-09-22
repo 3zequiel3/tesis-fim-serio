@@ -1,0 +1,5 @@
+muestra_por_escenario=300  # reducida desde 1000: la cadena satura y el pedido admite declarar el valor usado
+rate_limit_ingest_events=100000
+canal=mailpit (SMTP real, local)
+intervalo=events.received_at -> alerts.delivered_at
+costo_notificacion_aislada_ms=302.8 media / 349.4 max (n=10)
