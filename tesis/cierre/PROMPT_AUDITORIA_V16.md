@@ -8,12 +8,15 @@
 
 ---
 
-Actuá como **auditor académico externo** de un Trabajo Final de la Tecnicatura Universitaria en
-Programación de la UTN, Facultad Regional Mendoza. No sos editor: **no corrijas el documento**. Tu
-producto es un diagnóstico.
+Actuá como **auditor académico y editor técnico** de un Trabajo Final de la Tecnicatura
+Universitaria en Programación de la UTN, Facultad Regional Mendoza.
 
-Te adjunto la versión vigente de la tesis. Necesito saber **en qué falla, qué le falta y cuánto pesa
-cada cosa**, con precisión suficiente para que otro pueda actuar sin volver a investigar.
+Te adjunto la versión vigente de la tesis. Necesito tres cosas, en este orden: **un diagnóstico de en
+qué falla y qué le falta**, **el documento corregido** con todo lo que se pueda resolver sin volver
+al laboratorio, y **una pieza visual** que muestre el estado y lo que resta.
+
+**El orden importa y no es negociable.** Auditás primero y calificás la versión que recibiste. Recién
+después corregís. Si calificaras al final, estarías puntuando tu propio trabajo.
 
 ## Qué quiero saber, en una línea
 
@@ -117,6 +120,28 @@ del manual respecto de una inconsistencia interna de estilo: las dos importan, p
 **Edición.** Numeración, remisiones cruzadas que no resuelven, equivalencia entre resumen y abstract,
 densidad de oración, terminología inconsistente.
 
+## Calificación: del 1 al 10, contra un 10 hipotético
+
+**Calificá siempre la versión que recibiste**, nunca la que vas a producir. La nota de la versión
+corregida no te corresponde: la tiene que establecer una auditoría posterior, y así debe decirlo tu
+informe.
+
+Declará el esquema con el que puntuás —qué dimensiones, cómo pesan, cómo se agrega el global— y
+aplicalo de forma explícita y reproducible. Para cada dimensión: el puntaje, **la razón concreta por
+la que no es más alto**, y qué observación puntual la deprime.
+
+**El 10 es la referencia, no el objetivo.** Un 10 bajo un esquema de auditoría no significa «muy
+bueno»: significa que **ninguna dimensión admite observación**. Antes de listar correcciones, escribí
+qué exigiría ese 10 para este trabajo en particular, incluyendo lo que excede el alcance de una
+tecnicatura. Eso le da escala a todo lo demás: sin esa referencia, «le falta esto» no dice cuánto.
+
+Cada corrección que propongas se expresa contra esa escala: **qué distancia al 10 cierra**, y cuál es
+el objetivo realista para esta entrega. Distinguí con claridad lo que acerca al 9 de lo que solo
+acerca al 10 hipotético, porque son decisiones distintas con costos distintos.
+
+Si alguna acción **bajaría** la nota —retirar una limitación declarada, reformular un criterio,
+sustituir evidencia por redacción más cuidada—, decilo explícitamente en esta sección.
+
 ## Sobre la brecha hasta el 9
 
 Declará el esquema con el que puntuás y aplicalo de forma explícita. Para cada dimensión: el puntaje,
@@ -135,6 +160,19 @@ acción mueve la nota**. Si una acción es barata y visible, decilo; si es cara 
 
 Ordená el plan por rendimiento, no por número de apartado.
 
+## Qué corregir y qué no
+
+Corregí en el documento **todo lo que se resuelva con el texto o con fuentes verificables**:
+inconsistencias internas, afirmaciones que exceden su evidencia, encuadre normativo, bibliografía,
+edición, numeración y remisiones.
+
+**No corrijas** lo que exija una ejecución del sistema que no viste, ni des por resuelto un pendiente
+técnico. Eso queda como pregunta al equipo, con la ubicación exacta del texto que depende de la
+respuesta.
+
+Conservá el original y generá **un archivo nuevo, con otro nombre**. No presentes esa versión como
+definitiva mientras falte integrar la devolución técnica.
+
 ## Entregables
 
 1. **Marco de evaluación**: contra qué normativa evaluaste, con sus fuentes citadas, y qué no
@@ -148,6 +186,18 @@ Ordená el plan por rendimiento, no por número de apartado.
    se lee como si todo lo demás estuviera comprobado.
 6. **Preguntas al equipo técnico**, cada una con el apartado afectado, el dato faltante, la evidencia
    requerida y qué parte del texto depende de la respuesta.
+7. **Documento corregido**, con nombre distinto del original, y su **registro de cambios por
+   apartado**: qué modificaste, por qué, y qué dejaste sin tocar deliberadamente.
+8. **Pieza visual del estado**, pensada para mirarse de un vistazo y para compartirse:
+   - La **nota del 1 al 10** de la versión auditada, bien visible, con su esquema.
+   - El puntaje por dimensión y qué la deprime.
+   - **Lo que falta**, separado en tres: lo que se cierra escribiendo, lo que exige laboratorio y lo
+     que es una limitación legítima a declarar.
+   - La distancia al 9 y la distancia al 10 hipotético, diferenciadas.
+   - Lo que **ya está sólido**, porque un tablero que solo muestra deuda no permite decidir.
+
+   Que sea legible en un teléfono y entendible sin haber leído el informe. Si tu entorno no permite
+   generarla, entregá su contenido completo y estructurado para que otro la arme.
 
 Escribí en español neutro y formal. Sé específico: «la Tabla 12 informa X y el apartado 5.4 informa
 Y» vale; «hay inconsistencias en los datos» no vale.
