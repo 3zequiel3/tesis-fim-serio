@@ -144,10 +144,7 @@ sustituir evidencia por redacción más cuidada—, decilo explícitamente en es
 
 ## Sobre la brecha hasta el 9
 
-Declará el esquema con el que puntuás y aplicalo de forma explícita. Para cada dimensión: el puntaje,
-**la razón concreta por la que no es más alto**, y qué observación puntual la deprime.
-
-Después separá con claridad:
+Separá con claridad:
 
 - **Lo que se cierra escribiendo**: correcciones que dependen del documento o de fuentes verificables.
 - **Lo que exige volver al laboratorio**: nada de lo que escribas puede convertir un criterio
