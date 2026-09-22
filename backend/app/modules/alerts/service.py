@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -22,6 +23,7 @@ from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.database import engine
+from app.core.executors import get_notify_executor
 from app.modules.alerts.contract import (
     NOTIFICATION_TYPE_ALERT,
     SCHEMA_VERSION,
@@ -53,6 +55,82 @@ def _fire_and_forget(coro) -> None:
 
 # Delays entre reintentos en segundos (D-C15-03)
 RETRY_DELAYS: list[int] = [5, 30, 120]
+
+
+# ── Cota de entregas concurrentes (D76/RN-170, D-4 y D-6 del design de
+# `notify-isolate-executor-lane`) ───────────────────────────────────────────
+#
+# Acota las CORRUTINAS de entrega en vuelo dentro de `notify_event` — un
+# recurso distinto de los hilos de `db_notify_executor_max_workers`, y a
+# propósito no se igualan (ver el comentario de `Settings`). Vive a nivel de
+# módulo, no dentro de una función, porque tiene que ser el MISMO semáforo
+# para las tres puertas de entrada de `notify_event`: el consumer de eventos,
+# `recover_pending_notifications` (arranque) y el reintento manual desde la
+# DLQ. Ninguna de las tres lo referencia directamente — todas pasan por
+# `notify_event`, que es donde vive el `async with _delivery_slot()` de abajo.
+#
+# El valor se lee de `settings` UNA sola vez, al importar el módulo — igual
+# que `RETRY_DELAYS` es una constante de módulo y no una lectura dinámica de
+# `settings` en cada llamada. Un test que reemplaza `service.settings` por un
+# `MagicMock` parcial (patrón ya establecido en esta suite) no debe romper el
+# cupo de entregas: no es un parámetro por request, es dimensionamiento de
+# arranque.
+_notify_delivery_semaphore = asyncio.Semaphore(settings.notify_max_concurrent_deliveries)
+_notify_backlog_warning_threshold = settings.notify_backlog_warning_threshold
+
+# Contador de entregas EN ESPERA del permiso (no de las que ya lo tienen).
+# Junto con `_notify_backlog_warned` implementa el disparo por FLANCO de la
+# advertencia de backlog: una línea de log al cruzar el umbral hacia arriba,
+# una al volver hacia abajo, nunca una por notificación.
+_notify_waiting_count = 0
+_notify_backlog_warned = False
+
+
+@asynccontextmanager
+async def _delivery_slot():
+    """
+    Async context manager del cupo de entregas concurrentes.
+
+    Comportamiento de desborde: al llenarse el cupo, la corrutina ESPERA su
+    turno en orden de llegada (FIFO, propiedad de `asyncio.Semaphore`). No se
+    descarta, no se rechaza y no se difiere — degradar cualquiera de esas
+    formas violaría la semántica al-menos-una-vez que `notify_event` declara,
+    y "diferir" no tiene adónde: `recover_pending_notifications` corre una
+    sola vez, en el arranque, no hay barrido periódico que recoja una entrega
+    diferida (D-4 del design). El costo residual —la cola de espera no tiene
+    cota— se acota aritméticamente contra el rate limit de ingesta y se hace
+    observable acá, con la advertencia disparada por flanco.
+    """
+    global _notify_waiting_count, _notify_backlog_warned
+    _notify_waiting_count += 1
+    if (
+        not _notify_backlog_warned
+        and _notify_waiting_count >= _notify_backlog_warning_threshold
+    ):
+        _notify_backlog_warned = True
+        log.warning(
+            "notify.delivery_backlog_high",
+            waiting=_notify_waiting_count,
+            threshold=_notify_backlog_warning_threshold,
+        )
+    try:
+        await _notify_delivery_semaphore.acquire()
+    finally:
+        _notify_waiting_count -= 1
+        if (
+            _notify_backlog_warned
+            and _notify_waiting_count < _notify_backlog_warning_threshold
+        ):
+            _notify_backlog_warned = False
+            log.warning(
+                "notify.delivery_backlog_cleared",
+                waiting=_notify_waiting_count,
+                threshold=_notify_backlog_warning_threshold,
+            )
+    try:
+        yield
+    finally:
+        _notify_delivery_semaphore.release()
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -141,7 +219,15 @@ async def notify_if_applicable(event: Event) -> None:
         notification_id=str(uuid.uuid4()),
     )
     loop = asyncio.get_running_loop()
-    alert = await loop.run_in_executor(None, _create_alert_row, alert)
+    # Executor de notificación, referenciado EXPLÍCITAMENTE (D76/RN-170, D-2
+    # del design de `notify-isolate-executor-lane`): `set_default_executor`
+    # más `run_in_executor(None, ...)` es exactamente el mecanismo que
+    # compartía los pools, así que pasar `None` acá pediría el executor de
+    # ingesta sin importar este comentario. La creación de la fila `Alert`
+    # queda FUERA del semáforo de entregas (D-4 del design): es el registro
+    # durable del que dependen la DLQ, el broadcaster SSE y la recuperación,
+    # y sigue ocurriendo antes de entrar a `notify_event`.
+    alert = await loop.run_in_executor(get_notify_executor(), _create_alert_row, alert)
 
     log.info("notify.alert_created", alert_id=alert.id, event_id=event.event_id, severity=severity)
 
@@ -291,71 +377,91 @@ async def notify_event(alert: Alert, event: Event) -> None:
     la fila Alert, no en la tarea asyncio. La entrega es al-menos-una-vez ante
     una caída después de que un receptor acepta pero antes del commit local;
     receptores que necesiten efecto único deben deduplicar notification_id.
+
+    CONCURRENCIA ACOTADA (D76/RN-170, D-4 del design de
+    `notify-isolate-executor-lane`): el cuerpo completo de esta función corre
+    bajo un cupo de entregas concurrentes (`_delivery_slot`), compartido por
+    sus TRES puertas de entrada — el consumer de eventos, la recuperación del
+    arranque y el reintento manual desde la DLQ — porque las tres llegan acá.
+    El permiso se adquiere UNA sola vez, ANTES de `_prepare_notification`, y se
+    sostiene hasta que la entrega termina por cualquier salida (entregada,
+    fallo terminal, o el `return` de idempotencia cuando `_prepare_notification`
+    devuelve `None`): adquirirlo después dejaría la preparación del payload
+    —una `Session` con `commit` y `refresh`— fuera de la cota, y readquirirlo
+    por vuelta del bucle movería `_build_payload` adentro del bucle, con un
+    `notification_id` por intento (D-7 del design). Al llenarse el cupo, la
+    entrega ESPERA su turno en orden de llegada — no se descarta, no se
+    rechaza y no se difiere a un barrido posterior, que hoy no existe.
     """
     if alert.id is None:
         raise ValueError("alert_not_persisted")
 
-    # Mint and commit the identity before any external effect. Legacy rows from
-    # before migration 014 receive one on first retry/recovery.
-    # Sale del event loop (D75/RN-169, D-7 del design): esta Session corre
-    # dentro de la misma corrutina fire-and-forget que el resto del camino de
-    # entrega, en TODOS los eventos que notifican.
-    loop = asyncio.get_running_loop()
-    prepared = await loop.run_in_executor(None, _prepare_notification, alert.id)
-    if prepared is None:
-        return
-    payload = prepared.payload
-    starting_attempt = prepared.starting_attempt
-    persisted_next_retry = prepared.persisted_next_retry
+    async with _delivery_slot():
+        # Mint and commit the identity before any external effect. Legacy rows
+        # from before migration 014 receive one on first retry/recovery.
+        # Sale del event loop (D75/RN-169, D-7 del design) y corre en el
+        # executor de notificación, referenciado EXPLÍCITAMENTE (D76/RN-170,
+        # D-2 del design): pasar `None` acá pediría el executor de ingesta.
+        loop = asyncio.get_running_loop()
+        prepared = await loop.run_in_executor(get_notify_executor(), _prepare_notification, alert.id)
+        if prepared is None:
+            return
+        payload = prepared.payload
+        starting_attempt = prepared.starting_attempt
+        persisted_next_retry = prepared.persisted_next_retry
 
-    attempts = len(RETRY_DELAYS) + 1  # 4 intentos totales (1 inicial + 3 reintentos)
+        attempts = len(RETRY_DELAYS) + 1  # 4 intentos totales (1 inicial + 3 reintentos)
 
-    if settings.n8n_webhook_url:
-        for attempt in range(starting_attempt, attempts):
-            if attempt > 0:
-                if attempt == starting_attempt and persisted_next_retry is not None:
-                    delay = max(
-                        0.0,
-                        (_as_utc(persisted_next_retry) - datetime.now(timezone.utc)).total_seconds(),
+        if settings.n8n_webhook_url:
+            for attempt in range(starting_attempt, attempts):
+                if attempt > 0:
+                    if attempt == starting_attempt and persisted_next_retry is not None:
+                        delay = max(
+                            0.0,
+                            (_as_utc(persisted_next_retry) - datetime.now(timezone.utc)).total_seconds(),
+                        )
+                    else:
+                        delay = float(RETRY_DELAYS[attempt - 1])
+                    log.info("notify.retry_wait", alert_id=alert.id, attempt=attempt, delay_s=delay)
+                    await asyncio.sleep(delay)
+
+                if await send_n8n(payload, settings.n8n_webhook_url):
+                    await loop.run_in_executor(
+                        get_notify_executor(), _mark_delivered, alert.id, AlertChannel.n8n, attempt, attempt + 1
                     )
-                else:
-                    delay = float(RETRY_DELAYS[attempt - 1])
-                log.info("notify.retry_wait", alert_id=alert.id, attempt=attempt, delay_s=delay)
-                await asyncio.sleep(delay)
+                    log.info("notify.delivered", alert_id=alert.id, channel=AlertChannel.n8n, attempt=attempt)
+                    return
 
-            if await send_n8n(payload, settings.n8n_webhook_url):
-                await loop.run_in_executor(None, _mark_delivered, alert.id, AlertChannel.n8n, attempt, attempt + 1)
-                log.info("notify.delivered", alert_id=alert.id, channel=AlertChannel.n8n, attempt=attempt)
-                return
+                next_retry_at = (
+                    datetime.now(timezone.utc) + timedelta(seconds=RETRY_DELAYS[attempt])
+                    if attempt < len(RETRY_DELAYS)
+                    else None
+                )
+                # Sale del event loop (D75/RN-169, D-7 del design): corre por
+                # evento, dentro de la cadena de reintentos de n8n, en el
+                # executor de notificación (D76/RN-170).
+                await loop.run_in_executor(
+                    get_notify_executor(), _record_retry_attempt, alert.id, attempt, attempts, next_retry_at
+                )
 
-            next_retry_at = (
-                datetime.now(timezone.utc) + timedelta(seconds=RETRY_DELAYS[attempt])
-                if attempt < len(RETRY_DELAYS)
-                else None
-            )
-            # Sale del event loop (D75/RN-169, D-7 del design): corre por
-            # evento, dentro de la cadena de reintentos de n8n.
+        success, channel = await _try_fallbacks(payload)
+        if success:
             await loop.run_in_executor(
-                None, _record_retry_attempt, alert.id, attempt, attempts, next_retry_at
+                get_notify_executor(),
+                _mark_delivered,
+                alert.id,
+                channel,
+                max(attempts - 1, 0) if settings.n8n_webhook_url else 0,
+                attempts if settings.n8n_webhook_url else 0,
             )
+            log.info("notify.delivered", alert_id=alert.id, channel=channel)
+            return
 
-    success, channel = await _try_fallbacks(payload)
-    if success:
-        await loop.run_in_executor(
-            None,
-            _mark_delivered,
-            alert.id,
-            channel,
-            max(attempts - 1, 0) if settings.n8n_webhook_url else 0,
-            attempts if settings.n8n_webhook_url else 0,
-        )
-        log.info("notify.delivered", alert_id=alert.id, channel=channel)
-        return
-
-    # Sale del event loop (D75/RN-169, D-7 del design): fallo terminal de la
-    # cascada de canales, corre por evento.
-    await loop.run_in_executor(None, _record_all_attempts_failed, alert.id)
-    log.error("notify.all_attempts_failed", alert_id=alert.id)
+        # Sale del event loop (D75/RN-169, D-7 del design): fallo terminal de
+        # la cascada de canales, corre por evento, en el executor de
+        # notificación (D76/RN-170).
+        await loop.run_in_executor(get_notify_executor(), _record_all_attempts_failed, alert.id)
+        log.error("notify.all_attempts_failed", alert_id=alert.id)
 
 
 def _mark_delivered(

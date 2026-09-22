@@ -1217,6 +1217,31 @@ Reglas: RN-169 (nueva), D21 (ampliada), RN-76 (single-instance, sin escalado hor
 
 ---
 
+### Change 59 — `notify-isolate-executor-lane`
+
+**Capa**: backend · **Depende de**: 58 (`ingest-offload-blocking-db`, dueña de D75/RN-169, del executor único y del validador de dimensionamiento, archivada) y 51 (`agent-attribution-and-detection-gap`, de donde sale el instrumental de medición) · **Paralelizable con**: ninguna que toque `backend/app/core/config.py`, `backend/app/main.py` o `backend/app/modules/alerts/service.py` · **Origen**: evaluación unificada del 2026-09-22 sobre el candidato `v2.0-tesis` (`9c523f4`), paquete `tesis/cierre/evidencia/v2-eval-20260922T175053Z/` · **Decisiones**: D76/RN-170 (completa D75/RN-169); preserva D40/RN-134 y D41/RN-135; no modifica D38/RN-132
+
+> **Nota**: la Change 58 sacó las `Session` bloqueantes del event loop, pero **no resolvió la contención: la mudó de lugar**. `backend/app/main.py:114-118` construye un único `ThreadPoolExecutor` y lo instala con `set_default_executor`, de modo que todo `run_in_executor(None, ...)` del proceso tira del mismo pool. Sobre él compiten dos carriles con reglas de admisión opuestas: la ingesta envía **secuencialmente**, un evento por vez (`consumer.py:342`, `:446`, bucle de `:299-300`), y la notificación **sin cota** desde `_fire_and_forget` (`:497`), encolando entre dos y cinco trabajos por notificación. Con la cola FIFO del executor sin cota del lado del `submit`, el `_ingest` del evento siguiente espera detrás del backlog de notificaciones: **la latencia de la ingesta pasa a ser función de cuánto tarda un mail**.
+
+> **Evidencia.** Notificación **aislada**: 302,8 ms media, 349,4 ms máx (n=10). La **misma** notificación con el carril de ingesta trabajando: 5.233,672 ms media, p95 6.469,887, máx 6.532,691 (n=300) — **~17× de inflación que el canal SMTP no explica**, porque es el mismo canal en las dos mediciones. Drenaje con canal real, tres repeticiones de la Batería 5: 141,061 / 120,366 / 150,150 s (2671 / 2664 / 2663 eventos, preservación 100 %, 0 descartados, 0 duplicados), mediana ≈ **18,9 ev/s** contra ≈ **49,7 ev/s** con canal `log_only`: degradación ≈ **2,6×**.
+
+> **Principio que gobierna la change**: la notificación es una **reacción**, no un acoplamiento. La recuperación de un backlog de ingesta no puede ser función de cuánto tarda un mail.
+
+Capacidades:
+- **Executor dedicado para el carril de notificación**: los seis `run_in_executor` del camino por evento (`alerts/service.py:144`, `:304`, `:327`, `:338`, `:344`, `:357`) dejan de pasar `None` y referencian su executor. El carril de ingesta **conserva el executor por defecto en exclusiva y no cede capacidad**: se le quita un competidor, no hilos.
+- **Concurrencia acotada con desborde declarado**: semáforo dentro de `notify_event`, de modo que cubre las tres puertas de entrada (consumer, `recover_pending_notifications` —cuyo `asyncio.gather` dispara hoy todas las pendientes de golpe— y reintento manual desde la DLQ). Al llenarse la cota la entrega **espera en orden de llegada**: no se descarta (violaría al-menos-una-vez) ni se difiere (dependería de un barrido periódico que no existe). La creación de la fila `Alert` queda **fuera** de la cota.
+- **Presupuesto de conexiones sobre la suma de los dos executors**: `10 + 8 ≤ 10 + 18 − 10 = 18`; `db_max_overflow` sube de 10 a 18 y el resto no se toca. Una sola desigualdad, no dos independientes. Fail-fast en el arranque, reserva constante y no configurable.
+- **Invariantes preservados y verificados**: `notification_id` estable a lo largo de toda la escalera (`_build_payload` una sola vez, fuera del bucle; el permiso se adquiere antes de preparar el payload), al-menos-una-vez, cascada de canales, `RETRY_DELAYS`, despacho secuencial, `expunge` en el límite del executor.
+- **Re-medición obligatoria**: esta change **invalida el candidato congelado `v2.0-tesis`**. Se re-corre el arnés unificado completo (`~/fim-lab/corrida_unificada.sh`) y se emite un **tag nuevo**, verificando `initial: events=0` antes de cada repetición de resiliencia.
+
+Reglas: RN-170 (nueva), D75/RN-169 (ampliada, con su premisa de executor único parcialmente derogada), RN-76 (single-instance), D40/RN-134 y D41/RN-135 (preservadas), D38/RN-132 (sin cambio), ítems 40 y 41 del protocolo (no degradables). Fuera de alcance, **declarado como dirección y no como omisión**: stream de Valkey separado y proceso consumer separado para notificaciones —aislamiento a nivel de proceso, otra magnitud de cambio— y, con él, el barrido periódico de notificaciones pendientes.
+
+**Supuesto abierto declarado**: la contabilidad causal de las operaciones no encoladas **no cierra** — 3.000 operaciones emitidas, 420 líneas `modify colapsado` por repetición, y `420 + 2.671 = 3.091 > 3.000`, de modo que el marcador de colapso no particiona el universo de operaciones. No se infiere explicación; queda sin cerrar con la instrumentación vigente.
+
+**Done**: ningún `run_in_executor` del camino de notificación por evento pasa `None`; un test demuestra que una ráfaga de notificaciones no retrasa la operación de base de datos de la ingesta siguiente; la cota se respeta en las tres puertas de entrada y su desborde espera sin descartar; un test falla si `_build_payload` se invoca más de una vez por entrega; el arranque aborta con `ValidationError` si la suma de los dos executors excede la capacidad del pool; la suite de backend pasa sin regresiones más allá de los 8 fallos preexistentes por colisión de puerto 8443; `scripts/check_spec_integrity.py` pasa antes y después de archivar; queda registrada la re-corrida completa del arnés unificado con tag nuevo y su resultado, **sin declarar mejora anticipada**.
+
+---
+
 ## Decisiones de implementación cerradas — Abril 2026
 
 Las 8 suposiciones que estaban abiertas en una versión anterior de este roadmap se cerraron el 2026-04-24 y se documentaron formalmente en los appendices "Decisiones de implementación — Abril 2026" de:

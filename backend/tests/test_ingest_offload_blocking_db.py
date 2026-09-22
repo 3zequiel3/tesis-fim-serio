@@ -397,11 +397,17 @@ def test_executor_max_workers_within_pool_capacity_minus_reserve() -> None:
 # ── 1.6 — Validación fail-fast de Settings ────────────────────────────────────
 
 def test_settings_defaults_satisfy_invariant() -> None:
+    """
+    `db_max_overflow` sube de 10 a 18 con la Change 59 (`notify-isolate-
+    executor-lane`, D76/RN-170) para financiar `db_notify_executor_max_workers`
+    sin tocar el carril de ingesta — ver test_notify_isolate_executor_lane.py
+    para la cobertura de dimensionamiento de los DOS executors.
+    """
     from app.core.config import Settings
 
     settings = Settings()
     assert settings.db_pool_size == 10
-    assert settings.db_max_overflow == 10
+    assert settings.db_max_overflow == 18
     assert settings.db_executor_max_workers == 10
 
 
@@ -410,8 +416,10 @@ def test_settings_executor_workers_exceeding_pool_capacity_aborts() -> None:
 
     from app.core.config import Settings
 
+    # 11 + 8 (default de db_notify_executor_max_workers) = 19 > 10+18-10=18
+    # (D76/RN-170: la desigualdad valida la SUMA de los dos executors).
     with pytest.raises(ValidationError):
-        Settings(db_executor_max_workers=11)  # 11 > 10+10-10=10
+        Settings(db_executor_max_workers=11)
 
 
 def test_settings_pool_size_zero_aborts() -> None:

@@ -81,6 +81,48 @@ def _create_schema():
     yield
 
 
+# ── Executors de ingesta y notificación (D76/RN-170, D-3 del design de
+# `notify-isolate-executor-lane`) ─────────────────────────────────────────────
+#
+# El lifespan de `app.main` NUNCA corre bajo `AsyncClient` + `ASGITransport`
+# (ver docstring del módulo), así que `install_executors(...)` tampoco corre
+# ahí. Sin este fixture, cualquier camino de notificación ejercitado por un
+# test levantaría `RuntimeError` desde `get_notify_executor()` — el accesor
+# falla EXPLÍCITAMENTE a propósito (D-3 del design), en vez de caer de forma
+# silenciosa al executor por defecto de asyncio, que volvería a mezclar los
+# pools exactamente en el camino que esta change existe para aislar.
+#
+# FUNCTION-scoped a propósito, no session: varios tests de esta suite SÍ usan
+# `with TestClient(app) as client:` (Starlette), que a diferencia de
+# `AsyncClient`+`ASGITransport` SÍ ejecuta el lifespan real — instala su
+# PROPIO par de executors al entrar y los cierra con `shutdown(wait=True)` al
+# salir. Con un fixture de sesión, ese cierre deja el registro global de
+# `app.core.executors` apuntando a executors ya cerrados para el resto de la
+# sesión, y el siguiente test que llame a `notify_event` fuera de un
+# `TestClient` propio explota con "cannot schedule new futures after
+# shutdown". Reinstalar un par fresco antes de CADA test, y cerrar lo que
+# haya quedado registrado (lo propio, o lo que un `TestClient` interno haya
+# instalado y ya cerrado) al final, garantiza que ningún test herede
+# executors muertos de otro.
+@pytest.fixture(autouse=True)
+def _install_notify_executors():
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.core import executors as executors_mod
+
+    ingest_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="test-fim-db")
+    notify_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="test-fim-notify")
+    executors_mod.install_executors(ingest_executor, notify_executor)
+    yield
+    # Cerrar lo que esté REGISTRADO ahora, no necesariamente lo que se creó
+    # arriba: un `TestClient` real dentro del test pudo haber instalado (y ya
+    # cerrado) su propio par. `shutdown()` es idempotente sobre un executor
+    # ya cerrado, así que esto es seguro en los dos casos.
+    executors_mod.get_ingest_executor().shutdown(wait=True)
+    executors_mod.get_notify_executor().shutdown(wait=True)
+    executors_mod.reset_executors_for_tests()
+
+
 # ── Admin seed helper ─────────────────────────────────────────────────────────
 
 def _seed_admin_impl() -> None:

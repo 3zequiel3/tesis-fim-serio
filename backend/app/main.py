@@ -21,6 +21,7 @@ from sqlmodel import SQLModel, Session
 import app.modules  # noqa: F401 — registra todos los modelos en SQLModel.metadata
 from app.core.config import settings
 from app.core.database import engine, get_session
+from app.core.executors import install_executors
 from app.core.health import check_components
 from app.core.logging import configure_logging, log
 from app.core.middleware.cors import CORSOriginMiddleware
@@ -101,20 +102,34 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
         key_path=settings.backend_key_path,
     )
 
-    # Executor de DB único, acotado y propio del proceso (D75/RN-169, D-3 del
-    # design de `ingest-offload-blocking-db`). Se instala como executor por
-    # defecto del loop ANTES de arrancar los consumers para que todos los
-    # `run_in_executor(None, ...)` del proceso —los tres que ya existían por
-    # D21 y los nuevos del carril de ingesta y de notificaciones— tiren de un
-    # único presupuesto, contrastable con una sola cuenta contra la capacidad
-    # del pool (`db_pool_size + db_max_overflow`, ver `Settings`). Deliberado:
-    # NO se crea un executor separado para el carril de ingesta — eso
-    # partiría el presupuesto en dos números y volvería el invariante de
-    # dimensionamiento no verificable con una sola cuenta.
+    # DOS executors de DB, acotados y propios del proceso (D76/RN-170, que
+    # deroga PARCIALMENTE la premisa que dejó D75/RN-169 más abajo). El de
+    # ingesta se instala como executor por defecto del loop ANTES de arrancar
+    # los consumers, para que todo `run_in_executor(None, ...)` del proceso
+    # —los call sites de D21, del carril de ingesta y de los demás consumers
+    # que no son de notificación— tire de él. El de notificación NO se
+    # instala como default: los call sites del camino de notificación por
+    # evento lo referencian de forma EXPLÍCITA (D-2 del design de
+    # `notify-isolate-executor-lane`), nunca con `None`.
+    #
+    # La premisa que dejó D75 —"un solo número es más verificable que dos"—
+    # era razonable mientras el único consumidor relevante del executor fuera
+    # el carril de ingesta. Deja de sostenerse cuando dos carriles con reglas
+    # de admisión OPUESTAS —secuencial contra no acotado— comparten ese
+    # número: un presupuesto único no es verificable si no se sabe quién lo
+    # consume, es sólo un número. La verificabilidad se preserva igual,
+    # porque la desigualdad de `Settings` (D-5 del design) SUMA los hilos de
+    # los dos executors contra la capacidad del pool: sigue habiendo una sola
+    # cuenta, ahora con dos términos.
     db_executor = ThreadPoolExecutor(
         max_workers=settings.db_executor_max_workers,
         thread_name_prefix="fim-db",
     )
+    notify_executor = ThreadPoolExecutor(
+        max_workers=settings.db_notify_executor_max_workers,
+        thread_name_prefix="fim-notify",
+    )
+    install_executors(db_executor, notify_executor)
     asyncio.get_running_loop().set_default_executor(db_executor)
 
     # Consumers asyncio — conexiones Valkey dedicadas (no bloquean el cliente HTTP)
@@ -160,11 +175,19 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     await close_async_valkey()
     close_valkey()
 
-    # Cerrar el executor de DB DESPUÉS del gather de cancelación de arriba:
+    # Cerrar los DOS executors DESPUÉS del gather de cancelación de arriba:
     # para ese momento ya no hay ninguna task en vuelo que pueda someter
-    # trabajo nuevo al executor, así que `shutdown(wait=True)` espera sólo a
-    # los hilos que ya estaban corriendo y no puede colgarse indefinidamente
-    # (D75/RN-169, D-3 del design).
+    # trabajo nuevo a ninguno de los dos, así que `shutdown(wait=True)`
+    # espera sólo a los hilos que ya estaban corriendo y no puede colgarse
+    # indefinidamente (D75/RN-169, D-3 del design; orden ampliado por D-9 del
+    # design de `notify-isolate-executor-lane`). El de NOTIFICACIÓN se cierra
+    # ANTES que el de ingesta: las corrutinas de notificación son las últimas
+    # en tener trabajo pendiente —una entrega puede estar a mitad de su
+    # escalera de reintentos— y son las únicas que alimentan su propio
+    # executor: cerrar primero el de ingesta no ayuda a nadie, cerrar primero
+    # el de notificación deja que su drenaje termine mientras el resto del
+    # proceso todavía existe.
+    notify_executor.shutdown(wait=True)
     db_executor.shutdown(wait=True)
 
     log.info("backend.shutdown")

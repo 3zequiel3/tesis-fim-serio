@@ -785,7 +785,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17; D70–D72 (RN-164 a RN-166) se agregaron el 2026-09-17; D73 (RN-167) se agregó el 2026-09-17; D74 (RN-168) se agregó el 2026-09-17; D75 (RN-169) se agregó el 2026-09-18. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17; D70–D72 (RN-164 a RN-166) se agregaron el 2026-09-17; D73 (RN-167) se agregó el 2026-09-17; D74 (RN-168) se agregó el 2026-09-17; D75 (RN-169) se agregó el 2026-09-18; D76 (RN-170) se agregó el 2026-09-22. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -2476,6 +2476,110 @@ de 30 s del ítem 43 **no se redefine acá**. Si tras implementar y medir el dre
 encima del umbral, eso abre un ajuste de criterio declarado propio, con el número nuevo a la vista;
 declararlo antes de medir sería exactamente la reinterpretación silenciosa que la tabla de ajustes
 del Change 57 existe para evitar.
+
+#### D76 / RN-170: El carril de notificación se aísla en recursos del carril de ingesta, con concurrencia acotada y desborde declarado
+
+**Descripción:** El trabajo de base de datos del camino de notificación por evento SHALL ejecutarse
+en un **executor de hilos dedicado**, distinto del que usa el carril de ingesta, y sus call sites
+SHALL referenciarlo **explícitamente**. Pasar `None` a `run_in_executor` MUST considerarse un defecto
+en ese camino: `None` designa el executor por defecto del loop, que es el del carril de ingesta.
+
+Esto completa D75/RN-169, que sacó las `Session` del event loop pero las dejó a todas en un mismo
+`ThreadPoolExecutor`. `backend/app/main.py:114-118` construye un único executor y lo instala con
+`set_default_executor`, de modo que **todo** `run_in_executor(None, ...)` del proceso tira del mismo
+pool. Sobre ese pool compiten dos carriles con reglas de admisión opuestas: el de ingesta envía
+trabajo **secuencialmente**, un evento por vez (`_get_agent_auth` en
+`backend/app/modules/events/consumer.py:342` e `_ingest` en `:446`, despachados por el bucle de
+`:299-300`), mientras que el de notificación envía **sin cota**, desde corrutinas lanzadas con
+`_fire_and_forget` (`:497`), y cada notificación encola entre dos y cinco trabajos
+(`backend/app/modules/alerts/service.py:144`, `:304`, `:327`, `:338`, `:344`, `:357`). Como la cola
+del executor es FIFO y no tiene cota del lado del `submit`, el `_ingest` del evento siguiente espera
+detrás del backlog de notificaciones: **la latencia del carril de ingesta pasa a ser función de
+cuánto tarda una entrega**. El carril de ingesta SHALL conservar el executor por defecto en exclusiva
+y NO SHALL ceder capacidad para financiar este aislamiento.
+
+La concurrencia del carril de notificación SHALL estar **acotada**, y la cota SHALL aplicarse a las
+**tres** puertas de entrada del camino de entrega —el consumer de eventos, la recuperación de
+notificaciones pendientes del arranque, cuyo `asyncio.gather` dispara hoy todas las pendientes de
+golpe, y el reintento manual desde la DLQ—, de modo que ninguna pueda saltearla. Al alcanzarse la
+cota la entrega SHALL **esperar su turno en orden de llegada**: el sistema MUST NOT descartarla,
+rechazarla ni diferirla a un barrido posterior. Descartar violaría la semántica al-menos-una-vez que
+`notify_event` documenta; diferir dependería de un barrido periódico que **no existe** —
+`recover_pending_notifications` corre una sola vez, en el arranque—, de modo que significaría en los
+hechos "entregar en el próximo reinicio". La cantidad de entregas en espera SHALL ser observable, con
+advertencia **disparada por flanco** y nunca una por notificación. La **creación de la fila `Alert`**
+SHALL quedar fuera de la cota: es el registro durable del que dependen la DLQ (RN-86, RN-102), el
+stream SSE y la recuperación, y una alerta que tarda en entregarse sigue siendo visible mientras que
+una que tarda en crearse no existe para nadie.
+
+La cota de entregas concurrentes y el número de hilos del executor de notificación SHALL ser
+parámetros **distintos**: el executor acota el paralelismo de base de datos del carril, mientras que
+las entregas pasan la mayor parte de su vida esperando en la red o entre reintentos, sin ocupar hilo
+ni conexión.
+
+El presupuesto de conexiones SHALL recalcularse sobre la **suma** de los dos executors:
+
+```
+hilos_executor_ingesta + hilos_executor_notificacion
+    ≤ pool_size + max_overflow − reserva_no_executor
+```
+
+Una sola desigualdad sobre la suma, NO dos independientes: los dos pools de hilos tiran del mismo
+pool de conexiones, y dos condiciones separadas admitirían una configuración donde cada executor cabe
+por su cuenta y juntos agotan el pool — el modo de falla que D75/RN-169 existe para prevenir, con la
+agravante de parecer validado. Con los valores adoptados: `10 + 8 ≤ 10 + 18 − 10 = 18`, es decir
+`db_max_overflow` sube de 10 a 18 y los demás no se tocan. Las 28 conexiones corren contra el
+`max_connections=100` por defecto de `postgres:18.3` (`docker-compose.yml:46`, sin override) para un
+backend single-instance (RN-76). El arranque SHALL abortar con error de validación si la desigualdad
+se viola, y la reserva no destinada a los executors SHALL seguir siendo constante del código y no
+parámetro configurable.
+
+**Condición:** Camino de notificación por evento del backend, sus tres puertas de entrada, y el
+dimensionamiento conjunto de pool y executors.
+
+**Motivo:** Medición sobre el candidato `v2.0-tesis` (`9c523f4`), paquete
+`tesis/cierre/evidencia/v2-eval-20260922T175053Z/`, con canal SMTP real (Mailpit) e intervalo medido
+`events.received_at → alerts.delivered_at`. Una notificación **aislada** cuesta 302,8 ms de media y
+349,4 ms como máximo (n=10, `notificacion/procedencia.txt`); la **misma** notificación con el carril
+de ingesta trabajando cuesta 5.233,672 ms de media, p95 6.469,887 y máximo 6.532,691 (n=300,
+escenario secuencial, `notificacion/resumen.txt`): **~17× de inflación que el canal SMTP no explica**,
+porque es el mismo canal en las dos mediciones. Los tres escenarios comparten el techo de p95 entre
+5,9 s y 6,5 s, que es la firma de una cola saturada. El drenaje lo confirma: mediana de 141,061 s
+sobre tres repeticiones de la Batería 5 con canal real (141,061 / 120,366 / 150,150 s; 2671 / 2664 /
+2663 eventos; preservación 100 %, 0 descartados, 0 duplicados) ≈ 18,9 ev/s, contra ≈ 49,7 ev/s con el
+canal en `log_only` (2.920 eventos en 58,809 s): **degradación ≈ 2,6×** atribuible al acoplamiento.
+
+**Excepciones:** No se separa la notificación a un stream de Valkey ni a un proceso propio. Sería
+aislamiento a nivel de **proceso** y resolvería el problema de forma más completa, pero es otra
+magnitud de cambio —stream y contrato nuevos, consumer group nuevo, unidad de despliegue nueva,
+política propia de reintento y DLQ, y revisión de RN-76—; el aislamiento de recursos dentro del
+proceso es la corrección mínima que la evidencia justifica y un prerrequisito natural de esa
+separación. Queda **nombrada como dirección**, no omitida. Con ella queda fuera el barrido periódico
+de notificaciones pendientes, del que dependería cualquier política de desborde que descarte o
+difiera. No se migra a `AsyncSession` (D21 y D75 siguen vigentes) y no se escala horizontalmente
+(RN-76).
+
+**Reglas afectadas:** amplía D75/RN-169, cuyo enunciado de un executor único —"todo
+`run_in_executor(None, ...)` del proceso tira de un único presupuesto"— es precisamente lo que
+produce el acoplamiento; esa premisa queda **parcialmente derogada**: un presupuesto único era más
+verificable mientras el único consumidor relevante fuera la ingesta, y deja de serlo cuando dos
+carriles con reglas de admisión opuestas lo comparten. Preserva sin cambio D40/RN-134 y D41/RN-135:
+`_build_payload` SHALL seguir invocándose **exactamente una vez por entrega, fuera del bucle de
+reintentos**, porque es la única razón por la que `notification_id` es estable a lo largo de la
+escalera y esa estabilidad es la única razón por la que sirve como clave de deduplicación; el permiso
+de la cota SHALL adquirirse una sola vez **antes** de la preparación del payload y sostenerse hasta
+que la entrega termina. No modifica D38/RN-132, ni la cascada de canales, ni el contrato del stream
+`events`, ni el esquema de base de datos. Los ítems 40 (FIFO) y 41 (cero duplicados) del protocolo
+siguen sin ser degradables. Agregada el 2026-09-22.
+
+**Supuesto abierto declarado, no resuelto por esta decisión:** la contabilidad causal de las
+operaciones que no llegaron a encolarse **no cierra**. El generador emite 3.000 operaciones por
+repetición, el log del agente marca 420 líneas `modify colapsado` por repetición, y
+`420 + 2.671 = 3.091 > 3.000`: el marcador de colapso **no particiona** el universo de operaciones.
+No se infiere ninguna explicación acá. La atribución causal por operación no encolada queda sin
+cerrar con la instrumentación vigente; cerrarla requiere instrumentación adicional en el agente. No
+afecta este diagnóstico, que se funda en la latencia de notificación y en la tasa de drenaje, ni la
+preservación, que es del 100 % sobre los eventos **encolados**.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

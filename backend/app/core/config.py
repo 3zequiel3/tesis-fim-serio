@@ -19,8 +19,8 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 
-# Conexiones reservadas para consumidores que NO pasan por el executor de DB
-# (D75/RN-169, D-4 del design de `ingest-offload-blocking-db`): 6 para las
+# Conexiones reservadas para consumidores que NO pasan por ningún executor de
+# DB (D75/RN-169, D-4 del design de `ingest-offload-blocking-db`): 6 para las
 # dependencias HTTP de FastAPI (`get_session`, cada request en vuelo retiene
 # su conexión durante toda la request porque son endpoints async con Session
 # sync — D21) + 2 para el consumer de heartbeat (`_handle_heartbeat` y
@@ -29,7 +29,9 @@ from pydantic_settings import SettingsConfigDict
 # la lectura de `outbox_publisher_task`, D-8 del design). Es una CONSTANTE y
 # no un cuarto parámetro configurable a propósito: D75 pide que el pool y el
 # executor sean configurables, no la reserva — un knob acá permitiría
-# desactivar el invariante ajustándolo.
+# desactivar el invariante ajustándolo. D76/RN-170 (`notify-isolate-executor-
+# lane`) agrega un segundo executor pero ningún consumidor nuevo fuera de los
+# dos, así que este reparto no cambia.
 _DB_CONNECTIONS_RESERVED_NON_EXECUTOR = 10
 
 
@@ -146,28 +148,84 @@ class Settings(BaseSettings):
     # se purga (W18/RN-94, ratificada) — no confundir ambas tablas.
     rejected_events_retention_days: int = Field(default=90, ge=1)
 
-    # Dimensionamiento conjunto del pool de conexiones y del executor de
-    # hilos (D75/RN-169, que amplía D21). Hoy `core/database.py` construye el
-    # engine sólo con `pool_pre_ping=True` y `echo=False`, así que rigen los
-    # defaults de SQLAlchemy: `pool_size=5` + `max_overflow=10` = 15
-    # conexiones (verificado en ejecución: `QueuePool size=5 overflow_max=10`)
-    # contra un executor por defecto de asyncio de `min(32, cpu_count + 4)` =
-    # 16 hilos en el anfitrión de medición (12 CPUs). Mandar el trabajo
-    # bloqueante del carril de ingesta al executor sin tocar el pool cambia
-    # un cuello de botella por agotamiento de conexiones, que además falla en
-    # vez de degradar. Los tres campos pasan a ser explícitos y configurables,
-    # con el reparto de D-4 del design: capacidad total 20 = 6 (dependencias
-    # HTTP de FastAPI) + 2 (consumer de heartbeat) + 2 (corrutinas del
-    # lifespan con Session sobre el loop) + 10 (executor).
+    # Dimensionamiento conjunto del pool de conexiones y de los DOS executors
+    # de hilos del backend (D75/RN-169, ampliado por D76/RN-170 —
+    # `notify-isolate-executor-lane`). D75 hizo explícito un único executor
+    # compartido entre el carril de ingesta y el de notificación; D76 lo
+    # separa en dos, exclusivos cada uno, porque la cola FIFO de un
+    # `ThreadPoolExecutor` compartido entre un carril que envía de a uno y
+    # otro que envía sin cota es acoplamiento, no aislamiento (evidencia:
+    # ~17× de inflación de la latencia de notificación bajo carga, ver
+    # proposal.md de `notify-isolate-executor-lane`). La desigualdad se
+    # expresa sobre la SUMA de los dos executors, nunca como dos condiciones
+    # separadas: los dos pools de hilos tiran del mismo pool de conexiones, y
+    # dos condiciones independientes admitirían una configuración donde cada
+    # executor cabe por su cuenta y juntos agotan el pool.
+    #
+    #   db_executor_max_workers + db_notify_executor_max_workers
+    #       ≤ db_pool_size + db_max_overflow − _DB_CONNECTIONS_RESERVED_NON_EXECUTOR
+    #   10 + 8 = 18 ≤ 10 + 18 − 10 = 18   (saturado exactamente, misma
+    #                                      disciplina que dejó D75/RN-169)
+    #
+    # `db_pool_size` (10), `db_executor_max_workers` (10) y la reserva (10)
+    # NO se tocan: el carril de ingesta no cede capacidad para financiar su
+    # propio aislamiento. `db_max_overflow` crece de 10 a 18 —8 conexiones
+    # más, exactamente las que financia el executor de notificación nuevo— y
+    # es el ÚNICO valor de este bloque cuyo default cambia. La reserva de 10
+    # conserva el reparto de D-4 de la Change 58 (6 dependencias HTTP de
+    # FastAPI + 2 consumer de heartbeat + 2 corrutinas del lifespan con
+    # Session sobre el loop): esta change no agrega ningún consumidor fuera
+    # de los dos executors. Con el default, el pool pasa de 20 a 28
+    # conexiones, holgadas contra el `max_connections=100` por defecto de
+    # `postgres:18.3` (`docker-compose.yml:46`, sin override) para un
+    # backend single-instance (RN-76).
     db_pool_size: int = Field(default=10, ge=1)
-    db_max_overflow: int = Field(default=10, ge=0)
+    db_max_overflow: int = Field(default=18, ge=0)
     db_executor_max_workers: int = Field(default=10, ge=1)
+    # Executor exclusivo del carril de notificación (D76/RN-170, D-1 del
+    # design): ocho hilos porque el trabajo de DB de una entrega es
+    # estrictamente serial dentro de su corrutina —nunca hay más de un
+    # trabajo de executor en vuelo por notificación— y, a propósito,
+    # ESTRICTAMENTE MENOR que los diez del carril de ingesta: ante cualquier
+    # duda de dimensionamiento, el carril que no puede degradarse se queda
+    # con la porción mayor.
+    db_notify_executor_max_workers: int = Field(default=8, ge=1)
+
+    # Cota de entregas concurrentes del carril de notificación y umbral de
+    # advertencia de backlog (D76/RN-170, D-4 y D-6 del design de
+    # `notify-isolate-executor-lane`). Acota las CORRUTINAS de entrega en
+    # vuelo dentro de `notify_event` — un recurso distinto de los hilos del
+    # executor de notificación de arriba, y a propósito no se igualan: el
+    # executor acota el paralelismo de base de datos del carril (cuántas
+    # `Session` puede tener abiertas a la vez), mientras que una entrega pasa
+    # la mayor parte de su vida esperando en la red o durmiendo entre
+    # reintentos de la escalera de n8n, sin ocupar hilo ni conexión.
+    # Igualarlos bloquearía el carril completo con los hilos del executor
+    # ociosos: ocho entregas durmiendo sus 120 s de tercer reintento
+    # agotarían un cupo de ocho sin usar ningún hilo. El default de 32 cubre
+    # el caso normal —a ~302,8 ms de costo aislado por notificación, 32 en
+    # vuelo sostienen un orden de magnitud más de notificaciones por segundo
+    # de las que el rate limit de ingesta permite generar (100/60s por
+    # agent_id, `rate_limit_ingest_events`)— sin dejar de ser una cota.
+    notify_max_concurrent_deliveries: int = Field(default=32, ge=1)
+    # Cantidad de entregas EN ESPERA (no en vuelo) que dispara la advertencia
+    # de backlog. Disparada por FLANCO —una vez al cruzar el umbral hacia
+    # arriba y una al volver hacia abajo—, nunca una vez por notificación: un
+    # log por notificación bajo saturación sería la misma amplificación que
+    # la advertencia existe para reportar.
+    notify_backlog_warning_threshold: int = Field(default=200, ge=1)
 
     @model_validator(mode="after")
-    def _validate_db_executor_within_pool(self) -> "Settings":
+    def _validate_db_executors_within_pool(self) -> "Settings":
         """
-        Fail-fast: el executor no puede tener más hilos que conexiones
-        disponibles para él (D75/RN-169). Mismo criterio que
+        Fail-fast: la SUMA de los hilos de los dos executors no puede exceder
+        las conexiones disponibles para ellos (D76/RN-170, que amplía
+        D75/RN-169). Se valida la suma y no dos desigualdades independientes
+        a propósito: los dos pools de hilos tiran del mismo pool de
+        conexiones, y dos condiciones separadas admitirían una configuración
+        donde cada executor cabe por su cuenta y juntos agotan el pool — el
+        modo de falla que D75/RN-169 existe para prevenir, con la agravante
+        de parecer validado. Mismo criterio fail-fast que
         `rejected_events_retention_days` — una configuración capaz de agotar
         el pool tiene que matar el arranque, no descubrirse bajo carga como
         un `TimeoutError` intermitente.
@@ -175,13 +233,16 @@ class Settings(BaseSettings):
         max_allowed = (
             self.db_pool_size + self.db_max_overflow - _DB_CONNECTIONS_RESERVED_NON_EXECUTOR
         )
-        if self.db_executor_max_workers > max_allowed:
+        total_executor_workers = self.db_executor_max_workers + self.db_notify_executor_max_workers
+        if total_executor_workers > max_allowed:
             raise ValueError(
-                "db_executor_max_workers "
-                f"({self.db_executor_max_workers}) excede la capacidad disponible del pool: "
+                "db_executor_max_workers + db_notify_executor_max_workers "
+                f"({self.db_executor_max_workers} + {self.db_notify_executor_max_workers} = "
+                f"{total_executor_workers}) excede la capacidad disponible del pool: "
                 f"db_pool_size ({self.db_pool_size}) + db_max_overflow ({self.db_max_overflow}) "
                 f"- reserva no-executor ({_DB_CONNECTIONS_RESERVED_NON_EXECUTOR}) = {max_allowed}. "
-                "Bajá db_executor_max_workers o subí db_pool_size/db_max_overflow (D75/RN-169)."
+                "Bajá db_executor_max_workers o db_notify_executor_max_workers, o subí "
+                "db_pool_size/db_max_overflow (D76/RN-170)."
             )
         return self
 
