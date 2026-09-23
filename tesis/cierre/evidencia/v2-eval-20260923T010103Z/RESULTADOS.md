@@ -89,11 +89,36 @@ está en `v2-eval-20260922T175053Z/resiliencia/MOTIVO_TRAZAS_INVALIDAS.md`.
 
 ## 5. Suites sobre el candidato
 
-860 pasando, 4 saltados, 0 fallando.
+Artefactos en `suites/`, con procedencia `candidate_tag=v3.0-tesis`, `candidate_commit=22f393d`.
 
-**Matiz que debe declararse**: los 8 fallos preexistentes por colisión del puerto 8443 no aparecen
-porque la corrida usa contenedores efímeros de Postgres y Valkey, no porque se hayan corregido. El
-entorno cambió, no el resultado de esas pruebas.
+| Suite | Tests | Fallas | Omitidos |
+|---|---|---|---|
+| agente | 642 | 0 | 1 |
+| backend | 864 | **15** | 4 |
+| frontend | 260 | 0 | 0 |
+
+Las 15 fallas del backend son **acoplamiento de las pruebas entre sí y con el entorno**, no defectos
+del producto, y se reparten en dos causas distintas:
+
+- **13** con `RuntimeError: This portal is not running`. `backend/app/core/pki.py` fija el puerto 8443
+  sin opción de moverlo, y las pruebas que ejecutan el ciclo de vida real con `TestClient` compiten
+  por él; cuando una falla al enlazar, el *portal* compartido de anyio queda roto y arrastra a sus
+  hermanas. Afecta a `tests.test_notifications` (7) y `tests.test_sse_alerts` (6).
+- **2** en `tests.core.test_notification_settings`. La prueba afirma que una opción queda vacía cuando
+  no se define, pero lee el entorno real del proceso, y el laboratorio tiene `N8N_WEBHOOK_URL`
+  exportada.
+
+**Matiz que debe declararse sin adornos**: la misma suite ejecutada contra contenedores efímeros de
+Postgres y Valkey reporta 0 fallas. Eso **no** significa que estén corregidas: significa que ese
+entorno evita el conflicto. Las cifras de referencia para el capítulo son las de la tabla, que salen
+del artefacto sellado.
+
+Una versión anterior de este documento informaba «860 pasando, 4 saltados, 0 fallando». Esa cifra
+provenía de una ejecución manual con contenedores efímeros y **no estaba respaldada por ningún
+artefacto del paquete**: el `suites/` que este paquete traía correspondía al candidato `v1.0-tesis`,
+porque `scripts/correr_suites_candidato.sh` tenía el candidato y el directorio de salida escritos a
+mano. El script ahora los toma como parámetros y estas cifras salen de una corrida propia del
+candidato.
 
 ## 6. Supuesto abierto, declarado y no resuelto
 

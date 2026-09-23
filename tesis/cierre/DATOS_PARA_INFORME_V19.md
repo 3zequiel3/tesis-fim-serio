@@ -59,6 +59,38 @@ los primeros 83 segundos de una ventana de 1.796 y ninguna después: un reloj co
 reinicio. El arnés ahora exige que ambas máquinas se declaren sincronizadas por NTP, espera un período
 de asentamiento antes de medir, y reporta cuántas negativas hubo y si se concentran al inicio.
 
+### Falsos negativos: 16 de 16 atribuidos, ninguno es un falso negativo
+
+La Batería 3 ejecuta 500 operaciones y la plataforma persiste 484 eventos. Las 16 restantes **no se
+resuelven restando**: restar no distingue «el sistema no la vio» —que sería un falso negativo— de «el
+sistema la vio y decidió, correctamente, no reportarla», que es la política documentada, que informa
+desviaciones respecto de la línea base y no operaciones de entrada/salida en bruto.
+
+La distinción se establece con la traza causal del agente, que registra una entrada por etapa. El
+cruce es reproducible y está publicado en `scripts/atribuir_operaciones_sin_evento.py`, sin
+dependencias externas; el detalle por operación queda en `latencia/atribucion_sin_evento.csv` dentro
+del paquete.
+
+| Resultado | Valor |
+|---|---|
+| Operaciones del manifiesto | 500 |
+| Eventos persistidos | 484 |
+| Operaciones sin evento | 16 |
+| **Atribuidas con causa** | **16 de 16** |
+| Causa única hallada | `matches_active_baseline` |
+
+Dos comprobaciones independientes del cruce, que salen de la misma traza:
+
+- **Clasificados que no se persistieron: 0.** Todo lo que el agente decidió reportar llegó a la base.
+- **Persistidos que no se clasificaron: 0.** Nada apareció en la base sin pasar por la decisión.
+
+Es decir: no hay pérdida entre la clasificación y la persistencia, y las 16 ausencias son supresiones
+deliberadas con motivo registrado. **El criterio de cero falsos negativos queda cerrado**, y no por
+inferencia sino con el registro del propio sistema.
+
+Hay precedente del mismo resultado en la corrida del 17 de septiembre, donde se atribuyeron 19 de 19
+con idéntica causa.
+
 ---
 
 ## 2. Grupo de control e inferencia pareada (Batería 7)
@@ -189,11 +221,27 @@ tres trazas eran **el mismo archivo copiado tres veces**; su acta está en
 
 ## 5. Suites sobre el candidato
 
-860 pasando, 4 saltados, **0 fallando**.
+Artefacto sellado con procedencia `v3.0-tesis`: agente 642/0/1, backend 864 tests con **15 fallas** y 4 omitidos, frontend 260/0/0. Las 15 son acoplamiento de las pruebas entre sí (13, puerto 8443 fijo en `pki.py`) y con el entorno (2, la prueba lee `N8N_WEBHOOK_URL` del proceso), no defectos del producto.
 
-**Matiz que debe declararse sin adornos**: los 8 fallos preexistentes por colisión del puerto 8443 no
-aparecen porque la corrida usa contenedores efímeros de Postgres y Valkey, **no porque se hayan
-corregido**. Cambió el entorno, no el resultado de esas pruebas.
+Desglose de las 15, por mensaje, tomado del `backend.xml` del paquete:
+
+- **13** con `RuntimeError: This portal is not running`, en `tests.test_notifications` (7) y
+  `tests.test_sse_alerts` (6). `backend/app/core/pki.py` fija el puerto 8443 sin opción de moverlo;
+  las pruebas que ejecutan el ciclo de vida real compiten por él, y cuando una falla al enlazar el
+  *portal* compartido de anyio queda roto y arrastra a sus hermanas.
+- **2** en `tests.core.test_notification_settings`, por una causa distinta: la prueba afirma que una
+  opción queda vacía cuando no se define, pero lee el entorno real del proceso, y el laboratorio tiene
+  `N8N_WEBHOOK_URL` exportada.
+
+**Matiz que debe declararse sin adornos**: la misma suite ejecutada contra contenedores efímeros de
+Postgres y Valkey reporta 0 fallas. Eso **no** significa que estén corregidas: significa que ese
+entorno evita el conflicto. Las cifras de referencia para el capítulo son las del artefacto sellado.
+
+Historia de esta cifra, que conviene conocer porque explica una corrección: hasta el 2026-09-23 el
+script `scripts/correr_suites_candidato.sh` tenía **el candidato y el directorio de salida escritos a
+mano**, fijados en `7a906c2` y en la carpeta `suites/` del paquete de septiembre. En consecuencia,
+toda corrida posterior pisaba aquel paquete y entregaba sus artefactos estampados como `v1.0-tesis`,
+fuera cual fuera el candidato evaluado. El script ahora los toma como parámetros.
 
 ---
 

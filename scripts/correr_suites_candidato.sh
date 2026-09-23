@@ -11,10 +11,24 @@
 # documents the container it expects. The suite also writes its TLS material to
 # /certs, the path inside the container, which is not writable here, so the four
 # certificate paths are redirected to a writable directory.
+#
+# The candidate and the output directory are PARAMETERS. They used to be written
+# into the script, pinned to 7a906c2 and to the September package's `suites/`
+# folder, so every later run overwrote that package's artifacts and stamped the
+# result as v1.0-tesis no matter which candidate was actually being evaluated. A
+# unified evaluation of v3.0-tesis therefore shipped suite artifacts belonging to
+# v1.0-tesis, correctly labelled but filed under the wrong candidate.
+#
+#   CAND=<commit-ish> CAND_TAG=<tag> SUITES_OUT=<dir> bash scripts/correr_suites_candidato.sh
+#
 set -uo pipefail
 REPO=$(git rev-parse --show-toplevel)
-WT="${WORKTREE_DIR:-$HOME/tesis-worktrees}/candidato-v1.0"
-OUT=$REPO/tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/suites
+CAND="${CAND:-7a906c2}"
+CAND_TAG="${CAND_TAG:-v1.0-tesis}"
+git rev-parse -q --verify "$CAND^{commit}" >/dev/null \
+  || { echo "ABORTA: el candidato $CAND no existe"; exit 1; }
+WT="${WORKTREE_DIR:-$HOME/tesis-worktrees}/candidato-$CAND_TAG"
+OUT="${SUITES_OUT:-$REPO/tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/suites}"
 LAB="${LAB_DIR:-$HOME/fim-lab}"
 RES=$LAB/suites_candidato.out
 CERTS=$LAB/suites_certs
@@ -34,13 +48,13 @@ limpiar() {
 }
 trap limpiar EXIT
 
-say "=== consolidated suites on candidate 7a906c2 (v1.0-tesis) ==="
+say "=== consolidated suites on candidate $CAND ($CAND_TAG) ==="
 {
-  echo "candidate_commit=$(git rev-parse 7a906c2)"
-  echo "candidate_tag=v1.0-tesis"
-  echo "agent_tree_matches_candidate=$(git diff --quiet 7a906c2 -- agent/ && echo yes || echo no)"
-  echo "frontend_tree_matches_candidate=$(git diff --quiet 7a906c2 -- frontend/ && echo yes || echo no)"
-  echo "backend_run_from=detached worktree at 7a906c2"
+  echo "candidate_commit=$(git rev-parse "$CAND")"
+  echo "candidate_tag=$CAND_TAG"
+  echo "agent_tree_matches_candidate=$(git diff --quiet "$CAND" -- agent/ && echo yes || echo no)"
+  echo "frontend_tree_matches_candidate=$(git diff --quiet "$CAND" -- frontend/ && echo yes || echo no)"
+  echo "backend_run_from=detached worktree at $CAND"
   echo "postgres=postgres:18.3 on 127.0.0.1:$PGPORT (isolated, not the lab database)"
   echo "valkey=valkey/valkey:9.0.3 on 127.0.0.1:$VKPORT (isolated, plaintext)"
 } > "$OUT/procedencia.txt"
@@ -49,7 +63,7 @@ cat "$OUT/procedencia.txt" | tee -a "$RES"
 say "preparing the worktree"
 git worktree remove --force "$WT" 2>/dev/null
 mkdir -p "$(dirname "$WT")"
-git worktree add --detach "$WT" 7a906c2 >/dev/null 2>&1 || { say "WORKTREE FAILED"; exit 1; }
+git worktree add --detach "$WT" "$CAND" >/dev/null 2>&1 || { say "WORKTREE FAILED"; exit 1; }
 
 say "starting isolated PostgreSQL and Valkey"
 docker rm -f "$PGC" "$VKC" >/dev/null 2>&1
