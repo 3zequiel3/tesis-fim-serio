@@ -1,0 +1,384 @@
+# docker-compose.yml — FIM Platform
+#
+# Compose v2 (sin directiva `version:` — obsoleta desde Compose v2).
+#
+# Uso básico (infra sola — Done criterion de Change 01):
+#   docker compose up -d db valkey n8n
+#
+# Uso completo — topología de servidor (D54/RN-148, change 52):
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d
+#
+# Servicios con profiles: ["app"] (backend, frontend) NO arrancan con
+# `docker compose up` sin el flag --profile app. Esto evita errores de build
+# en tanto sus Dockerfiles no existan (D-05).
+#
+# El servicio `agent` es de laboratorio: profile "lab", no "app" (D54/RN-148,
+# change 52). Con sólo --profile app NO arranca — usar
+# `--profile app --profile lab` para levantarlo junto al resto (ver
+# scripts/setup-agent.sh, scripts/README.md).
+
+networks:
+  fim_internal:
+    driver: bridge
+
+volumes:
+  pg_data:
+  valkey_data:
+  n8n_data:
+  backend_certs:
+  # Material TLS propio de Valkey (certificado de servidor, clave y una copia
+  # de ca.pem) — NUNCA la clave privada de la CA (D53/RN-147, change 52).
+  valkey_tls:
+  # Certificado autofirmado de la consola, emitido por `certs-init` sólo con
+  # CONSOLE_TLS_MODE=self_signed (D55/RN-149, change 52).
+  console_tls_generated:
+  agent_state:
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # db — PostgreSQL 18.3
+  # Base `fim` creada por POSTGRES_DB; base `fim_n8n` creada por el script
+  # SQL en db/init/ (D-02). Usuario único `fim` con ownership sobre ambas (D-03).
+  # Puerto 5432 NO expuesto al host (D-04).
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:18.3
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fim
+      POSTGRES_USER: fim
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # postgres:18+ cambió la convención: el mount va a /var/lib/postgresql
+      # (NO a /var/lib/postgresql/data). La imagen guarda los datos en un
+      # subdirectorio versionado /var/lib/postgresql/<major>/docker/ para
+      # ser compatible con pg_ctlcluster y pg_upgrade --link entre majors.
+      # Si se montara a /data como en <=17, el container detecta el mount
+      # viejo como "unused" y se rehúsa a arrancar. Ver docker-library/postgres#37.
+      - pg_data:/var/lib/postgresql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - fim_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fim -d fim"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # valkey — Valkey 9.0.3 (compatible con Redis protocol)
+  # Backend ↔ agente FIM se comunican SOLO vía Valkey Streams (RN-108, D8).
+  # Puerto 6379 NO expuesto al host (D-04).
+  # ---------------------------------------------------------------------------
+  valkey:
+    image: valkey/valkey:9.0.3
+    restart: unless-stopped
+    volumes:
+      - valkey_data:/data
+    networks:
+      - fim_internal
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # n8n — n8nio/n8n 2.17.8 (notificaciones, D45/RN-139)
+  # Usa la base fim_n8n con el usuario fim (D-03).
+  # Puerto 5678 (UI de n8n) NO expuesto al host — acceso solo por exec (D-04).
+  # Owner declarativo (N8N_INSTANCE_OWNER_MANAGED_BY_ENV) para que el primer
+  # arranque no deje pendiente el wizard de setup manual.
+  #
+  # D58/RN-152 revisada (2026-09-15, hallazgo 14.5): el provisioning de
+  # workflows/credenciales corre DENTRO del propio entrypoint de este
+  # contenedor (`n8n/provision/entrypoint.sh`), antes de que arranque el
+  # proceso `n8n` — ya no existe un servicio `n8n-provision` separado. Un
+  # servicio one-shot aparte volvía a correr en cada `docker compose up -d`
+  # aunque `n8n` ya estuviera sano (un contenedor "Exited" nunca cuenta como
+  # "up" para Compose), republicando los workflows contra un proceso n8n que
+  # ya estaba corriendo y dejando el webhook `fim-alert` sin registrar hasta
+  # un `restart n8n` manual — `n8n publish:workflow` sólo tiene efecto en el
+  # PRÓXIMO `n8n start`. Con el provisioning en el entrypoint de `n8n` mismo,
+  # una segunda `up -d` sin cambios en la configuración de este servicio deja
+  # el contenedor intacto (comportamiento estándar de Compose) y el
+  # entrypoint no se re-ejecuta. Las variables de canal (antes en
+  # `n8n-provision`) viven ahora acá: cambiarlas en `.env` cambia la
+  # configuración deseada de `n8n` y por lo tanto SÍ dispara su recreación en
+  # la próxima `up -d`, exactamente lo que se necesita para que un canal
+  # nuevo quede provisionado. `backend` depende de `n8n` con
+  # `service_healthy`, que ya implica que el entrypoint completó el
+  # provisioning (si hubiera fallado, `n8n` nunca habría arrancado y jamás
+  # reportaría healthy).
+  # ---------------------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n:2.17.8
+    restart: unless-stopped
+    entrypoint: ["tini", "--", "/bin/sh", "/provision/entrypoint.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: fim_n8n
+      DB_POSTGRESDB_USER: fim
+      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD}
+      N8N_RUNNERS_ENABLED: "true"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env — see .env.example}
+      N8N_INSTANCE_OWNER_MANAGED_BY_ENV: "true"
+      N8N_INSTANCE_OWNER_EMAIL: ${N8N_INSTANCE_OWNER_EMAIL}
+      N8N_INSTANCE_OWNER_FIRST_NAME: ${N8N_INSTANCE_OWNER_FIRST_NAME}
+      N8N_INSTANCE_OWNER_LAST_NAME: ${N8N_INSTANCE_OWNER_LAST_NAME}
+      N8N_INSTANCE_OWNER_PASSWORD_HASH: ${N8N_INSTANCE_OWNER_PASSWORD_HASH}
+      WEBHOOK_URL: http://n8n:5678/
+      N8N_HOST: n8n
+      N8N_PROTOCOL: http
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      # D58/RN-152 — canales habilitados y sus credenciales/config, ninguno
+      # con default: un canal ausente de N8N_FIM_CHANNELS simplemente no se
+      # provisiona ni se invoca desde el enrutador. Viven en ESTE servicio
+      # (no en uno separado) para que cambiarlas recree el contenedor.
+      N8N_FIM_CHANNELS: ${N8N_FIM_CHANNELS:-}
+      N8N_EMAIL_FROM: ${N8N_EMAIL_FROM:-}
+      N8N_EMAIL_TO: ${N8N_EMAIL_TO:-}
+      N8N_EMAIL_SMTP_HOST: ${N8N_EMAIL_SMTP_HOST:-}
+      N8N_EMAIL_SMTP_PORT: ${N8N_EMAIL_SMTP_PORT:-587}
+      N8N_EMAIL_SMTP_USER: ${N8N_EMAIL_SMTP_USER:-}
+      N8N_EMAIL_SMTP_PASSWORD: ${N8N_EMAIL_SMTP_PASSWORD:-}
+      N8N_EMAIL_SMTP_SECURE: ${N8N_EMAIL_SMTP_SECURE:-false}
+      N8N_SLACK_ACCESS_TOKEN: ${N8N_SLACK_ACCESS_TOKEN:-}
+      N8N_SLACK_CHANNEL: ${N8N_SLACK_CHANNEL:-}
+      N8N_SLACK_API_URL: ${N8N_SLACK_API_URL:-https://slack.com/api/chat.postMessage}
+      N8N_TICKETING_JIRA_ENABLED: ${N8N_TICKETING_JIRA_ENABLED:-false}
+      N8N_JIRA_EMAIL: ${N8N_JIRA_EMAIL:-}
+      N8N_JIRA_API_TOKEN: ${N8N_JIRA_API_TOKEN:-}
+      N8N_JIRA_DOMAIN: ${N8N_JIRA_DOMAIN:-}
+      N8N_JIRA_PROJECT_KEY: ${N8N_JIRA_PROJECT_KEY:-}
+      N8N_TICKETING_LINEAR_ENABLED: ${N8N_TICKETING_LINEAR_ENABLED:-false}
+      N8N_LINEAR_API_KEY: ${N8N_LINEAR_API_KEY:-}
+      N8N_LINEAR_API_URL: ${N8N_LINEAR_API_URL:-https://api.linear.app/graphql}
+      N8N_LINEAR_TEAM_ID: ${N8N_LINEAR_TEAM_ID:-}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+      - ./n8n/provision:/provision:ro
+    networks:
+      - fim_internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:5678/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # certs-init — emisión de certificados previa al arranque (D53/RN-147, D-1
+  # del design de vps-deployment-readiness, change 52).
+  # Sin perfil (arranca con `docker compose up` a secas Y con --profile app):
+  # backend, frontend y, con el override TLS, valkey dependen de él con
+  # service_completed_successfully. Corre como root ("0:0") para poder fijar
+  # dueño y modo final por archivo en los tres volúmenes de material TLS;
+  # nunca escribe la clave privada de la CA fuera de backend_certs.
+  # ---------------------------------------------------------------------------
+  certs-init:
+    build: ./backend
+    image: fim-backend:dev
+    user: "0:0"
+    restart: "no"
+    environment:
+      # DATABASE_URL/VALKEY_URL/JWT_SECRET_CURRENT no se usan funcionalmente:
+      # se requieren sólo porque certs_init.py importa app.core.config
+      # transitivamente (Settings() falla al import si faltan). Mismos
+      # valores que backend, nunca conectados.
+      DATABASE_URL: postgresql+psycopg://fim:${DB_PASSWORD}@db:5432/fim
+      VALKEY_URL: valkey://valkey:6379
+      JWT_SECRET_CURRENT: ${JWT_SECRET_CURRENT}
+      CA_CERT_PATH: ${CA_CERT_PATH}
+      CA_KEY_PATH: ${CA_KEY_PATH}
+      BACKEND_CERT_PATH: ${BACKEND_CERT_PATH}
+      BACKEND_KEY_PATH: ${BACKEND_KEY_PATH}
+      BACKEND_VALKEY_CERT_PATH: /certs/backend-valkey.pem
+      BACKEND_VALKEY_KEY_PATH: /certs/backend-valkey-key.pem
+      VALKEY_TLS_DIR: /valkey-certs
+      CONSOLE_TLS_GENERATED_DIR: /console-certs
+      FIM_PUBLIC_HOSTS: ${FIM_PUBLIC_HOSTS:-}
+      CONSOLE_TLS_MODE: ${CONSOLE_TLS_MODE:-off}
+    volumes:
+      - backend_certs:/certs
+      - valkey_tls:/valkey-certs
+      - console_tls_generated:/console-certs
+    networks:
+      - fim_internal
+    command: ["python", "-m", "app.core.certs_init"]
+
+  # ---------------------------------------------------------------------------
+  # backend — FastAPI (placeholder, Change 02)
+  # profiles: ["app"] → no arranca con `docker compose up` sin --profile app.
+  # Puertos: 8443 (mTLS para agentes FIM, RN-78), 8444 (bootstrap de agentes
+  # por TLS server-auth, sin client cert, D52/RN-146). 8000 (API HTTP en
+  # claro) sólo en loopback (127.0.0.1) para diagnóstico — la consola la
+  # alcanza por la red interna (D54/RN-148, D-04, change 52; BREAKING: antes
+  # publicaba 0.0.0.0:8000).
+  # deploy.replicas: 1 (RN-76 — single-instance, sin HA en M1-M4).
+  # El volumen backend_certs se popula en Change 04 (agent-mtls-ca);
+  # `certs-init` lo puebla antes de que este servicio arranque (change 52).
+  # ---------------------------------------------------------------------------
+  backend:
+    build: ./backend
+    image: fim-backend:dev
+    profiles:
+      - app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      certs-init:
+        condition: service_completed_successfully
+      n8n:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://fim:${DB_PASSWORD}@db:5432/fim
+      VALKEY_URL: valkey://valkey:6379
+      JWT_SECRET_CURRENT: ${JWT_SECRET_CURRENT}
+      JWT_SECRET_PREVIOUS: ${JWT_SECRET_PREVIOUS}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CA_CERT_PATH: ${CA_CERT_PATH}
+      CA_KEY_PATH: ${CA_KEY_PATH}
+      BACKEND_CERT_PATH: ${BACKEND_CERT_PATH}
+      BACKEND_KEY_PATH: ${BACKEND_KEY_PATH}
+      # Hosts públicos del servidor (D53/RN-147) y modo TLS de la consola
+      # (D55/RN-149) — misma entrada de .env que certs-init y frontend, para
+      # que SAN, cookie Secure y esquema de nginx no puedan divergir.
+      FIM_PUBLIC_HOSTS: ${FIM_PUBLIC_HOSTS:-}
+      CONSOLE_TLS_MODE: ${CONSOLE_TLS_MODE:-off}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1}
+      # Notificaciones (D43/RN-137). NINGUNA de estas variables lleva default.
+      #
+      # El default anterior era `${N8N_WEBHOOK_URL:-http://n8n:5678/healthz}`:
+      # /healthz responde 200 a cualquier POST, así que `send_n8n` retornaba True
+      # y la alerta se marcaba `delivered` con channel="n8n" sin que nadie
+      # recibiera nada. Un canal sin configurar debe reportarse NO CONFIGURADO,
+      # no falsamente sano — si estas quedan vacías, /health/components devuelve
+      # n8n: "degraded", que es la verdad.
+      #
+      # N8N_HEALTH_URL es deliberadamente distinta del webhook: un GET contra un
+      # webhook productivo puede DISPARAR el workflow.
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+      N8N_HEALTH_URL: ${N8N_HEALTH_URL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_TO: ${SMTP_TO}
+      SMTP_STARTTLS: ${SMTP_STARTTLS}
+      SMTP_SSL: ${SMTP_SSL}
+      WEBHOOK_FALLBACK_URL: ${WEBHOOK_FALLBACK_URL}
+      # P1 del plan de medición (Cap. 5): rate limit de ingesta parametrizado
+      # (RN-88). Los defaults reproducen el comportamiento histórico —
+      # 100 eventos por ventana de 60 s y por agent_id. Subirlos SOLO para las
+      # baterías de carga; también fija el retry_after del event_nack (D37/RN-131).
+      RATE_LIMIT_INGEST_EVENTS: ${RATE_LIMIT_INGEST_EVENTS:-100}
+      RATE_LIMIT_INGEST_WINDOW_SECONDS: ${RATE_LIMIT_INGEST_WINDOW_SECONDS:-60}
+    volumes:
+      - backend_certs:/certs
+    ports:
+      - "8443:8443"
+      - "8444:8444"
+      - "127.0.0.1:8000:8000"
+    networks:
+      - fim_internal
+    deploy:
+      replicas: 1
+
+  # ---------------------------------------------------------------------------
+  # frontend — React 19 + Vite + nginx (C17: frontend-shell-auth)
+  # profiles: ["app"] → no arranca sin --profile app.
+  # Puertos de consola configurables (D55/RN-149, change 52): defaults 80 y
+  # 443, siempre publicados — en CONSOLE_TLS_MODE=off nada escucha en 443
+  # dentro del contenedor y la conexión se rechaza (costo aceptado para no
+  # editar YAML al cambiar de modo). El volumen console_tls_generated trae el
+  # certificado autofirmado (self_signed); CONSOLE_TLS_DIR trae el provisto
+  # por el operador (provided) — ver frontend/docker-entrypoint.d (grupo 5).
+  # ---------------------------------------------------------------------------
+  frontend:
+    build: ./frontend
+    image: fim-frontend:dev
+    profiles:
+      - app
+    ports:
+      - "${CONSOLE_HTTP_PORT:-80}:80"
+      - "${CONSOLE_HTTPS_PORT:-443}:443"
+    restart: unless-stopped
+    environment:
+      CONSOLE_TLS_MODE: ${CONSOLE_TLS_MODE:-off}
+      CONSOLE_TLS_CERT_FILE: ${CONSOLE_TLS_CERT_FILE:-fullchain.pem}
+      CONSOLE_TLS_KEY_FILE: ${CONSOLE_TLS_KEY_FILE:-privkey.pem}
+    volumes:
+      - console_tls_generated:/run/fim-console-tls/self-signed:ro
+      - ${CONSOLE_TLS_DIR:-./deploy/console-tls}:/run/fim-console-tls/provided:ro
+    depends_on:
+      backend:
+        condition: service_started
+      certs-init:
+        condition: service_completed_successfully
+    networks:
+      - fim_internal
+
+  # ---------------------------------------------------------------------------
+  # agent — FIM Agent (detección fanotify, contenedor de test/laboratorio)
+  # profiles: ["lab"] (D54/RN-148, change 52; BREAKING: antes "app"). Un
+  # servidor real monitorea hosts con el agente NATIVO instalado por
+  # agent/install.sh (RN-68, D56/RN-150), no con este contenedor — levantarlo
+  # con --profile app arrancaría en un VPS un agente de laboratorio con
+  # secreto por defecto en bucle de reinicios. Usar
+  # `--profile app --profile lab` para levantarlo junto al resto.
+  # Corre como root con cap_add para fanotify.
+  # Editá archivos en ./fim-watch (host) → /watch (agente) para disparar eventos.
+  # Requiere registro previo del agente: scripts/setup-agent.sh
+  # ---------------------------------------------------------------------------
+  agent:
+    build: ./agent
+    image: fim-agent:dev
+    profiles:
+      - lab
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - valkey
+    # fanotify: CAP_SYS_ADMIN (init + marcar filesystem) +
+    # CAP_DAC_READ_SEARCH (open_by_handle_at en modo FID).
+    cap_add:
+      - SYS_ADMIN
+      - DAC_READ_SEARCH
+    environment:
+      # Secreto de un solo uso del bootstrap mTLS. Debe coincidir con el usado
+      # al registrar el agente (scripts/setup-agent.sh).
+      FIM_BOOTSTRAP_SECRET: ${FIM_BOOTSTRAP_SECRET:-docker-bootstrap-secret}
+      # Opt-in experimental trace. Both values must be set for tracing; the
+      # container path below is intentionally backed by controlled host evidence.
+      FIM_EXPERIMENT_RUN_ID: ${FIM_EXPERIMENT_RUN_ID:-}
+      FIM_EXPERIMENT_TRACE_FILE: ${FIM_EXPERIMENT_TRACE_FILE:-}
+    volumes:
+      # Directorio vigilado — editá archivos acá para disparar eventos.
+      - ./fim-watch:/watch
+      # CA del backend (solo lectura) para verificar el cert del bootstrap.
+      - backend_certs:/certs:ro
+      # Estado persistente (baseline cifrado, cola offline, journal, certs).
+      - agent_state:/var/lib/fim-agent
+      # Config del agente.
+      - ./agent/deploy/config.yaml.docker:/etc/fim-agent/config.yaml:ro
+      # Opt-in experimental evidence. Use /evidence/<unique-run>/agent_trace.jsonl,
+      # never a host-only path, when FIM_EXPERIMENT_TRACE_FILE is enabled.
+      - ./tesis/cierre/evidencia:/evidence
+    networks:
+      - fim_internal
