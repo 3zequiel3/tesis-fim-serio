@@ -1,0 +1,13 @@
+candidate_tag=v4.0-tesis
+candidate_commit=1f28c9e5b3ae60199cb25463738ecdfa607189b4
+candidate_tree=dd3012b105134c88bd9746f08f7f3e2e8aedc588
+git_status_clean=no
+backend_tree_container=c17ec8780ac326098a65c391e58c722fd3e66574fe5b7c593b39145f028c4522
+backend_tree_worktree=c17ec8780ac326098a65c391e58c722fd3e66574fe5b7c593b39145f028c4522
+provenance_match=yes
+agent_tree_matches=yes
+notification_sink=mailpit (canal SMTP real, local)
+gmail_verified=yes (autenticacion y entrega comprobadas por separado)
+host_ntp=
+host_chrony=System time     : 0.001569310 seconds slow of NTP time
+vm_ntp={ Leap=0, Version=4, Mode=4, Stratum=2, Precision=-25, RootDelay=6.500ms, RootDispersion=274us, Reference=1D586304, OriginateTimestamp=Wed 2026-09-23 16:00:56 -03, ReceiveTimestamp=Wed 2026-09-23 16:0

@@ -7,6 +7,14 @@ condiciones puramente documentales y que corresponde a un dictamen de 9/10.
 **Método:** cada dato se verificó contra el árbol del repositorio en la rama `devel` o contra las
 páginas de manual instaladas en el equipo. Ninguna cifra viene de memoria ni de una versión anterior.
 
+> **Sobre las referencias `archivo:línea`.** Cuando el documento de la tesis atribuye un hecho a un
+> candidato, la línea que cita tiene que ser la de **ese commit**, no la de la rama de trabajo. Las
+> referencias de este informe se dan con las dos: la del candidato `7a7ee50` primero y la de `HEAD`
+> después, cuando difieren. El caso de `agent/detector.py` lo muestra: la línea 610 de `HEAD` es
+> prosa de un docstring en `7a7ee50`, donde el estampado de `detected_at` está en la 588. Verificar
+> contra la rama de trabajo y citar contra el candidato es un error silencioso, porque la cita
+> resuelve a una línea real que dice otra cosa.
+
 > **Las rutas del repositorio cambiaron el 19 de septiembre** (commit `76d70ad`). El material de
 > tesis se movió de `docs/` a `tesis/`. Este documento ya usa las rutas nuevas. La V15 tiene que
 > reescribir las suyas en la misma pasada que aplique estas correcciones: la V14 cita 67 veces
@@ -115,7 +123,7 @@ acotado, mucho más defendible que «habría que probarlo en 5.9».
 campo se asigna en un único lugar:
 
 ```
-agent/detector.py:605-611
+agent/detector.py:583-589 en el candidato `7a7ee50`; `:605-611` en HEAD
     fan_event = FanotifyEvent(
         path=ev.path,
         pid=ev.pid,
@@ -132,14 +140,14 @@ La secuencia, en el hilo lector del detector:
 2. Cada evento se resuelve a una ruta y se devuelve como `FanEvent`, una tupla que **no tiene marca
    temporal** (`agent/_fanotify.py:90-93`, `:260`).
 3. El detector filtra por desbordamiento, ruta nula y alcance, y recién entonces construye
-   `FanotifyEvent` estampando la hora (`detector.py:610`).
-4. El evento se encola hacia el bucle de eventos (`detector.py:613`); el hash se calcula después.
+   `FanotifyEvent` estampando la hora (`detector.py:588` en `7a7ee50`; `:610` en HEAD).
+4. El evento se encola hacia el bucle de eventos (`detector.py:591` en `7a7ee50`; `:613` en HEAD); el hash se calcula después.
 
 ### Texto propuesto
 
 > `detected_at` se registra en el hilo lector del agente, en el instante en que el evento del núcleo
 > ya fue leído del descriptor de fanotify y su ruta resuelta, e inmediatamente antes de encolarlo
-> para su procesamiento (`agent/detector.py:610`). No es la hora en que el núcleo generó el evento
+> para su procesamiento (`agent/detector.py:588` en el candidato `7a7ee50`; `:610` en HEAD). No es la hora en que el núcleo generó el evento
 > —fanotify no la provee— ni la hora en que se calcula el hash, que ocurre después. El intervalo
 > medido como latencia de detección comprende, por lo tanto, desde ese instante hasta la recepción en
 > el backend, y **excluye el tiempo que el evento permaneció en la cola del núcleo**, de modo que
@@ -225,7 +233,7 @@ búsqueda, y qué se decidió en consecuencia.
 | Observación | Origen | Estado en V15 | Evidencia o motivo |
 |---|---|---|---|
 | Banderas de fanotify sin cota cerrada | §1.7 / §2.6 | **Cerrada documentalmente** | Cota 5.9 por `FAN_REPORT_DIR_FID` y `FAN_REPORT_NAME`; sin ensayo en el borde, declarado |
-| Punto de registro de `detected_at` | §6.4 | **Cerrada** | `agent/detector.py:610`, hilo lector, antes de encolar |
+| Punto de registro de `detected_at` | §6.4 | **Cerrada** | `agent/detector.py:588` en `7a7ee50`, hilo lector, antes de encolar |
 | Paquetes de evidencia sin versionar | Anexo F | **Parcial** | 236 archivos versionados, 70 del paquete nuevo; los dos históricos siguen excluidos por `.gitignore:64-65` |
 | Figuras rasterizadas | N-4 | **Pendiente deliberada** | 11 de 11 medios son PNG y no existe fuente editable; requiere redibujar |
 | Densidad de oración | N-3 | **Cerrada en V13** | 147 oraciones de más de 40 palabras, 6,15 %, contra un objetivo de 12 % |

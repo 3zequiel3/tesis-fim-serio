@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import datetime
 import os
-import socket
 import ssl
 import sys
 from pathlib import Path
@@ -41,6 +40,7 @@ from app.core.database import get_session
 from app.core.pki import _CERT_RENEWAL_THRESHOLD_DAYS, ensure_ca, start_mtls_server
 from app.modules.agents.models import Agent, AgentStatus
 from app.modules.agents.router import renew_router
+from tests.conftest import _free_port  # noqa: E402 — promovido por D78/RN-172, task 3.2
 
 # El agente vive en <repo_root>/agent, fuera del árbol de paquetes del backend
 # (mismo patrón que test_event_status_derivation.py).
@@ -69,15 +69,6 @@ def _issue_client_cert(ca_cert_path, ca_key_path, key: Ed25519PrivateKey, cn: st
         .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.CLIENT_AUTH]), critical=False)
         .sign(ca_key, None)
     )
-
-
-def _free_port() -> int:
-    try:
-        with socket.socket() as sock:
-            sock.bind(("127.0.0.1", 0))
-            return sock.getsockname()[1]
-    except PermissionError:
-        pytest.skip("sandbox does not permit local TCP sockets")
 
 
 def _client_ssl_context(ca_path, cert_path, key_path) -> ssl.SSLContext:

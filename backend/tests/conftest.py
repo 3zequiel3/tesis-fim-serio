@@ -18,10 +18,51 @@ Default DATABASE_URL: postgresql+psycopg://fim:test@localhost:5432/fim_test
 """
 
 import os
+import socket
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+
+
+# ── D78/RN-172, Caso B — neutralizar el dotenv que config.py resuelve contra
+# el CWD ──────────────────────────────────────────────────────────────────────
+#
+# `app/core/config.py:40` declara `env_file=".env"`, una ruta RELATIVA que
+# pydantic-settings resuelve contra el directorio de trabajo del proceso, no
+# contra el paquete (`DotEnvSettingsSource._read_env_files`, en
+# `pydantic_settings/sources.py`, hace `Path(env_file).expanduser()` y
+# consulta `.is_file()` sobre eso). Si el arnés corre desde un directorio que
+# tiene un `.env` real -p.ej. la raíz del repositorio, donde vive uno con
+# `N8N_WEBHOOK_URL` y `N8N_HEALTH_URL`-, pydantic lo lee, sin que
+# `monkeypatch.delenv` sobre `os.environ` (que ya hace
+# `tests/core/test_notification_settings.py`) pueda evitarlo: ese saneamiento
+# es correcto para el proceso y no alcanza para el archivo.
+#
+# Se neutraliza ACÁ, en el mismo lugar y en el mismo momento que el bloque de
+# `os.environ` de abajo fija el entorno canónico -antes del primer import de
+# `app.core.config`, que instancia `Settings()` a nivel de módulo-, forzando
+# a que la fuente dotenv de pydantic-settings devuelva siempre un mapa vacío.
+# Así la suite produce el mismo resultado sin importar desde qué directorio
+# se la invoque, y sin tocar `config.py`: `env_file=".env"` sigue siendo
+# correcto y necesario para el despliegue (D-6 del design); lo que deja de
+# ocurrir es que la SUITE lo herede.
+_DOTENV_PATCH_ERROR: Exception | None
+try:
+    from pydantic_settings.sources import DotEnvSettingsSource as _DotEnvSettingsSource
+except ImportError as _dotenv_import_exc:  # pragma: no cover - depende del entorno
+    _DotEnvSettingsSource = None
+    _DOTENV_PATCH_ERROR = _dotenv_import_exc
+else:
+    if not hasattr(_DotEnvSettingsSource, "_read_env_files"):  # pragma: no cover
+        _DOTENV_PATCH_ERROR = AttributeError(
+            "pydantic_settings.sources.DotEnvSettingsSource._read_env_files no "
+            "existe en la versión instalada; el mecanismo de neutralización del "
+            "dotenv (D78/RN-172) depende de este método interno"
+        )
+    else:
+        _DOTENV_PATCH_ERROR = None
+        _DotEnvSettingsSource._read_env_files = lambda self: {}
 
 
 # ── psycopg es dependencia dura, no opcional ─────────────────────────────────
@@ -35,6 +76,21 @@ from httpx import ASGITransport, AsyncClient
 # degradar a un skip masivo. FIM_ALLOW_SKIP_DB_TESTS=1 preserva la valvula de
 # escape para plataformas sin libpq, pero exige pedirla explicitamente.
 def pytest_sessionstart(session):  # noqa: D103
+    # D78/RN-172, Caso B: mismo criterio fail-fast que el chequeo de psycopg
+    # de abajo. Si el mecanismo que neutraliza el dotenv no pudo establecerse
+    # -la API interna de pydantic-settings cambió-, la suite quedaría
+    # dependiendo otra vez del directorio desde el que se la invoca, y un
+    # resultado que no describe el producto es peor que abortar (D-6 del
+    # design).
+    if _DOTENV_PATCH_ERROR is not None:
+        raise pytest.UsageError(
+            "No se pudo neutralizar el archivo dotenv que "
+            "app/core/config.py:40 resuelve contra el directorio de trabajo "
+            f"(D78/RN-172): {_DOTENV_PATCH_ERROR}. Corriendo así, el "
+            "resultado de la suite dependería de si hay un `.env` en el "
+            "directorio de invocación, que es exactamente el defecto que "
+            "esta obligación existe para cerrar."
+        )
     if os.environ.get("FIM_ALLOW_SKIP_DB_TESTS") == "1":
         return
     try:
@@ -66,6 +122,77 @@ os.environ["ADMIN_EMAIL"] = os.environ.get("ADMIN_EMAIL", "admin@fim.local")
 os.environ["CORS_ALLOWED_ORIGINS"] = "http://localhost:5173"
 
 
+# ── Puerto efímero para tests con listener mTLS real (D78/RN-172, Caso A) ────
+#
+# Promovido acá desde `test_mtls_transport.py:111-118` (cuerpo exacto,
+# incluido el `except PermissionError`: sin él la suite falla en cualquier
+# sandbox que no permita abrir sockets locales). `test_agent_cert_renewal_e2e.py`
+# tenía una copia idéntica; las dos importan esta versión en lugar de
+# duplicarla (task 3.2). Un test que necesita un listener mTLS real lo pide
+# explícitamente con `port=_free_port()`, en vez de heredar el default 8443
+# cableado en `pki.py`.
+def _free_port() -> int:
+    try:
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            return sock.getsockname()[1]
+    except PermissionError:
+        pytest.skip("sandbox does not permit local TCP sockets")
+
+
+# ── Aislamiento del puerto de escucha del lifespan (D78/RN-172, Caso A) ──────
+#
+# `with TestClient(app) as client:` SÍ ejecuta el lifespan real de FastAPI -a
+# diferencia de `AsyncClient` + `ASGITransport`, que NO lo ejecuta (ver
+# docstring del módulo)-, y el lifespan arranca dos listeners uvicorn con
+# puerto FIJO cableado en `app/core/pki.py`: `start_mtls_server`
+# (`:638-645`, default `port=8443`) y `start_bootstrap_server` (`:703-709`,
+# default `port=8444`), invocados sin `port` desde `app/main.py:93-103`. Hay
+# 41 call sites `with TestClient(app)` repartidos en cuatro archivos
+# (`test_notifications.py` 16, `test_sse_alerts.py` 14,
+# `test_sse_stream_ticket.py` 10, `test_logging_sanitize.py` 1); cuando dos
+# coinciden sobre el mismo puerto ocupado, el bind falla con
+# `OSError: [Errno 98] address already in use`, el portal anyio compartido
+# del `TestClient` muere, y el teardown reporta `RuntimeError: This portal is
+# not running` — un mensaje que no nombra la causa, y que además hereda cada
+# test hermano de la misma sesión.
+#
+# Se neutraliza con una fixture CENTRALIZADA y de aplicación automática
+# (D-5 del design), no editando los 41 call sites: una fixture cubre los que
+# existen hoy y los que se escriban mañana; 41 ediciones mecánicas cubren
+# sólo 41 sitios, y el 42.º vuelve a colisionar con un error que hay que
+# diagnosticar desde cero. El mecanismo ya está probado en esta suite —
+# `test_rejected_events_retention.py:299-300` y
+# `test_notify_isolate_executor_lifespan.py:46-47` hacen exactamente este
+# `monkeypatch.setattr` para sus propios fines—.
+#
+# Task 3.4 (decisión): `start_bootstrap_server` tiene EXACTAMENTE el mismo
+# defecto que `start_mtls_server` — puerto cableado (8444), invocado sin
+# `port` desde el mismo lifespan — y el arnés de suites del laboratorio ya
+# libera los dos juntos antes de correr
+# (`scripts/correr_suites_candidato.sh:83`, *"stopping the lab backend to
+# free 8443/8444"*). Se cubre con la misma fixture; no hay razón para
+# tratarlos distinto.
+#
+# La inmensa mayoría de los 41 tests no necesita un listener real: necesitan
+# que el resto del arranque corra (consumers, executors, valkey). Los que sí
+# lo necesitan -`test_mtls_transport.py`, `test_agent_cert_renewal_e2e.py`-
+# invocan `start_mtls_server` DIRECTAMENTE desde `app.core.pki`, fuera del
+# lifespan y con `port=_free_port()` explícito: no pasan por
+# `app.main.start_mtls_server`, así que este monkeypatch no los toca.
+#
+# Ninguna ruta de código de producción cambia (D-5 del design, obligación
+# dura del spec): `pki.py` conserva su firma completa y su default de puerto;
+# `main.py` conserva su invocación sin `port`. Ver task 3.7 / test 6.4 para
+# la guarda explícita sobre esto.
+@pytest.fixture(autouse=True)
+def _neutralize_lifespan_mtls_listeners(monkeypatch):
+    import app.main as main_module
+
+    monkeypatch.setattr(main_module, "start_mtls_server", lambda *a, **k: None)
+    monkeypatch.setattr(main_module, "start_bootstrap_server", lambda *a, **k: None)
+
+
 # ── Schema — once per session ─────────────────────────────────────────────────
 
 @pytest.fixture(scope="session", autouse=True)
@@ -79,6 +206,48 @@ def _create_schema():
 
     SQLModel.metadata.create_all(engine)
     yield
+
+
+# ── Executors de ingesta y notificación (D76/RN-170, D-3 del design de
+# `notify-isolate-executor-lane`) ─────────────────────────────────────────────
+#
+# El lifespan de `app.main` NUNCA corre bajo `AsyncClient` + `ASGITransport`
+# (ver docstring del módulo), así que `install_executors(...)` tampoco corre
+# ahí. Sin este fixture, cualquier camino de notificación ejercitado por un
+# test levantaría `RuntimeError` desde `get_notify_executor()` — el accesor
+# falla EXPLÍCITAMENTE a propósito (D-3 del design), en vez de caer de forma
+# silenciosa al executor por defecto de asyncio, que volvería a mezclar los
+# pools exactamente en el camino que esta change existe para aislar.
+#
+# FUNCTION-scoped a propósito, no session: varios tests de esta suite SÍ usan
+# `with TestClient(app) as client:` (Starlette), que a diferencia de
+# `AsyncClient`+`ASGITransport` SÍ ejecuta el lifespan real — instala su
+# PROPIO par de executors al entrar y los cierra con `shutdown(wait=True)` al
+# salir. Con un fixture de sesión, ese cierre deja el registro global de
+# `app.core.executors` apuntando a executors ya cerrados para el resto de la
+# sesión, y el siguiente test que llame a `notify_event` fuera de un
+# `TestClient` propio explota con "cannot schedule new futures after
+# shutdown". Reinstalar un par fresco antes de CADA test, y cerrar lo que
+# haya quedado registrado (lo propio, o lo que un `TestClient` interno haya
+# instalado y ya cerrado) al final, garantiza que ningún test herede
+# executors muertos de otro.
+@pytest.fixture(autouse=True)
+def _install_notify_executors():
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.core import executors as executors_mod
+
+    ingest_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="test-fim-db")
+    notify_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="test-fim-notify")
+    executors_mod.install_executors(ingest_executor, notify_executor)
+    yield
+    # Cerrar lo que esté REGISTRADO ahora, no necesariamente lo que se creó
+    # arriba: un `TestClient` real dentro del test pudo haber instalado (y ya
+    # cerrado) su propio par. `shutdown()` es idempotente sobre un executor
+    # ya cerrado, así que esto es seguro en los dos casos.
+    executors_mod.get_ingest_executor().shutdown(wait=True)
+    executors_mod.get_notify_executor().shutdown(wait=True)
+    executors_mod.reset_executors_for_tests()
 
 
 # ── Admin seed helper ─────────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import datetime
 import os
-import socket
 import ssl
 
 import httpx
@@ -23,6 +22,7 @@ os.environ.setdefault("ADMIN_USERNAME", "admin")
 os.environ.setdefault("ADMIN_PASSWORD", "AdminPassword123!")
 
 from app.core.pki import PEER_CERT_SCOPE_KEY, start_mtls_server
+from tests.conftest import _free_port  # noqa: E402 — promovido por D78/RN-172, task 3.2
 
 
 def _write_pki(root, *, expired_client: bool = False):
@@ -106,15 +106,6 @@ def _write_pki(root, *, expired_client: bool = False):
         "agent-harness", ExtendedKeyUsageOID.CLIENT_AUTH, expired=expired_client
     )
     return ca_path, server_cert, server_key, client_cert, client_key
-
-
-def _free_port() -> int:
-    try:
-        with socket.socket() as sock:
-            sock.bind(("127.0.0.1", 0))
-            return sock.getsockname()[1]
-    except PermissionError:
-        pytest.skip("sandbox does not permit local TCP sockets")
 
 
 def _client_context(ca_path, cert_pair=None) -> ssl.SSLContext:

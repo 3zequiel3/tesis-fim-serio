@@ -1,82 +1,80 @@
 
  RUN  v2.1.9 /home/ezequiel/Facultad/tesis/tesis-fim-serio/frontend
 
- ✓ src/utils/eventFilters.test.ts (16 tests) 30ms
- ✓ src/hooks/useAlertsSSE.test.tsx (12 tests) 147ms
- ✓ src/components/layout/SystemBanner.test.tsx (8 tests) 598ms
- ✓ src/components/ui/EventsTable.test.tsx (11 tests) 835ms
-   ✓ EventsTable — US-25 selección en lote > permite seleccionar una fila individual sin seleccionar las demás 379ms
- ✓ src/pages/Dashboard.test.tsx (11 tests) 1726ms
-   ✓ Dashboard — US-04: metricas generales > carga las metricas al entrar al dashboard, sin interaccion del usuario 496ms
- ✓ src/components/ui/AgentCard.test.tsx (31 tests) 1992ms
-   ✓ AgentCard — indicador de drenaje graceful (US-30) > el botón de rescan tiene el tooltip canónico exacto durante el drenaje 336ms
-   ✓ AgentCard — agregar un nuevo path (US-24/C2) > agrega el path escrito al listado y lo envía en onConfigSave al guardar 359ms
- ✓ src/components/ui/BulkActionBar.test.tsx (4 tests) 1683ms
-   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > rechazar 3 eventos emite event_ids y una única action, sin items legacy 802ms
-   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > aplica el resultado sobre la selección actual sin perder cambios hechos durante la petición 572ms
- ✓ src/pages/Rules.test.tsx (6 tests) 1924ms
-   ✓ Rules — US-16 edición y US-17 eliminación > abre el formulario de edición precargado con patrón, severidad y acción de la regla elegida 669ms
-   ✓ Rules — US-15 creación > criterio 1: existe un formulario para crear una regla con pattern (glob+negación), severidad y acción 876ms
- ✓ src/utils/timeDisplay.test.ts (11 tests) 75ms
- ✓ src/pages/EventDetail.test.tsx (19 tests) 2702ms
-   ✓ EventDetail — evento sin ruta (D51/RN-145) > renderiza el diff textual real recibido por la API 318ms
-   ✓ EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) > si el evento tiene parent_event_id, muestra un enlace al evento padre 373ms
- ✓ src/stores/auth.store.test.ts (5 tests) 14ms
- ✓ src/pages/ForcePasswordChange.test.tsx (8 tests) 3669ms
-   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > contraseña actual vacía muestra error y no llama a changePasswordApi 676ms
-   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password nuevo sin mayúscula muestra error y no llama a changePasswordApi 596ms
-   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password nuevo sin minúscula muestra error y no llama a changePasswordApi 644ms
-   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password nuevo sin número muestra error y no llama a changePasswordApi 535ms
-   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password corto muestra error y no llama a changePasswordApi 368ms
-   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password válido con Ñ como única mayúscula llama a changePasswordApi con current_password 343ms
+ ✓ src/utils/eventFilters.test.ts (16 tests) 22ms
+ ✓ src/hooks/useAlertsSSE.test.tsx (12 tests) 138ms
+ ✓ src/components/layout/SystemBanner.test.tsx (8 tests) 703ms
+ ✓ src/components/ui/EventsTable.test.tsx (11 tests) 812ms
+   ✓ EventsTable — US-25 selección en lote > permite seleccionar una fila individual sin seleccionar las demás 337ms
+ ✓ src/pages/Dashboard.test.tsx (11 tests) 1536ms
+   ✓ Dashboard — US-04: metricas generales > carga las metricas al entrar al dashboard, sin interaccion del usuario 580ms
+ ✓ src/components/ui/BulkActionBar.test.tsx (4 tests) 1309ms
+   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > rechazar 3 eventos emite event_ids y una única action, sin items legacy 568ms
+ ✓ src/pages/Rules.test.tsx (6 tests) 1392ms
+   ✓ Rules — US-16 edición y US-17 eliminación > abre el formulario de edición precargado con patrón, severidad y acción de la regla elegida 548ms
+   ✓ Rules — US-15 creación > criterio 1: existe un formulario para crear una regla con pattern (glob+negación), severidad y acción 514ms
+ ✓ src/components/ui/AgentCard.test.tsx (31 tests) 1669ms
+   ✓ AgentCard — agregar un nuevo path (US-24/C2) > agrega el path escrito al listado y lo envía en onConfigSave al guardar 377ms
+ ✓ src/utils/timeDisplay.test.ts (11 tests) 59ms
+ ✓ src/pages/EventDetail.test.tsx (19 tests) 2146ms
+ ✓ src/pages/ForcePasswordChange.test.tsx (8 tests) 3213ms
+   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > contraseña actual vacía muestra error y no llama a changePasswordApi 560ms
+   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password nuevo sin mayúscula muestra error y no llama a changePasswordApi 471ms
+   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password nuevo sin minúscula muestra error y no llama a changePasswordApi 441ms
+   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password nuevo sin número muestra error y no llama a changePasswordApi 599ms
+   ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > password válido con Ñ como única mayúscula llama a changePasswordApi con current_password 352ms
    ✓ ForcePasswordChange — US-27 (D-2, complejidad y contraseña actual) > un 401 del backend (contraseña actual incorrecta) muestra el detail recibido 388ms
- ✓ src/components/ui/Pagination.test.tsx (9 tests) 1393ms
-   ✓ Pagination — US-26 navegación numerada > muestra primera, anterior, siguiente y última 499ms
- ✓ src/api/events.test.ts (5 tests) 12ms
- ✓ src/pages/Login.test.tsx (5 tests) 1445ms
-   ✓ Login — US-01 criterio 1 (formulario) > el botón de ingresar está deshabilitado hasta completar ambos campos 531ms
- ✓ src/pages/EventChain.test.tsx (3 tests) 411ms
- ✓ src/components/layout/AlertsBanner.test.tsx (7 tests) 448ms
- ✓ src/utils/outOfScopeDrops.test.ts (10 tests) 17ms
- ✓ src/components/ui/DiffViewer.test.ts (6 tests) 642ms
-   ✓ DiffViewer > preserva encabezados y offsets de múltiples hunks sin crear continuidad falsa 381ms
- ✓ src/pages/Events.test.tsx (15 tests) 5192ms
-   ✓ Events — filtro por severidad (8.6) > activar un checkbox de severidad lo deja marcado y dispara una petición con esa severidad 833ms
-   ✓ Events — filtro por severidad (8.6) > desactivar el último nivel seleccionado lo saca del checkbox y de la petición 364ms
-   ✓ Events — US-31 toggle superseded > está desmarcado por defecto y al activarlo persiste en la URL lógica y llega a la petición 634ms
-   ✓ Events — filtro por estado (US-07) > C2: marcar pending y approved emite ambos status en la petición 517ms
-   ✓ Events — filtro por estado (US-07) > C4: encender el toggle emite include_superseded=true y apagarlo con superseded marcado lo desmarca y lo quita de la petición 516ms
-   ✓ Events — filtro por estado (US-07) > C5: desmarcar el último estado emite una petición nueva sin status 365ms
-   ✓ Events — filtro por estado (US-07) > marcar superseded en el selector activa include_superseded=true 301ms
- ✓ src/pages/FailedAlerts.test.tsx (3 tests) 1016ms
-   ✓ FailedAlerts — US-29 acciones de la DLQ > "Reintentar" por fila llama POST /alerts/{id}/retry 414ms
-   ✓ FailedAlerts — US-29 acciones de la DLQ > seleccionar tres filas y usar el bulk llama POST /alerts/{id}/retry una vez por id 444ms
- ✓ src/components/ui/RejectModal.test.tsx (3 tests) 380ms
-   ✓ RejectModal — US-12 C10 (baseline_status) > con baseline_status=absent no renderiza los radios y muestra el texto literal de C10 322ms
- ✓ src/pages/Agents.test.tsx (2 tests) 593ms
-   ✓ Agents — confirmación visual del rescan (US-22) > rescan sin conflicto muestra confirmación de que la solicitud fue enviada al agente 439ms
- ✓ src/components/layout/ProtectedRoute.test.tsx (3 tests) 104ms
- ✓ src/components/layout/Navbar.test.tsx (2 tests) 415ms
-   ✓ Navbar — US-02 logout del cliente > muestra el botón y al usarlo limpia el token y el usuario, solicita logout y navega a /login con replace 370ms
- ✓ src/api/events.contract.test.ts (1 test) 13ms
- ✓ src/api/auth.test.ts (3 tests) 17ms
- ✓ src/utils/severity.test.ts (5 tests) 9ms
- ✓ src/pages/Alerts.test.tsx (3 tests) 570ms
-   ✓ Alerts — US-19 listado de alertas > cada alerta es navegable hacia el detalle del evento asociado 310ms
- ✓ src/utils/discardedEvents.test.ts (7 tests) 8ms
- ✓ src/api/client.test.ts (1 test) 7ms
- ✓ src/api/actions.test.ts (3 tests) 10ms
- ✓ src/config/viteProxy.test.ts (1 test) 5ms
- ✓ src/components/ui/RescanConfirmModal.test.tsx (3 tests) 327ms
- ✓ src/utils/actionError.test.ts (5 tests) 4ms
- ✓ src/utils/watchPathStatus.test.ts (6 tests) 7ms
- ✓ src/utils/ackStatus.test.ts (3 tests) 4ms
- ✓ src/utils/actionFailed.test.ts (2 tests) 2ms
- ✓ src/components/ui/RuleForm.test.tsx (2 tests) 189ms
+ ✓ src/stores/auth.store.test.ts (5 tests) 13ms
+ ✓ src/api/events.test.ts (5 tests) 19ms
+ ✓ src/components/ui/Pagination.test.tsx (9 tests) 1258ms
+   ✓ Pagination — US-26 navegación numerada > muestra primera, anterior, siguiente y última 458ms
+ ✓ src/pages/Login.test.tsx (5 tests) 1436ms
+   ✓ Login — US-01 criterio 1 (formulario) > el botón de ingresar está deshabilitado hasta completar ambos campos 552ms
+   ✓ Login — US-01 criterio 3 (error genérico) > credenciales inválidas (401) muestran un único mensaje genérico, sin señalar qué campo falló 314ms
+ ✓ src/components/layout/AlertsBanner.test.tsx (7 tests) 443ms
+ ✓ src/pages/EventChain.test.tsx (3 tests) 520ms
+   ✓ EventChain (US-10) > cada evento de la cadena es navegable hacia su detalle 305ms
+ ✓ src/utils/outOfScopeDrops.test.ts (10 tests) 14ms
+ ✓ src/components/ui/DiffViewer.test.ts (6 tests) 805ms
+   ✓ DiffViewer > preserva encabezados y offsets de múltiples hunks sin crear continuidad falsa 419ms
+ ✓ src/pages/Events.test.tsx (15 tests) 4839ms
+   ✓ Events — filtro por severidad (8.6) > activar un checkbox de severidad lo deja marcado y dispara una petición con esa severidad 711ms
+   ✓ Events — US-31 toggle superseded > está desmarcado por defecto y al activarlo persiste en la URL lógica y llega a la petición 355ms
+   ✓ Events — filtro por estado (US-07) > C1: los siete checkboxes existen sin activar el toggle y en el orden canónico 329ms
+   ✓ Events — filtro por estado (US-07) > C2: marcar pending y approved emite ambos status en la petición 523ms
+   ✓ Events — filtro por estado (US-07) > C4: encender el toggle emite include_superseded=true y apagarlo con superseded marcado lo desmarca y lo quita de la petición 508ms
+   ✓ Events — filtro por estado (US-07) > C5: desmarcar el último estado emite una petición nueva sin status 321ms
+   ✓ Events — filtro por estado (US-07) > marcar superseded en el selector activa include_superseded=true 324ms
+   ✓ Events — filtro por estado (US-07) > desmarcar superseded conserva el toggle activo 353ms
+ ✓ src/pages/FailedAlerts.test.tsx (3 tests) 1021ms
+   ✓ FailedAlerts — US-29 acciones de la DLQ > "Reintentar" por fila llama POST /alerts/{id}/retry 447ms
+   ✓ FailedAlerts — US-29 acciones de la DLQ > seleccionar tres filas y usar el bulk llama POST /alerts/{id}/retry una vez por id 413ms
+ ✓ src/components/ui/RejectModal.test.tsx (3 tests) 410ms
+   ✓ RejectModal — US-12 C10 (baseline_status) > con baseline_status=absent no renderiza los radios y muestra el texto literal de C10 359ms
+ ✓ src/components/layout/ProtectedRoute.test.tsx (3 tests) 117ms
+ ✓ src/pages/Agents.test.tsx (2 tests) 668ms
+   ✓ Agents — confirmación visual del rescan (US-22) > rescan sin conflicto muestra confirmación de que la solicitud fue enviada al agente 472ms
+ ✓ src/api/auth.test.ts (3 tests) 9ms
+ ✓ src/api/events.contract.test.ts (1 test) 22ms
+ ✓ src/utils/severity.test.ts (5 tests) 20ms
+ ✓ src/components/layout/Navbar.test.tsx (2 tests) 518ms
+   ✓ Navbar — US-02 logout del cliente > muestra el botón y al usarlo limpia el token y el usuario, solicita logout y navega a /login con replace 452ms
+ ✓ src/pages/Alerts.test.tsx (3 tests) 681ms
+   ✓ Alerts — US-19 listado de alertas > cada alerta es navegable hacia el detalle del evento asociado 386ms
+ ✓ src/utils/discardedEvents.test.ts (7 tests) 11ms
+ ✓ src/api/client.test.ts (1 test) 8ms
+ ✓ src/api/actions.test.ts (3 tests) 17ms
+ ✓ src/config/viteProxy.test.ts (1 test) 4ms
+ ✓ src/utils/watchPathStatus.test.ts (6 tests) 5ms
+ ✓ src/components/ui/RescanConfirmModal.test.tsx (3 tests) 356ms
+ ✓ src/utils/actionError.test.ts (5 tests) 6ms
+ ✓ src/utils/actionFailed.test.ts (2 tests) 3ms
+ ✓ src/utils/ackStatus.test.ts (3 tests) 5ms
+ ✓ src/components/ui/RuleForm.test.tsx (2 tests) 218ms
 
  Test Files  39 passed (39)
       Tests  260 passed (260)
-   Start at  14:10:24
-   Duration  12.46s (transform 2.63s, setup 12.98s, collect 10.13s, tests 28.64s, environment 55.64s, prepare 5.16s)
+   Start at  22:10:06
+   Duration  12.07s (transform 2.88s, setup 13.77s, collect 10.05s, tests 26.45s, environment 54.43s, prepare 5.27s)
 
 JUNIT report written to /home/ezequiel/Facultad/tesis/tesis-fim-serio/tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/suites/frontend.xml

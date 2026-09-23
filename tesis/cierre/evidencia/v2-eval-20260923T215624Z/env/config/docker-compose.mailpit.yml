@@ -1,0 +1,40 @@
+# Lab override: the notification chain's final channel points at a local SMTP
+# sink instead of Gmail. Gmail was verified working and stays as proof that the
+# external channel authenticates and delivers; Mailpit is what makes a
+# thousand-notification battery feasible and each delivery verifiable by API,
+# without an external provider's rate limits distorting the measurement.
+services:
+  n8n:
+    environment:
+      N8N_EMAIL_SMTP_HOST: fim-mailpit
+      N8N_EMAIL_SMTP_PORT: "1025"
+      N8N_EMAIL_SMTP_USER: ""
+      N8N_EMAIL_SMTP_PASSWORD: ""
+      N8N_EMAIL_SMTP_SECURE: "false"
+  backend:
+    environment:
+      SMTP_HOST: fim-mailpit
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+      SMTP_STARTTLS: "false"
+      SMTP_SSL: "false"
+
+  # The sink itself. It used to be started by hand, outside compose: a run
+  # measured all three notification scenarios against a hostname that resolved
+  # to nothing, reported zero deliveries, and failed nothing. The measurement's
+  # final channel belongs in the harness, not in somebody's shell history.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: fim-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+    networks:
+      fim_internal:
+        aliases: [fim-mailpit]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

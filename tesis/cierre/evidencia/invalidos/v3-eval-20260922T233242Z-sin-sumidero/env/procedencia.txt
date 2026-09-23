@@ -1,0 +1,10 @@
+candidate_tag=v3.0-tesis
+candidate_commit=22f393df41fc4cfd5777e8631431924b1b16abb3
+candidate_tree=17b460412ef30099bc67a5f0e399dcc138852293
+git_status_clean=no
+backend_tree_container=bfaae9f4a6dce9bb32e8bf83926bd77766bbb3f85f7e3317107819bca64a1e77
+backend_tree_worktree=bfaae9f4a6dce9bb32e8bf83926bd77766bbb3f85f7e3317107819bca64a1e77
+provenance_match=yes
+agent_tree_matches=yes
+notification_sink=mailpit (canal SMTP real, local)
+gmail_verified=yes (autenticacion y entrega comprobadas por separado)

@@ -71,4 +71,4 @@ agent/tests/test_symlink_hardening.py .......................            [ 98%]
 agent/tests/test_transport.py ............                               [100%]
 
 - generated xml file: /home/ezequiel/Facultad/tesis/tesis-fim-serio/tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/suites/agente.xml -
-================== 641 passed, 1 skipped in 161.32s (0:02:41) ==================
+================== 641 passed, 1 skipped in 160.83s (0:02:40) ==================

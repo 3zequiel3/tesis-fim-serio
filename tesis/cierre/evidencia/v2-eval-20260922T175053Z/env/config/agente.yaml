@@ -1,0 +1,21 @@
+agent_id: fim-vm
+allow_plaintext_valkey: false
+backend_url: https://192.168.1.43:8444
+ca_cert_path: /etc/fim-agent/certs/ca.pem
+mtls_backend_url: https://192.168.1.43:8443
+publisher:
+  command_flush_timeout_s: 2.0
+  max_discard_files: 1000
+  max_publish_attempts: 20
+  max_retry_after_s: 60.0
+storage:
+  baseline_dir: /var/lib/fim-agent/baseline
+  certs_dir: /var/lib/fim-agent/certs
+  discard_dir: /var/lib/fim-agent/discarded
+  journal_dir: /var/lib/fim-agent/journal
+  quarantine_retention_days: 30
+  queue_dir: /var/lib/fim-agent/queue
+  secrets_dir: /var/lib/fim-agent/secrets
+valkey_url: valkeys://192.168.1.43:6380
+watch_paths:
+- /srv/fim-watch

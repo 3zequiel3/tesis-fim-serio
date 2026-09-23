@@ -1,0 +1,5 @@
+[control] estado /srv/evidencia/control_estado.json descartado (--reset)
+[control] scan_id=1 (baseline) ts=2026-09-23T20:35:32.428479+00:00 archivos=0 cambios=0 duracion_scan_s=0.000 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=2 (diff) ts=2026-09-23T20:50:32.434147+00:00 archivos=16 cambios=16 duracion_scan_s=0.003 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=3 (diff) ts=2026-09-23T21:05:32.431474+00:00 archivos=48 cambios=54 duracion_scan_s=0.003 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=4 (diff) ts=2026-09-23T21:20:32.437488+00:00 archivos=50 cambios=8 duracion_scan_s=0.007 csv=/srv/evidencia/bateria7_control.csv
