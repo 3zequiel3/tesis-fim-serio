@@ -1,0 +1,3 @@
+secuencial: sin muestras
+conc50: sin muestras
+conc100: sin muestras

@@ -1,0 +1,7 @@
+candidate_commit=7a906c202e417aec5f03d9a7545e216a724aca81
+candidate_tag=v1.0-tesis
+agent_tree_matches_candidate=yes
+frontend_tree_matches_candidate=no
+backend_run_from=detached worktree at 7a906c2
+postgres=postgres:18.3 on 127.0.0.1:55440 (isolated, not the lab database)
+valkey=valkey/valkey:9.0.3 on 127.0.0.1:55441 (isolated, plaintext)
