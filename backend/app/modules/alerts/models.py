@@ -30,6 +30,15 @@ class Alert(SQLModel, table=True):
     severity: AlertSeverity
     channel: AlertChannel | None = Field(default=None)
     delivered_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
+    # D77/RN-171: instante en que un canal ACEPTÓ la notificación, capturado en
+    # la corrutina de entrega apenas el envío devolvió éxito -antes de
+    # despachar nada al executor-. `delivered_at`, en cambio, registra el
+    # instante en que se PERSISTIÓ el éxito, dentro del hilo del executor,
+    # después del despacho, de la espera en la cola del pool y del `commit`.
+    # No son sinónimos y no son intercambiables: esta columna existe porque
+    # confundirlas fue exactamente el defecto que esta change corrige. Sin
+    # backfill sobre filas anteriores a la migración 022 (D-3 del design).
+    channel_accepted_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     failed_at: datetime | None = Field(default=None, sa_type=_TZ_AWARE)
     last_error: str | None = Field(default=None)
     retry_count: int = Field(default=0)

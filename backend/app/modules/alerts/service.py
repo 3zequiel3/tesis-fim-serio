@@ -426,8 +426,32 @@ async def notify_event(alert: Alert, event: Event) -> None:
                     await asyncio.sleep(delay)
 
                 if await send_n8n(payload, settings.n8n_webhook_url):
+                    # D77/RN-171, D-1 del design: se captura ACÁ, en el punto
+                    # de éxito de la corrutina -antes de despachar nada al
+                    # executor-, porque es el primer instante del proceso en
+                    # que se sabe, con `alert.id` a la vista, que un canal
+                    # aceptó. Todo lo que sigue -el despacho al executor, la
+                    # espera en la cola FIFO del pool, la `Session`, el
+                    # `commit`- es exactamente lo que el protocolo de medición
+                    # excluye (tesis/plan_medicion_cap5.md:202-204).
+                    #
+                    # Error residual declarado (D-1): entre el
+                    # `raise_for_status()` de notifier.py:47 y esta captura
+                    # median una línea de log, el cierre del `AsyncClient` de
+                    # httpx y el retorno de la corrutina -del orden de
+                    # microsegundos a un milisegundo, contra una magnitud
+                    # objetivo en segundos-. La alternativa exacta (que
+                    # `send_n8n` devuelva el instante) está evaluada y
+                    # descartada por desproporción; se declara, no se oculta.
+                    channel_accepted_at = datetime.now(timezone.utc)
                     await loop.run_in_executor(
-                        get_notify_executor(), _mark_delivered, alert.id, AlertChannel.n8n, attempt, attempt + 1
+                        get_notify_executor(),
+                        _mark_delivered,
+                        alert.id,
+                        AlertChannel.n8n,
+                        attempt,
+                        attempt + 1,
+                        channel_accepted_at,
                     )
                     log.info("notify.delivered", alert_id=alert.id, channel=AlertChannel.n8n, attempt=attempt)
                     return
@@ -446,6 +470,12 @@ async def notify_event(alert: Alert, event: Event) -> None:
 
         success, channel = await _try_fallbacks(payload)
         if success:
+            # D77/RN-171, D-1 del design: mismo criterio que el punto de
+            # éxito de n8n de arriba. El canal que aceptó es el que devolvió
+            # `_try_fallbacks` -incluido `log_only`, para el cual "aceptación"
+            # es la escritura del log (`notifier.py:520`), que es lo que ese
+            # canal significa-.
+            channel_accepted_at = datetime.now(timezone.utc)
             await loop.run_in_executor(
                 get_notify_executor(),
                 _mark_delivered,
@@ -453,6 +483,7 @@ async def notify_event(alert: Alert, event: Event) -> None:
                 channel,
                 max(attempts - 1, 0) if settings.n8n_webhook_url else 0,
                 attempts if settings.n8n_webhook_url else 0,
+                channel_accepted_at,
             )
             log.info("notify.delivered", alert_id=alert.id, channel=channel)
             return
@@ -469,18 +500,29 @@ def _mark_delivered(
     channel: AlertChannel | None,
     retry_count: int,
     attempt_count: int,
+    channel_accepted_at: datetime,
 ) -> None:
     """
     Persist success only after a channel has confirmed acceptance.
 
     Invocado via `run_in_executor` desde `notify_event` (D75/RN-169, D-7 del
-    design de `ingest-offload-blocking-db`) — sigue siendo una función sync,
-    sin cambio de firma ni de cuerpo, sólo cambió el call site.
+    design de `ingest-offload-blocking-db`) — sigue siendo una función sync.
+    Único cambio de firma de toda esta change (D77/RN-171, task 2.1): recibe
+    el instante de aceptación del canal ya capturado por la corrutina, ANTES
+    de este despacho al executor, y lo persiste en `channel_accepted_at`
+    dentro del mismo `commit` que ya escribe `delivered_at`. No se abre una
+    `Session` adicional ni un `commit` adicional para esto.
+
+    `delivered_at` NO se toca: sigue siendo el `datetime.now(timezone.utc)`
+    evaluado acá, dentro del hilo del executor. Esta función agrega una marca;
+    no redefine la existente (D-4 del design) — hay mediciones ya emitidas que
+    dependen de que `delivered_at` signifique exactamente esto.
     """
     with Session(engine) as session:
         db_alert = session.get(Alert, alert_id)
         if db_alert:
             db_alert.delivered_at = datetime.now(timezone.utc)
+            db_alert.channel_accepted_at = channel_accepted_at
             db_alert.channel = channel
             db_alert.retry_count = retry_count
             db_alert.attempt_count = attempt_count

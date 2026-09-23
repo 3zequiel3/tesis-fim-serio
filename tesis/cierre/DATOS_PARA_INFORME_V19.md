@@ -146,6 +146,22 @@ independiente, lo que es evidencia de reproducibilidad y conviene declararlo com
 Canal primario n8n, destino SMTP final Mailpit. Intervalo medido: `events.received_at` →
 `alerts.delivered_at`.
 
+**Este indicador no es el que la Tabla 4 define, y hay que decirlo.** La Tabla 4 define el intervalo
+como recepción del evento por el backend → **emisión exitosa del webhook**, excluyendo explícitamente
+la entrega dentro de n8n y en el canal final, y sólo por el camino feliz en el primer intento. Lo que
+se mide es `alerts.delivered_at − events.received_at`, que es un intervalo distinto y mayor: incluye
+la espera por un cupo de entrega, que bajo la cota de D76/RN-170 es justamente la parte grande.
+
+Peor aún, **el protocolo ofrecía dos fuentes para validar de forma cruzada y las dos miden lo mismo
+equivocado**. Su «Fuente B» propone el registro estructurado `notify.delivered` como emisión exitosa,
+pero esa línea se emite *después* de que `_mark_delivered` persiste `delivered_at`: marca el mismo
+instante, con un log en lugar de una columna.
+
+El instante de aceptación **no existe hoy en ningún lado**: ninguna columna de `alerts` lo registra, y
+la línea de registro que sí ocurre en el momento correcto —dentro de `send_n8n`, apenas la respuesta
+se valida— no lleva identificador de alerta ni de evento, de modo que no puede reasociarse, y menos
+con 32 entregas simultáneas en vuelo. La Change 60 agrega esa marca.
+
 | Escenario | n | Entregadas | Media | P50 | P95 | P99 | Máx |
 |---|---|---|---|---|---|---|---|
 | secuencial | 1000 | **1000** | 13.170,494 | 13.955,994 | 21.637,906 | 22.209,017 | 22.228,375 |
@@ -230,8 +246,12 @@ Desglose de las 15, por mensaje, tomado del `backend.xml` del paquete:
   las pruebas que ejecutan el ciclo de vida real compiten por él, y cuando una falla al enlazar el
   *portal* compartido de anyio queda roto y arrastra a sus hermanas.
 - **2** en `tests.core.test_notification_settings`, por una causa distinta: la prueba afirma que una
-  opción queda vacía cuando no se define, pero lee el entorno real del proceso, y el laboratorio tiene
-  `N8N_WEBHOOK_URL` exportada.
+  opción queda vacía cuando no se define, y la ve definida. La prueba **sí** limpia el entorno del
+  proceso —hace `monkeypatch.delenv` sobre las seis claves—, de modo que la fuga no entra por ahí:
+  entra por `backend/app/core/config.py`, que declara `env_file=".env"` con **ruta relativa**.
+  pydantic-settings la resuelve contra el directorio de trabajo del proceso, y la suite corre desde la
+  raíz del repositorio, donde hay un `.env` real que define esas claves. Un arreglo que solo limpiara
+  variables de entorno dejaría el defecto intacto.
 
 **Matiz que debe declararse sin adornos**: la misma suite ejecutada contra contenedores efímeros de
 Postgres y Valkey reporta 0 fallas. Eso **no** significa que estén corregidas: significa que ese

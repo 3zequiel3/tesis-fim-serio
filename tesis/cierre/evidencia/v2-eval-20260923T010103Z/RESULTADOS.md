@@ -105,8 +105,11 @@ del producto, y se reparten en dos causas distintas:
   por él; cuando una falla al enlazar, el *portal* compartido de anyio queda roto y arrastra a sus
   hermanas. Afecta a `tests.test_notifications` (7) y `tests.test_sse_alerts` (6).
 - **2** en `tests.core.test_notification_settings`. La prueba afirma que una opción queda vacía cuando
-  no se define, pero lee el entorno real del proceso, y el laboratorio tiene `N8N_WEBHOOK_URL`
-  exportada.
+  no se define, y la ve definida. La prueba **sí** limpia el entorno del proceso —`monkeypatch.delenv`
+  sobre las seis claves—, así que la fuga no entra por ahí: entra por `backend/app/core/config.py`,
+  que declara `env_file=".env"` con **ruta relativa**. pydantic-settings la resuelve contra el
+  directorio de trabajo, y la suite corre desde la raíz del repositorio, donde hay un `.env` real que
+  define esas claves.
 
 **Matiz que debe declararse sin adornos**: la misma suite ejecutada contra contenedores efímeros de
 Postgres y Valkey reporta 0 fallas. Eso **no** significa que estén corregidas: significa que ese

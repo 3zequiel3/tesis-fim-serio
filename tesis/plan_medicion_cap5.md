@@ -206,6 +206,20 @@ WHERE reason = 'clock_skew'
 **No incluye** la entrega en n8n ni en el canal final.
 **Solo camino feliz / primer intento** — los reintentos (5/30/120 s) harían infalsable el umbral de 5 s.
 
+> **D77/RN-171 (2026-09-23).** Hasta esta decisión, la única fuente disponible para este intervalo era
+> `delivered_at`, que se escribe **después** del retorno del envío, del despacho al executor de
+> notificación (D76/RN-170, que bajo carga puede esperar en la cola FIFO del pool) y del `commit`. Eso
+> mide una magnitud **estrictamente mayor** que la que esta batería define, y así se midió en el
+> candidato `v3.0-tesis` (`22f393d`, paquete `tesis/cierre/evidencia/v2-eval-20260923T010103Z/`):
+> medianas de `delivered_at − received_at` de **13.170 / 11.671 / 10.537 ms** en secuencial / 50
+> concurrentes / 100 concurrentes. **Esos números no son erróneos** — miden correctamente el intervalo
+> recepción → persistencia del éxito, que es una magnitud legítima y que bajo D76/RN-170 incluye la
+> espera por un permiso del cupo de entregas concurrentes—. Lo erróneo era presentarlos como si
+> midieran lo que esta batería define. Quedan **declarados, no reemplazados en silencio**: son la serie
+> de `delivered_at − received_at`, un intervalo distinto, medido sobre el mismo candidato. A partir de
+> esta decisión, los ítems 11-22 se derivan de `alerts.channel_accepted_at` (Fuente A de abajo), que
+> D77/RN-171 agregó específicamente para este propósito.
+
 **Precondición dura (P6)**: sin reglas `high`/`critical` configuradas, esta batería mide cero.
 Sembrarlas con `scripts/seed-reglas-lab.sh <password_admin>` (idempotente, vía la API REST).
 
@@ -215,29 +229,68 @@ Tres escenarios, tres corridas separadas: **secuencial (1) · 50 concurrentes ·
 Con el rate limit vigente (100 ev/60 s por agente), el escenario de 100 concurrentes se estrangula
 solo → **P1 es obligatorio**, o repartir la carga entre múltiples `agent_id`.
 
-Dos fuentes posibles, usar la primera y validar con la segunda:
+Una fuente, la Fuente A de abajo. La Fuente B que este documento ofrecía como validación cruzada
+quedó corregida más abajo — **no valida nada porque mide lo mismo que la A medía antes de D77/RN-171**.
 
 ```sql
 -- Fuente A (SQL). Validar el nombre de la FK alerts→events contra el esquema.
 COPY (
   SELECT a.id,
-         EXTRACT(EPOCH FROM (a.delivered_at - e.received_at)) * 1000 AS notif_ms
+         EXTRACT(EPOCH FROM (a.channel_accepted_at - e.received_at)) * 1000 AS notif_ms
   FROM alerts a
   JOIN events e ON e.id = a.event_id          -- <-- A VALIDAR
-  WHERE a.delivered_at IS NOT NULL
+  WHERE a.channel_accepted_at IS NOT NULL
     AND e.received_at BETWEEN '<inicio_utc>' AND '<fin_utc>'
 ) TO '/tmp/bateria4_<escenario>.csv' WITH CSV HEADER;
 ```
 
+> **El filtro `a.channel_accepted_at IS NOT NULL` es obligatorio, no cosmético.** `channel_accepted_at`
+> (D77/RN-171, migración `022`) no tiene backfill: toda fila `alerts` anterior a esa migración queda
+> con `NULL`, igual que cualquier alerta cuya cascada completa haya fallado. Una ventana temporal que
+> incluya alertas de cualquiera de los dos orígenes produce un `n` menor que el esperado, y **un `n`
+> chico por filas históricas sin la columna y un `n` chico por "el sistema no notificó" se ven
+> idénticos en la planilla** — mismo criterio que la nota del ítem 10 sobre `clock_skew` (`:192-195`).
+> Si `n` no coincide con la cantidad de eventos `critical`/`high` disparados en la ventana, investigar
+> antes de agregar.
+
+> **Error residual de captura, declarado (D-1 del design de `notify-accepted-at-and-test-port-isolation`).**
+> `channel_accepted_at` se captura en el retorno de la corrutina de `notify_event`
+> (`backend/app/modules/alerts/service.py`), **no** en el `response.raise_for_status()` de
+> `notifier.py:47`, que es el instante estructuralmente más exacto. Entre uno y otro median una línea
+> de log, el cierre del `AsyncClient` de httpx y el retorno de la corrutina — del orden de
+> **microsegundos a un milisegundo**, contra un umbral que esta batería acota en segundos (ítems 20-22,
+> P99 < 5.000 ms). La alternativa exacta —que `send_n8n` y los tres canales de la cascada devuelvan el
+> instante en vez de `bool`— fue evaluada y descartada por desproporción frente al costo de
+> refactorizar toda la capa de transporte. Si el umbral objetivo bajara alguna vez al orden del
+> milisegundo, ese descarte habría que reconsiderarlo.
+
 ```
-# Fuente B (logs estructurados) — correlacionar por event_id:
+# Fuente B (logs estructurados), CORREGIDA (D-8 del design de
+# `notify-accepted-at-and-test-port-isolation`, 2026-09-23):
 #   consumer.event_persisted   (recepción)
-#   notify.delivered           (alerts/service.py:154, emisión exitosa)
+#   notify.delivered           NO es "emisión exitosa" — se emite DESPUÉS del
+#                              run_in_executor de _mark_delivered
+#                              (alerts/service.py:432, :457), así que marca lo
+#                              mismo que delivered_at, no channel_accepted_at.
+#                              Dejarla como estaba mantendría en pie una
+#                              segunda fuente igual de equivocada, presentada
+#                              como validación cruzada de la primera. No hay
+#                              línea de log equivalente a channel_accepted_at
+#                              con identidad de alerta (D77/RN-171, D-1 del
+#                              design): la columna durable existe
+#                              precisamente porque ese join no es una función
+#                              bajo las hasta 32 entregas concurrentes de
+#                              D76/RN-170. Usar sólo la Fuente A.
 ```
 
 Agregar con pandas, mismo script que la Batería 3.
 
 ### Ítems
+
+**Los umbrales de los ítems 20-22 (P99 < 5.000 ms) se evalúan contra el intervalo nuevo**
+(`channel_accepted_at − received_at`, D77/RN-171), no contra la serie anterior de
+`delivered_at − received_at`. Un umbral heredado de una magnitud mayor evaluado contra una menor se
+aprueba solo, y eso no sería una medición.
 
 | # | Dato | Escenario | Método |
 |---|---|---|---|
@@ -254,10 +307,17 @@ Agregar con pandas, mismo script que la Batería 3.
 | 21 | **P99 (ms)** — umbral < 5.000 | 50 concurrentes | ídem |
 | 22 | **P99 (ms)** — umbral < 5.000 | 100 concurrentes | ídem |
 
-> **Riesgo a vigilar en el escenario de 100 concurrentes**: `notify_if_applicable` abre sesiones DB
-> síncronas dentro del event loop (`backend/app/modules/alerts/service.py:92-172`). Puede generar
-> una cola pesada que distorsione los ítems 13, 16, 19 y 22. Corregirlo antes, o documentarlo
-> como limitación conocida en el Cap. 5.
+> **Riesgo a vigilar en el escenario de 100 concurrentes — actualizado (D77/RN-171, 2026-09-23).** La
+> redacción anterior de esta nota decía que `notify_if_applicable` abre sesiones DB síncronas dentro
+> del event loop (`alerts/service.py:92-172`); **eso ya no es cierto**: D75/RN-169 sacó esas `Session`
+> del event loop y D76/RN-170 aisló el carril de notificación en su propio executor, con concurrencia
+> acotada. Lo que sí puede distorsionar los ítems 13, 16, 19 y 22 hoy es otra cosa, y `channel_accepted_at`
+> la deja de absorber en gran parte: bajo D76/RN-170 (`notify_max_concurrent_deliveries`, default 32),
+> una entrega puede esperar su turno en el semáforo antes de intentar el envío. Esa espera **ocurre
+> antes** del punto donde se captura `channel_accepted_at` (dentro de `_delivery_slot()`, antes de
+> `_prepare_notification`), así que sigue formando parte del intervalo medido en el escenario de 100
+> concurrentes si el cupo se satura. Documentarlo como limitación conocida si el P99 de ese escenario
+> se acerca al umbral, en vez de asumir que la marca nueva lo hace desaparecer.
 
 ---
 

@@ -785,7 +785,7 @@ Implementado con counters + TTL en Valkey. Excedentes retornan 429 (API) o se de
 
 ## Appendix: Decisiones de implementación — Abril 2026
 
-Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17; D70–D72 (RN-164 a RN-166) se agregaron el 2026-09-17; D73 (RN-167) se agregó el 2026-09-17; D74 (RN-168) se agregó el 2026-09-17; D75 (RN-169) se agregó el 2026-09-18; D76 (RN-170) se agregó el 2026-09-22. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
+Las siguientes decisiones cierran las suposiciones abiertas detectadas durante la elaboración del roadmap de implementación ([CHANGES.md](../CHANGES.md)). Las decisiones D1–D8 se cerraron el 2026-04-24; D11–D13 (RN-109 a RN-111) se agregaron el 2026-06-23; D14–D17 (RN-112 a RN-115) se agregaron el 2026-06-26; D18–D20 (RN-116 a RN-118) se agregaron el 2026-06-26; D29 (RN-123) se agregó el 2026-07-01; D30–D32 (RN-124 a RN-126) se agregaron el 2026-07-02; D33 (RN-127) se agregó el 2026-07-02; D34 (RN-128) se agregó el 2026-07-02; D35 (RN-129) se agregó el 2026-08-13; D36 (RN-130) se agregó el 2026-08-14; D37 (RN-131) se agregó el 2026-08-16; D38 (RN-132) se agregó el 2026-08-18; D39 (RN-133) se agregó el 2026-08-21; D52 (RN-146) se agregó el 2026-09-12; D53–D56 (RN-147 a RN-150) se agregaron el 2026-09-12; D57 (RN-151) se agregó el 2026-09-12; D58–D62 (RN-152 a RN-156) se agregaron el 2026-09-13; D63–D66 (RN-157 a RN-160) se agregaron el 2026-09-15; D67 (RN-161) y D68 (RN-162) se agregaron el 2026-09-16; D69 (RN-163) se agregó el 2026-09-17; D70–D72 (RN-164 a RN-166) se agregaron el 2026-09-17; D73 (RN-167) se agregó el 2026-09-17; D74 (RN-168) se agregó el 2026-09-17; D75 (RN-169) se agregó el 2026-09-18; D76 (RN-170) se agregó el 2026-09-22; D77–D78 (RN-171 a RN-172) se agregaron el 2026-09-23. En caso de conflicto con reglas previas (RN-01 a RN-103) o con el appendix de auditoría, prevalece lo especificado en este appendix. Las decisiones que solo afectan la implementación técnica (despliegue, organización del código) se documentan en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo título.
 
 ### Modelo de datos
 
@@ -2580,6 +2580,119 @@ No se infiere ninguna explicación acá. La atribución causal por operación no
 cerrar con la instrumentación vigente; cerrarla requiere instrumentación adicional en el agente. No
 afecta este diagnóstico, que se funda en la latencia de notificación y en la tasa de drenaje, ni la
 preservación, que es del 100 % sobre los eventos **encolados**.
+
+#### D77 / RN-171: El instante de aceptación del canal se registra de forma durable y distinta de la marca de entregado
+
+**Descripción:** La fila `alerts` SHALL tener una columna de timestamp anulable,
+`channel_accepted_at`, que registre el instante en que un canal aceptó la notificación. Ese instante
+SHALL capturarse en la corrutina de entrega (`notify_event`, `backend/app/modules/alerts/service.py`),
+**inmediatamente después** de que la operación de envío devolvió éxito y **antes** de despachar
+cualquier trabajo al executor de notificación — en los dos puntos de éxito: `send_n8n(...)` y la
+cascada de fallbacks (`_try_fallbacks`). El valor SHALL persistirse **en el mismo `commit`** que ya
+escribe `delivered_at` (`_mark_delivered`), sin transacción ni despacho adicional al executor. La marca
+SHALL escribirse **únicamente** cuando un canal aceptó: si toda la cascada falla, la columna MUST
+permanecer en `NULL`.
+
+`delivered_at` MUST conservar su semántica **exactamente**: sigue siendo el `datetime.now(timezone.utc)`
+evaluado dentro del hilo del executor, al persistir el éxito. Esta decisión **agrega** una marca; **no**
+redefine ninguna — hay mediciones ya emitidas que dependen de que `delivered_at` signifique lo que
+significa hoy, y redefinirla las invalidaría retroactivamente en lugar de corregir la brecha. El estado
+derivado de la alerta (`delivered` / `failed` / `pending`) MUST seguir derivándose **solo** de
+`delivered_at` y `failed_at`; `channel_accepted_at` MUST NOT participar de esa derivación, ni
+incorporarse al payload canónico de notificación (D40/RN-134) ni al modelo de respuesta de la API de
+alertas: es instrumentación de medición, no superficie de producto. La columna MUST NOT tener backfill
+sobre filas anteriores a su creación — una alerta entregada antes de esta decisión queda con
+`channel_accepted_at IS NULL`, que es la verdad; derivarla de `delivered_at` produciría una columna que
+aparenta medir la aceptación del canal y mide otra cosa.
+
+**Condición:** Camino de notificación por evento del backend (`notify_event`, `_mark_delivered`,
+`backend/app/modules/alerts/service.py`) y esquema de la tabla `alerts`
+(`backend/app/modules/alerts/models.py`, migración `022`).
+
+**Motivo:** el protocolo de medición (`tesis/plan_medicion_cap5.md`, Batería 4) define el intervalo de
+notificación como *"recepción del evento por el backend → emisión exitosa del webhook"*, camino feliz
+/ primer intento. Lo que la Fuente A del mismo protocolo calculaba hasta esta decisión —
+`delivered_at − received_at`— es una magnitud **estrictamente mayor**, porque `delivered_at` se escribe
+después del retorno del envío, después del despacho al executor (que bajo D76/RN-170 puede esperar en
+la cola FIFO del pool) y después del `commit`. Medianas medidas sobre el candidato `v3.0-tesis`
+(`22f393d`), paquete `tesis/cierre/evidencia/v2-eval-20260923T010103Z/`: **13.170 ms**, **11.671 ms** y
+**10.537 ms** en los tres escenarios de la Batería 4. El instante verdadero de aceptación se observa
+en el log (`notifier.py:48`, `notifier.n8n_sent`, inmediatamente después de
+`response.raise_for_status()`), pero esa línea no lleva `alert_id` ni `notification_id`, y bajo la
+concurrencia acotada de D76/RN-170 (`notify_max_concurrent_deliveries`, default 32) hay hasta 32
+entregas en vuelo simultáneas: ningún join por proximidad temporal entre esa línea de log y una fila
+`alerts` es una función.
+
+**Excepciones:** no se liga `notifier.n8n_sent` a la alerta atravesando contexto por la firma de
+`send_n8n` y de los tres fallbacks — la columna durable vuelve innecesario ese join, y hacerlo de todos
+modos sería la misma magnitud de cambio sin la marca en base. No se cambia el tipo de retorno de
+`send_n8n` (de `bool` a algo compuesto) para que devuelva el instante exacto del `raise_for_status()`
+— alternativa estructuralmente más precisa, descartada por desproporción frente al costo de
+refactorizar toda la capa de transporte por la latencia de un retorno de corrutina. Queda declarado un
+**error residual**, acotado y no oculto: entre el `raise_for_status()` de `notifier.py:47` y la captura
+en la corrutina median una línea de log, el cierre del `AsyncClient` de httpx y el retorno de la
+corrutina — del orden de microsegundos a un milisegundo, contra una magnitud objetivo que el protocolo
+acota en segundos. Sin backfill (D-3 del design de la change) y sin índice — la columna es material de
+análisis sobre una ventana temporal, no predicado de consulta caliente.
+
+**Reglas afectadas:** ratifica sin cambio D76/RN-170 (concurrencia acotada, executor dedicado, las tres
+puertas de entrada), D75/RN-169 (despacho a executor), D40/RN-134 y D41/RN-135 (`notification_id`
+estable, `_build_payload` invocado exactamente una vez, payload canónico sin la marca nueva), D39/RN-133
+(`TIMESTAMPTZ` en toda columna de tiempo de `alerts`), RN-86 y RN-102 (lifecycle de `alerts`, estado
+derivado sin cambio). No reabre ninguna de ellas. Agregada el 2026-09-23.
+
+#### D78 / RN-172: La suite de pruebas no depende de recursos ambientales compartidos, y su aislamiento no cambia código de producción
+
+**Descripción:** La suite de pruebas del backend SHALL NOT depender de ningún recurso ambiental
+compartido con el sistema que la aloja — un recurso ambiental compartido es todo aquel cuyo estado lo
+fija el entorno de invocación y no el arnés: un puerto TCP fijo, un archivo de configuración resuelto
+contra el directorio de trabajo, una variable exportada por el proceso invocante. Esta obligación
+SHALL satisfacerse **sin cambiar ninguna ruta de código de producción**.
+
+**Puertos de escucha.** Ninguna prueba SHALL depender de que el puerto por defecto del servidor mTLS
+(8443) ni el del listener de bootstrap (8444) estén libres. El arnés SHALL neutralizar, de forma
+**centralizada** en el conftest raíz y no en cada call site, el arranque de ambos listeners para todo
+test que ejecute el lifespan real de la aplicación (`with TestClient(app)`); una prueba que necesite un
+listener real SHALL obtener un puerto efímero del sistema operativo y pasarlo explícitamente. El
+default de producción de ambos puertos y la invocación del lifespan MUST permanecer sin cambios.
+
+**Entorno de configuración.** La suite SHALL partir de un entorno de configuración determinado. Ni las
+variables exportadas por el proceso invocante ni el archivo de entorno que la aplicación resuelve
+contra el directorio de trabajo (`env_file=".env"`, ruta relativa) SHALL poder decidir el valor de una
+opción que una prueba afirma. Neutralizar únicamente las variables de `os.environ` MUST considerarse
+insuficiente: el archivo se lee aunque la variable no exista en el proceso. El saneamiento SHALL
+hacerse en el conftest raíz, junto al bloque que ya fija el entorno canónico antes del primer import de
+la aplicación, y no prueba por prueba. La configuración de la aplicación (`app/core/config.py`) MUST
+NOT cambiar para satisfacer esta obligación.
+
+**Condición:** Arnés de pruebas del backend (`backend/tests/conftest.py`) y los 41 call sites
+`with TestClient(app)` de `test_notifications.py`, `test_sse_alerts.py`, `test_sse_stream_ticket.py` y
+`test_logging_sanitize.py`.
+
+**Motivo:** desglose medido sobre el artefacto sellado (`tesis/cierre/evidencia/v2-eval-20260923T010103Z/suites/`,
+`candidate_tag=v3.0-tesis`, `candidate_commit=22f393d`): backend 864 tests, **15 fallas**, 4 omitidos —
+**13** `RuntimeError: This portal is not running` (`tests.test_notifications` 7,
+`tests.test_sse_alerts` 6), producidas por `OSError: [Errno 98] address already in use` sobre el 8443
+cableado en `pki.py:644` cuando dos tests con lifespan coinciden, con cascada sobre los tests hermanos
+de la misma sesión una vez roto el portal anyio compartido; y **2** `AssertionError` de configuración
+heredada (`tests.core.test_notification_settings`), producidas porque `env_file=".env"`
+(`config.py:40`) se resuelve contra el CWD del proceso y el arnés de laboratorio corre pytest desde la
+raíz del repositorio, donde vive un `.env` real que `monkeypatch.delenv` sobre `os.environ` no puede
+neutralizar. Agente 642/0/1 y frontend 260/0/0, sin cambios. El matiz sin adornos: la misma suite contra
+contenedores efímeros, con el puerto libre y sin `.env` en el directorio de invocación, reporta 0
+fallas — eso no significa que estuvieran corregidas, significa que ese entorno evita el conflicto.
+
+**Excepciones:** no se editan los 41 call sites de `TestClient` — se cubren con una única fixture
+centralizada, que además cubre los que se escriban después (D-5 del design). No se convierte el puerto
+mTLS en un parámetro de despliegue (excede el alcance: el agente conoce el 8443). No se cambia
+`env_file` en `config.py` — es correcto y necesario para el despliegue; lo que cesa es que la suite lo
+herede.
+
+**Reglas afectadas:** amplía el requisito de `backend-test-harness` sobre aislamiento de base de datos
+(esquema, sembrado, `TRUNCATE` por test) a recursos ambientales fuera de la base. No reabre RN-141
+(integridad de specs) ni ninguna decisión de dimensionamiento o concurrencia de D75/RN-169 o
+D76/RN-170: esta decisión es exclusivamente del arnés de pruebas, ninguna ruta de producción cambia de
+comportamiento. Agregada el 2026-09-23.
 
 ### Decisiones técnicas referenciadas en otros documentos
 

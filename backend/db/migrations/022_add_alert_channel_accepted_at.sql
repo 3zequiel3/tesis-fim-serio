@@ -1,0 +1,28 @@
+-- Migration 022: Agrega `channel_accepted_at` (TIMESTAMPTZ, nullable) a alerts (D77/RN-171).
+--
+-- Registra el instante en que un canal aceptó la notificación, capturado en la corrutina
+-- de entrega inmediatamente después de que el envío devolvió éxito -y antes de despachar
+-- nada al executor-. Es distinta de `delivered_at`, que se escribe dentro del hilo del
+-- executor -después del retorno del envío, del despacho al executor y del `commit`- y cuya
+-- semántica no cambia con esta migración.
+--
+-- Sin `NOT NULL`, a propósito: una alerta que todavía no fue entregada no tiene instante de
+-- aceptación, y una que falló en todos los canales de la cascada tampoco. `NULL` es la
+-- representación correcta de "no ocurrió", igual que en `delivered_at` y `failed_at`.
+--
+-- Sin backfill, a propósito: el único valor derivable para las filas anteriores a esta
+-- migración sería `delivered_at`, que es precisamente la magnitud que esta change corrige.
+-- Escribirlo ahí produciría una columna que aparenta medir la aceptación del canal y mide
+-- otra cosa, con el agravante de parecer verificada. Una fila anterior a esta migración
+-- queda con `channel_accepted_at IS NULL`, que es la verdad.
+--
+-- Sin índice, a propósito: la columna es material de análisis sobre una ventana temporal,
+-- no predicado de ninguna consulta caliente. Los índices que la tabla necesita ya existen
+-- (`ux_alerts_notification_id`, `ix_alerts_pending_delivery`, migración 014).
+--
+-- Idempotente: ADD COLUMN IF NOT EXISTS. Ejecutar el script dos veces no produce error.
+--
+-- Migrations are applied by hand (D3) — this one included. Apply with:
+--   psql $DATABASE_URL -f 022_add_alert_channel_accepted_at.sql
+
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS channel_accepted_at TIMESTAMPTZ;
