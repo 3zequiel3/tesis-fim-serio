@@ -95,12 +95,22 @@ está en `v2-eval-20260922T175053Z/resiliencia/MOTIVO_TRAZAS_INVALIDAS.md`.
 porque la corrida usa contenedores efímeros de Postgres y Valkey, no porque se hayan corregido. El
 entorno cambió, no el resultado de esas pruebas.
 
-## 6. Custodia
+## 6. Supuesto abierto, declarado y no resuelto
+
+La contabilidad causal de las operaciones que no llegaron a encolarse **no cierra**. El generador
+emite 3.000 operaciones y el registro del agente marca 420 líneas `modify colapsado` por repetición,
+pero 420 + 2.674 = 3.094 > 3.000: el marcador de colapso **no particiona** el universo de operaciones,
+de modo que algunas operaciones colapsadas produjeron igualmente un evento encolado antes.
+
+No se infiere explicación. Cerrarlo requiere instrumentación adicional en el agente, que es otra
+change. Este es el séptimo dato que el protocolo enumera para la Batería 5 y **queda sin cubrir**.
+
+## 7. Custodia
 
 `SHA256SUMS` verifica 46 de 46. Las trazas se almacenan comprimidas con gzip y el sello certifica el
 contenido **sin** comprimir: descomprimir con `gunzip -k` antes de `sha256sum -c`.
 
-## 7. Intento inválido preservado
+## 8. Intento inválido preservado
 
 La primera corrida de este mismo candidato está en
 `tesis/cierre/evidencia/invalidos/v3-eval-20260922T233242Z-sin-sumidero/`, con su acta. Midió las tres

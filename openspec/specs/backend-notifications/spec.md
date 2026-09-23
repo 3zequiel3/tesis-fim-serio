@@ -16,19 +16,62 @@ resultante es `critical` o `high` (RN-52).
 camino de notificación **por evento** MUST ejecutarse sobre el event loop (D75/RN-169, que extiende
 D21 a todo camino que abra una `Session` síncrona dentro de una corrutina). Esto alcanza tanto a la
 `Session` con la que se crea la fila `Alert` como a las `Session` del camino de entrega y de la
-marca de entregado. Todas ellas MUST ejecutarse via
-`asyncio.get_running_loop().run_in_executor(None, fn, *args)`; las funciones síncronas NO deben
-convertirse en async — solo cambia el call site.
+marca de entregado. Todas ellas MUST ejecutarse via `run_in_executor`; las funciones síncronas NO
+deben convertirse en async — solo cambia el call site.
 
-El fundamento es medido y no se puede sustituir por una versión parcial: la cadena de notificación
-completa cuesta unos 5,7 ms por evento entre la creación de la alerta y su entrega, y corre en
-**todos** los eventos cuando las reglas vigentes los clasifican `high` o `critical`. Desbloquear
-únicamente la creación de la fila `Alert` dejaría el resto de la cadena frenando el event loop y
-anularía el solapamiento que la corrutina fire-and-forget existe para habilitar: mientras la
-notificación de un evento previo ocupa el loop, el consumer no puede despachar el evento siguiente.
+**No bloquear el event loop no alcanza: el carril de notificación MUST estar aislado en recursos del
+carril de ingesta** (D76/RN-170). Ejecutar fuera del loop pero sobre el **mismo** pool de hilos
+mantiene el acoplamiento por otra vía: la cola del executor es FIFO y sin cota del lado del `submit`,
+de modo que el trabajo de base de datos de la ingesta espera detrás del backlog de notificaciones. En
+consecuencia:
 
-Las `Session` de los caminos que NO corren por evento —la recuperación de notificaciones pendientes
-del arranque— quedan fuera de esta obligación: su costo no participa del carril de ingesta.
+- Las operaciones de base de datos del camino de notificación por evento MUST ejecutarse en un
+  **executor dedicado al carril de notificación**, referenciado **explícitamente** por sus call sites.
+  Pasar `None` MUST considerarse un defecto, porque designa el executor de ingesta.
+- El carril de ingesta MUST conservar su executor en exclusiva. Esta obligación NO SHALL satisfacerse
+  reduciendo la capacidad del carril de ingesta.
+- El dimensionamiento conjunto de los dos executors contra el pool de conexiones se rige por el
+  requisito de dimensionamiento de `backend-async-consumer`.
+
+**La concurrencia del carril de notificación MUST estar acotada, con un comportamiento de desborde
+declarado** (D76/RN-170). El número de **entregas** concurrentes SHALL estar limitado por una cota
+configurable. Esa cota MUST aplicarse a **todas** las puertas de entrada del camino de entrega —el
+consumer de eventos, la recuperación de notificaciones pendientes del arranque y el reintento manual
+desde la DLQ—, de modo que ninguna pueda saltearla.
+
+Al alcanzarse la cota, la entrega SHALL **esperar su turno en orden de llegada**. El sistema MUST NOT
+descartar la notificación, MUST NOT rechazarla y MUST NOT diferirla a un barrido posterior: la
+semántica de entrega al-menos-una-vez no se degrada para resolver un problema de latencia. La
+cantidad de entregas en espera SHALL ser observable, y el cruce de un umbral declarado SHALL emitir
+una advertencia **disparada por flanco**, nunca una por notificación.
+
+**La creación de la fila `Alert` MUST quedar fuera de esa cota.** Es el registro durable del que
+dependen la DLQ, el stream SSE y la recuperación; estrangularlo convertiría un problema de latencia
+de entrega en pérdida de visibilidad.
+
+La cota de entregas concurrentes y el número de hilos del executor de notificación SHALL ser
+parámetros **distintos**, dimensionados por separado: el executor acota el paralelismo de base de
+datos del carril, mientras que las entregas pasan la mayor parte de su vida esperando en la red o
+entre reintentos, sin ocupar hilo ni conexión.
+
+**Invariantes que este aislamiento MUST preservar sin excepción:**
+
+- `_build_payload` MUST invocarse **exactamente una vez por entrega**, fuera del bucle de reintentos.
+  Es la única razón por la que `notification_id` es estable a lo largo de toda la escalera, y esa
+  estabilidad es la única razón por la que sirve como clave de deduplicación (D40/RN-134, D41/RN-135).
+  El permiso de la cota SHALL adquirirse **una sola vez, antes** de la preparación del payload, y
+  sostenerse hasta que la entrega termina: adquirirlo después dejaría la preparación fuera de la
+  cota, y readquirirlo por vuelta del bucle produciría un `notification_id` por intento.
+- La cascada de canales n8n → SMTP → webhook_fallback → log_only, sus umbrales, sus contadores y sus
+  delays de reintento MUST conservar exactamente su comportamiento.
+- El payload publicado al broadcaster SSE y el orden de las operaciones —crear fila, loguear la
+  creación, publicar al broadcaster, intentar la entrega— MUST permanecer idénticos.
+- Los objetos ORM que crucen el límite de cualquiera de los dos executors MUST estar desligados con
+  sus atributos ya materializados; ninguna `Session` SHALL compartirse entre hilos ni cruzar ese
+  límite.
+
+Las `Session` de los caminos que NO corren por evento quedan fuera de la obligación de ejecutar en el
+executor de notificación: su costo no participa del carril de ingesta.
 
 #### Scenario: Evento critical o high dispara notificación
 - **WHEN** se ingiere un evento cuyo path matchea una regla con `severity=critical`
@@ -68,10 +111,53 @@ del arranque— quedan fuera de esta obligación: su costo no participa del carr
   está resolviendo su trabajo de base de datos
 - **THEN** ninguna de las dos espera a que la otra libere el event loop
 
-#### Scenario: La recuperación de notificaciones pendientes del arranque queda fuera de alcance
+#### Scenario: El trabajo de notificación corre en el executor dedicado
+- **WHEN** cualquiera de las operaciones de base de datos del camino de notificación por evento se
+  ejecuta
+- **THEN** corre en un hilo del executor de notificación
+- **AND** ningún hilo del executor de ingesta queda ocupado por ella
+
+#### Scenario: Una ráfaga de notificaciones no retrasa la ingesta del evento siguiente
+- **WHEN** hay una cantidad de notificaciones en curso suficiente para saturar el executor de
+  notificación
+- **THEN** la operación de base de datos de la ingesta del evento siguiente no espera detrás de ese
+  trabajo
+
+#### Scenario: La cota de entregas concurrentes se respeta
+- **WHEN** se dispara una cantidad de notificaciones mayor que la cota configurada
+- **THEN** el número de entregas simultáneamente en curso nunca excede la cota
+
+#### Scenario: Al alcanzarse la cota, la entrega espera y no se descarta
+- **WHEN** una notificación llega con la cota completa
+- **THEN** su entrega espera su turno y termina realizándose
+- **AND** no se descarta, no se rechaza y no se marca como fallida por esa causa
+
+#### Scenario: La creación de la fila de alerta no espera a la cota de entregas
+- **WHEN** la cota de entregas está completa y llega un evento `critical` o `high`
+- **THEN** su fila en `alerts` se crea y se publica al broadcaster SSE sin esperar un permiso de
+  entrega
+
+#### Scenario: La recuperación del arranque también queda acotada
+- **WHEN** el backend arranca con más notificaciones pendientes que la cota configurada
+- **THEN** las entregas se procesan respetando la cota en lugar de dispararse todas a la vez
+- **AND** todas terminan entregándose o registrando su fallo, sin descartes
+
+#### Scenario: El reintento manual desde la DLQ también queda acotado
+- **WHEN** se solicita el reintento manual de una alerta con la cota completa
+- **THEN** su entrega respeta la cota igual que las demás puertas de entrada
+
+#### Scenario: El backlog de entregas en espera es observable
+- **WHEN** la cantidad de entregas en espera cruza el umbral declarado
+- **THEN** se emite una advertencia con el conteo, una sola vez por cruce y no una por notificación
+
+#### Scenario: `notification_id` es estable a lo largo de toda la escalera de reintentos
+- **WHEN** una entrega falla y recorre la escalera completa de reintentos y la cascada de canales
+- **THEN** el payload construido se arma una sola vez y todos los intentos transportan el mismo
+  `notification_id`
+
+#### Scenario: La recuperación de notificaciones pendientes del arranque conserva su implementación
 - **WHEN** el backend arranca y recupera las notificaciones pendientes
-- **THEN** ese camino conserva su implementación actual, por correr una sola vez y fuera del carril
-  de ingesta
+- **THEN** su lógica de selección de filas pendientes y su manejo de eventos huérfanos no cambian
 
 ### Requirement: Envío al canal n8n con retry exponencial 3x
 

@@ -255,19 +255,19 @@
 > binario con un solo executor compartido; después de esta change no describen nada. El paquete
 > previo queda como línea de base de comparación: **no se borra ni se sobrescribe**.
 
-- [ ] 8.1 Desplegar el backend con la change aplicada y dejar constancia en el reporte de apply de la
+- [x] 8.1 Desplegar el backend con la change aplicada y dejar constancia en el reporte de apply de la
   fecha, el commit desplegado y el hash agregado del árbol del backend en el contenedor. Ese hash es
   lo que hace auditable una medición: el commit solo no alcanza para identificar qué se corrió, sobre
   todo si el árbol no está limpio. Mismo criterio que `env/procedencia.txt` del paquete previo.
-- [ ] 8.2 Re-correr el arnés unificado **completo** `~/fim-lab/corrida_unificada.sh` —no un
+- [x] 8.2 Re-correr el arnés unificado **completo** `~/fim-lab/corrida_unificada.sh` —no un
   subconjunto— y emitir un **tag nuevo** para el candidato.
-- [ ] 8.3 **Antes de cada repetición de resiliencia, verificar `initial: events=0`.** Es una
+- [x] 8.3 **Antes de cada repetición de resiliencia, verificar `initial: events=0`.** Es una
   precondición del protocolo, no una formalidad: `run-02` del paquete previo arrancó con
   `initial: events=35` (`resiliencia/run-02/bateria5_run-02.log`) y esos residuales corrieron
   `min(received_at)` hacia atrás, inflando una ventana calculada como
   `max(received_at) − min(received_at)` de 120,366 s a 566,004 s. De ahí salió una "varianza de 4×"
   que no existe. Dejar el conteo inicial registrado en la evidencia de cada repetición.
-- [ ] 8.4 Registrar la **latencia de notificación** de los tres escenarios (secuencial, concurrencia
+- [x] 8.4 Registrar la **latencia de notificación** de los tres escenarios (secuencial, concurrencia
   50, concurrencia 100) junto a los números previos, para que la comparación sea directa:
 
   | Escenario | n | Media | p95 | Máx |
@@ -279,7 +279,7 @@
   Contra **302,8 ms** de una notificación aislada (`notificacion/procedencia.txt`), es decir ~17× de
   inflación. Ésta es la métrica que el aislamiento debería mover, y es la evidencia principal del
   diagnóstico.
-- [ ] 8.5 Registrar el **drenaje** de las tres repeticiones junto a los números previos:
+- [x] 8.5 Registrar el **drenaje** de las tres repeticiones junto a los números previos:
 
   | Repetición | Encolados | Entregados | Descartados | Ventana | Tasa |
   |---|---|---|---|---|---|
@@ -290,9 +290,9 @@
   Mediana 141,061 s ≈ 18,9 ev/s, contra ≈ 49,7 ev/s del canal `log_only` (2.920 eventos en 58,809 s):
   degradación atribuible al acoplamiento ≈ **2,6×**. Registrar también la preservación y los
   descartes, que en el paquete previo son 100 % y 0 en las tres repeticiones.
-- [ ] 8.6 Re-verificar los **ítems 40** (orden FIFO) y **41** (cero duplicados) del protocolo. Si
+- [x] 8.6 Re-verificar los **ítems 40** (orden FIFO) y **41** (cero duplicados) del protocolo. Si
   cualquiera se degradó, la change se detiene acá: no son degradables y no se ajusta el criterio.
-- [ ] 8.7 **No declarar mejora por anticipado ni reinterpretar el resultado.** Se implementa, se mide,
+- [x] 8.7 **No declarar mejora por anticipado ni reinterpretar el resultado.** Se implementa, se mide,
   y se registra el número medido sea cual sea. Si el aislamiento no mueve los números, eso se escribe
   con la misma claridad con la que la Change 58 escribió que no había mejorado el ítem 43: un diseño
   correcto sobre un cuello que estaba en otro lado sigue siendo un diseño correcto **y** un resultado
