@@ -54,6 +54,35 @@ parámetros **distintos**, dimensionados por separado: el executor acota el para
 datos del carril, mientras que las entregas pasan la mayor parte de su vida esperando en la red o
 entre reintentos, sin ocupar hilo ni conexión.
 
+**El instante en que un canal aceptó la notificación MUST quedar registrado de forma durable, y MUST
+ser distinto de la marca de entregado** (D77/RN-171). La marca de entregado existente se escribe
+dentro del hilo del executor, es decir después del retorno del envío, después del despacho al
+executor —que bajo la cota de entregas puede esperar— y después del `commit`; por construcción
+**no** marca la aceptación del canal, y el intervalo que produce es estrictamente mayor que el que el
+protocolo de medición define. En consecuencia:
+
+- La fila `Alert` SHALL tener una columna de timestamp **anulable** que registre el instante en que
+  un canal aceptó la notificación.
+- Ese instante SHALL capturarse en la corrutina de entrega, **inmediatamente después** de que la
+  operación de envío devolvió éxito, y **antes** de despachar cualquier trabajo al executor. Esto
+  aplica por igual al canal primario y a cada canal de la cascada de fallbacks.
+- El valor capturado SHALL persistirse **en el mismo `commit`** que escribe la marca de entregado. El
+  sistema MUST NOT abrir una transacción adicional ni un despacho adicional al executor para
+  escribirlo.
+- La marca SHALL escribirse **únicamente cuando un canal aceptó**. Si toda la cascada falla, la
+  columna MUST permanecer en `NULL`.
+- La columna MUST NOT tener backfill sobre filas anteriores a su creación: una alerta entregada antes
+  de que la marca existiera MUST quedar en `NULL`. Derivarla de la marca de entregado produciría un
+  valor que aparenta medir la aceptación del canal y mide otra cosa.
+- La semántica de la marca de entregado MUST permanecer **exactamente** como está: se escribe dentro
+  del executor, al persistir el éxito. Esta obligación **agrega** una marca; **no** redefine ninguna.
+  Hay mediciones ya emitidas que dependen de ese significado.
+- El estado derivado de la alerta (`delivered` / `failed` / `pending`) MUST seguir derivándose
+  **solo** de la marca de entregado y de la marca de fallo. La marca de aceptación MUST NOT participar
+  de esa derivación.
+- La marca MUST NOT incorporarse al payload canónico de notificación (D40/RN-134) ni al modelo de
+  respuesta de la API de alertas: es registro durable de medición, no superficie de producto.
+
 **Invariantes que este aislamiento MUST preservar sin excepción:**
 
 - `_build_payload` MUST invocarse **exactamente una vez por entrega**, fuera del bucle de reintentos.
@@ -69,6 +98,9 @@ entre reintentos, sin ocupar hilo ni conexión.
 - Los objetos ORM que crucen el límite de cualquiera de los dos executors MUST estar desligados con
   sus atributos ya materializados; ninguna `Session` SHALL compartirse entre hilos ni cruzar ese
   límite.
+- El registro del instante de aceptación MUST NOT alterar la estructura de la corrutina de entrega: ni
+  el bucle de reintentos, ni la cascada, ni los delays, ni el punto en que se adquiere el permiso de
+  la cota.
 
 Las `Session` de los caminos que NO corren por evento quedan fuera de la obligación de ejecutar en el
 executor de notificación: su costo no participa del carril de ingesta.
@@ -158,6 +190,42 @@ executor de notificación: su costo no participa del carril de ingesta.
 #### Scenario: La recuperación de notificaciones pendientes del arranque conserva su implementación
 - **WHEN** el backend arranca y recupera las notificaciones pendientes
 - **THEN** su lógica de selección de filas pendientes y su manejo de eventos huérfanos no cambian
+
+#### Scenario: El canal primario acepta y la aceptación queda registrada
+- **WHEN** el envío al canal primario devuelve éxito
+- **THEN** la fila `alerts` queda con la marca de aceptación del canal con un instante no nulo
+- **AND** ese instante es anterior o igual a la marca de entregado de la misma fila
+
+#### Scenario: Un canal de la cascada de fallbacks acepta y la aceptación queda registrada
+- **WHEN** el canal primario se agota y un canal de la cascada de fallbacks acepta la notificación
+- **THEN** la fila `alerts` queda con la marca de aceptación del canal con un instante no nulo
+- **AND** el canal registrado es el que aceptó
+
+#### Scenario: La cascada completa falla y no se registra aceptación
+- **WHEN** el canal primario se agota y todos los canales de la cascada fallan
+- **THEN** la marca de aceptación del canal permanece en `NULL`
+- **AND** la fila queda marcada como fallida, disponible en la DLQ
+
+#### Scenario: La marca de aceptación no altera la marca de entregado
+- **WHEN** una notificación se entrega exitosamente
+- **THEN** la marca de entregado sigue escribiéndose al persistir el éxito, con la misma semántica que
+  antes de existir la marca de aceptación
+- **AND** el estado derivado de la alerta sigue calculándose solo a partir de la marca de entregado y
+  la marca de fallo
+
+#### Scenario: Registrar la aceptación no agrega transacciones al camino caliente
+- **WHEN** una notificación se entrega exitosamente
+- **THEN** la marca de aceptación y la marca de entregado se escriben en el mismo `commit`
+- **AND** no se despacha ningún trabajo adicional al executor para escribirla
+
+#### Scenario: Una alerta anterior a la columna no recibe un valor inventado
+- **WHEN** existe una fila `alerts` entregada antes de que la marca de aceptación fuera introducida
+- **THEN** su marca de aceptación es `NULL`
+- **AND** no se deriva de la marca de entregado ni de ninguna otra columna
+
+#### Scenario: La marca de aceptación no cambia el contrato de notificación ni el de la API
+- **WHEN** se inspecciona el payload canónico enviado a un canal y la respuesta de la API de alertas
+- **THEN** ninguno de los dos incluye la marca de aceptación del canal
 
 ### Requirement: Envío al canal n8n con retry exponencial 3x
 

@@ -221,7 +221,7 @@
 - [ ] 7.3 Correr la suite completa de backend **dos veces en órdenes distintos** (`-p no:randomly` y
   con aleatorización) y comprobar que el conteo es el mismo. El defecto del puerto es sensible al
   orden, de modo que un solo orden verde no demuestra nada.
-- [ ] 7.4 Correr la suite de `agent/` y la de `frontend/` y comprobar que siguen en 642/0/1 y 260/0/0.
+- [x] 7.4 Correr la suite de `agent/` y la de `frontend/` y comprobar que siguen en 642/0/1 y 260/0/0.
   Esta change no toca ninguna de las dos; una diferencia sería señal de que sí.
 - [ ] 7.5 Levantar el backend contra el esquema migrado y comprobar el arranque limpio: la
   recuperación de notificaciones pendientes, los dos executors de D76/RN-170 y el validador de
@@ -317,29 +317,29 @@
 
 ## 10. Re-medición del candidato (después de los grupos 1 a 9)
 
-- [ ] 10.1 Confirmar que los grupos 1 a 9 están completos y que la suite de backend está en el estado
+- [x] 10.1 Confirmar que los grupos 1 a 9 están completos y que la suite de backend está en el estado
   que el grupo 7 registró. **Medir sobre una implementación parcial produce un número que no
   corresponde a nada** (D-9 del design).
-- [ ] 10.2 Congelar el candidato nuevo: commit, tag nuevo y registro del commit exacto. El candidato
+- [x] 10.2 Congelar el candidato nuevo: commit, tag nuevo y registro del commit exacto. El candidato
   `v3.0-tesis` (`22f393d`) queda **invalidado** por esta change y su paquete
   `tesis/cierre/evidencia/v2-eval-20260923T010103Z/` pasa a ser línea de base de comparación, no
   descripción del binario.
-- [ ] 10.3 Correr el arnés unificado completo `~/fim-lab/corrida_unificada.sh` con `TAG=<tag-nuevo>`.
+- [x] 10.3 Correr el arnés unificado completo `~/fim-lab/corrida_unificada.sh` con `TAG=<tag-nuevo>`.
   **No correr baterías sueltas**: el paquete vale como conjunto.
-- [ ] 10.4 Verificar que el arnés de suites recibe `CAND`, `CAND_TAG` y `SUITES_OUT`
+- [x] 10.4 Verificar que el arnés de suites recibe `CAND`, `CAND_TAG` y `SUITES_OUT`
   (`scripts/correr_suites_candidato.sh:22`) y que la procedencia emitida
   (`$OUT/procedencia.txt`, `:52-60`) lleva el `candidate_tag` y el `candidate_commit` del candidato
   nuevo. El defecto que ese script documenta en `:15-20` —artefactos de un candidato archivados bajo
   otro— ya ocurrió una vez y la verificación existe para que no vuelva a ocurrir.
-- [ ] 10.5 Verificar `initial: events=0` antes de cada repetición de la batería de resiliencia. Es la
+- [x] 10.5 Verificar `initial: events=0` antes de cada repetición de la batería de resiliencia. Es la
   guarda que la Change 59 dejó escrita tras la corrección de contabilidad de `run-02`.
 - [ ] 10.6 Registrar el intervalo de notificación nuevo, derivado de `channel_accepted_at`, en los tres
   escenarios. **Registrar el número que salga.** Es esperable que sea menor que 13,170 s porque mide un
   subconjunto estricto — pero *"es esperable"* no es un resultado, y esta change no existe para
   producir un número más chico sino **el número correcto** (D-10 del design).
-- [ ] 10.7 Registrar el conteo de fallas de la suite del candidato nuevo, con su procedencia sellada,
+- [x] 10.7 Registrar el conteo de fallas de la suite del candidato nuevo, con su procedencia sellada,
   contra las 15 de referencia.
-- [ ] 10.8 Sellar el paquete de evidencia nuevo y actualizar las referencias del capítulo de
+- [x] 10.8 Sellar el paquete de evidencia nuevo y actualizar las referencias del capítulo de
   evaluación a las cifras nuevas, **dejando nombrada la serie anterior** con el intervalo que medía.
 
 ## 11. Integridad de specs y cierre
