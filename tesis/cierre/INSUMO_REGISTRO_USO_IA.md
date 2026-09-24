@@ -1,5 +1,26 @@
 # Insumo para el Anexo I — inventario de uso de IA
 
+> ## Aviso previo para el redactor: los dos ítems del repositorio ya están aplicados
+>
+> El informe de marcas consigna, fuera de la tesis: «en el repositorio, aplicar D1 en
+> `tesis/dataset_cap5.md`». **Está hecho, y el D2 de la misma lista también.** No corresponde
+> dejarlos como pendientes.
+>
+> **D1 — `tesis/dataset_cap5.md`, Tabla 12.** Los escenarios ya no se rotulan «50 concurrentes» y
+> «100 concurrentes», sino **1, 50 y 100 op/s**, y la tabla lleva un párrafo previo que explica por
+> qué las dos baterías no se comparan por esa vía: la histórica usó un generador de cadencia fija
+> `1/rate` y la actual un publicador con semáforo sobre publicaciones en vuelo. Son magnitudes
+> distintas.
+>
+> **D2 — `scripts/README.md`.** Los comandos de ejemplo usan `--seed 20260818`, que no es la semilla
+> de ninguna corrida informada. El archivo ahora lo aclara y remite a las reales —20260819 para la
+> Batería 3, y 555 y 4001/4050/4100 para las demás—, que están en `tesis/dataset_cap5.md`, ítem 54.
+>
+> Ambos cambios están publicados en `main`.
+
+---
+
+
 **Qué es esto y qué no es.** Es el inventario de hechos: qué hizo la IA, sobre qué artefacto, y cómo
 se verifica. **No es el texto de la Declaración ni del §9.1.2 ni de la introducción del Anexo I.** Esos
 tres los escribe el equipo, y la razón es simple: una declaración sobre el uso de IA redactada por una
