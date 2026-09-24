@@ -328,6 +328,49 @@ antes que partir el proceso en dos.
 
 ---
 
+---
+
+## Addendum — motivo de la exclusión de los dos paquetes `final-consolidated` (marca 4 de la segunda ronda)
+
+**RESUELTO. El motivo está documentado y el texto para el Anexo F ya estaba escrito.**
+
+El historial lo registra en dos pasos. El `.gitignore` excluyó la serie el 2026-09-15 (`918b16b`,
+«ignore local lab and unconsolidated closure artifacts»), y el 2026-09-19 (`214b93a`) se abrieron
+excepciones para los dos paquetes que la tesis sí usa, con esta razón textual:
+
+> El resto de esa serie queda fuera: dos corridas que no completaron, una de ellas abortada con el
+> árbol de trabajo sucio, y dos consolidaciones previas que las posteriores superan. Ninguna sustenta
+> un resultado del documento. Su exclusión es higiene del repositorio y no una omisión.
+
+El párrafo redactado para el Anexo F está en `tesis/cierre/DATOS_PARA_TESIS_V15.md`. **Se transcribe
+acá actualizado**, porque su última oración quedó desactualizada: dos de las tres familias que
+declaraba excluidas hoy están versionadas.
+
+### Texto listo para el Anexo F
+
+> Las restantes corridas de esa serie quedan fuera del repositorio por regla explícita: dos intentos
+> que no completaron —`final-consolidated-v10-20260912T205729Z-attempt1-failed` y
+> `final-consolidated-v10-20260912T210821Z-aborted-dirty-worktree`, este último interrumpido al
+> detectarse el árbol de trabajo sucio— y dos consolidaciones previas superadas por las posteriores,
+> `final-consolidated-20260911T214511Z` y `final-consolidated-fixed-20260911T225314Z`. Ninguna
+> sustenta un resultado del documento. Su exclusión es una decisión de higiene del repositorio y no
+> una omisión: se deja constancia de su existencia porque forman parte del registro de cómo se llegó a
+> la corrida consolidada, y sus manifiestos quedan disponibles a pedido. Por la misma regla y con el
+> mismo criterio permanece excluida la serie `a4-vps-*`.
+
+**Cambio respecto del texto original**: la versión de `DATOS_PARA_TESIS_V15.md` declaraba también
+excluidos los paquetes `us02-us20-us31-*` y `us03-us16-us17-us25-isolated-*`. Eso ya no es cierto:
+están versionados, con 59 y 24 archivos respectivamente. Verificado en `main`:
+
+| Familia | Estado en `main` |
+|---|---|
+| `a4-vps-*` | Excluida (0 archivos) |
+| `us02-us20-us31-*` | **Versionada (59 archivos)** |
+| `us03-us16-us17-us25-*` | **Versionada (24 archivos)** |
+| Los cuatro `final-consolidated` sin excepción | Excluidos (0 archivos) |
+
+---
+
 ## Resumen de lo que queda sin resolver
 
 | # | Qué | Quién lo resuelve |
