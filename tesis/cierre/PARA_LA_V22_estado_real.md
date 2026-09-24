@@ -25,10 +25,26 @@ Detalle de 0.3, verificado archivo por archivo en la rama publicada:
 | Laboratorios E2E `us02-us20-us31-*` | 59 |
 | Laboratorios E2E `us03-us16-us17-us25-*` | 24 |
 
-**La excepción**: los paquetes `final-consolidated-*` **no se versionan a propósito**. Están excluidos
-por `.gitignore:71`, que es una decisión previa y no un olvido. Hay que elegir: revertir esa línea, o
-declarar en el Anexo F por qué esos paquetes no se publican. Lo que no corresponde es dejarlos
-listados como pendientes de versionar.
+**La excepción, corregida**: una versión anterior de este documento afirmaba que **todos** los paquetes
+`final-consolidated-*` estaban excluidos. Era impreciso. El `.gitignore` tiene dos líneas:
+
+```
+/tesis/cierre/evidencia/final-consolidated-*/
+!/tesis/cierre/evidencia/final-consolidated-v10-20260912T210903Z/
+```
+
+La segunda es una excepción explícita, y ese paquete **sí está versionado**, con 133 archivos.
+Verificado en `main`:
+
+| Paquete | Archivos versionados |
+|---|---|
+| `final-consolidated-20260911T214511Z/` | 0 |
+| `final-consolidated-fixed-20260911T225314Z/` | 0 |
+| `final-consolidated-v10-20260912T210903Z/` | **133** |
+
+En consecuencia, las rutas de F.1, F.3 y la Tabla 37 que citan el paquete `v10` **son correctas y no
+hay que tocarlas**. Lo que corresponde es declarar en el Anexo F por qué los otros dos se excluyen
+deliberadamente.
 
 Los bloqueantes **0.1** (declaración de originalidad) y **0.4** (comentarios anclados) siguen abiertos
 y son del equipo, no del laboratorio.
