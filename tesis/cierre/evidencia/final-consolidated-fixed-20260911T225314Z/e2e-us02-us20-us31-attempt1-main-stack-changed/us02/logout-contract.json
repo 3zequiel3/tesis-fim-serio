@@ -1,0 +1,7 @@
+{
+  "logout_status": 200,
+  "refresh_cookie_present_after_logout": false,
+  "active_access_probe_status": 401,
+  "refresh_probe_status": 401,
+  "back_path": "/login"
+}

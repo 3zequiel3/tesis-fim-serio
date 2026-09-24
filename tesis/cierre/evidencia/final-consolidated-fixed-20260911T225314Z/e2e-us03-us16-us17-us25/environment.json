@@ -1,0 +1,15 @@
+{
+  "result_label": "PREPARADO — EJECUTADO — VALIDACIÓN REGISTRADA",
+  "topology": "single-host Compose lab with isolated state, data and resources",
+  "api_port": 19312,
+  "mtls_port": 19712,
+  "frontend_port": 19382,
+  "db_exposed": false,
+  "valkey_exposed": false,
+  "n8n_started": false,
+  "external_notifications_configured": false,
+  "agent_state": "dedicated volume",
+  "watch_directory": "dedicated temporary bind",
+  "pki": "dedicated volume",
+  "fanotify_scope_limit": "kernel observation may include out-of-scope paths; agent scope filtering discards them"
+}

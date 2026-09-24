@@ -1,0 +1,4 @@
+postgres_container=fim-final-fixed-pg-20260911t225314z
+valkey_container=fim-final-fixed-vk-20260911t225314z
+postgres_port=55442
+valkey_port=56382

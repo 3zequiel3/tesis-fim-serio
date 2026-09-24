@@ -1,0 +1,13 @@
+PASS
+- temporary repository cat-file: commit
+- temporary repository fsck: PASS
+- bundle verify: PASS; complete history; refs/heads/evidence-candidate
+- recovery source: custody/candidate.bundle only
+- recovered commit: 7df4935f769a2e393a5e6a6330df605c77592e52
+- recovered tree: 95455f919ec602b6cddf1440341652d99b784bd3
+- recovered status bytes: 0
+- recovered files verified: 813/813
+- archive files verified: 813/813
+- deterministic archive regeneration: byte-identical
+- original repository object lookup: absent as expected
+- tests repeated: no

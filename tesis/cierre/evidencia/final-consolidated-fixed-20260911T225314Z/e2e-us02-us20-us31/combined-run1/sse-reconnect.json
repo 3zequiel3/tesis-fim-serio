@@ -1,0 +1,13 @@
+{
+  "transport": "real stop/start of an isolated lab-only SSE proxy; backend and auth remained available",
+  "original_stream_closed_as": "failed",
+  "stream_close_error": "net::[REDACTED-OPAQUE]",
+  "api_during_sse_cut_status": 200,
+  "refresh_during_sse_cut_status": 200,
+  "requests_before_interruption": 1,
+  "requests_observed_at_attachment": 2,
+  "successful_stream_responses": 2,
+  "successful_responses_before_publish": 2,
+  "events_published_after_transport_ready": 1,
+  "received_event_id": 15
+}

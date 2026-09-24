@@ -1,0 +1,1 @@
+PASS: suites, XML, coverage, OpenSpec, privacy, nested checksums, and zero residual lab resources

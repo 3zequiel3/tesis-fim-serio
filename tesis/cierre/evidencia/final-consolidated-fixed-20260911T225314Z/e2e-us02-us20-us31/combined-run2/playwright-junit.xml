@@ -1,0 +1,18 @@
+<testsuites id="" name="" tests="5" failures="0" skipped="0" errors="0" time="55.223288000000004">
+<testsuite name="us02-logout.spec.ts" timestamp="2026-09-11T23:12:50.328Z" hostname="" tests="1" failures="0" skipped="0" time="4.989" errors="0">
+<testcase name="US-02 logout revoca la sesión real, borra cookie y Back no reabre la vista protegida" classname="us02-logout.spec.ts" time="4.989">
+</testcase>
+</testsuite>
+<testsuite name="us20-realtime-alerts.spec.ts" timestamp="2026-09-11T23:12:50.328Z" hostname="" tests="2" failures="0" skipped="0" time="37.191" errors="0">
+<testcase name="US-20 consumer real crea Alert y SSE muestra toast sin reload" classname="us20-realtime-alerts.spec.ts" time="10.795">
+</testcase>
+<testcase name="US-20 EventSource reconecta tras un corte real sólo de la ruta SSE y recibe un evento nuevo" classname="us20-realtime-alerts.spec.ts" time="26.396">
+</testcase>
+</testsuite>
+<testsuite name="us31-superseded-toggle.spec.ts" timestamp="2026-09-11T23:12:50.328Z" hostname="" tests="2" failures="0" skipped="0" time="12.385" errors="0">
+<testcase name="US-31 oculta superseded por defecto, togglea, persiste URL y consulta backend real" classname="us31-superseded-toggle.spec.ts" time="6.224">
+</testcase>
+<testcase name="US-31 muestra vínculo e identificador parent_event_id de forma visible" classname="us31-superseded-toggle.spec.ts" time="6.161">
+</testcase>
+</testsuite>
+</testsuites>

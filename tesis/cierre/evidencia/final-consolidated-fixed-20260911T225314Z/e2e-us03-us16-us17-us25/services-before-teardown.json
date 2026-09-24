@@ -1,0 +1,27 @@
+[
+  {
+    "Service": "agent",
+    "State": "running",
+    "Health": ""
+  },
+  {
+    "Service": "backend",
+    "State": "running",
+    "Health": ""
+  },
+  {
+    "Service": "db",
+    "State": "running",
+    "Health": "healthy"
+  },
+  {
+    "Service": "frontend",
+    "State": "running",
+    "Health": ""
+  },
+  {
+    "Service": "valkey",
+    "State": "running",
+    "Health": "healthy"
+  }
+]

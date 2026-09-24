@@ -1,0 +1,12 @@
+{
+  "external_channels": "empty",
+  "native_event_source_requests": 1,
+  "probe": {
+    "event_id": 22,
+    "alert_id": 10,
+    "severity": "high",
+    "channel": "log_only",
+    "delivered": true
+  },
+  "page_reloaded": false
+}

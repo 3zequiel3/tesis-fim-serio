@@ -1,0 +1,8 @@
+<testsuites id="" name="" tests="2" failures="0" skipped="0" errors="0" time="37.978094000000006">
+<testsuite name="us20-realtime-alerts.spec.ts" timestamp="2026-09-11T22:59:48.765Z" hostname="" tests="2" failures="0" skipped="0" time="37.21" errors="0">
+<testcase name="US-20 consumer real crea Alert y SSE muestra toast sin reload" classname="us20-realtime-alerts.spec.ts" time="10.588">
+</testcase>
+<testcase name="US-20 EventSource reconecta tras un corte real sólo de la ruta SSE y recibe un evento nuevo" classname="us20-realtime-alerts.spec.ts" time="26.622">
+</testcase>
+</testsuite>
+</testsuites>

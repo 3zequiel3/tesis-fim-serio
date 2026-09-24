@@ -1,0 +1,635 @@
+valkey-1  | 1:M 11 Sep 2026 23:10:11.511 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. Being disabled, it can also cause failures without low memory condition, see https://github.com/jemalloc/jemalloc/issues/1328. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+valkey-1  | 1:M 11 Sep 2026 23:10:11.511 * oO0OoO0OoO0Oo Valkey is starting oO0OoO0OoO0Oo
+valkey-1  | 1:M 11 Sep 2026 23:10:11.511 * Valkey version=9.0.3, bits=64, commit=00000000, modified=0, pid=1, just started
+valkey-1  | 1:M 11 Sep 2026 23:10:11.511 # Warning: no config file specified, using the default config. In order to specify a config file use valkey-server /path/to/valkey.conf
+valkey-1  | 1:M 11 Sep 2026 23:10:11.511 * Increased maximum number of open files to 10032 (it was originally set to 1024).
+valkey-1  | 1:M 11 Sep 2026 23:10:11.511 * monotonic clock: POSIX clock_gettime
+valkey-1  | 1:M 11 Sep 2026 23:10:11.512 * Running mode=standalone, port=6379.
+valkey-1  | 1:M 11 Sep 2026 23:10:11.512 * Server initialized
+valkey-1  | 1:M 11 Sep 2026 23:10:11.513 * Ready to accept connections tcp
+db-1      | The files belonging to this database system will be owned by user "postgres".
+db-1      | This user must also own the server process.
+db-1      | 
+db-1      | The database cluster will be initialized with locale "en_US.utf8".
+db-1      | The default database encoding has accordingly been set to "UTF8".
+db-1      | The default text search configuration will be set to "english".
+db-1      | 
+db-1      | Data page checksums are enabled.
+db-1      | 
+db-1      | fixing permissions on existing directory /var/lib/postgresql/18/docker ... ok
+db-1      | creating subdirectories ... ok
+db-1      | selecting dynamic shared memory implementation ... posix
+db-1      | selecting default "max_connections" ... 100
+db-1      | selecting default "shared_buffers" ... 128MB
+db-1      | selecting default time zone ... Etc/UTC
+db-1      | creating configuration files ... ok
+db-1      | running bootstrap script ... ok
+db-1      | performing post-bootstrap initialization ... ok
+db-1      | syncing data to disk ... ok
+db-1      | 
+db-1      | 
+db-1      | Success. You can now start the database server using:
+db-1      | 
+db-1      |     pg_ctl -D /var/lib/postgresql/18/docker -l logfile start
+db-1      | initdb: warning: enabling "trust" authentication for local connections
+db-1      | 
+db-1      | initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+db-1      | waiting for server to start....2026-09-11 23:10:12.257 UTC [53] LOG:  starting PostgreSQL 18.3 (Debian 18.3-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+db-1      | 2026-09-11 23:10:12.258 UTC [53] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+db-1      | 2026-09-11 23:10:12.264 UTC [59] LOG:  database system was shut down at 2026-09-11 23:10:12 UTC
+db-1      | 2026-09-11 23:10:12.267 UTC [53] LOG:  database system is ready to accept connections
+db-1      |  done
+db-1      | server started
+db-1      | CREATE DATABASE
+db-1      | 
+db-1      | 
+db-1      | /usr/local/bin/docker-entrypoint.sh: ignoring /[REDACTED-OPAQUE].d/*
+db-1      | 
+db-1      | 2026-09-11 23:10:12.476 UTC [53] LOG:  received fast shutdown request
+db-1      | waiting for server to shut down....2026-09-11 23:10:12.477 UTC [53] LOG:  aborting any active transactions
+db-1      | 2026-09-11 23:10:12.479 UTC [53] LOG:  background worker "logical replication launcher" (PID 62) exited with exit code 1
+db-1      | 2026-09-11 23:10:12.480 UTC [57] LOG:  shutting down
+db-1      | 2026-09-11 23:10:12.481 UTC [57] LOG:  checkpoint starting: shutdown immediate
+db-1      | 2026-09-11 23:10:12.510 UTC [57] LOG:  checkpoint complete: wrote 943 buffers (5.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.018 s, sync=0.010 s, total=0.030 s; sync files=303, longest=0.001 s, average=0.001 s; distance=4352 kB, estimate=4352 kB; lsn=0/1B9FBA0, redo lsn=0/1B9FBA0
+db-1      | 2026-09-11 23:10:12.526 UTC [53] LOG:  database system is shut down
+db-1      |  done
+db-1      | server stopped
+db-1      | 
+db-1      | PostgreSQL init process complete; ready for start up.
+db-1      | 
+db-1      | 2026-09-11 23:10:12.623 UTC [1] LOG:  starting PostgreSQL 18.3 (Debian 18.3-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+db-1      | 2026-09-11 23:10:12.623 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+db-1      | 2026-09-11 23:10:12.623 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+db-1      | 2026-09-11 23:10:12.625 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+sse-proxy-1  | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+sse-proxy-1  | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | [REDACTED-OPAQUE].sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+sse-proxy-1  | [REDACTED-OPAQUE].sh: info: Enabled listen on IPv6 in /etc/nginx/conf.d/default.conf
+sse-proxy-1  | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Configuration complete; ready for start up
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:10:20 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:10:20 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:10:28 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:10:28 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:10:30 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:10:34 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:10:36 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:10:48 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 248 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+sse-proxy-1  | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | [REDACTED-OPAQUE].sh: info: IPv6 listen already enabled
+sse-proxy-1  | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Configuration complete; ready for start up
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:11:15 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 248 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:11:27 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 249 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+sse-proxy-1  | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | [REDACTED-OPAQUE].sh: info: IPv6 listen already enabled
+sse-proxy-1  | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Configuration complete; ready for start up
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:11:54 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 249 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:11:58 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:57336 - "GET /health/components HTTP/1.1" 200 OK
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:11:58 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:57350 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:57360 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:57366 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:10 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 249 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:57374 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+backend-1    | INFO:     172.25.0.6:57386 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+backend-1    | INFO:     172.25.0.6:57402 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | [REDACTED-OPAQUE].sh: info: IPv6 listen already enabled
+sse-proxy-1  | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+backend-1    | INFO:     172.25.0.6:57404 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:57408 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45734 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45752 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45736 - "GET /health/components HTTP/1.1" 200 OK
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Configuration complete; ready for start up
+backend-1    | INFO:     172.25.0.5:58072 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45762 - "GET /agents HTTP/1.1" 200 OK
+db-1         | 2026-09-11 23:10:12.630 UTC [75] LOG:  database system was shut down at 2026-09-11 23:10:12 UTC
+db-1         | 2026-09-11 23:10:12.634 UTC [1] LOG:  database system is ready to accept connections
+backend-1    | INFO:     172.25.0.6:45776 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45786 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45790 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45796 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45802 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:14 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:45808 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45822 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45810 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45838 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T23:12:15.476792Z"}
+backend-1    | {"alert_id": 8, "event_id": "[REDACTED-OPAQUE]", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-09-11T23:12:15.483469Z"}
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:37 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 249 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:40 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | {"severity": "high", "event_id": "[REDACTED-OPAQUE]", "path": "/fim-e2e/[REDACTED-OPAQUE].txt", "alert_id": 8, "event": "notifier.log_only", "level": "critical", "timestamp": "2026-09-11T23:12:15.487064Z"}
+backend-1    | {"alert_id": 8, "channel": "log_only", "event": "notify.delivered", "level": "info", "timestamp": "2026-09-11T23:12:15.490794Z"}
+backend-1    | INFO:     172.25.0.6:45852 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:40 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:45842 - "GET /agents HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:14 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:14 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:45844 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45860 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45866 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:14 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:45872 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:43 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:46 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:45878 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:49 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:53 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:45884 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:12:53 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:45892 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:13:06 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 251 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:45900 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:45914 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:55814 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:55820 - "GET /health HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:55824 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:48474 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T23:12:32.396973Z"}
+backend-1    | {"alert_id": 9, "event_id": "[REDACTED-OPAQUE]", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-09-11T23:12:32.403791Z"}
+backend-1    | {"severity": "high", "event_id": "[REDACTED-OPAQUE]", "path": "/fim-e2e/[REDACTED-OPAQUE].txt", "alert_id": 9, "event": "notifier.log_only", "level": "critical", "timestamp": "2026-09-11T23:12:32.408357Z"}
+backend-1    | {"alert_id": 9, "channel": "log_only", "event": "notify.delivered", "level": "info", "timestamp": "2026-09-11T23:12:32.413918Z"}
+backend-1    | INFO:     172.25.0.6:59050 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59066 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:14 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:14 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:14 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/agents HTTP/1.1" 200 239 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 769 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+sse-proxy-1  | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+sse-proxy-1  | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | [REDACTED-OPAQUE].sh: info: IPv6 listen already enabled
+sse-proxy-1  | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Launching /docker-entrypoint.d/[REDACTED-OPAQUE].sh
+sse-proxy-1  | /docker-entrypoint.sh: Configuration complete; ready for start up
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:13:33 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 251 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:13:36 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:13:36 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:13:39 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:13:42 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+sse-proxy-1  | 172.25.0.6 - - [11/Sep/2026:23:13:45 +0000] "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"
+backend-1    | INFO:     172.25.0.6:59064 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59078 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59088 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59104 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59112 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59122 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:59130 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:59142 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59154 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59162 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59166 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59188 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | {"component": "agents", "old": "ok", "new": "degraded", "event": "health.state_change", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T23:12:39.924922Z"}
+backend-1    | INFO:     172.25.0.6:59172 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:44370 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59194 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59198 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59206 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59210 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59214 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59232 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59216 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59236 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59252 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59258 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59268 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59288 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59294 - "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&page_size=50 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:15 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 769 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:24 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 2026/09/11 23:12:27 [error] 24#24: *331 upstream prematurely closed connection while reading upstream, client: 172.25.0.1, server: , request: "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1", upstream: "http://172.25.0.5:8080/alerts/stream?token=[REDACTED-JWT]", host: "127.0.0.1:19383", referrer: "http://127.0.0.1:19383/dashboard"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:27 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 249 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:28 +0000] "GET /api/health HTTP/1.1" 200 15 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:59284 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:44374 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59300 - "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59314 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59346 - "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59330 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:59336 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:44378 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37838 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:47740 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37862 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37852 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37864 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37876 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37892 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37920 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:28 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:37916 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/agents HTTP/1.1" 200 239 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 779 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:32 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 779 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:34 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:37 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 249 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /login HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:37906 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /assets/index-XvTQjFnu.css HTTP/1.1" 200 26801 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:37928 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37934 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37950 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37958 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37978 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:38016 - "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:38004 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:37990 - "GET /health/components HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /assets/index-Bi2wU2eU.js HTTP/1.1" 200 437568 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "POST /api/auth/login HTTP/1.1" 200 514 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/agents HTTP/1.1" 200 240 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 743 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:39 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "POST /auth/refresh HTTP/1.1" 499 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.5:47746 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&page_size=50 HTTP/1.1" 200 744 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:41054 - "POST /auth/login HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:41082 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41066 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41094 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:56076 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 2150 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "POST /auth/refresh HTTP/1.1" 499 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 2150 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:40 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:43 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:45 +0000] "GET /login HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:45 +0000] "GET /assets/index-Bi2wU2eU.js HTTP/1.1" 200 437568 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:45 +0000] "GET /assets/index-XvTQjFnu.css HTTP/1.1" 200 26801 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "POST /api/auth/login HTTP/1.1" 200 514 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:41102 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41134 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41112 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41124 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41140 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41142 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41146 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/agents HTTP/1.1" 200 240 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 743 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:41150 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "POST /auth/refresh HTTP/1.1" 499 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 2150 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:46 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:49 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /login HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:41164 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41192 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:56084 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41202 - "GET /events?status=pending&page_size=50 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41214 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41194 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41216 - "POST /auth/logout HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41224 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+backend-1    | INFO:     172.25.0.6:41228 - "GET /events HTTP/1.1" 401 Unauthorized
+backend-1    | INFO:     172.25.0.6:41238 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+backend-1    | INFO:     172.25.0.6:41240 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41258 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | {"component": "agents", "old": "degraded", "new": "ok", "event": "health.state_change", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T23:12:59.130904Z"}
+backend-1    | INFO:     172.25.0.6:41246 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:56100 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41266 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41268 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41280 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41270 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41288 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41304 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41306 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41332 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41320 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41342 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T23:13:01.873483Z"}
+backend-1    | {"alert_id": 10, "event_id": "[REDACTED-OPAQUE]", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-09-11T23:13:01.880169Z"}
+backend-1    | {"severity": "high", "event_id": "[REDACTED-OPAQUE]", "path": "/fim-e2e/[REDACTED-OPAQUE].txt", "alert_id": 10, "event": "notifier.log_only", "level": "critical", "timestamp": "2026-09-11T23:13:01.884519Z"}
+backend-1    | {"alert_id": 10, "channel": "log_only", "event": "notify.delivered", "level": "info", "timestamp": "2026-09-11T23:13:01.889952Z"}
+backend-1    | INFO:     172.25.0.6:44440 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44456 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44442 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44468 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44510 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44482 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44496 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44472 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44522 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44528 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /assets/index-XvTQjFnu.css HTTP/1.1" 200 26801 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:44540 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44548 - "POST /auth/login HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /assets/index-Bi2wU2eU.js HTTP/1.1" 200 437568 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "POST /api/auth/login HTTP/1.1" 200 514 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/health/components HTTP/1.1" 200 138 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/agents HTTP/1.1" 200 22 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/health/components HTTP/1.1" 200 138 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:44550 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44558 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:42960 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44568 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44572 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44584 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44598 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44608 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44612 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44614 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44626 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44634 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44636 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T23:13:11.367643Z"}
+backend-1    | {"alert_id": 11, "event_id": "[REDACTED-OPAQUE]", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-09-11T23:13:11.373802Z"}
+backend-1    | {"severity": "high", "event_id": "[REDACTED-OPAQUE]", "path": "/fim-e2e/[REDACTED-OPAQUE].txt", "alert_id": 11, "event": "notifier.log_only", "level": "critical", "timestamp": "2026-09-11T23:13:11.378819Z"}
+backend-1    | {"alert_id": 11, "channel": "log_only", "event": "notify.delivered", "level": "info", "timestamp": "2026-09-11T23:13:11.383045Z"}
+backend-1    | INFO:     172.25.0.6:44664 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44640 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44648 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44666 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44678 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44674 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44690 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44702 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44708 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44718 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:44728 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:47254 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41104 - "GET /health HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41106 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:49362 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:52 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "GET /events?status=pending HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "POST /auth/refresh HTTP/1.1" 499 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "GET /api/events?status=pending&page_size=50 HTTP/1.1" 200 46 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "GET /api/health/components HTTP/1.1" 200 138 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "POST /api/auth/logout HTTP/1.1" 200 24 "http://127.0.0.1:19383/events?status=pending" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "GET /dashboard HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:53 +0000] "POST /auth/refresh HTTP/1.1" 401 29 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:54 +0000] "GET /api/events HTTP/1.1" 401 43 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T23:13:28.287025Z"}
+backend-1    | {"alert_id": 12, "event_id": "[REDACTED-OPAQUE]", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-09-11T23:13:28.292545Z"}
+backend-1    | {"severity": "high", "event_id": "[REDACTED-OPAQUE]", "path": "/fim-e2e/[REDACTED-OPAQUE].txt", "alert_id": 12, "event": "notifier.log_only", "level": "critical", "timestamp": "2026-09-11T23:13:28.295858Z"}
+backend-1    | {"alert_id": 12, "channel": "log_only", "event": "notify.delivered", "level": "info", "timestamp": "2026-09-11T23:13:28.300351Z"}
+backend-1    | INFO:     172.25.0.6:41144 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41136 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41122 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41148 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41152 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41166 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41178 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41186 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41198 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41218 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41220 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:41230 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:51924 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:51944 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | {"component": "agents", "old": "ok", "new": "degraded", "event": "health.state_change", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T23:13:35.842323Z"}
+backend-1    | INFO:     172.25.0.6:51928 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:35420 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:51960 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:51968 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:51982 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:52008 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:54 +0000] "POST /api/auth/refresh HTTP/1.1" 401 29 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:51994 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:58 +0000] "GET /login HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:52030 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:58 +0000] "GET /assets/index-Bi2wU2eU.js HTTP/1.1" 200 437568 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:52022 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:58 +0000] "GET /assets/index-XvTQjFnu.css HTTP/1.1" 200 26801 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "POST /api/auth/login HTTP/1.1" 200 514 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/agents HTTP/1.1" 200 239 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:52038 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:52048 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:12:59 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/agents HTTP/1.1" 200 239 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 765 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:01 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 765 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:06 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 251 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /login HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /assets/index-XvTQjFnu.css HTTP/1.1" 200 26801 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /assets/index-Bi2wU2eU.js HTTP/1.1" 200 437568 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "POST /api/auth/login HTTP/1.1" 200 514 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:52058 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/agents HTTP/1.1" 200 239 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:52066 - "POST /auth/refresh HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:09 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:10 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:10 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/agents HTTP/1.1" 200 239 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 769 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:11 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 769 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:19 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 2026/09/11 23:13:23 [error] 27#27: *508 upstream prematurely closed connection while reading upstream, client: 172.25.0.1, server: , request: "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1", upstream: "http://172.25.0.5:8080/alerts/stream?token=[REDACTED-JWT]", host: "127.0.0.1:19383", referrer: "http://127.0.0.1:19383/dashboard"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:23 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 251 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:23 +0000] "GET /api/health HTTP/1.1" 200 15 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:23 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/agents HTTP/1.1" 200 239 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 779 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:28 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 779 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:29 +0000] "GET /api/health/components HTTP/1.1" 200 271 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:33 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 251 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /login HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /assets/index-XvTQjFnu.css HTTP/1.1" 200 26801 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /assets/index-Bi2wU2eU.js HTTP/1.1" 200 437568 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "POST /api/auth/login HTTP/1.1" 200 514 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/agents HTTP/1.1" 200 240 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 743 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.6:52090 - "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&page_size=50 HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:35 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+backend-1    | INFO:     172.25.0.5:35428 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:52094 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:52080 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:52102 - "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:52126 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:52146 - "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:52142 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:52136 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:35438 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46588 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46592 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46608 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:45108 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46620 - "GET /agents HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46624 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46630 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46628 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46636 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46646 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46658 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46666 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46662 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46670 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46692 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46700 - "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46710 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.6:46698 - "GET /health/components HTTP/1.1" 200 OK
+backend-1    | INFO:     172.25.0.5:45120 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "POST /auth/refresh HTTP/1.1" 499 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&page_size=50 HTTP/1.1" 200 744 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 2150 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "POST /auth/refresh HTTP/1.1" 499 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 2150 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:36 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:39 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:41 +0000] "GET /login HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:41 +0000] "GET /assets/index-Bi2wU2eU.js HTTP/1.1" 200 437568 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:41 +0000] "GET /assets/index-XvTQjFnu.css HTTP/1.1" 200 26801 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "POST /api/auth/login HTTP/1.1" 200 514 "http://127.0.0.1:19383/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/agents HTTP/1.1" 200 240 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/events?status=pending&page_size=1 HTTP/1.1" 200 743 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/events?status=approved&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/events?status=rejected&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/events?status=auto_restored&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/events?status=quarantined&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/events?status=superseded&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/events?status=alert_only&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 45 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true HTTP/1.1" 200 459 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:42 +0000] "POST /auth/refresh HTTP/1.1" 499 0 "http://127.0.0.1:19383/dashboard" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:43 +0000] "POST /auth/refresh HTTP/1.1" 200 485 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:43 +0000] "GET /api/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true&page_size=50 HTTP/1.1" 200 2150 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:43 +0000] "GET /api/alerts?status=failed&size=1 HTTP/1.1" 200 40 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:43 +0000] "GET /api/health/components HTTP/1.1" 200 278 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"
+frontend-1   | 172.25.0.1 - - [11/Sep/2026:23:13:45 +0000] "GET /api/alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 0 "http://127.0.0.1:19383/events?path_prefix=/fim-e2e/[REDACTED-OPAQUE].txt&include_superseded=true" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36" "-"

@@ -1,0 +1,202 @@
+ Image fim-acceptance-frontend:local Building 
+ Image fim-acceptance-backend:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.25kB done
+#1 DONE 0.0s
+
+#2 [backend internal] load build definition from Dockerfile
+#2 transferring dockerfile: 3.49kB done
+#2 DONE 0.0s
+
+#3 [frontend internal] load build definition from Dockerfile
+#3 transferring dockerfile: 783B done
+#3 DONE 0.0s
+
+#4 [frontend internal] load metadata for docker.io/library/nginx:alpine
+#4 DONE 0.0s
+
+#5 [frontend internal] load metadata for docker.io/library/node:22-alpine
+#5 ...
+
+#6 [backend internal] load metadata for docker.io/library/python:3.13-slim
+#6 DONE 1.8s
+
+#5 [frontend internal] load metadata for docker.io/library/node:22-alpine
+#5 DONE 1.8s
+
+#7 [backend internal] load .dockerignore
+#7 transferring context: 162B done
+#7 DONE 0.0s
+
+#8 [frontend internal] load .dockerignore
+#8 transferring context: 58B done
+#8 DONE 0.0s
+
+#9 [backend internal] load build context
+#9 transferring context: 631.63kB 0.0s done
+#9 DONE 0.0s
+
+#10 [frontend build 1/7] FROM docker.io/library/node:22-alpine@sha256:[REDACTED-OPAQUE]
+#10 resolve docker.io/library/node:22-alpine@sha256:[REDACTED-OPAQUE] 0.0s done
+#10 DONE 0.0s
+
+#11 [backend builder 1/5] FROM docker.io/library/python:3.13-slim@sha256:[REDACTED-OPAQUE]
+#11 resolve docker.io/library/python:3.13-slim@sha256:[REDACTED-OPAQUE] 0.0s done
+#11 DONE 0.0s
+
+#12 [frontend serve 1/3] FROM docker.io/library/nginx:alpine@sha256:[REDACTED-OPAQUE]
+#12 resolve docker.io/library/nginx:alpine@sha256:[REDACTED-OPAQUE] 0.0s done
+#12 DONE 0.0s
+
+#13 [frontend internal] load build context
+#13 transferring context: 1.99MB 0.0s done
+#13 DONE 0.0s
+
+#14 [frontend build 2/7] RUN corepack enable
+#14 CACHED
+
+#15 [frontend build 3/7] WORKDIR /app
+#15 CACHED
+
+#16 [backend builder 5/5] RUN pip install --no-cache-dir --upgrade pip  && pip install --no-cache-dir -r requirements.txt
+#16 CACHED
+
+#17 [backend runtime 3/6] COPY --from=builder /opt/venv /opt/venv
+#17 CACHED
+
+#18 [backend builder 2/5] RUN python -m venv /opt/venv
+#18 CACHED
+
+#19 [backend runtime 4/6] WORKDIR /app
+#19 CACHED
+
+#20 [backend builder 4/5] COPY requirements.txt .
+#20 CACHED
+
+#21 [backend builder 3/5] WORKDIR /build
+#21 CACHED
+
+#22 [backend runtime 2/6] RUN useradd --create-home --uid 10001 app
+#22 CACHED
+
+#23 [backend runtime 5/6] RUN mkdir /certs && chown app:app /certs
+#23 CACHED
+
+#24 [frontend build 4/7] COPY package.json pnpm-lock.yaml ./
+#24 DONE 0.0s
+
+#25 [backend runtime 6/6] COPY --chown=app:app app/ /app/app/
+#25 DONE 0.0s
+
+#26 [backend] exporting to image
+#26 exporting layers 0.1s done
+#26 exporting manifest sha256:[REDACTED-OPAQUE] done
+#26 exporting config sha256:[REDACTED-OPAQUE] done
+#26 exporting attestation manifest sha256:[REDACTED-OPAQUE] done
+#26 exporting manifest list sha256:[REDACTED-OPAQUE] done
+#26 naming to docker.io/library/fim-acceptance-backend:local done
+#26 unpacking to docker.io/library/fim-acceptance-backend:local
+#26 unpacking to docker.io/library/fim-acceptance-backend:local 1.2s done
+#26 DONE 1.4s
+
+#27 [backend] resolving provenance for metadata file
+#27 DONE 0.0s
+
+#28 [frontend build 5/7] RUN pnpm install --frozen-lockfile
+#28 0.379 ! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-10.33.0.tgz
+#28 2.177 Lockfile is up to date, resolution step is skipped
+#28 2.212 Progress: resolved 1, reused 0, downloaded 0, added 0
+#28 2.289 Packages: +305
+#28 2.289 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#28 2.715 
+#28 2.715    ╭──────────────────────────────────────────────╮
+#28 2.715    │                                              │
+#28 2.715    │     Update available! 10.33.0 → 12.4.1.      │
+#28 2.715    │     Changelog: https://pnpm.io/v/12.4.1      │
+#28 2.715    │   To update, run: corepack use pnpm@12.4.1   │
+#28 2.715    │                                              │
+#28 2.715    ╰──────────────────────────────────────────────╯
+#28 2.715 
+#28 3.218 Progress: resolved 305, reused 0, downloaded 98, added 97
+#28 4.229 Progress: resolved 305, reused 0, downloaded 272, added 265
+#28 4.974 Progress: resolved 305, reused 0, downloaded 305, added 305, done
+#28 5.091 .../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+#28 5.114 .../esbuild@0.25.12/node_modules/esbuild postinstall$ node install.js
+#28 5.183 .../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+#28 5.186 .../esbuild@0.25.12/node_modules/esbuild postinstall: Done
+#28 5.286 
+#28 5.286 dependencies:
+#28 5.286 + @tanstack/react-query 5.101.0
+#28 5.286 + @tanstack/react-query-devtools 5.101.0
+#28 5.286 + axios 1.18.0
+#28 5.286 + react 19.2.7
+#28 5.286 + [REDACTED-OPAQUE] 3.4.0
+#28 5.286 + react-dom 19.2.7
+#28 5.286 + react-router-dom 7.18.0
+#28 5.286 + sonner 1.7.4
+#28 5.286 + zustand 5.0.14
+#28 5.286 
+#28 5.286 devDependencies:
+#28 5.286 + @playwright/test 1.63.0
+#28 5.286 + @tailwindcss/vite 4.3.1
+#28 5.286 + @testing-library/dom 10.4.1
+#28 5.286 + @testing-library/jest-dom 7.0.1
+#28 5.286 + @testing-library/react 16.3.2
+#28 5.286 + @testing-library/user-event 14.6.5
+#28 5.286 + @types/node 22.20.0
+#28 5.286 + @types/react 19.2.17
+#28 5.286 + @types/react-dom 19.2.3
+#28 5.286 + @vitejs/plugin-react 4.7.0
+#28 5.286 + @vitest/coverage-v8 2.1.9
+#28 5.286 + jsdom 30.0.1
+#28 5.286 + tailwindcss 4.3.1
+#28 5.286 + typescript 5.7.3
+#28 5.286 + vite 6.4.3
+#28 5.286 + vitest 2.1.9
+#28 5.286 
+#28 5.340 Done in 3.6s using pnpm v10.33.0
+#28 DONE 5.4s
+
+#29 [frontend build 6/7] COPY . .
+#29 DONE 0.3s
+
+#30 [frontend build 7/7] RUN pnpm build
+#30 0.526 
+#30 0.526 > fim-frontend@0.0.1 build /app
+#30 0.526 > tsc -b && vite build
+#30 0.526 
+#30 4.429 vite v6.4.3 building for production...
+#30 4.504 transforming...
+#30 6.422 ✓ 205 modules transformed.
+#30 6.753 rendering chunks...
+#30 6.771 computing gzip size...
+#30 6.807 dist/index.html                   0.46 kB │ gzip:   0.29 kB
+#30 6.807 dist/assets/index-XvTQjFnu.css   26.80 kB │ gzip:   5.98 kB
+#30 6.807 dist/assets/index-Bi2wU2eU.js   437.57 kB │ gzip: 133.09 kB
+#30 6.808 ✓ built in 2.35s
+#30 DONE 6.9s
+
+#12 [frontend serve 1/3] FROM docker.io/library/nginx:alpine@sha256:[REDACTED-OPAQUE]
+#12 CACHED
+
+#31 [frontend serve 2/3] COPY --from=build /app/dist /usr/share/nginx/html
+#31 DONE 0.0s
+
+#32 [frontend serve 3/3] COPY nginx.conf /etc/nginx/conf.d/default.conf
+#32 DONE 0.0s
+
+#33 [frontend] exporting to image
+#33 exporting layers 0.0s done
+#33 exporting manifest sha256:[REDACTED-OPAQUE] done
+#33 exporting config sha256:[REDACTED-OPAQUE]
+#33 exporting config sha256:[REDACTED-OPAQUE] done
+#33 exporting attestation manifest sha256:[REDACTED-OPAQUE] done
+#33 exporting manifest list sha256:[REDACTED-OPAQUE] done
+#33 naming to docker.io/library/fim-acceptance-frontend:local done
+#33 unpacking to docker.io/library/fim-acceptance-frontend:local 0.0s done
+#33 DONE 0.1s
+
+#34 [frontend] resolving provenance for metadata file
+#34 DONE 0.0s
+ Image fim-acceptance-backend:local Built 
+ Image fim-acceptance-frontend:local Built 

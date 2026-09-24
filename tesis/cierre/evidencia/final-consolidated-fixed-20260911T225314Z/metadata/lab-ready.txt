@@ -1,0 +1,2 @@
+/fim-final-fixed-pg-20260911t225314z postgres:18.3 running
+/fim-final-fixed-vk-20260911t225314z valkey/valkey:9.0.3 running

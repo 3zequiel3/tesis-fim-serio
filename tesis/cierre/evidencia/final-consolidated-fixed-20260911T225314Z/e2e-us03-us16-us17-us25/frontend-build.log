@@ -1,0 +1,13 @@
+
+> fim-frontend@0.0.1 build [REDACTED-ABSOLUTE-PATH]
+> tsc -b && vite build
+
+vite v6.4.3 building for production...
+transforming...
+✓ 205 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-CeyHc7eJ.css   26.76 kB │ gzip:   5.96 kB
+dist/assets/index-Czo-lVvT.js   437.57 kB │ gzip: 133.09 kB
+✓ built in 1.92s

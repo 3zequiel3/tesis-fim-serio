@@ -1,0 +1,6 @@
+{
+  "expected_visible_text": "#4",
+  "visible_text": "🔗\n#4",
+  "actual_title": "Ver evento padre #4",
+  "source": "frontend/src/components/ui/EventsTable.tsx"
+}

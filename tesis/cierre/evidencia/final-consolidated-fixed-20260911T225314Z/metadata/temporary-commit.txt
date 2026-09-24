@@ -1,0 +1,7 @@
+commit 7df4935f769a2e393a5e6a6330df605c77592e52
+Author:     FIM Evidence Snapshot <evidence@invalid.local>
+AuthorDate: Fri Sep 11 19:53:14 2026 -0300
+Commit:     FIM Evidence Snapshot <evidence@invalid.local>
+CommitDate: Fri Sep 11 19:53:14 2026 -0300
+
+    chore: freeze corrected consolidated validation candidate

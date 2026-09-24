@@ -1,0 +1,10 @@
+{
+  "result_label": "EXECUTED — REAL ISOLATED STACK",
+  "candidate": "frozen pre-build filesystem snapshot with SHA-256 inventory",
+  "topology": "single-host Compose lab with isolated containers, network, database, Valkey and a disposable SSE-only proxy",
+  "api_port": 19313,
+  "frontend_port": 19383,
+  "agent_started": false,
+  "external_notifications_configured": false,
+  "sse_interruption": "real stop/start of lab-only SSE proxy; backend/auth remain available"
+}

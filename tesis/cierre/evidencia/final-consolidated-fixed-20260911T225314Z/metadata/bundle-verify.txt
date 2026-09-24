@@ -1,0 +1,5 @@
+[SOURCE_REPO]/docs/cierre/evidencia/final-consolidated-fixed-20260911T225314Z/custody/candidate.bundle is okay
+The bundle contains this ref:
+7df4935f769a2e393a5e6a6330df605c77592e52 refs/heads/evidence-candidate
+The bundle records a complete history.
+The bundle uses this hash algorithm: sha1

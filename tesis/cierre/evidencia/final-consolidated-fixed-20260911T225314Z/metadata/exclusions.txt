@@ -1,0 +1,2 @@
+Included: exact current code, configuration, tests, contracts, lockfiles, OpenSpec files, and textual project documentation.
+Excluded: .git; installed dependencies (.venv/node_modules); caches/bytecode/build/coverage/test outputs; docs/cierre/evidencia (all historical/current receipts, preventing circular inclusion); DOCX/PDF editorial artifacts; resultados historical experiments; local .env values and editor/agent state. frontend/.env.example and tracked frontend/.env.production remain included. No executable source/config/test file was excluded deliberately.

@@ -1,0 +1,4 @@
+
+> fim-frontend@0.0.1 typecheck [FROZEN_SNAPSHOT]/frontend
+> tsc --noEmit
+

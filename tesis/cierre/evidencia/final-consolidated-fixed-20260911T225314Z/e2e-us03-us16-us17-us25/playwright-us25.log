@@ -1,0 +1,9 @@
+
+Running 1 test using 1 worker
+
+(node:1130338) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ✓  1 e2e/us-isolated-lab.spec.ts:245:1 › US-25 bulk approve publishes a signed command, receives ACK, and updates the real baseline (8.7s)
+
+  1 passed (9.3s)

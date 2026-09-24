@@ -1,0 +1,102 @@
+{
+  "frozen_commit": "7df4935f769a2e393a5e6a6330df605c77592e52",
+  "overall_status": "PASS_WITH_ENVIRONMENT_WARNING",
+  "agent": {
+    "junit": {
+      "tests": 508,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "coverage": {
+      "line_rate": 0.7893,
+      "percent": 78.93,
+      "lines_valid": 3342,
+      "lines_covered": 2638
+    },
+    "exit_code": 0
+  },
+  "backend": {
+    "junit": {
+      "tests": 599,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "coverage": {
+      "line_rate": 0.9069,
+      "percent": 90.69,
+      "lines_valid": 3018,
+      "lines_covered": 2737
+    },
+    "exit_code": 0
+  },
+  "frontend": {
+    "junit": {
+      "tests": 128,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "coverage": {
+      "lines": {
+        "total": 3441,
+        "covered": 1995,
+        "skipped": 0,
+        "pct": 57.97
+      },
+      "statements": {
+        "total": 3441,
+        "covered": 1995,
+        "skipped": 0,
+        "pct": 57.97
+      },
+      "functions": {
+        "total": 189,
+        "covered": 105,
+        "skipped": 0,
+        "pct": 55.55
+      },
+      "branches": {
+        "total": 521,
+        "covered": 396,
+        "skipped": 0,
+        "pct": 76
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "test_exit_code": 0,
+    "typecheck_exit_code": 0,
+    "build_exit_code": 0
+  },
+  "e2e_us02_us20_us31": {
+    "exit_code": 0,
+    "executed_test_cases_across_runs": 17
+  },
+  "e2e_us03_us16_us17_us25": {
+    "exit_code": 0,
+    "executed_test_cases_across_runs": 9
+  },
+  "openspec_integrity": {
+    "exit_code": 0,
+    "specs": 44,
+    "requirements": 249,
+    "ok": true
+  },
+  "comparison_to_failed_run": {
+    "prior_commit": "6e81ccf95f8da644b74b41a499d3414a08248e06",
+    "prior_evidence": "final-consolidated-20260911T214511Z",
+    "prior_agent": "505 passed, 2 failed, 1 skipped",
+    "current_agent": "507 passed, 0 failed, 1 skipped",
+    "prior_backend": "590 passed, 8 failed",
+    "current_backend": "599 passed, 0 failed",
+    "prior_frontend": "128 passed; coverage unavailable",
+    "current_frontend": "128 passed; V8 coverage measured"
+  },
+  "environment_warning": "Both US-02/20/31 runs passed and removed all lab resources, but the harness observed main_stack_unchanged=false because the external main Compose inventory changed during each run. The cause is outside the isolated candidate evidence and was not inferred."
+}
