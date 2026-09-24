@@ -51,14 +51,22 @@ Parámetros del generador (ítem 54): `seed=20260819`, `rate=0.278 ev/s`, `count
 Intervalo: recepción del evento por el backend → emisión exitosa del webhook. **No** incluye la
 entrega en n8n ni en el canal final. Camino feliz, primer intento.
 
+Los escenarios se distinguen por la **tasa de publicación en operaciones por segundo**, no por
+concurrencia simultánea. El generador de esta corrida (`scripts/generador_carga.py` en el candidato
+`77f0c53e`) recibe `--rate` en eventos por segundo y espacia las operaciones con una cadencia fija de
+`1/rate`, sin jitter; no existía entonces ningún publicador que acotara publicaciones en vuelo. El
+publicador con semáforo —que sí mide concurrencia simultánea— es posterior y pertenece a las corridas
+del candidato `v4.0-tesis`. Confundir ambas magnitudes al comparar las dos baterías las vuelve
+incomparables.
+
 | Escenario | # media | Media (ms) | # P50 | P50 (ms) | # P95 | P95 (ms) | # P99 | **P99 (ms)** | Umbral < 5.000 |
 |---|---|---|---|---|---|---|---|---|---|
-| Secuencial (n=60) | 11 | **47,6** | 14 | **49,2** | 17 | **55,8** | 20 | **63,4** | CUMPLE |
-| 50 concurrentes (n=99) | 12 | **50,1** | 15 | **48,7** | 18 | **69,8** | 21 | **80,7** | CUMPLE |
-| 100 concurrentes (n=170) | 13 | **45,6** | 16 | **44,3** | 19 | **66,7** | 22 | **85,5** | CUMPLE |
+| 1 op/s (n=60) | 11 | **47,6** | 14 | **49,2** | 17 | **55,8** | 20 | **63,4** | CUMPLE |
+| 50 op/s (n=99) | 12 | **50,1** | 15 | **48,7** | 18 | **69,8** | 21 | **80,7** | CUMPLE |
+| 100 op/s (n=170) | 13 | **45,6** | 16 | **44,3** | 19 | **66,7** | 22 | **85,5** | CUMPLE |
 
 Los tres escenarios cumplen con dos órdenes de magnitud de margen. La media **no se degrada** al
-subir la concurrencia (45,6 ms a 100 concurrentes contra 47,6 ms secuencial).
+subir la tasa (45,6 ms a 100 op/s contra 47,6 ms a 1 op/s).
 
 **Condición de la corrida:** `N8N_WEBHOOK_URL` apuntando a un receptor propio
 (`scripts/receptor_webhook.py`), no a n8n. Es lo que corresponde a la definición del intervalo,

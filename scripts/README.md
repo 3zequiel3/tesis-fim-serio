@@ -57,6 +57,11 @@ python3 scripts/control_hashing.py --dir fim-watch \
   --loop --interval 900 &
 
 # P2 — Batería 3: 500 eventos, 30 minutos sostenidos, mezcla 20/70/10.
+#
+# La semilla de abajo es un EJEMPLO y no la de ninguna corrida informada. Las
+# semillas realmente usadas están en `tesis/dataset_cap5.md` (ítem 54): 20260819
+# para la Batería 3, y 555 y 4001/4050/4100 para las demás. Copiar este bloque
+# tal cual reproduce la forma del comando, no los datos del Capítulo 5.
 date -u --iso-8601=seconds >> tesis/resultados/cronologia_utc.txt   # ítem 52
 python3 scripts/generador_carga.py \
   --dir fim-watch \
