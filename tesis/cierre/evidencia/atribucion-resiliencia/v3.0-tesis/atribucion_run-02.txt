@@ -1,0 +1,25 @@
+========================================================================
+  Atribución de las operaciones sin evento persistido
+========================================================================
+  operaciones del manifiesto        = 3000
+  eventos persistidos               = 2670
+  registros de la traza causal      = 65754
+    kernel_received              = 3029
+    change_classified            = 2670
+    decision_suppressed          = 341
+------------------------------------------------------------------------
+  clasificados que no se persistieron = 0
+  persistidos que no se clasificaron  = 0
+------------------------------------------------------------------------
+  operaciones con evento persistido = 2670
+  operaciones SIN evento            = 330
+------------------------------------------------------------------------
+  Causa de cada operación sin evento
+    matches_active_baseline            = 330
+------------------------------------------------------------------------
+  ATRIBUIDAS = 330 de 330
+  detalle escrito en tesis/cierre/evidencia/atribucion-resiliencia/v3.0-tesis/atribucion_run-02.csv
+========================================================================
+  VEREDICTO: toda operación sin evento tiene causa registrada.
+  Ninguna es un falso negativo: el sistema las vio y decidió no reportarlas.
+========================================================================
