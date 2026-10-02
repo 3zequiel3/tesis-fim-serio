@@ -3,7 +3,8 @@ Entry point del backend FIM Platform.
 
 Orden de inicialización:
   1. configure_logging() — ANTES de instanciar FastAPI.
-  2. lifespan — init_valkey + create_all + seed_admin en startup (D3, D7).
+  2. lifespan — verificación de esquema + init_valkey + create_all + seed_admin en startup
+     (D3, D7, D84/RN-178).
   3. app = FastAPI(..., lifespan=lifespan)
   4. Middlewares: CORSOriginMiddleware (RN-95), TraceIdMiddleware (D7).
   5. Routers: /auth, /users.
@@ -27,6 +28,7 @@ from app.core.logging import configure_logging, log
 from app.core.middleware.cors import CORSOriginMiddleware
 from app.core.middleware.trace_id import TraceIdMiddleware
 from app.core.pki import ensure_ca, start_bootstrap_server, start_mtls_server
+from app.core.schema_version import check_schema_version
 from app.core.valkey import (
     build_async_valkey_client,
     close_async_valkey,
@@ -78,6 +80,9 @@ def _log_console_tls_mode() -> None:
 async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     log.info("backend.startup", environment=settings.environment)
     _log_console_tls_mode()
+    # D84/RN-178: abort BEFORE any side effect (ensure_ca writes certs, create_all creates
+    # tables, seed_admin inserts) when the schema registry is missing or behind.
+    check_schema_version(engine)
     init_valkey(settings.valkey_url)
     init_async_valkey(settings.valkey_url)
     ensure_ca(

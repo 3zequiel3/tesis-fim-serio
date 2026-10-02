@@ -59,7 +59,11 @@ WORKDIR /app
 RUN mkdir /certs && chown app:app /certs
 
 # Copiar solo el paquete de aplicación (tests/, .env, __pycache__ excluidos
-# por .dockerignore).
+# por .dockerignore). `db/migrations/` NO viaja en la imagen, a propósito: la
+# versión de esquema que el backend espera viaja como código, en
+# EXPECTED_SCHEMA_VERSION (`app/core/schema_version.py`), y la guarda de arranque
+# la compara con `schema_migrations` (D84/RN-178). Las migraciones las aplica
+# `scripts/migrar.py` desde el árbol, no el contenedor.
 COPY --chown=app:app app/ /app/app/
 
 USER app

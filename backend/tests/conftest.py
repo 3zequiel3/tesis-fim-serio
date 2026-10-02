@@ -17,8 +17,10 @@ Canonical run (bring up ephemeral backing services first, then):
 Default DATABASE_URL: postgresql+psycopg://fim:test@localhost:5432/fim_test
 """
 
+import hashlib
 import os
 import socket
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -205,7 +207,42 @@ def _create_schema():
     import app.main  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    _register_schema_versions(engine)
     yield
+
+
+MIGRATIONS_DIR = Path(__file__).resolve().parents[1] / "db" / "migrations"
+
+
+def _register_schema_versions(engine) -> None:
+    """D84/RN-178: create `schema_migrations` and register versions 0..EXPECTED.
+
+    Same rule as production, no bypass: the lifespan guard sees a registry that
+    reaches `EXPECTED_SCHEMA_VERSION`. The table is not a SQLModel model, so
+    `create_all` does not create it and the per-test TRUNCATE does not empty it.
+    Deliberately does not import `scripts/migrar.py`: the backend suite must not
+    depend on `scripts/` being on `sys.path`. Idempotent, so a test database that
+    survives from a previous session is completed rather than rejected.
+    """
+    import sqlalchemy
+    from app.core.schema_version import EXPECTED_SCHEMA_VERSION
+
+    files = {int(p.name[:3]): p for p in MIGRATIONS_DIR.glob("[0-9][0-9][0-9]_*.sql")}
+    with engine.begin() as conn:
+        conn.exec_driver_sql(files[0].read_text(encoding="utf-8"))
+        for version in range(EXPECTED_SCHEMA_VERSION + 1):
+            path = files[version]
+            conn.execute(
+                sqlalchemy.text(
+                    "INSERT INTO schema_migrations (version, filename, sha256) "
+                    "VALUES (:version, :filename, :sha256) ON CONFLICT (version) DO NOTHING"
+                ),
+                {
+                    "version": version,
+                    "filename": path.name,
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                },
+            )
 
 
 # ── Executors de ingesta y notificación (D76/RN-170, D-3 del design de
@@ -284,6 +321,9 @@ def _db_isolation(_create_schema):
     """Per-test isolation: TRUNCATE all tables and reseed the canonical admin.
 
     Uses RESTART IDENTITY CASCADE so FK constraints and sequences are clean.
+
+    The TRUNCATE list is built from `SQLModel.metadata`, and `schema_migrations`
+    is not a model, so the version registry survives every test (D84/RN-178).
     Pattern B/C tests rely on this; Pattern A tests (in-memory SQLite) are
     unaffected — TRUNCATE on the real Postgres engine does not touch their
     in-memory databases.
