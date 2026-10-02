@@ -3,10 +3,10 @@
 ### Requirement: release_quarantine autentica el artefacto antes de cualquier efecto
 
 El handler `handle_release_quarantine` SHALL localizar el artefacto en
-`QuarantineStore.artifact_path(source_event_id, path)` y autenticarlo con `read_artifact` antes de
+`QuarantineStore.artifact_path(agent_event_id, path)` y autenticarlo con `read_artifact` antes de
 modificar el filesystem, el baseline o el estado del agente, en los tres modos. El handler SHALL
 validar primero que `path` esté contenido en `watch_paths` (D18/RN-116). La metadata autenticada
-MUST tener `action_id == source_event_id` y `original_path == abspath(path)`, y su `sha256` MUST
+MUST tener `action_id == agent_event_id` y `original_path == abspath(path)`, y su `sha256` MUST
 coincidir con `expected_sha256` del comando. Los fallos SHALL reportarse con códigos cerrados en
 minúsculas snake_case (RN-71): `path_outside_watch_paths`, `artifact_not_found`,
 `artifact_integrity_failed`, `artifact_identity_mismatch`, `artifact_hash_mismatch`. Un artefacto
@@ -27,7 +27,7 @@ como `artifact_not_found`. (D83/RN-177)
 - **THEN** publica `command_ack` con `error = "artifact_integrity_failed"` sin escribir en el path
 
 #### Scenario: Artefacto heredado nombrado por command_id
-- **WHEN** existe un artefacto cuyo `action_id` es el `command_id` de un `quarantine_file` anterior a D82 y no existe artefacto con `action_id = source_event_id`
+- **WHEN** existe un artefacto cuyo `action_id` es el `command_id` de un `quarantine_file` anterior a D82 y no existe artefacto con `action_id = agent_event_id`
 - **THEN** publica `command_ack` con `error = "artifact_not_found"`
 
 ### Requirement: restore_original aprueba y reubica el contenido cuarentenado sin sobrescribir

@@ -2734,6 +2734,8 @@ comportamiento. Agregada el 2026-09-23.
 
 **Motivo:** `mark_absent` (`baseline.py:385`) escribe `snapshots=[]` y `content_b64=None`; el eco de `FAN_DELETE` lo invoca por segunda vez (`agent/tests/test_restore_feedback_loop.py`); dos implementaciones divergentes (residual §9).
 
+**Ratificación (2026-10-02):** un archivo recreado en una ruta `quarantined` con exactamente el hash aprobado SHALL devolver la entrada a `present` (estado sano, equivalente a una restauración verificada), para no suprimir en silencio un borrado posterior. La identidad del artefacto viaja firmada como `agent_event_id` (= `Event.event_id`) en `quarantine_file` y en `release_quarantine`; si falta, el agente no actúa y responde `quarantine_identity_missing`.
+
 **Reglas afectadas:** depende de D81/RN-175. Agregada el 2026-10-02.
 
 #### D83 / RN-177: La cuarentena se libera mediante un comando firmado y auditado

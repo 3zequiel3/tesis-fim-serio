@@ -7,7 +7,7 @@ El backend SHALL exponer `POST /events/{id}/quarantine/release` con cuerpo `{mod
 obligatorio, de 1 a 500 caracteres tras recortar espacios. El endpoint SHALL requerir
 `require_admin` y operar sobre un único evento. En una sola transacción SHALL: bloquear la fila del
 evento, verificar elegibilidad, insertar en el outbox `published_commands` el comando
-`release_quarantine` firmado con HMAC-SHA256 con `command_id`, `event_id`, `source_event_id`,
+`release_quarantine` firmado con HMAC-SHA256 con `command_id`, `event_id`, `agent_event_id`,
 `target_agent_id`, `path`, `mode`, `expected_sha256 = event.hash_detected`, `issued_at` y
 `schema_version` (y `ruleset_version` incrementado sólo en `restore_original`), con
 `ack_status = pending`, e insertar la entrada de `audit_log`. SHALL responder `202 Accepted` con

@@ -21,7 +21,7 @@ producto nueva; los puntos de implementación que el texto de D83 no fija se res
 ## What Changes
 
 - **Comando firmado `release_quarantine` (D83/RN-177).** Payload firmado con HMAC-SHA256 con
-  `event_id`, `source_event_id` (el UUID del agente, que por D82 es siempre el `action_id` del
+  `event_id`, `agent_event_id` (el UUID del agente, que por D82 es siempre el `action_id` del
   artefacto), `path`, `mode` (`restore_original | restore_baseline | discard`) y `expected_sha256`;
   `restore_original` lleva además `ruleset_version`. Se agrega al whitelist del publisher
   (`agent/publisher.py:574-577`) y a `commands.dispatch`, detrás de la verificación HMAC única

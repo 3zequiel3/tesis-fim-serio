@@ -80,14 +80,14 @@ con manejo de 409 (`:46-62`).
 
 ```
 type="release_quarantine", command_id, event_id (int, PK del backend),
-source_event_id (UUID del agente = action_id del artefacto), target_agent_id, path,
+agent_event_id (UUID del agente = action_id del artefacto), target_agent_id, path,
 mode ∈ {restore_original, restore_baseline, discard}, expected_sha256,
 ruleset_version (sólo restore_original), issued_at, schema_version, signature
 ```
 
 D83 enuncia `{event_id, mode}`; el resto es el sobre que ya llevan `restore_file`/`quarantine_file`
 (`actions/streams.py:183-191`) más los dos datos que el agente necesita para encontrar y autenticar
-el artefacto sin estado propio: `source_event_id` (por D82, el `action_id`) y `expected_sha256`
+el artefacto sin estado propio: `agent_event_id` (por D82, el `action_id`) y `expected_sha256`
 (`event.hash_detected`, que D83 nombra como el hash esperado del backend). El **motivo** del operador
 no viaja al agente: es dato de auditoría y queda sólo en `audit_log`.
 
@@ -147,7 +147,7 @@ Orden, cada paso con su código de error:
 
 1. Guarda de obsolescencia: `ruleset_version < state.ruleset_version` → `stale_ruleset_version`.
 2. Contención en `watch_paths` (D18/RN-116) → `path_outside_watch_paths`.
-3. `read_artifact(artifact_path(source_event_id, path))`: inexistente → `artifact_not_found`; fallo
+3. `read_artifact(artifact_path(agent_event_id, path))`: inexistente → `artifact_not_found`; fallo
    de autenticación → `artifact_integrity_failed`; `action_id`/`original_path` distintos →
    `artifact_identity_mismatch`; `sha256 ≠ expected_sha256` → `artifact_hash_mismatch`.
 4. `kind = symlink` → `unsupported_file_type` (Non-Goal; ver Open Questions).
