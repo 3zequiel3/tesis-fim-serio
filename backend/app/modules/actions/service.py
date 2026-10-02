@@ -61,7 +61,9 @@ from app.modules.agents.models import Agent, BaselineEntry, BaselineStatus
 from app.modules.audit.models import AuditLog
 from app.modules.events.models import Event, EventStatus
 from app.modules.rules.service import increment_ruleset_version as _increment_ruleset_version
-from app.modules.actions.schemas import RejectAction
+from app.modules.actions.schemas import RejectAction, ReleaseMode
+from app.modules.events.models import QuarantineState
+from app.modules.rules.models import PublishedCommand
 
 log = structlog.get_logger()
 
@@ -81,6 +83,27 @@ class AbsentConfirmationRequired(Exception):
     def __init__(self, event_id: int) -> None:
         self.event_id = event_id
         super().__init__(f"absent_confirmation_required for event {event_id}")
+
+
+class EventNotFound(Exception):
+    """El evento a liberar no existe."""
+    def __init__(self, event_id: int) -> None:
+        self.event_id = event_id
+        super().__init__(f"event {event_id} not found")
+
+
+class QuarantineNotReleasable(Exception):
+    """El evento no tiene una cuarentena vigente liberable (D83/RN-177)."""
+    def __init__(self, event_id: int) -> None:
+        self.event_id = event_id
+        super().__init__(f"quarantine_not_releasable for event {event_id}")
+
+
+class ReleaseInProgress(Exception):
+    """Ya hay un `release_quarantine` pendiente o confirmado para el evento."""
+    def __init__(self, event_id: int) -> None:
+        self.event_id = event_id
+        super().__init__(f"release_in_progress for event {event_id}")
 
 
 # ── Helpers internos ──────────────────────────────────────────────────────────
@@ -432,3 +455,84 @@ def reject_bulk(
             failed.append({"event_id": event_id, "reason": "internal_error"})
 
     return {"succeeded": succeeded, "failed": failed}
+
+
+# ── Release quarantine (D83/RN-177) ───────────────────────────────────────────
+
+
+def release_quarantine_single(
+    db: Session,
+    valkey_client: Any,
+    event_id: int,
+    mode: ReleaseMode,
+    reason: str,
+    user_id: int,
+) -> str:
+    """
+    Encola la liberación de la cuarentena de UN evento y la audita (D83/RN-177).
+
+    El evento NO cambia de estado (no hay UPDATE optimista que serialice dos
+    pedidos), así que la exclusión mutua la da `SELECT ... FOR UPDATE` sobre su
+    fila: el segundo pedido espera al primero y ya ve su `release_quarantine`
+    `pending`. Orden:
+      1. Bloquear el evento.
+      2. Elegibilidad: `quarantine_state == quarantined` (derivación de D82/RN-176)
+         y `hash_detected` no vacío (es el `expected_sha256` del agente).
+      3. Ningún `release_quarantine` `pending|acked` del evento; un `failed` o
+         `timeout` previo NO bloquea un reintento.
+      4. `increment_ruleset_version` sólo en `restore_original` (el modo que aprueba).
+      5. Encolar en el outbox + `audit_log` — misma transacción (RN-94, D37/RN-131).
+      6. commit + publicación inmediata best-effort.
+    `baseline_entries` NO se toca al encolar: el contenido no está aprobado en el
+    host hasta que el agente confirma (D-10).
+
+    Returns: el `command_id` encolado.
+
+    Raises:
+        EventNotFound, QuarantineNotReleasable, ReleaseInProgress.
+        ValueError: agente sin `shared_secret_hex` — la transacción NO se comitea.
+    """
+    from app.modules.actions.streams import enqueue_release_quarantine
+    from app.modules.events.service import get_quarantine_states
+    from app.modules.rules.service import publish_pending_commands
+
+    event = db.exec(select(Event).where(Event.id == event_id).with_for_update()).first()
+    if event is None:
+        db.rollback()
+        raise EventNotFound(event_id)
+
+    state = get_quarantine_states(db, [event_id]).get(event_id, QuarantineState.none)
+    if state != QuarantineState.quarantined or not event.hash_detected:
+        db.rollback()
+        raise QuarantineNotReleasable(event_id)
+
+    in_flight = db.exec(
+        select(PublishedCommand.id).where(
+            PublishedCommand.event_id == event_id,
+            PublishedCommand.command_type == "release_quarantine",
+            PublishedCommand.ack_status.in_(("pending", "acked")),  # type: ignore[union-attr]
+        )
+    ).first()
+    if in_flight is not None:
+        db.rollback()
+        raise ReleaseInProgress(event_id)
+
+    ruleset_version: int | None = None
+    if mode == ReleaseMode.restore_original:
+        ruleset_version = _increment_ruleset_version(db)
+
+    # ValueError (agent without shared secret) propagates and rolls everything back.
+    command_id = enqueue_release_quarantine(db, event, mode.value, ruleset_version)
+    _write_audit(
+        db, user_id, "quarantine_release", event_id,
+        {"mode": mode.value, "reason": reason, "command_id": command_id},
+    )
+    db.commit()
+
+    publish_pending_commands(db, valkey_client)
+
+    log.info(
+        "service.actions.release_quarantine",
+        event_id=event_id, user_id=user_id, mode=mode.value, command_id=command_id,
+    )
+    return command_id

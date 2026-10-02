@@ -18,6 +18,14 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.deps import require_admin, require_full_access
+from app.core.valkey import get_valkey_client
+from app.modules.actions.schemas import ReleaseQuarantineRequest, ReleaseQuarantineResponse
+from app.modules.actions.service import (
+    EventNotFound,
+    QuarantineNotReleasable,
+    ReleaseInProgress,
+    release_quarantine_single,
+)
 from app.modules.agents.models import BaselineEntry
 from app.modules.auth.models import User
 from app.modules.events.models import Event, EventStatus, QuarantineState
@@ -201,6 +209,49 @@ async def get_event(
     baseline_status = _get_baseline_status(session, event)
     qs_map = get_quarantine_states(session, [event.id] if event.id is not None else [])
     return _to_event_detail_out(event, ack_map, baseline_status, qs_map.get(event.id))
+
+
+@router.post(
+    "/{event_id}/quarantine/release",
+    response_model=ReleaseQuarantineResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def release_quarantine(
+    event_id: int,
+    body: ReleaseQuarantineRequest,
+    session: Session = Depends(get_session),
+    valkey_client=Depends(get_valkey_client),
+    current_user: User = Depends(require_admin),
+) -> ReleaseQuarantineResponse:
+    """
+    Libera la cuarentena de UN evento (D83/RN-177). Admin-only, asíncrono: encola un
+    `release_quarantine` firmado y responde 202; el resultado llega por `command_ack`
+    y se lee de `quarantine_state`/`ack_status`. El estado del evento no cambia.
+    """
+    try:
+        command_id = release_quarantine_single(
+            db=session,
+            valkey_client=valkey_client,
+            event_id=event_id,
+            mode=body.mode,
+            reason=body.reason,
+            user_id=current_user.id,  # type: ignore[arg-type]
+        )
+    except EventNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    except QuarantineNotReleasable:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "quarantine_not_releasable"},
+        )
+    except ReleaseInProgress:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "release_in_progress"},
+        )
+    return ReleaseQuarantineResponse(
+        event_id=event_id, command_id=command_id, mode=body.mode, ack_status="pending"
+    )
 
 
 @router.get("/{event_id}/chain", response_model=EventChainOut)

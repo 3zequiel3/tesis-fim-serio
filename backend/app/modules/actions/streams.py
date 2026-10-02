@@ -4,6 +4,7 @@ Encolado de comandos HMAC-signed al outbox `published_commands` (C13, D37/RN-131
 enqueue_baseline_update  — al aprobar un evento.
 enqueue_restore_file     — al rechazar con action=restore.
 enqueue_quarantine_file  — al rechazar con action=quarantine.
+enqueue_release_quarantine — al liberar una cuarentena (D83/RN-177).
 
 Todos firman con el shared_secret del agente destino (mismo patrón que C12).
 El ruleset_version para baseline_update ya fue incrementado por el caller
@@ -242,3 +243,59 @@ def enqueue_quarantine_file(
         agent_id=event.agent_id,
         command_id=command_id,
     )
+
+
+def enqueue_release_quarantine(
+    session: Session,
+    event: Event,
+    mode: str,
+    ruleset_version: int | None = None,
+) -> str:
+    """
+    Encola el comando `release_quarantine` en el outbox, firmado con HMAC-SHA256
+    (D83/RN-177). Retorna el `command_id`.
+
+    Payload: type, command_id, event_id, agent_event_id, target_agent_id, path,
+    mode, expected_sha256, [ruleset_version], issued_at, schema_version, signature.
+
+    `agent_event_id` es `Event.event_id` (el UUID del agente, siempre el
+    `action_id` del artefacto por D82/RN-176) y `expected_sha256` es
+    `Event.hash_detected`: con ambos el agente encuentra y autentica el artefacto
+    sin estado propio. `ruleset_version` viaja sólo en `restore_original`, el modo
+    que aprueba. El motivo del operador NO viaja: queda sólo en `audit_log`.
+
+    MUST llamarse ANTES de `db.commit()` (D37/RN-131) — ver docstring del módulo.
+    """
+    secret = _get_agent_secret(session, event.agent_id)
+
+    command_id = str(uuid.uuid4())
+    payload: dict[str, Any] = {
+        "type": "release_quarantine",
+        "command_id": command_id,
+        "event_id": event.id,
+        "agent_event_id": event.event_id,
+        "target_agent_id": event.agent_id,
+        "path": event.path,
+        "mode": mode,
+        "expected_sha256": event.hash_detected,
+        "issued_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": SCHEMA_VERSION,
+    }
+    if ruleset_version is not None:
+        payload["ruleset_version"] = ruleset_version
+    payload["signature"] = sign_payload(secret, payload)
+
+    data = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    _record_published_command(
+        session, event.agent_id, "release_quarantine", command_id, data,
+        event_id=event.id, ruleset_version=ruleset_version or 0,
+    )
+
+    log.info(
+        "streams.actions.release_quarantine_enqueued",
+        event_id=event.id,
+        agent_id=event.agent_id,
+        command_id=command_id,
+        mode=mode,
+    )
+    return command_id

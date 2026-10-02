@@ -9,13 +9,22 @@ ActionResponse / BulkResultResponse: respuestas.
 from __future__ import annotations
 
 from enum import Enum
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
 
 
 class RejectAction(str, Enum):
     restore = "restore"
     quarantine = "quarantine"
+
+
+class ReleaseMode(str, Enum):
+    """How a quarantine is released (D83/RN-177)."""
+
+    restore_original = "restore_original"
+    restore_baseline = "restore_baseline"
+    discard = "discard"
 
 
 # ── Single operations ─────────────────────────────────────────────────────────
@@ -58,3 +67,20 @@ class BulkRejectRequest(BaseModel):
 class BulkResultResponse(BaseModel):
     succeeded: list[int]
     failed: list[dict]
+
+
+# ── Quarantine release (D83/RN-177) ───────────────────────────────────────────
+
+
+class ReleaseQuarantineRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mode: ReleaseMode
+    # Mandatory operator justification (audit only; never sent to the agent).
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+
+
+class ReleaseQuarantineResponse(BaseModel):
+    event_id: int
+    command_id: str
+    mode: ReleaseMode
+    ack_status: str  # always "pending": the outcome arrives through command_ack

@@ -257,6 +257,18 @@ def _handle_command_ack(msg_data: dict[str, Any]) -> None:
         if status_in == "ok" and command_type in _RECONCILE_ROOT_VERSION_TYPES:
             _advance_ruleset_version_applied(session, cmd.target_agent_id, cmd.ruleset_version)
 
+        # D83/RN-177: only `restore_original` approves the quarantined content, so only it
+        # reconciles baseline_entries and advances the applied version. `mode` comes from the
+        # signed payload persisted in the row, never from the ack.
+        if (
+            status_in == "ok"
+            and command_type == "release_quarantine"
+            and _persisted_release_mode(cmd) == "restore_original"
+        ):
+            if event_id is not None:
+                _reconcile_baseline_entry(session, event_id, cmd.ruleset_version)
+            _advance_ruleset_version_applied(session, cmd.target_agent_id, cmd.ruleset_version)
+
         session.commit()
 
     log.info(
@@ -265,6 +277,15 @@ def _handle_command_ack(msg_data: dict[str, Any]) -> None:
         command_type=command_type,
         status=status_in,
     )
+
+
+def _persisted_release_mode(cmd: PublishedCommand) -> str | None:
+    """`mode` of a `release_quarantine`, read from the payload persisted at enqueue time."""
+    try:
+        mode = json.loads(cmd.payload).get("mode")
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return None
+    return mode if isinstance(mode, str) else None
 
 
 def _get_shared_secret(session: Session, agent_id: str) -> bytes | None:
