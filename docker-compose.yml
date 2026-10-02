@@ -80,6 +80,10 @@ services:
   valkey:
     image: valkey/valkey:9.0.3
     restart: unless-stopped
+    # D87/RN-181: AOF so the `events` stream, its consumer groups and PELs survive a
+    # restart/recreation. The docker-compose.tls.yml override replaces this whole
+    # `command`, so it repeats both flags.
+    command: ["valkey-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
       - valkey_data:/data
     networks:
@@ -299,6 +303,11 @@ services:
       # defaults; D38/RN-132 still requires declaring any raised value.
       RATE_LIMIT_INGEST_RATE_PER_S: ${RATE_LIMIT_INGEST_RATE_PER_S:-1.6666666666666667}
       RATE_LIMIT_INGEST_BURST: ${RATE_LIMIT_INGEST_BURST:-3000}
+      # D87/RN-181: Valkey client timeouts and opt-in ingest profiling.
+      VALKEY_SOCKET_CONNECT_TIMEOUT_SECONDS: ${VALKEY_SOCKET_CONNECT_TIMEOUT_SECONDS:-5}
+      VALKEY_SOCKET_TIMEOUT_SECONDS: ${VALKEY_SOCKET_TIMEOUT_SECONDS:-10}
+      VALKEY_HEALTH_CHECK_INTERVAL_SECONDS: ${VALKEY_HEALTH_CHECK_INTERVAL_SECONDS:-15}
+      FIM_PROFILE_INGEST: ${FIM_PROFILE_INGEST:-0}
       # Removed by D85/RN-179. Forwarded ONLY so the backend can warn that they
       # are ignored (config.legacy_ingest_rate_limit_ignored); they have no effect.
       RATE_LIMIT_INGEST_EVENTS: ${RATE_LIMIT_INGEST_EVENTS:-}
