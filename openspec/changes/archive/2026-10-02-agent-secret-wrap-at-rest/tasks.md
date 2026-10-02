@@ -69,7 +69,7 @@
 
 - [x] 9.1 Suite completa del backend en verde (`pytest` desde `backend/`), con conteo de tests antes y después.
 - [x] 9.2 Suite de `scripts/tests/` en verde.
-- [ ] 9.3 `docker compose --profile app up` sobre volúmenes vacíos: `certs-init` termina con 0, el archivo de clave existe con `0400` y dueño `10001`, el backend arranca; segundo `up` no cambia el archivo (comparar `sha256sum`).
-- [ ] 9.4 Sobre una base con agentes ya bootstrapeados con la imagen anterior: tras el `up`, `SELECT count(*) FROM agents WHERE shared_secret_hex IS NOT NULL AND shared_secret_hex NOT LIKE 'v1:%'` devuelve 0, y el agente sigue publicando eventos y heartbeats sin re-bootstrap.
+- [ ] 9.3 `docker compose --profile app up` sobre volúmenes vacíos: `certs-init` termina con 0, el archivo de clave existe con `0400` y dueño `10001`, el backend arranca; segundo `up` no cambia el archivo (comparar `sha256sum`). — DEFERRED to B-0 (lab setup from the v5.0-tesis tag): requires a real stack; not run against the user's live stack.
+- [ ] 9.4 Sobre una base con agentes ya bootstrapeados con la imagen anterior: tras el `up`, `SELECT count(*) FROM agents WHERE shared_secret_hex IS NOT NULL AND shared_secret_hex NOT LIKE 'v1:%'` devuelve 0, y el agente sigue publicando eventos y heartbeats sin re-bootstrap. — DEFERRED to B-0 (lab setup from the v5.0-tesis tag): requires a real stack; not run against the user's live stack.
 - [x] 9.5 `python3 scripts/check_spec_integrity.py` pasa.
 - [x] 9.6 `openspec validate agent-secret-wrap-at-rest --strict` pasa.

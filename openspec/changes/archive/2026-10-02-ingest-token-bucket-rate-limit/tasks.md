@@ -64,4 +64,4 @@
 - [x] 8.1 Correr la suite completa del backend y confirmar que pasa.
 - [x] 8.2 Correr `openspec validate ingest-token-bucket-rate-limit --strict`.
 - [x] 8.3 Correr `python3 scripts/check_spec_integrity.py` (D47/RN-141). Debe pasar antes y después del archive; los encabezados de los requisitos modificados no cambian, así que no debe aparecer ningún renombre.
-- [ ] 8.4 Levantar el stack con `docker compose --profile app up -d backend` y un `.env` que conserve `RATE_LIMIT_INGEST_EVENTS=100000`; confirmar en `docker compose logs backend` la advertencia `config.legacy_ingest_rate_limit_ignored` y, con `printenv`, los valores efectivos de los settings nuevos.
+- [ ] 8.4 Levantar el stack con `docker compose --profile app up -d backend` y un `.env` que conserve `RATE_LIMIT_INGEST_EVENTS=100000`; confirmar en `docker compose logs backend` la advertencia `config.legacy_ingest_rate_limit_ignored` y, con `printenv`, los valores efectivos de los settings nuevos. — DEFERRED to B-0 (lab setup from the v5.0-tesis tag): requires a real stack; not run against the user's live stack.

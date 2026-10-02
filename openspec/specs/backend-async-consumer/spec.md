@@ -92,8 +92,9 @@ materializados antes de devolverse, de modo que leerlos desde el event loop no d
 
 - **WHEN** el presupuesto de ingesta se consume desde un hilo del executor y el remanente para el
   `retry_after` se consulta desde el event loop
-- **THEN** el estado de la ventana deslizante queda protegido frente a accesos concurrentes
-- **AND** el límite efectivo y el `retry_after` derivado conservan exactamente la semántica previa
+- **THEN** el estado del token bucket de cada agente queda protegido frente a accesos concurrentes
+- **AND** el número de eventos admitidos es exactamente el que corresponde a los tokens disponibles,
+  sin admisiones de más ni de menos por una carrera (D85/RN-179)
 
 ### Requirement: Cliente Valkey async para dependencias FastAPI
 
