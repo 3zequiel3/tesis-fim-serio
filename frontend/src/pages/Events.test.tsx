@@ -61,6 +61,42 @@ describe('Events — filtro por severidad (8.6)', () => {
   })
 })
 
+describe('Events — filtro por cuarentena (D82/RN-176)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiGet.mockResolvedValue({ data: { total: 0, page: 1, page_size: 50, items: [] } })
+  })
+
+  it('seleccionar dos valores los lleva repetidos a la petición y quedan marcados', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events' })
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+    await user.click(screen.getByRole('checkbox', { name: 'Cuarentena quarantined' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Cuarentena released' }))
+
+    await waitFor(() =>
+      expect(lastEventsRequestParams()?.quarantine_state).toEqual(['quarantined', 'released']),
+    )
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena quarantined' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena released' })).toBeChecked()
+    // El selector de estado del evento no se tocó.
+    expect(screen.getByRole('checkbox', { name: 'quarantined' })).not.toBeChecked()
+  })
+
+  it('restaura la selección repetida desde la URL', async () => {
+    renderWithProviders(<Events />, {
+      route: '/events?quarantine_state=quarantined&quarantine_state=released',
+    })
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena quarantined' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena released' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena discarded' })).not.toBeChecked()
+    expect(lastEventsRequestParams()?.quarantine_state).toEqual(['quarantined', 'released'])
+  })
+})
+
 describe('Events — US-31 toggle superseded', () => {
   beforeEach(() => {
     apiGet.mockReset()

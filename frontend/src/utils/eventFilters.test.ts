@@ -20,6 +20,19 @@ describe('parseEventFilters', () => {
     expect(result.status).toEqual(['pending', 'approved'])
   })
 
+  it('parsea quarantine_state repetido, igual que severity (D82/RN-176)', () => {
+    const sp = new URLSearchParams('quarantine_state=quarantined&quarantine_state=released')
+    expect(parseEventFilters(sp).quarantine_state).toEqual(['quarantined', 'released'])
+    expect(parseEventFilters(new URLSearchParams()).quarantine_state).toBeUndefined()
+  })
+
+  it('serializa quarantine_state repetido y lo restaura (round-trip)', () => {
+    const sp = serializeEventFilters({ quarantine_state: ['quarantined', 'released'] })
+    expect(sp.toString()).toBe('quarantine_state=quarantined&quarantine_state=released')
+    expect(parseEventFilters(sp).quarantine_state).toEqual(['quarantined', 'released'])
+    expect(serializeEventFilters({ quarantine_state: [] }).has('quarantine_state')).toBe(false)
+  })
+
   it('parsea include_superseded=true', () => {
     const sp = new URLSearchParams('include_superseded=true')
     const result = parseEventFilters(sp)

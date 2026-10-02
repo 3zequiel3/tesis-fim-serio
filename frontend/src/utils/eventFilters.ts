@@ -10,6 +10,7 @@ const DEFAULT_PAGE_SIZE = 50
 export function parseEventFilters(sp: URLSearchParams): EventFilters {
   const statusValues = sp.getAll('status')
   const severityValues = sp.getAll('severity')
+  const quarantineStateValues = sp.getAll('quarantine_state')
   // US-07, D-2 del design: GET /events excluye superseded antes de aplicar
   // status (events/router.py:129-133), así que un deep-link con
   // status=superseded sin include_superseded=true siempre devolvería vacío.
@@ -25,6 +26,8 @@ export function parseEventFilters(sp: URLSearchParams): EventFilters {
     // vacío. El undefined mantiene la URL limpia y evita que el query key
     // de TanStack cambie por un array vacío (D-4).
     severity: severityValues.length > 0 ? severityValues : undefined,
+    // D82/RN-176: mismo patrón que severity.
+    quarantine_state: quarantineStateValues.length > 0 ? quarantineStateValues : undefined,
     path_prefix: sp.get('path_prefix') ?? undefined,
     date_from: sp.get('date_from') ?? undefined,
     date_to: sp.get('date_to') ?? undefined,
@@ -45,6 +48,9 @@ export function serializeEventFilters(f: EventFilters): URLSearchParams {
   }
   if (f.severity && f.severity.length > 0) {
     f.severity.forEach((s) => sp.append('severity', s))
+  }
+  if (f.quarantine_state && f.quarantine_state.length > 0) {
+    f.quarantine_state.forEach((s) => sp.append('quarantine_state', s))
   }
   if (f.path_prefix) sp.set('path_prefix', f.path_prefix)
   if (f.date_from) sp.set('date_from', f.date_from)

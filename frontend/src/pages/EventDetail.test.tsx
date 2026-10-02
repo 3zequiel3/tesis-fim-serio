@@ -183,6 +183,32 @@ describe('EventDetail — evento sin ruta (D51/RN-145)', () => {
   })
 })
 
+describe('EventDetail — badge de cuarentena (D82/RN-176)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+  })
+
+  it('un evento rejected con quarantine_state quarantined muestra el badge junto al de status', async () => {
+    mockDetailAndChain(makeEvent({ status: 'rejected', quarantine_state: 'quarantined' }))
+
+    renderDetail(42)
+
+    const badge = await screen.findByTestId('quarantine-state-badge')
+    expect(badge).toHaveTextContent('quarantined')
+    // El status del evento sigue siendo rejected: la cuarentena no es un estado suyo.
+    expect(screen.getAllByText('rejected').length).toBeGreaterThan(0)
+  })
+
+  it('none o el campo ausente no muestran el badge', async () => {
+    mockDetailAndChain(makeEvent({ quarantine_state: 'none' }))
+
+    renderDetail(42)
+
+    await screen.findByText('/etc/passwd')
+    expect(screen.queryByTestId('quarantine-state-badge')).not.toBeInTheDocument()
+  })
+})
+
 describe('EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena)', () => {
   beforeEach(() => {
     apiGet.mockReset()

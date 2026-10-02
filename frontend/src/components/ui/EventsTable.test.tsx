@@ -175,3 +175,29 @@ describe('EventsTable — US-31 vínculo de cadena superseded', () => {
     expect(indicator).toHaveTextContent('#17')
   })
 })
+
+describe('EventsTable — badge de cuarentena (D82/RN-176)', () => {
+  it('una fila rejected con quarantine_state quarantined muestra los dos badges', () => {
+    const items = [
+      makeItem({ path: '/etc/shadow', status: 'rejected', quarantine_state: 'quarantined' }),
+    ]
+    renderWithProviders(<EventsTable items={items} selected={new Set()} onSelectionChange={noop} />)
+
+    const row = screen.getByText('/etc/shadow').closest('tr')!
+    expect(row).toHaveTextContent('rejected')
+    const badge = screen.getByTestId('quarantine-state-badge')
+    expect(badge).toHaveTextContent('quarantined')
+    // El badge de cuarentena no es el de status: va aparte y con otro estilo.
+    expect(screen.getByText('rejected').className).not.toBe(badge.className)
+  })
+
+  it('none y el campo ausente no muestran badge de cuarentena', () => {
+    const items = [
+      makeItem({ id: 1, path: '/etc/a', quarantine_state: 'none' }),
+      makeItem({ id: 2, path: '/etc/b' }),
+    ]
+    renderWithProviders(<EventsTable items={items} selected={new Set()} onSelectionChange={noop} />)
+
+    expect(screen.queryByTestId('quarantine-state-badge')).not.toBeInTheDocument()
+  })
+})

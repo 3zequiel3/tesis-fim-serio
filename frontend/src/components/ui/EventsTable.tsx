@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { EventListItem } from '@/api/events'
 import { getAckStatusMeta } from '@/utils/ackStatus'
+import { getQuarantineStateMeta } from '@/utils/quarantineState'
 import { getActionFailedMeta } from '@/utils/actionFailed'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import { getSeverityMeta } from '@/utils/severity'
@@ -185,6 +186,20 @@ export function EventsTable({ items, selected, onSelectionChange }: EventsTableP
                     >
                       {item.status}
                     </span>
+                    {(() => {
+                      // D82/RN-176: resultado físico de la cuarentena, aparte del
+                      // badge de status (un rechazo con cuarentena sigue `rejected`).
+                      const quarantineMeta = getQuarantineStateMeta(item.quarantine_state)
+                      if (!quarantineMeta) return null
+                      return (
+                        <span
+                          data-testid="quarantine-state-badge"
+                          className={`inline-block px-2 py-0.5 rounded text-xs font-mono ${quarantineMeta.className}`}
+                        >
+                          {quarantineMeta.label}
+                        </span>
+                      )
+                    })()}
                     {(() => {
                       const actionFailedMeta = getActionFailedMeta(item.action_failed)
                       if (!actionFailedMeta) return null

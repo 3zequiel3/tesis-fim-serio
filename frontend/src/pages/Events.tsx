@@ -26,6 +26,10 @@ const ALL_STATUSES = [
 // orden en que el operador los busca, no el alfabético (:4.5).
 const ALL_SEVERITIES = ['critical', 'high', 'medium', 'low'] as const
 
+// D82/RN-176: resultado físico de la cuarentena. `none` no se ofrece: es la
+// ausencia de filtro, no algo que el operador busque.
+const ALL_QUARANTINE_STATES = ['quarantined', 'released', 'discarded'] as const
+
 export function Events() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = parseEventFilters(searchParams)
@@ -79,6 +83,14 @@ export function Events() {
     updateFilter({ severity: next.length > 0 ? next : undefined })
   }
 
+  function handleQuarantineStateToggle(state: string) {
+    const current = filters.quarantine_state ?? []
+    const next = current.includes(state)
+      ? current.filter((s) => s !== state)
+      : [...current, state]
+    updateFilter({ quarantine_state: next.length > 0 ? next : undefined })
+  }
+
   function handlePageChange(newPage: number) {
     const newFilters = { ...filters, page: newPage }
     setSearchParams(serializeEventFilters(newFilters))
@@ -130,6 +142,27 @@ export function Events() {
                   type="checkbox"
                   checked={(filters.severity ?? []).includes(s)}
                   onChange={() => handleSeverityToggle(s)}
+                  className="rounded"
+                />
+                <span className="font-mono text-xs">{s}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Filtro por cuarentena (D82/RN-176) */}
+        <div>
+          <p className="text-xs text-gray-400 mb-1.5">Cuarentena</p>
+          <div className="flex flex-wrap gap-2">
+            {ALL_QUARANTINE_STATES.map((s) => (
+              <label key={s} className="flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={(filters.quarantine_state ?? []).includes(s)}
+                  onChange={() => handleQuarantineStateToggle(s)}
+                  // `quarantined` también es un estado del evento (selector de
+                  // arriba): el nombre accesible los distingue.
+                  aria-label={`Cuarentena ${s}`}
                   className="rounded"
                 />
                 <span className="font-mono text-xs">{s}</span>

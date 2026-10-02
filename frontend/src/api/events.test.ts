@@ -95,3 +95,30 @@ describe('getEventChain', () => {
     expect(result.items).toHaveLength(2)
   })
 })
+
+describe('getEvents — quarantine_state repetido (D82/RN-176)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiGet.mockResolvedValue({ data: { total: 0, page: 1, page_size: 50, items: [] } })
+  })
+
+  it('serializa el filtro como parámetro repetido, no separado por comas', async () => {
+    await getEvents({ quarantine_state: ['quarantined', 'released'] })
+
+    const config = apiGet.mock.calls[0][1] as {
+      paramsSerializer: (p: Record<string, unknown>) => string
+    }
+    const qs = config.paramsSerializer({ quarantine_state: ['quarantined', 'released'] })
+
+    expect(qs).toBe('quarantine_state=quarantined&quarantine_state=released')
+  })
+
+  it('un filtro ausente no agrega el parámetro', async () => {
+    await getEvents({})
+
+    const config = apiGet.mock.calls[0][1] as {
+      paramsSerializer: (p: Record<string, unknown>) => string
+    }
+    expect(config.paramsSerializer({})).not.toContain('quarantine_state')
+  })
+})

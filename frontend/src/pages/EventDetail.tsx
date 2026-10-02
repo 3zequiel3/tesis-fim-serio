@@ -8,12 +8,13 @@ import { DiffViewer } from '@/components/ui/DiffViewer'
 import { RejectModal } from '@/components/ui/RejectModal'
 import type { RejectAction } from '@/api/actions'
 import { getAckStatusMeta } from '@/utils/ackStatus'
+import { getQuarantineStateMeta } from '@/utils/quarantineState'
 import { getActionFailedMeta } from '@/utils/actionFailed'
 import { getActionErrorMeta } from '@/utils/actionError'
 import { getEventTypeGapMeta } from '@/utils/eventType'
 import { getSeverityMeta } from '@/utils/severity'
 import { formatAbsolute } from '@/utils/timeDisplay'
-import type { CommandAckStatus } from '@/api/events'
+import type { CommandAckStatus, QuarantineState } from '@/api/events'
 
 export function EventDetail() {
   const { id } = useParams<{ id: string }>()
@@ -121,6 +122,7 @@ export function EventDetail() {
           <OfflineDetectionBadge detectedOffline={event.detected_offline} />
           <ActionFailedBadge actionFailed={event.action_failed} />
           <AckStatusBadge ackStatus={event.ack_status} />
+          <QuarantineStateBadge state={event.quarantine_state} />
         </div>
       </div>
 
@@ -393,6 +395,22 @@ function AckStatusBadge({ ackStatus }: { ackStatus?: CommandAckStatus | null }) 
   if (!meta) return null
   return (
     <span className={`shrink-0 px-2.5 py-1 rounded border text-xs font-mono ${meta.className}`}>
+      {meta.label}
+    </span>
+  )
+}
+
+// Resultado FÍSICO de la cuarentena (D82/RN-176). No es un estado del evento:
+// StatusBadge sigue mostrando `rejected` para un rechazo con cuarentena. Se
+// omite con `none` o cuando el campo falta (backend anterior).
+function QuarantineStateBadge({ state }: { state?: QuarantineState }) {
+  const meta = getQuarantineStateMeta(state)
+  if (!meta) return null
+  return (
+    <span
+      data-testid="quarantine-state-badge"
+      className={`shrink-0 px-2.5 py-1 rounded text-xs font-mono ${meta.className}`}
+    >
       {meta.label}
     </span>
   )

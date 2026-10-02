@@ -17,6 +17,11 @@ export type EventStatus =
 // confirmable asociado.
 export type CommandAckStatus = 'pending' | 'acked' | 'failed' | 'timeout'
 
+// Resultado físico de la cuarentena (D82/RN-176), derivado por el backend en
+// cada lectura. NO es un estado del evento (RN-72): un rechazo con cuarentena
+// sigue siendo `rejected`.
+export type QuarantineState = 'none' | 'quarantined' | 'released' | 'discarded'
+
 // Severidad persistida del evento (D34/RN-128, C38): calculada al ingerir
 // con la logica compartida de D-C15-01 (severidad maxima de las reglas que
 // matchean el path; sin matches -> low).
@@ -50,6 +55,9 @@ export interface EventListItem {
   resolved_at: string | null
   resolved_by: number | null
   ack_status?: CommandAckStatus | null
+  // D82/RN-176: opcional por tolerancia hacia adelante (un backend anterior no
+  // lo envía); ausente se trata igual que `none`.
+  quarantine_state?: QuarantineState
   // D33/RN-127 (C39): symlink-as-object. is_symlink distingue un evento sobre
   // un symlink (nunca se sigue el link) de uno sobre un archivo regular;
   // symlink_target es el string crudo de os.readlink, sin normalizar.
@@ -115,6 +123,10 @@ export interface EventFilters {
   // estricto acá daría una garantía falsa sobre un valor que viene de una
   // query string. El backend valida contra su enum y responde 422.
   severity?: string[]
+  // Filtro repetible por resultado de cuarentena (D82/RN-176), simétrico con
+  // `status` y `severity`: `string[]` por la misma razón (la URL es entrada no
+  // confiable; el backend valida contra su enum y responde 422).
+  quarantine_state?: string[]
   path_prefix?: string
   date_from?: string
   date_to?: string
@@ -157,6 +169,10 @@ export async function getEvents(filters: EventFilters = {}): Promise<EventListRe
       // y sólo acepta la forma repetida — verificado en vivo (D-4).
       if (p.severity && p.severity.length > 0) {
         p.severity.forEach((s) => sp.append('severity', s))
+      }
+      // Repetible, mismo contrato que severity (D82/RN-176).
+      if (p.quarantine_state && p.quarantine_state.length > 0) {
+        p.quarantine_state.forEach((s) => sp.append('quarantine_state', s))
       }
       if (p.path_prefix) sp.set('path_prefix', p.path_prefix)
       const dateFrom = p.date_from ? localFilterToUtcInstant(p.date_from) : undefined
