@@ -322,6 +322,21 @@ def _ingest_event_outcome(
         action_error = action_error[:64]
     else:
         action_error = None
+    # D80/RN-174: tolerante hacia adelante, mismo criterio que D72 para
+    # queue_pressure_high. isinstance y no bool(): "yes"/0/1 no son booleanos y
+    # no deben convertirse en un dato falso. No influye en status ni severidad.
+    detected_offline_raw = event_data.get("detected_offline")
+    detected_offline: bool | None
+    if isinstance(detected_offline_raw, bool):
+        detected_offline = detected_offline_raw
+    else:
+        detected_offline = None
+        if detected_offline_raw is not None:
+            log.warning(
+                "consumer.detected_offline_invalid",
+                event_id=event_data.get("event_id"),
+                value_type=type(detected_offline_raw).__name__,
+            )
 
     hash_expected = event_data.get("hash_expected")
     if isinstance(hash_expected, str):
@@ -414,6 +429,7 @@ def _ingest_event_outcome(
             severity=severity,
             action_failed=action_failed,
             action_error=action_error,
+            detected_offline=detected_offline,
             parent_event_id=parent_event_id,
             process_pid=event_data.get("process_pid"),
             process_uid=event_data.get("process_uid"),

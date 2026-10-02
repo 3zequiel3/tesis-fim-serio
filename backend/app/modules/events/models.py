@@ -79,6 +79,11 @@ class Event(SQLModel, table=True):
     # Sin validación contra enum en el backend (tolerancia hacia adelante, mismo
     # criterio que action/is_symlink): un valor desconocido se persiste tal cual.
     action_error: str | None = Field(default=None, max_length=64)
+    # D80/RN-174: True = el agente lo detectó al arrancar, al reconciliar el
+    # baseline contra el disco (el cambio ocurrió con el agente detenido y
+    # detected_at es una cota superior); False = detección en línea; NULL = el
+    # agente no informó el dato (agente anterior a la Change 62). Sin backfill.
+    detected_offline: bool | None = Field(default=None)
     parent_event_id: int | None = Field(
         default=None,
         sa_column=sa.Column(sa.Integer, sa.ForeignKey("events.id", ondelete="SET NULL"), nullable=True),

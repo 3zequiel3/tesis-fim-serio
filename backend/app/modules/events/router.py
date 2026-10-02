@@ -64,6 +64,10 @@ class EventOut(BaseModel):
     # D36/RN-130 (C41): causa del fallo de la acción automática, puramente
     # explicativa — ver Event.action_error. Aditivo, sin filtro nuevo.
     action_error: str | None = None
+    # D80/RN-174: True = detectado al arrancar el agente (el cambio ocurrió con el
+    # agente detenido), False = detección en línea, None = agente anterior que no
+    # informó el dato. Aditivo, sin filtro nuevo.
+    detected_offline: bool | None = None
 
     model_config = {"from_attributes": True}
 

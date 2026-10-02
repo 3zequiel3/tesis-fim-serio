@@ -1,0 +1,23 @@
+-- Migration 023: Adds `detected_offline` (BOOLEAN, nullable) to events (D80/RN-174, Change 62).
+--
+-- The agent now reconciles the baseline against the filesystem on start and reports changes
+-- made while it was stopped. Those events carry `detected_offline: true`; events detected
+-- online carry `false`. This column is where the backend persists that flag so the event
+-- detail can tell the operator that `detected_at` is the instant the change was detected on
+-- start, not the instant it happened.
+--
+-- No backfill, on purpose: there is no way to reconstruct the flag for a past event, and
+-- `NULL` ("the agent did not report the key", i.e. an agent older than this change) is the
+-- right answer for existing rows — different from `false` ("reported, detected online").
+-- So, like migrations 010/020/021, this one has no backfill `UPDATE`, `SET DEFAULT`,
+-- `SET NOT NULL` or index: it is a single, strictly additive statement.
+--
+-- When the `schema_migrations` registry exists (D84/RN-178, Change 66), this migration is
+-- registered by its number; it does not depend on that change.
+--
+-- Idempotent: ADD COLUMN IF NOT EXISTS. Running the script twice produces no error.
+--
+-- Migrations are applied by hand (D3) — this one included. Apply with:
+--   psql $DATABASE_URL -f 023_add_event_detected_offline.sql
+
+ALTER TABLE events ADD COLUMN IF NOT EXISTS detected_offline BOOLEAN;
