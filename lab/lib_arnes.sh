@@ -175,3 +175,16 @@ reset_laboratorio() {
   echo "$out" | rg -N 'baseline_entries_after_reset=' || true
   reset_servidor
 }
+
+# ── B-3: notification export ──────────────────────────────────────────────────
+# Both intervals of the notification chain, in ms, from the same alert row:
+#   ms_aceptacion = channel_accepted_at - received_at   (D77/RN-171: the instant a channel
+#                   accepted the notification; this is the interval the protocol defines)
+#   ms_entrega    = delivered_at - received_at          (written AFTER the executor hop and
+#                   the commit, so it is larger; kept to quantify the persistence cost)
+# `channel_accepted_at IS NOT NULL` is mandatory (no backfill; a failed cascade leaves NULL).
+# Usage: exportar_notif_csv > file.csv   (uses the global DC; the caller scopes the rows,
+# e.g. by deleting alerts/events before the scenario)
+exportar_notif_csv() {
+  "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT a.id, EXTRACT(EPOCH FROM (a.channel_accepted_at - e.received_at))*1000 AS ms_aceptacion, EXTRACT(EPOCH FROM (a.delivered_at - e.received_at))*1000 AS ms_entrega FROM alerts a JOIN events e ON e.id = a.event_id WHERE a.channel_accepted_at IS NOT NULL ORDER BY a.id) TO STDOUT WITH CSV HEADER" 2>/dev/null
+}

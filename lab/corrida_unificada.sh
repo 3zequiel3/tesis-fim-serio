@@ -405,7 +405,9 @@ notif() {  # $1 label  $2 total  $3 concurrency
     [ "$n" = "$prev" ] && est=$((est+1)) || est=0; prev=$n
     [ "$est" -ge 5 ] && break; sleep 5
   done
-  "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT a.id, EXTRACT(EPOCH FROM (a.delivered_at - e.received_at))*1000 AS notif_ms FROM alerts a JOIN events e ON e.id = a.event_id WHERE a.delivered_at IS NOT NULL) TO STDOUT WITH CSV HEADER" > "$OUT/notificacion/$1.csv" 2>/dev/null
+  # B-3: both intervals (ms_aceptacion = channel_accepted_at - received_at, the protocol's
+  # interval; ms_entrega = delivered_at - received_at, written after the executor hop).
+  exportar_notif_csv > "$OUT/notificacion/$1.csv"
   say "escenario $1: $(( $(wc -l < "$OUT/notificacion/$1.csv") - 1 )) muestras; correos en mailpit: $(mp_count)"
   # rate_limited rejections of THIS series (the audit table is cumulative since the reset).
   # A non-zero count is a result to report, not something to fix by recreating the backend.
@@ -423,8 +425,10 @@ d = pathlib.Path(sys.argv[1])
 for e in ("secuencial", "conc50", "conc100"):
     f = d / f"{e}.csv"
     if not f.exists() or f.stat().st_size < 20: print(f"{e}: sin muestras"); continue
-    s = pd.read_csv(f)["notif_ms"]
-    print(f"{e:11s} n={len(s):5d} media={s.mean():9.3f} p50={s.quantile(.50):9.3f} p95={s.quantile(.95):9.3f} p99={s.quantile(.99):9.3f} max={s.max():9.3f}")
+    d = pd.read_csv(f)
+    for col in ("ms_aceptacion", "ms_entrega"):
+        s = d[col].dropna()
+        print(f"{e:11s} {col:13s} n={len(s):5d} media={s.mean():9.3f} p50={s.quantile(.50):9.3f} p95={s.quantile(.95):9.3f} p99={s.quantile(.99):9.3f} max={s.max():9.3f}")
 PY
 cat "$OUT/notificacion/resumen.txt" | tee -a "$RES"
 
