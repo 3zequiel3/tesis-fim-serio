@@ -94,21 +94,25 @@ El handler MUST verificar con el mismo helper que `DecisionEngine._auto_restore`
 
 ### Requirement: Handler quarantine_file — cuarentena con journal
 
-El handler de `quarantine_file` SHALL: escribir journal pre-acción; mover el archivo de `path` a `/var/lib/fim-agent/quarantine/<filename>.<timestamp>`; cambiar permisos del archivo en cuarentena a `0400`; escribir journal post-acción; publicar `event_ack`.
-
-El handler MUST reutilizar la lógica de quarantine ya implementada en `agent/actions.py` (C10).
+El handler de `quarantine_file` SHALL delegar en `quarantine_and_record` (`agent/quarantine.py`), la misma implementación que usa el `DecisionEngine` (D82/RN-176): journal `pending` → artefacto cifrado y autenticado en el almacén único de cuarentena (`/var/lib/fim-agent/quarantine/`, nombre opaco, permisos `0400`, RN-34–RN-36) → retiro del origen → entrada de baseline `quarantined` que conserva la versión aprobada. El handler SHALL cerrar el journal (`completed`/`failed`) y después publicar `event_ack`. La identidad de acción y la clave de journal SHALL ser el `agent_event_id` del comando —el `event_id` UUID que el agente emitió para el evento rechazado—, nunca el `command_id`. Un comando sin `agent_event_id` MUST NOT ejecutar la cuarentena ni escribir journal, y SHALL publicar `event_ack` con error `quarantine_identity_missing`. Las validaciones previas de ruta (`no_watch_paths_configured`, `path_outside_watch_paths`, D18/RN-116) no cambian. El dispatcher SHALL pasar al handler el `BaselineEngine` que ya recibe.
 
 #### Scenario: Quarantine exitoso
-- **WHEN** el agente recibe `{"type": "quarantine_file", "path": "/etc/malicious", ...}` y el archivo existe
+- **WHEN** el agente recibe `{"type": "quarantine_file", "path": "/etc/malicious", "agent_event_id": "<uuid>", ...}` y el archivo existe
 - **THEN** el archivo ya no existe en `/etc/malicious`
-- **AND** existe un archivo en `/var/lib/fim-agent/quarantine/` con permisos `0400`
-- **AND** existe entrada en journal con `action=quarantine`, `status=success`
-- **AND** se publicó `event_ack`
+- **AND** existe en `/var/lib/fim-agent/quarantine/` un artefacto autenticado `0400` direccionado por `<uuid>` y la ruta
+- **AND** la entrada de baseline de `/etc/malicious` es `quarantined` y conserva el contenido aprobado
+- **AND** la entrada de journal de clave `<uuid>` tiene `action=quarantine` y `state=completed`
+- **AND** se publicó `event_ack` con `status=ok`
 
 #### Scenario: Quarantine de archivo inexistente
 - **WHEN** el agente recibe `quarantine_file` para un `path` que no existe en el filesystem
-- **THEN** se escribe journal con `status=error` y razón `file_not_found`
+- **THEN** el journal queda `failed` con razón `file_not_found`
+- **AND** la entrada de baseline no cambia
 - **AND** se publica `event_ack` con `status=error`
+
+#### Scenario: Comando sin agent_event_id
+- **WHEN** el agente recibe un `quarantine_file` firmado sin el campo `agent_event_id`
+- **THEN** el archivo no se toca, no se escribe journal y se publica `event_ack` con error `quarantine_identity_missing`
 
 ### Requirement: event_ack publicado tras ejecutar cada comando
 
@@ -136,17 +140,31 @@ Because the write path is duplicated between `agent/decision.py` and `agent/comm
 - **WHEN** the agent handles a `restore_file` command that fails before `os.replace` (for example `no_baseline_content` or a write error)
 - **THEN** an `event_ack` reporting the failure reason is published, the monitored path is unmodified, and no integrity event is published
 
-### Requirement: quarantine_file keeps reporting the absence it creates
+### Requirement: quarantine_file preserva la versión aprobada y su propio unlink no produce evento
 
-`handle_quarantine_file` moves the file out of the monitored path with `shutil.move`, and the resulting `FAN_MOVED_FROM` MUST continue to produce a `file_deleted` event. The file genuinely is gone, so this is a true observation and not the false positive the restore path exhibits. It also does not feed back: the baseline entry becomes `absent` with a null hash, and `select_restorable_content` returns nothing for an absent entry, so a subsequent `auto_restore` fails with `no_restorable_content` instead of retrying.
+Tras un `quarantine_file` exitoso, el evento de filesystem que el retiro del origen produce sobre la ruta (`FAN_MOVED_FROM` o `FAN_DELETE`) MUST NOT publicar evento alguno, MUST NOT escribir journal y MUST NOT mutar la entrada de baseline, cualquiera sea la regla que cubra la ruta (`alert_only`, `manual_review`, `quarantine` o `auto_restore`). En particular, una regla `auto_restore` sobre la ruta MUST NOT convertir el rechazo con cuarentena del operador en una restauración no pedida (D82/RN-176).
 
-This requirement exists to pin the asymmetry: the discard invariant applies to classifications that yield a hash, and quarantine's departure event yields none.
+#### Scenario: El eco del operador no publica nada y deja el baseline restaurable
+- **WHEN** el agente ejecuta un `quarantine_file` exitoso y luego recibe el `FAN_MOVED_FROM` sobre la ruta
+- **THEN** primero se verifica que la acción ocurrió (artefacto presente, journal `completed`, origen ausente)
+- **AND** no se publicó ningún payload de evento
+- **AND** la entrada de baseline es `quarantined` y `select_restorable_content` devuelve los bytes aprobados
 
-#### Scenario: Quarantine still produces a file_deleted event
-- **WHEN** the agent handles a valid `quarantine_file` command and the move succeeds
-- **THEN** an `event_ack` reporting success is published, the baseline entry for the path is marked absent, and the `FAN_MOVED_FROM` produces a `file_deleted` event
+#### Scenario: Una regla auto_restore no deshace el rechazo con cuarentena
+- **WHEN** una regla `auto_restore` cubre la ruta y el agente ejecuta un `quarantine_file` exitoso seguido del eco
+- **THEN** el archivo sigue ausente, no se publica evento y la entrada sigue `quarantined`
 
-#### Scenario: A later auto_restore on the quarantined path fails instead of looping
-- **WHEN** a rule with `action: "auto_restore"` covers a path whose baseline entry is absent, and a new event arrives for it
-- **THEN** the action fails with `no_restorable_content`, the event is published once with `action_failed: true`, and no filesystem mutation occurs
+### Requirement: restore_file devuelve una entrada quarantined a present
+
+Cuando `handle_restore_file` restaura un path cuya entrada de baseline es `quarantined` y la verificación desde disco (D81/RN-175) tiene éxito, el handler SHALL devolver la entrada a `present` conservando los campos preservados y limpiando `quarantine_action_id`, antes de publicar `event_ack`. Si la restauración o la verificación fallan, la entrada MUST seguir `quarantined`. El evento de filesystem que produce el `os.replace` de la restauración SHALL seguir descartándose por igualdad de hash.
+
+#### Scenario: Restaurar desde quarantined
+- **WHEN** el agente recibe `restore_file` para un path con entrada `quarantined` y contenido aprobado
+- **THEN** el archivo en disco es byte a byte el contenido aprobado con su `mode`, `uid` y `gid`
+- **AND** la entrada queda `present` con `quarantine_action_id: null`
+- **AND** el `FAN_MOVED_TO` de la restauración no publica evento
+
+#### Scenario: Restauración fallida desde quarantined
+- **WHEN** la restauración de un path con entrada `quarantined` termina en `hash_mismatch_after_restore` o `verify_failed`
+- **THEN** la entrada sigue `quarantined` y el `event_ack` lleva el error
 
