@@ -14,6 +14,13 @@ admin. The harness SHALL NOT rely on the FastAPI lifespan running under
 `httpx.AsyncClient` + `ASGITransport` (which does not execute startup/shutdown).
 The harness SHALL run against a real PostgreSQL instance, not in-memory SQLite.
 
+**Registro de versión de esquema (D84/RN-178).** El setup de sesión SHALL, además de `create_all`,
+ejecutar `backend/db/migrations/000_schema_migrations.sql` sobre el engine de test y registrar en
+`schema_migrations` las versiones `0` a `EXPECTED_SCHEMA_VERSION`, cada una con el `filename` y el
+`sha256` de su archivo en el árbol. Así los tests que ejecutan el lifespan real superan la guarda de
+arranque con la misma regla que producción, sin desactivarla ni parchearla. El `TRUNCATE` por test
+recorre `SQLModel.metadata` y MUST NOT vaciar `schema_migrations`, que no es un modelo SQLModel.
+
 El aislamiento de la base de datos no alcanza: **la suite MUST NOT depender de ningún recurso
 ambiental compartido con el sistema que la aloja** (D78/RN-172). Un recurso ambiental compartido es
 todo aquel cuyo estado lo fija el entorno de invocación y no el arnés — un puerto TCP fijo, un archivo
@@ -57,6 +64,13 @@ suite lo herede.
 - **THEN** the schema and seeded admin are created by the root conftest
 - **AND** the full suite passes regardless of test execution order
 - **AND** no test depends on state left behind by a previous test
+
+#### Scenario: El registro de esquema sobrevive al aislamiento por test
+
+- **WHEN** la sesión de tests arranca sobre una base `fim_test` recién creada
+- **THEN** `schema_migrations` contiene las versiones `0` a `EXPECTED_SCHEMA_VERSION`
+- **AND** después del `TRUNCATE` de cualquier test el registro sigue intacto
+- **AND** un test que ejecuta el lifespan real supera la guarda de versión
 
 #### Scenario: Per-test isolation resets database state
 
