@@ -9,6 +9,8 @@ Handlers:
   handle_baseline_update  — actualiza baseline local cifrado y publica event_ack.
   handle_restore_file     — restaura archivo desde baseline con journal.
   handle_quarantine_file  — pone en cuarentena con journal.
+  handle_release_quarantine — libera una cuarentena: restore_original (aprueba),
+                            restore_baseline o discard, sin sobrescribir (D83/RN-177).
   handle_update_config    — recarga watch_paths en fanotify + scan de paths nuevos (C14).
   handle_rescan_baseline  — scan de baseline: todos los watch_paths, o solo
                             los paths indicados por el comando (C14, US-22).
@@ -28,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,9 +43,10 @@ from agent.streams import canonical_json, sign_payload, verify_payload
 if TYPE_CHECKING:
     import valkey.asyncio as avalkey
 
-    from agent.baseline import BaselineEngine
+    from agent.baseline import BaselineEngine, BaselineEntry
     from agent.config import AgentConfig
     from agent.detector import FanotifyDetector
+    from agent.executed_commands import ExecutedCommandRegistry
     from agent.journal import JournalManager
     from agent.preflight import PreflightRegistry
     from agent.quarantine import QuarantineStore
@@ -116,6 +120,7 @@ async def dispatch(
     quarantine_store: "QuarantineStore | None" = None,
     detector: "FanotifyDetector | None" = None,
     preflight_registry: "PreflightRegistry | None" = None,
+    executed_commands: "ExecutedCommandRegistry | None" = None,
 ) -> None:
     """
     Enruta un comando entrante del stream `commands`.
@@ -179,6 +184,20 @@ async def dispatch(
             config=config,
             quarantine_dir=quarantine_dir,
             quarantine_store=quarantine_store,
+        )
+    elif cmd_type == "release_quarantine":
+        if journal is None or quarantine_store is None or executed_commands is None:
+            log.error("commands.dispatch.release_missing_dependency")
+            return
+        await handle_release_quarantine(
+            command=command,
+            baseline_engine=baseline_engine,
+            state=state,
+            journal=journal,
+            quarantine_store=quarantine_store,
+            registry=executed_commands,
+            valkey_client=valkey_client,
+            config=config,
         )
     elif cmd_type == "update_config":
         await handle_update_config(
@@ -545,6 +564,413 @@ async def handle_quarantine_file(
         valkey_client, command_id, "quarantine_file", event_id, config,
         ok=error_reason is None, error=error_reason,
     )
+
+
+# ── Handler: release_quarantine (D83/RN-177) ──────────────────────────────────
+
+_RELEASE_MODES = ("restore_original", "restore_baseline", "discard")
+_SETID_BITS = stat.S_ISUID | stat.S_ISGID
+
+
+class _ReleaseError(Exception):
+    """A release step failed with a closed-vocabulary code (RN-71, D36/RN-130)."""
+
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+def _fsync_dir(directory: str) -> None:
+    fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _publish_without_overwrite(
+    path: str, content: bytes, *, mode: int, uid: int, gid: int
+) -> None:
+    """Relocate ``content`` to ``path`` and NEVER replace an existing destination.
+
+    D83/RN-177 (D-5): the bytes go to ``<path>.fim_restore_tmp`` (``O_EXCL``,
+    ``fchown`` before ``fchmod`` per D36/RN-130) and are published with
+    ``link(2)``, which fails atomically with ``EEXIST`` when something already
+    occupies the path: no TOCTOU window, unlike ``os.replace``. The temporary is
+    always unlinked. The detector drops events on the ``.fim_restore_tmp`` suffix.
+    """
+    from agent.decision import action_error_from_oserror
+
+    tmp_path = path + ".fim_restore_tmp"
+    try:
+        fd = os.open(tmp_path, os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o600)
+    except OSError as exc:
+        raise _ReleaseError(action_error_from_oserror(exc, fallback="write_failed")) from exc
+
+    try:
+        try:
+            view = memoryview(content)
+            while view:
+                written = os.write(fd, view)
+                view = view[written:]
+            os.fsync(fd)
+            os.fchown(fd, uid, gid)
+            os.fchmod(fd, mode)
+        except OSError as exc:
+            raise _ReleaseError(
+                action_error_from_oserror(exc, fallback="write_failed")
+            ) from exc
+        finally:
+            os.close(fd)
+
+        try:
+            os.link(tmp_path, path, follow_symlinks=False)
+        except FileExistsError as exc:
+            raise _ReleaseError("path_occupied") from exc
+        except OSError as exc:
+            raise _ReleaseError(
+                action_error_from_oserror(exc, fallback="write_failed")
+            ) from exc
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+    try:
+        _fsync_dir(os.path.dirname(path) or ".")
+    except OSError as exc:
+        log.warning("commands.release_quarantine.fsync_dir_failed", errno=exc.errno)
+
+
+def _require_path_free(path: str) -> None:
+    """Early ``path_occupied``; the ``link(2)`` in the publication is the real guard."""
+    from agent.decision import action_error_from_oserror
+
+    try:
+        os.lstat(path)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise _ReleaseError(action_error_from_oserror(exc, fallback="write_failed")) from exc
+    raise _ReleaseError("path_occupied")
+
+
+def _disk_hash(path: str) -> str | None:
+    """SHA-256 of the regular file at ``path`` without following symlinks, or None."""
+    digest = hashlib.sha256()
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        try:
+            while block := os.read(fd, 1024 * 1024):
+                digest.update(block)
+        finally:
+            os.close(fd)
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
+def _release_already_applied(
+    baseline_engine: "BaselineEngine", path: str, target_hash: str | None
+) -> bool:
+    """D-9: did a previous run already finish the relocation before a crash?
+
+    True when the path holds the target content and the baseline entry is
+    ``present`` with that same hash. ``target_hash`` is ``None`` for
+    ``restore_baseline``, where the target is the entry's own approved hash.
+    """
+    try:
+        entry = baseline_engine.read_entry(path)
+    except Exception:
+        return False
+    if entry is None or entry.status != "present" or not entry.hash:
+        return False
+    if target_hash is not None and entry.hash != target_hash:
+        return False
+    return _disk_hash(path) == entry.hash
+
+
+def _release_restore_original(
+    *,
+    command: dict[str, Any],
+    path: str,
+    agent_event_id: str,
+    expected_sha256: str,
+    baseline_engine: "BaselineEngine",
+    state: "AgentState",
+    quarantine_store: "QuarantineStore",
+) -> None:
+    from agent.decision import verify_restored_file
+    from agent.quarantine import QuarantineError
+    from agent.state import save_state
+
+    cmd_version = command.get("ruleset_version")
+    if not isinstance(cmd_version, int) or isinstance(cmd_version, bool):
+        raise _ReleaseError("invalid_release_command")
+    # Same guard as baseline_update; here the stale case is acked so the operator
+    # sees it without waiting for the timeout sweep.
+    if cmd_version < state.ruleset_version:
+        raise _ReleaseError("stale_ruleset_version")
+
+    try:
+        artifact = quarantine_store.load_for_release(agent_event_id, path, expected_sha256)
+    except QuarantineError as exc:
+        if exc.reason == "artifact_not_found" and _release_already_applied(
+            baseline_engine, path, expected_sha256
+        ):
+            # Crash between remove_artifact and the registry write (D-9).
+            state.ruleset_version = max(state.ruleset_version, cmd_version)
+            try:
+                save_state(state)
+            except Exception as save_exc:
+                log.warning(
+                    "commands.release_quarantine.save_state_failed",
+                    error_type=type(save_exc).__name__,
+                )
+            return
+        raise _ReleaseError(exc.reason) from exc
+
+    meta = artifact.metadata
+    if meta.get("kind") == "symlink":
+        raise _ReleaseError("unsupported_file_type")
+    uid, gid, raw_mode = meta.get("uid"), meta.get("gid"), meta.get("mode")
+    if not all(isinstance(v, int) and not isinstance(v, bool) for v in (uid, gid, raw_mode)):
+        raise _ReleaseError("no_artifact_metadata")
+    # setuid/setgid never survive an approval-by-release (D83/RN-177).
+    mode = raw_mode & ~_SETID_BITS
+
+    _require_path_free(path)
+
+    # D83: adopt BEFORE relocating, so the FAN_CREATE of the link already matches
+    # the baseline and is dropped by the identical-hash rule (detector D-10).
+    previous = baseline_engine.read_entry(path)
+    baseline_engine.adopt_content(path, artifact.content, mode=mode, uid=uid, gid=gid)
+    try:
+        _publish_without_overwrite(path, artifact.content, mode=mode, uid=uid, gid=gid)
+        err = verify_restored_file(path, artifact.content, expected_sha256)
+        if err is not None:
+            raise _ReleaseError(err)
+        try:
+            quarantine_store.remove_artifact(agent_event_id, path, expected_sha256)
+        except QuarantineError as exc:
+            raise _ReleaseError(exc.reason) from exc
+    except _ReleaseError:
+        _undo_adoption(baseline_engine, path, previous, agent_event_id)
+        raise
+
+    state.ruleset_version = cmd_version
+    try:
+        save_state(state)
+    except Exception as exc:
+        log.warning(
+            "commands.release_quarantine.save_state_failed", error_type=type(exc).__name__
+        )
+
+
+def _undo_adoption(
+    baseline_engine: "BaselineEngine",
+    path: str,
+    previous: "BaselineEntry | None",
+    agent_event_id: str,
+) -> None:
+    """Return the baseline entry to its pre-release (``quarantined``) shape."""
+    try:
+        if previous is not None:
+            baseline_engine.write_entry_object(previous)
+        else:
+            baseline_engine.mark_quarantined(path, agent_event_id)
+    except Exception as exc:
+        log.error(
+            "commands.release_quarantine.baseline_undo_failed",
+            error_type=type(exc).__name__,
+        )
+
+
+def _release_restore_baseline(
+    *,
+    path: str,
+    agent_event_id: str,
+    expected_sha256: str,
+    baseline_engine: "BaselineEngine",
+    quarantine_store: "QuarantineStore",
+) -> None:
+    from agent.baseline import select_restorable_content
+    from agent.decision import parse_baseline_mode, verify_restored_file
+    from agent.quarantine import QuarantineError
+
+    try:
+        quarantine_store.load_for_release(
+            agent_event_id, path, expected_sha256, include_content=False
+        )
+    except QuarantineError as exc:
+        if exc.reason == "artifact_not_found" and _release_already_applied(
+            baseline_engine, path, None
+        ):
+            return
+        raise _ReleaseError(exc.reason) from exc
+
+    _require_path_free(path)
+
+    entry = baseline_engine.read_entry(path)
+    result = select_restorable_content(entry) if entry is not None else None
+    if entry is None or result is None:
+        raise _ReleaseError("no_restorable_content")
+    content, expected_hash = result
+
+    mode = parse_baseline_mode(entry.mode)
+    uid, gid = entry.uid, entry.gid
+    if mode is None or uid is None or gid is None:
+        raise _ReleaseError("no_baseline_metadata")
+
+    _publish_without_overwrite(path, content, mode=mode, uid=uid, gid=gid)
+    err = verify_restored_file(path, content, expected_hash)
+    if err is not None:
+        raise _ReleaseError(err)
+
+    # D82/RN-176 exit (a): a verified restore returns the entry to "present".
+    baseline_engine.clear_quarantine(path)
+    try:
+        quarantine_store.remove_artifact(agent_event_id, path, expected_sha256)
+    except QuarantineError as exc:
+        _undo_adoption(baseline_engine, path, entry, agent_event_id)
+        raise _ReleaseError(exc.reason) from exc
+
+
+def _release_discard(
+    *,
+    path: str,
+    agent_event_id: str,
+    expected_sha256: str,
+    quarantine_store: "QuarantineStore",
+) -> None:
+    from agent.quarantine import QuarantineError
+
+    try:
+        quarantine_store.load_for_release(
+            agent_event_id, path, expected_sha256, include_content=False
+        )
+        quarantine_store.remove_artifact(agent_event_id, path, expected_sha256)
+    except QuarantineError as exc:
+        raise _ReleaseError(exc.reason) from exc
+
+
+async def handle_release_quarantine(
+    command: dict[str, Any],
+    *,
+    baseline_engine: "BaselineEngine",
+    state: "AgentState",
+    journal: "JournalManager",
+    quarantine_store: "QuarantineStore",
+    registry: "ExecutedCommandRegistry",
+    valkey_client: "avalkey.Valkey",
+    config: "AgentConfig",
+) -> None:
+    """
+    Libera una cuarentena vigente (D83/RN-177): tres modos, siempre tras
+    autenticar el artefacto (`QuarantineStore.load_for_release`).
+
+    - restore_original: equivale a APROBAR. Adopta el baseline antes de reubicar,
+      reubica sin sobrescribir (`path_occupied`), quita setuid/setgid, verifica
+      desde disco (D81/RN-175), elimina el artefacto y avanza
+      `state.ruleset_version` con la guarda de obsolescencia.
+    - restore_baseline: restaura la versión aprobada del baseline, sin
+      sobrescribir, y elimina el artefacto.
+    - discard: sólo elimina el artefacto autenticado.
+
+    Idempotencia por `command_id`: journal `pending` antes del primer efecto,
+    registro durable ANTES del ack; una re-entrega re-publica el mismo ack sin
+    repetir efectos. Ni los logs ni el ack llevan contenido de archivo.
+    """
+    command_id = command.get("command_id", "")
+    event_id = command.get("event_id")
+    path = command.get("path", "")
+    mode = command.get("mode")
+    agent_event_id = command.get("agent_event_id")
+    expected_sha256 = command.get("expected_sha256")
+
+    if not isinstance(command_id, str) or not command_id:
+        log.error("commands.release_quarantine.command_id_missing")
+        return
+
+    recorded = registry.get(command_id)
+    if recorded is not None:
+        log.info("commands.release_quarantine.redelivered", command_id=command_id)
+        await _publish_ack(
+            valkey_client, command_id, "release_quarantine", event_id, config,
+            ok=bool(recorded.get("ok")), error=recorded.get("error"),
+        )
+        return
+
+    async def _close(error: str | None) -> None:
+        if error is None:
+            journal.mark_completed(command_id)
+            log.info(
+                "commands.release_quarantine.done",
+                mode=mode, command_id=command_id, event_id=event_id,
+            )
+        else:
+            journal.mark_failed(command_id, error)
+            log.error(
+                "commands.release_quarantine.failed",
+                mode=mode, command_id=command_id, event_id=event_id, error=error,
+            )
+        registry.record(command_id, "release_quarantine", error is None, error)
+        await _publish_ack(
+            valkey_client, command_id, "release_quarantine", event_id, config,
+            ok=error is None, error=error,
+        )
+
+    if (
+        mode not in _RELEASE_MODES
+        or not isinstance(path, str)
+        or not path
+        or not isinstance(agent_event_id, str)
+        or not agent_event_id
+        or not isinstance(expected_sha256, str)
+    ):
+        await _close("invalid_release_command")
+        return
+
+    # D18 / RN-116: validate path containment within watch_paths
+    if not config.watch_paths:
+        await _close("no_watch_paths_configured")
+        return
+    if not _path_is_within_watch_paths(path, config.watch_paths):
+        await _close("path_outside_watch_paths")
+        return
+
+    journal.write_pending(command_id, path, "release_quarantine")
+
+    error_reason: str | None = None
+    try:
+        if mode == "restore_original":
+            _release_restore_original(
+                command=command, path=path, agent_event_id=agent_event_id,
+                expected_sha256=expected_sha256, baseline_engine=baseline_engine,
+                state=state, quarantine_store=quarantine_store,
+            )
+        elif mode == "restore_baseline":
+            _release_restore_baseline(
+                path=path, agent_event_id=agent_event_id,
+                expected_sha256=expected_sha256, baseline_engine=baseline_engine,
+                quarantine_store=quarantine_store,
+            )
+        else:
+            _release_discard(
+                path=path, agent_event_id=agent_event_id,
+                expected_sha256=expected_sha256, quarantine_store=quarantine_store,
+            )
+    except _ReleaseError as exc:
+        error_reason = exc.code
+    except Exception as exc:
+        log.error(
+            "commands.release_quarantine.unexpected",
+            command_id=command_id, error_type=type(exc).__name__,
+        )
+        error_reason = "release_failed"
+
+    await _close(error_reason)
 
 
 # ── Handler: update_config (C14) ──────────────────────────────────────────────

@@ -135,6 +135,7 @@ class Publisher:
         self._quarantine_store: Any | None = None
         self._detector: "FanotifyDetector | None" = None
         self._preflight_registry: "PreflightRegistry | None" = None
+        self._executed_commands: Any | None = None
 
     @staticmethod
     def _trace_reason(reason: Any) -> str:
@@ -293,10 +294,12 @@ class Publisher:
         quarantine_store: Any | None = None,
         detector: "FanotifyDetector | None" = None,
         preflight_registry: "PreflightRegistry | None" = None,
+        executed_commands: Any | None = None,
     ) -> None:
         """
         Registra las instancias necesarias para despachar comandos C13/C14
-        (baseline_update, restore_file, quarantine_file, update_config, rescan_baseline).
+        (baseline_update, restore_file, quarantine_file, release_quarantine,
+        update_config, rescan_baseline).
         Debe llamarse desde bootstrap después de inicializar baseline, state y detector.
         """
         self._baseline_engine = baseline_engine
@@ -306,6 +309,7 @@ class Publisher:
         self._quarantine_store = quarantine_store
         self._detector = detector
         self._preflight_registry = preflight_registry
+        self._executed_commands = executed_commands
 
     def set_shutdown(self, value: bool) -> None:
         """Marca el estado de drenaje graceful para que el heartbeat lo vea."""
@@ -688,7 +692,7 @@ class Publisher:
                 )
         elif cmd_type in (
             "baseline_update", "restore_file", "quarantine_file",
-            "update_config", "rescan_baseline",
+            "release_quarantine", "update_config", "rescan_baseline",
         ):
             # C13/C14: despachar al módulo commands si las instancias están registradas
             if (
@@ -707,6 +711,7 @@ class Publisher:
                     quarantine_store=self._quarantine_store,
                     detector=self._detector,
                     preflight_registry=self._preflight_registry,
+                    executed_commands=self._executed_commands,
                 )
             else:
                 log.warning(

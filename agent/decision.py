@@ -189,6 +189,12 @@ class DecisionEngine:
             return
         log.info("decision.rehydrate.start", count=len(pending))
         for entry in pending:
+            # D83/RN-177: a release_quarantine journal entry is keyed by command_id,
+            # not by an agent event. Republishing it would fabricate a phantom
+            # alert_only event; it stays pending until the redelivered command
+            # completes it (the stream cursor is persisted after the dispatch).
+            if entry.action == "release_quarantine":
+                continue
             payload: dict[str, Any] = {
                 "event_id": entry.event_id,
                 "path": entry.path,

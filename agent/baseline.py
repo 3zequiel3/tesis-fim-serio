@@ -499,6 +499,42 @@ class BaselineEngine:
         _atomic_write(_entry_path(self._baseline_dir, path), self._encrypt_entry(entry))
         return entry
 
+    def adopt_content(
+        self, path: str, content: bytes, *, mode: int, uid: int, gid: int
+    ) -> BaselineEntry:
+        """Adopt quarantined content as the approved baseline (D83/RN-177).
+
+        ``restore_original`` is an approval: the entry becomes ``present`` with the
+        hash, size and content of the bytes about to be relocated and the given
+        ownership and permission bits, BEFORE the file reappears, so the
+        filesystem echo of the relocation matches the baseline and is dropped by
+        the identical-hash rule. Nothing is read from the disk. Existing snapshots
+        are preserved, like ``write_entry``; the caller keeps the previous entry to
+        undo this with ``write_entry_object``.
+        """
+        existing = self.read_entry(path)
+        oversize = len(content) > _MAX_FILE_BYTES
+        entry = BaselineEntry(
+            path=path,
+            status="present",
+            hash=hashlib.sha256(content).hexdigest(),
+            size=len(content),
+            mode=oct(mode),
+            uid=uid,
+            gid=gid,
+            mtime=_now_iso(),
+            captured_at=_now_iso(),
+            snapshots=existing.snapshots if existing else [],
+            content_b64=None if oversize else base64.b64encode(content).decode(),
+            oversize=oversize,
+        )
+        _atomic_write(_entry_path(self._baseline_dir, path), self._encrypt_entry(entry))
+        return entry
+
+    def write_entry_object(self, entry: BaselineEntry) -> None:
+        """Persist ``entry`` verbatim: the undo of ``adopt_content`` (D83/RN-177)."""
+        _atomic_write(_entry_path(self._baseline_dir, entry.path), self._encrypt_entry(entry))
+
     def list_entries(self) -> list[str]:
         paths: list[str] = []
         for f in self._baseline_dir.glob("*.bin"):

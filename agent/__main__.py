@@ -356,6 +356,13 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
     loop.add_signal_handler(signal.SIGINT, lambda: _shutdown("SIGINT"))
 
     journal = JournalManager(cfg.storage.journal_dir, shared_secret)
+    # D83/RN-177: durable dedup of destructive commands redelivered after a restart.
+    from agent.executed_commands import ExecutedCommandRegistry
+
+    executed_commands = ExecutedCommandRegistry(
+        Path(cfg.storage.journal_dir) / "executed_commands.json",
+        retention_days=cfg.storage.quarantine_retention_days,
+    )
     decision_engine = DecisionEngine(
         rules=rules_cache,
         journal=journal,
@@ -396,6 +403,7 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
             quarantine_store=quarantine_store,
             detector=detector,
             preflight_registry=preflight_registry,
+            executed_commands=executed_commands,
         )
     else:
         log.warning("agent.detector.skipped", reason="fanotify only available on Linux")

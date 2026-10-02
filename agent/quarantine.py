@@ -505,6 +505,80 @@ class QuarantineStore:
         """Authenticate and decrypt one artifact for verification/recovery."""
         return self._read_artifact(artifact_path, include_content=True)
 
+    def load_for_release(
+        self,
+        action_id: str,
+        source_path: str,
+        expected_sha256: str,
+        *,
+        include_content: bool = True,
+    ) -> QuarantineArtifact:
+        """Authenticate the artifact a ``release_quarantine`` command names (D83/RN-177).
+
+        Resolves the artifact by identity (``action_id`` + path), then proves it is
+        the one the backend meant: AES-GCM authentication, identity inside the
+        authenticated metadata, and ``sha256`` against the hash the operator saw.
+        Failures use the closed vocabulary ``artifact_not_found``,
+        ``artifact_integrity_failed``, ``artifact_identity_mismatch`` and
+        ``artifact_hash_mismatch``; none of them touches the filesystem.
+        ``include_content=False`` verifies in bounded memory without materializing
+        the plaintext, for the modes that never write it back.
+        """
+        source = os.path.abspath(source_path)
+        artifact_path = self.artifact_path(action_id, source)
+        with self._lock:
+            return self._load_authenticated(
+                artifact_path, action_id, source, expected_sha256, include_content
+            )
+
+    def remove_artifact(
+        self, action_id: str, source_path: str, expected_sha256: str
+    ) -> None:
+        """Delete the authenticated artifact and nothing else (D83/RN-177, D-8).
+
+        Under the store lock it re-reads without content, re-validates identity and
+        hash immediately before the ``unlink`` and fsyncs the directory, so a file
+        that does not authenticate as the named artifact is never deleted.
+        """
+        source = os.path.abspath(source_path)
+        artifact_path = self.artifact_path(action_id, source)
+        with self._lock:
+            self._load_authenticated(
+                artifact_path, action_id, source, expected_sha256, False
+            )
+            try:
+                artifact_path.unlink()
+                _fsync_directory(self.directory)
+            except FileNotFoundError as exc:
+                raise QuarantineError("artifact_not_found") from exc
+            except OSError as exc:
+                raise QuarantineError("artifact_remove_failed") from exc
+
+    def _load_authenticated(
+        self,
+        artifact_path: Path,
+        action_id: str,
+        source: str,
+        expected_sha256: str,
+        include_content: bool,
+    ) -> QuarantineArtifact:
+        if not artifact_path.exists():
+            raise QuarantineError("artifact_not_found")
+        try:
+            artifact = self._read_artifact(artifact_path, include_content=include_content)
+        except QuarantineIntegrityError as exc:
+            if isinstance(exc.__cause__, FileNotFoundError):
+                raise QuarantineError("artifact_not_found") from exc
+            raise QuarantineError("artifact_integrity_failed") from exc
+        if (
+            artifact.metadata.get("action_id") != action_id
+            or artifact.metadata.get("original_path") != source
+        ):
+            raise QuarantineError("artifact_identity_mismatch")
+        if not expected_sha256 or artifact.metadata.get("sha256") != expected_sha256:
+            raise QuarantineError("artifact_hash_mismatch")
+        return artifact
+
     def _read_artifact(
         self, artifact_path: str | Path, *, include_content: bool
     ) -> QuarantineArtifact:
