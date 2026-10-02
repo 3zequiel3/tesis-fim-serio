@@ -385,9 +385,25 @@ rm -f /tmp/fim-compose-config.txt
 
 ### Paso 5. Levantar el stack
 
+El backend se niega a arrancar si el registro de migraciones (`schema_migrations`)
+no existe o está atrasado respecto de su versión esperada (D84/RN-178). Por eso,
+en una instalación nueva, primero se levanta **sólo la base**, se corre
+`scripts/migrar.py` y recién después se levanta el resto:
+
 ```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --wait db
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml
 docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d --build
 ```
+
+Sobre una base nueva (sin tablas), `migrar.py` crea el registro y anota todas las
+versiones **sin ejecutar** las migraciones: el primer arranque del backend
+construye el esquema vigente con `create_all`. `migrar.py` no necesita
+dependencias (sólo Python 3 y `docker compose`) y no publica el puerto 5432.
+
+**Se espera ver:** una línea `applied    000_schema_migrations.sql`, una línea
+`registered NNN_... (not executed)` por cada migración restante, y
+`schema version: None -> 23` (o la versión más alta del árbol).
 
 **Se espera ver:** la construcción de las imágenes `fim-backend:dev` y
 `fim-frontend:dev`, y luego los contenedores `db`, `valkey`, `n8n`,
@@ -482,29 +498,45 @@ cambiar la contraseña en el primer login.
 > el problema es `CORS_ALLOWED_ORIGINS`, no las credenciales. Ver
 > [Parte F](#parte-f--problemas-frecuentes).
 
-### Paso 9. Aplicar migraciones (solo sobre una base preexistente)
+### Paso 9. Actualizar una instalación existente
 
-Sobre una base **limpia** no hay que hacer nada: el `lifespan` del backend
-ejecuta `SQLModel.metadata.create_all(engine)` y crea el esquema completo desde
-los modelos.
+Sobre una base **limpia** esto ya se hizo en el Paso 5. Este paso es para una base
+que **ya tenía datos de una versión anterior**, cuyas migraciones de
+`backend/db/migrations/` se aplicaron a mano y que todavía no tiene registro
+(`schema_migrations`). El backend nuevo aborta al arrancar contra ella, con
+`backend.schema_outdated` en el log, hasta que se registre.
 
-Sobre una base que **ya tenía datos de una versión anterior**, las migraciones de
-`backend/db/migrations/` se aplican **a mano** — no hay un runner automático ni
-en el backend ni en el compose. Las migraciones declaran ese contrato en su
-propio encabezado: *"Migrations are applied by hand (D3)"*. Son idempotentes
-(`ADD COLUMN IF NOT EXISTS`).
+1. Con `db` levantado y **sin reiniciar** el backend, registrar la base sin
+   reaplicar nada. `N` es la mayor versión que de verdad se aplicó a mano; **ante
+   la duda, marcar una versión menor**: las migraciones son idempotentes
+   (`ADD COLUMN IF NOT EXISTS`) y el paso siguiente aplica el resto.
 
-```bash
-while IFS= read -r migration; do
-  echo "aplicando $migration"
-  docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app \
-    exec -T db psql -v ON_ERROR_STOP=1 -U fim -d fim < "backend/db/migrations/$migration"
-done < <(fd -t f -e sql . backend/db/migrations -x basename | sort)
-```
+   ```bash
+   python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml --marcar-hasta 22
+   ```
 
-**Se espera ver:** una línea `ALTER TABLE` / `CREATE INDEX` por migración, sin
-errores. Correr el bucle una segunda vez debe ser un no-op (comprobación de
-idempotencia).
+2. Aplicar las pendientes (cada una en su propia transacción, junto con su fila
+   de registro):
+
+   ```bash
+   python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml
+   ```
+
+3. Verificar (sólo lectura; código de salida `0` si está al día):
+
+   ```bash
+   python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml --verificar
+   ```
+
+4. Reiniciar el backend. El log `backend.schema_version` confirma la versión.
+
+**Se espera ver:** en el paso 1, `registered NNN_... (not executed)` por cada
+versión hasta `N`; en el paso 2, `applied` sólo para las versiones posteriores a
+`N` (por ejemplo `023_add_event_detected_offline.sql`); en el 3, `schema up to date`.
+
+`migrar.py` aborta si el `sha256` de una migración ya registrada no coincide con
+su archivo (código `3`): significa que la migración se editó después de aplicarse.
+Volver a la imagen anterior del backend funciona sin tocar la base.
 
 ### Paso 10. Restringir el acceso a los puertos publicados
 
@@ -1243,6 +1275,8 @@ Después, reiniciar el backend y n8n para que reconecten con la contraseña nuev
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app down -v
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --wait db
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml
 docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d --build
 ```
 

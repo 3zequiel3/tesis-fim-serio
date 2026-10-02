@@ -142,6 +142,30 @@ aceptar la excepción de seguridad.
 
 ## 4. Arranque del stack
 
+El backend aborta al arrancar si el registro de migraciones (`schema_migrations`)
+no existe o está atrasado (D84/RN-178). **Antes del primer arranque del backend**,
+con sólo `db` levantado, se corre `scripts/migrar.py`; sobre una base nueva
+registra todas las versiones sin ejecutar las migraciones, y el backend construye
+el esquema con `create_all`:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --wait db
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml
+```
+
+**Actualizar una instalación existente** (base con migraciones aplicadas a mano y
+sin registro): registrarla una única vez con `--marcar-hasta N` (la mayor versión
+aplicada; ante la duda, una menor, porque las migraciones son idempotentes),
+aplicar las pendientes y verificar, **antes** de desplegar el backend nuevo:
+
+```bash
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml --marcar-hasta 22
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml --verificar
+```
+
+Después:
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d --build
 docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app ps
