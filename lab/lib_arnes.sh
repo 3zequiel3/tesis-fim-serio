@@ -50,7 +50,7 @@ preflight_esquema() {
 # chrony "System time" offset in microseconds; empty if chronyc does not answer.
 # The command arrives as separate arguments (word splitting differs bash/zsh).
 _desvio_us() {
-  "$@" 2>/dev/null | tr -d '\r' | awk '/^System time/ {printf "%d", $4 * 1000000; exit}'
+  "$@" 2>/dev/null | tr -d '\r' | LC_ALL=C awk '/^System time/ {printf "%d", $4 * 1000000; exit}'
 }
 # Clock offset <= CLOCK_MAX_US (default 5000 us = 0.005 s) on host AND VM.
 # NTPSynchronized=yes is NOT a guard: see corrida_unificada.sh. Sets HOST_US, VM_US.
@@ -90,7 +90,7 @@ preflight_rate_limit() {
     echo "rate_limit_variant=$RATE_LIMIT_VARIANT ($RATE_LIMIT_OBSERVED)" >&2
     return 0
   fi
-  awk -v r="$rate" -v b="$burst" -v dr="$RATE_LIMIT_DEFAULT_RATE_PER_S" -v db="$RATE_LIMIT_DEFAULT_BURST" \
+  LC_ALL=C awk -v r="$rate" -v b="$burst" -v dr="$RATE_LIMIT_DEFAULT_RATE_PER_S" -v db="$RATE_LIMIT_DEFAULT_BURST" \
     'BEGIN { exit !(r != "" && b != "" && (r-dr < 1e-6 && dr-r < 1e-6) && b == db) }' \
     || { _aborta "ingest limit ($RATE_LIMIT_OBSERVED) differs from the product defaults ($RATE_LIMIT_DEFAULT_RATE_PER_S / $RATE_LIMIT_DEFAULT_BURST); declare RATE_LIMIT_VARIANT to run a variant"; return 1; }
 }
