@@ -2702,6 +2702,8 @@ comportamiento. Agregada el 2026-09-23.
 
 **Motivo:** 359 entregas fuera de orden en `v2-eval-20260923T215624Z`, resiliencia/run-03: `_retry_loop` (`:639`) continuaba tras `publisher.retry_error`, `publish()` (`:168-196`) hacía `XADD` con backlog y la pasada dormía 5 s (`:613`).
 
+**Ampliación (2026-10-02):** un `event_nack` terminal (D37) también retira el evento de `_unsent`, como cualquier descarte. Los eventos re-emitidos por `rehydrate` al arrancar SHALL encolarse detrás del backlog de disco y después del flush de comandos: el orden es el de detección, no el de reinicio. Un `publish()` concurrente se serializa con un único lock sobre los `XADD`.
+
 **Reglas afectadas:** preserva RN-39. Agregada el 2026-10-02.
 
 #### D80 / RN-174: El agente reconcilia el baseline contra el filesystem al arrancar
@@ -2774,6 +2776,8 @@ comportamiento. Agregada el 2026-09-23.
 
 **Motivo:** el secreto se guardaba en claro y el riesgo no figuraba en la tabla STRIDE.
 
+**Ampliación (2026-10-02):** (1) sin rotación de clave en `v5.0-tesis`; el prefijo `v1:` queda reservado y la rotación se declara límite. (2) La pérdida de la clave obliga a re-bootstrapear todos los agentes; el respaldo del volumen `backend_secrets` se documenta como procedimiento operativo. (3) La clave vive en un volumen `backend_secrets` propio (no `backend_certs`, que monta el agente de laboratorio), montado por `certs-init` —único que la genera, sin sobrescribir nunca una existente— y por el backend. (4) La migración de datos es un paso idempotente al arrancar, fuera del registro de D84/RN-178; filas con hex inválido se registran y se dejan. (5) Sin rollback a texto plano: volver a una imagen anterior exige re-bootstrap. (6) Un archivo de clave con permisos más laxos que `0400`/`0600` SHALL impedir el arranque. (7) La fila STRIDE no existe en `docs/`: se entrega al frente de redacción para la Tabla 3 de la tesis.
+
 **Reglas afectadas:** ninguna se reabre. Agregada el 2026-10-02.
 
 #### D87 / RN-181: El drenaje de ingesta tolera la pérdida de Valkey y alcanza el rendimiento mínimo
@@ -2783,6 +2787,8 @@ comportamiento. Agregada el 2026-09-23.
 **Condición:** `backend/app/core/valkey.py:72,77`, `events/consumer.py`, `docker-compose.yml`, `docker-compose.tls.yml`.
 
 **Motivo:** ingesta de ~76 ev/s (~13 ms/evento); en run-03 el backend consumió 33,5 s después de restaurar Valkey (hipótesis: reinicio del backend, a confirmar con `docker inspect`).
+
+**Ampliación (2026-10-02):** timeouts como settings con defaults `socket_connect_timeout=5`, `socket_timeout=10` (mayor que el bloqueo de lectura de 2 s) y `health_check_interval=15`. El caché de `_get_agent_auth` guarda sólo resoluciones exitosas. El manejo de `NOGROUP` se aplica también al consumidor de `command_ack`, recreando desde `0`. La decisión de agrupar INSERT se toma con el arnés de `lab/` sobre el build de desarrollo, y la medición se guarda en la change; la re-medición de `v5.0-tesis` sigue siendo única. Activar AOF sobre un volumen con snapshot previo se verifica en Valkey 9.0.3 antes de etiquetar.
 
 **Reglas afectadas:** preserva D40/RN-134, D41/RN-135, D75/RN-169 y D76/RN-170; depende de D85/RN-179 y D86/RN-180. Agregada el 2026-10-02.
 
