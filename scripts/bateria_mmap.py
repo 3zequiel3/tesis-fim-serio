@@ -29,6 +29,18 @@ dependa del ORDEN entre el cierre del descriptor y las escrituras sobre el mapeo
   Caso C (control)   open/write/close convencional, sin mapeo.
                      ESPERADO: evento con el hash modificado.
 
+  Caso D (retardo)   open → mmap → close(fd) → esperar d ms → escribir → msync → munmap
+     (B-5)           Es el caso A con un retardo d entre el cierre del descriptor y la
+                     escritura sobre el mapeo, d ∈ {0, 5, 10, 20, 50, 100, 500} ms (d = 0
+                     reproduce A). Mide la VENTANA de evasión que el resultado de A dejó
+                     abierta: el agente hashea unos ~10 ms después del evento, así que si la
+                     escritura llega más tarde que esa latencia, el hash capturado es el
+                     previo. NO tiene resultado esperado fijado (`deteccion_agente_esperada`
+                     es null): lo que se mide es, por d, si hubo evento y si hash_detected
+                     coincide con el contenido final (estados `detectada` /
+                     `evento_sin_cambio` / `sin_evento` de analisis_mmap.py). Se pide con
+                     `--casos D` (o `C,D` para conservar el testigo de validez).
+
 La comparación A vs. B es lo que convierte la limitación en un resultado
 caracterizado: no es que "mmap no se detecta", sino que lo que está en juego es el
 orden entre el cierre del descriptor y las escrituras sobre el mapeo.
@@ -134,11 +146,37 @@ def caso_c_escritura_convencional(path: Path) -> None:
         os.close(fd)
 
 
-CASOS = {
+RETARDOS_D_MS = (0, 5, 10, 20, 50, 100, 500)
+
+
+def caso_d_factory(retardo_ms: int):
+    """mmap → close(fd) → dormir d ms → escribir. Como A, con un retardo explícito."""
+    def caso_d(path: Path) -> None:
+        fd = os.open(path, os.O_RDWR)
+        mm = mmap.mmap(fd, 0, flags=mmap.MAP_SHARED, prot=mmap.PROT_WRITE | mmap.PROT_READ)
+        os.close(fd)                      # ← CLOSE_WRITE se emite acá, sin modificación
+        if retardo_ms:
+            time.sleep(retardo_ms / 1000)
+        mm[0:len(CONTENIDO_EVIL)] = CONTENIDO_EVIL
+        mm.flush()                        # msync
+        mm.close()                        # munmap
+    return caso_d
+
+
+def nombre_caso_d(retardo_ms: int) -> str:
+    return f"D_mmap_close_retardo_{retardo_ms:03d}ms"
+
+
+# (función, detección esperada). None: sin hipótesis fijada (el caso D es una medición).
+CASOS: dict[str, tuple[Any, bool | None]] = {
     "A_mmap_close_previo": (caso_a_evasion, False),
     "B_mmap_close_posterior": (caso_b_mmap_close_posterior, True),
     "C_escritura_convencional": (caso_c_escritura_convencional, True),
 }
+CASOS_D: dict[str, tuple[Any, bool | None]] = {
+    nombre_caso_d(d): (caso_d_factory(d), None) for d in RETARDOS_D_MS
+}
+RETARDO_POR_CASO = {nombre_caso_d(d): d for d in RETARDOS_D_MS}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -149,6 +187,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="Segundos de espera tras crear el archivo, para que el agente lo incorpore")
     ap.add_argument("--espera-evento", type=float, default=5.0,
                     help="Segundos de espera tras cada modificación, antes de la siguiente")
+    ap.add_argument("--casos", default="A,B,C",
+                    help="Casos a correr, separados por coma: A, B, C y/o D (D = los 7 retardos "
+                         "0,5,10,20,50,100,500 ms). Default A,B,C. Para B-5: --casos C,D")
     ap.add_argument("--salida", type=Path, default=Path("./results/bateria8"))
     ap.add_argument("--agent-prefix", default=None,
                     help="Prefijo de ruta tal como lo ve el agente (default: --dir)")
@@ -162,8 +203,14 @@ def main(argv: list[str] | None = None) -> int:
     prefijo = (args.agent_prefix or str(args.dir)).rstrip("/")
     args.salida.mkdir(parents=True, exist_ok=True)
 
-    plan = [(nombre, i + 1) for nombre in CASOS for i in range(args.repeticiones)]
-    print(f"Plan: {len(plan)} operaciones ({args.repeticiones} por caso, {len(CASOS)} casos)")
+    letras = [c.strip().upper() for c in args.casos.split(",") if c.strip()]
+    if not letras or any(c not in {"A", "B", "C", "D"} for c in letras):
+        print(f"ERROR: --casos inválido: {args.casos!r} (usar A, B, C y/o D)")
+        return 2
+    todos = {**CASOS, **CASOS_D}
+    elegidos = {n: v for n, v in todos.items() if n[0] in letras}
+    plan = [(nombre, i + 1) for nombre in elegidos for i in range(args.repeticiones)]
+    print(f"Plan: {len(plan)} operaciones ({args.repeticiones} por caso, {len(elegidos)} casos)")
     if args.dry_run:
         for nombre, rep in plan[:12]:
             print(f"  {nombre} #{rep}")
@@ -178,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     # agregado se escribe igual con lo que se alcanzó a medir.
     with jsonl_path.open("w", encoding="utf-8") as jsonl:
         for seq, (nombre_caso, rep) in enumerate(plan, start=1):
-            fn, deteccion_esperada = CASOS[nombre_caso]
+            fn, deteccion_esperada = elegidos[nombre_caso]
             rel = f"mmap_{nombre_caso}_{rep:03d}.bin"
             path = args.dir / rel
 
@@ -210,6 +257,7 @@ def main(argv: list[str] | None = None) -> int:
                 "bytes": len(CONTENIDO_BASE),
                 "modificacion_efectiva": hash_baseline != hash_despues,
                 "deteccion_agente_esperada": deteccion_esperada,
+                "retardo_ms": RETARDO_POR_CASO.get(nombre_caso),   # sólo caso D
                 "error": error,
             }
             cambios.append(registro)
@@ -239,6 +287,8 @@ def main(argv: list[str] | None = None) -> int:
             "dir": str(args.dir),
             "agent_prefix": prefijo,
             "repeticiones": args.repeticiones,
+            "casos": letras,
+            "retardos_d_ms": list(RETARDOS_D_MS) if "D" in letras else None,
             "espera_baseline_s": args.espera_baseline,
             "espera_evento_s": args.espera_evento,
             "kernel": os.uname().release,
@@ -261,6 +311,8 @@ def main(argv: list[str] | None = None) -> int:
     print("            (estado `detectada`) → confirman que la instrumentación es válida")
     print("\nUsar analisis_mmap.py para el cruce: clasifica cada operación en")
     print("detectada / evento_sin_cambio / sin_evento y aplica el corte de validez.")
+    print("  - Caso D: por retardo, ¿hubo evento y su hash_detected coincide con hash_despues?")
+    print("            (la tabla por caso de analisis_mmap.py da una fila por retardo)")
     print("\nSi el caso C no produce eventos, la corrida NO es válida: el agente no")
     print("estaba monitoreando el directorio o no estaba corriendo.")
     return 0
