@@ -14,7 +14,7 @@
 | Decisiones | D79–D88 / RN-173–RN-182 en los appendices de `docs/arquitectura_stack.md` y `docs/reglas_de_negocio.md` |
 | L-10 | Descartado: se ratifica RN-94 (D88/RN-182) |
 | Arnés (L-11…L-14) | Versionado en `lab/` y actualizado; análisis A-1…A-3 en `scripts/` |
-| Candidato `v5.0-tesis` | **No etiquetado todavía** (falta la migración AOF en los volúmenes reales y la puesta en marcha de B-0) |
+| Candidato `v5.0-tesis` | Etiquetado (`feea81a`); B-0 hecho (agente reinstalado desde la etiqueta, AOF migrado, registro de esquema en 23); primera corrida abortada por un defecto del arnés (§2) |
 
 ## 1. Defectos corregidos (para §4 y §7.6)
 
@@ -62,6 +62,13 @@ contenido aprobado pero con otros permisos no se reporta (el detector compara ha
   la tesis la define distinto, alinear el texto a esta.
 - **Réplica del control (L-12).** Semillas 20261001/02/03 y fase del control derivada de la semilla
   (243, 164 y 28 s); ya no es una réplica determinista.
+- **Stream `commands` sin retención (hallazgo de la corrida abortada, 2026-10-02).** Ningún `XADD` del
+  backend fija `MAXLEN` y nada recorta el stream, que en el laboratorio acumuló 209.619 entradas. Un
+  agente que arranca sin `state.json` (reinstalación o pérdida del estado) lo reprocesa completo desde
+  `0-0`, como prescribe RN-109. Eso saturó la publicación y llevó el P99 a 112 s
+  (`tesis/cierre/evidencia/v5-eval-20261002T215744Z-replay-comandos/LEEME.md`). El arnés ya no lo
+  dispara. En el producto queda como **límite declarado** para §7.6: corregirlo exige una change y un
+  candidato nuevo.
 - **Retención (L-10).** `audit_log` no se depura nunca (RN-94); `rejected_events_audit` sí, a los 90
   días (`backend/app/modules/events/service.py:540`). **Corregir las Tablas 24 y 25 y §4.2**: la Tabla
   24 dice que no se encontró depuración automática de `rejected_events_audit`, y eso es falso.
