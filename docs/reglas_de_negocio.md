@@ -2694,6 +2694,106 @@ herede.
 D76/RN-170: esta decisión es exclusivamente del arnés de pruebas, ninguna ruta de producción cambia de
 comportamiento. Agregada el 2026-09-23.
 
+#### D79 / RN-173: El publisher del agente entrega en orden FIFO estricto y no adelanta eventos nuevos al backlog
+
+**Descripción:** El publisher SHALL distinguir los eventos nunca transmitidos (`_unsent`, FIFO) de los que esperan ACK (`_pending`). Mientras `_unsent` no esté vacía, todo evento nuevo SHALL agregarse a ella y MUST NOT publicarse de inmediato. El vaciado SHALL ser estrictamente FIFO y detenerse en el primer error de transmisión; `_retry_loop` y `_drain_queue` SHALL interrumpir la pasada (`break`) y no continuar con el evento siguiente. Con backlog, el sondeo SHALL ser de 0,5 s. `_unsent` SHALL purgarse al recibir ACK, en el desalojo (`_forget_evicted_event`) y en el descarte por `max_attempts_exceeded`.
+
+**Condición:** `agent/publisher.py` (`publish`, `_retry_loop`, `_drain_queue`).
+
+**Motivo:** 359 entregas fuera de orden en `v2-eval-20260923T215624Z`, resiliencia/run-03: `_retry_loop` (`:639`) continuaba tras `publisher.retry_error`, `publish()` (`:168-196`) hacía `XADD` con backlog y la pasada dormía 5 s (`:613`).
+
+**Reglas afectadas:** preserva RN-39. Agregada el 2026-10-02.
+
+#### D80 / RN-174: El agente reconcilia el baseline contra el filesystem al arrancar
+
+**Descripción:** Después de `init_scan` y antes de arrancar el detector, el agente SHALL ejecutar `reconcile_on_start()`: entrada `present` con archivo faltante → `file_deleted`; hash distinto → `file_modified`; archivo existente sin entrada o `absent` → `file_created`. Cada evento SHALL llevar `detected_offline: true` y SHALL emitirse por el camino normal del detector (`DecisionEngine.evaluate_and_act`, `publisher.publish`, `commit_fn`); MUST NOT publicarse por separado. SHALL registrarse `baseline.reconcile.complete` con los conteos. El backend SHALL aceptar el campo opcional y persistirlo en una columna booleana anulable (migración aditiva `023`, sin backfill); el detalle del evento SHALL mostrarlo.
+
+**Condición:** `agent/__main__.py`, `agent/baseline.py`, `agent/detector.py`, backend de eventos y detalle de evento en el frontend.
+
+**Motivo:** defecto de seguridad: `init_scan` (`baseline.py:463`) omite todo path con entrada (`:480-482`, `:495-496`) y `verify_entry` (`:565`) no se invoca al arrancar; lo modificado o eliminado con el agente detenido nunca se reporta y una recreación idéntica queda suprimida (17 «falsos negativos», 328–329 operaciones no encoladas).
+
+**Reglas afectadas:** depende del orden de D79/RN-173. Agregada el 2026-10-02.
+
+#### D81 / RN-175: La verificación posterior a la restauración relee el archivo desde disco
+
+**Descripción:** Tras `os.replace`, el agente SHALL releer el path restaurado desde disco y comparar su hash con el esperado. Un `OSError` SHALL producir `verify_failed`; una discrepancia, `hash_mismatch_after_restore`. La comparación del buffer en memoria consigo mismo MUST NOT considerarse verificación.
+
+**Condición:** `agent/decision.py` (restauración, `:295`).
+
+**Motivo:** `restored_hash = _hash_bytes(content)` nunca puede fallar; ya figuraba en `docs/residuales_declarados.md` §1, que se retira.
+
+**Reglas afectadas:** ninguna se reabre. Agregada el 2026-10-02.
+
+#### D82 / RN-176: La cuarentena preserva el baseline aprobado y tiene una única implementación
+
+**Descripción:** Tras una cuarentena, `BaselineEngine.mark_quarantined` SHALL conservar `snapshots` y contenido; `mark_absent` MUST NOT invocarse en ese camino. El `unlink` propio de la cuarentena SHALL suprimirse como auto-eco. `quarantine_and_record` (`agent/quarantine.py`) SHALL ser la única implementación, usada por `DecisionEngine._quarantine` y `handle_quarantine_file`, con el orden: journal `pending` → cuarentena → `mark_quarantined` → journal `completed`/`failed`. El rechazo humano con elección de cuarentena SHALL terminar en estado `quarantined`, no `rejected`.
+
+**Condición:** `agent/detector.py`, `agent/baseline.py`, `agent/decision.py`, `agent/commands.py`, `agent/quarantine.py`.
+
+**Motivo:** `mark_absent` (`baseline.py:385`) escribe `snapshots=[]` y `content_b64=None`; el eco de `FAN_DELETE` lo invoca por segunda vez (`agent/tests/test_restore_feedback_loop.py`); dos implementaciones divergentes (residual §9).
+
+**Reglas afectadas:** depende de D81/RN-175. Agregada el 2026-10-02.
+
+#### D83 / RN-177: La cuarentena se libera mediante un comando firmado y auditado
+
+**Descripción:** SHALL existir el comando firmado `release_quarantine {event_id, mode}` con `mode` en `restore_original`, `restore_baseline` o `discard`, incluido en la whitelist del publisher y despachado por `commands.dispatch`. El backend SHALL exponer `POST /events/{id}/quarantine/release` y registrar la acción en `audit_log` (RN-94); el detalle del evento SHALL ofrecer el control.
+
+**Condición:** eventos en estado `quarantined`.
+
+**Motivo:** no existe operación de liberación; `QuarantineStore.read_artifact` (`quarantine.py:497`) no se usa.
+
+**Reglas afectadas:** preserva RN-94; depende de D82/RN-176. Agregada el 2026-10-02.
+
+#### D84 / RN-178: El esquema de base de datos se versiona en un registro y el arranque verifica su vigencia
+
+**Descripción:** SHALL existir la tabla `schema_migrations` (`version`, `filename`, `sha256`, `applied_at`), creada por `000_schema_migrations.sql`. `scripts/migrar.py` SHALL aplicar las migraciones pendientes en orden, cada una en una transacción, y ofrecer `--marcar-hasta N` para bases existentes. El arranque del backend SHALL abortar si `max(version)` es menor que la mayor migración del árbol; la versión esperada SHALL incrustarse en la compilación porque las migraciones no están en la imagen. El preflight SHALL leer `schema_migrations`.
+
+**Condición:** `backend/app/main.py`, `scripts/migrar.py`, preflight, `Dockerfile`.
+
+**Motivo:** hoy sólo corre `create_all` (`main.py:90`) y las 22 migraciones manuales carecen de registro; causó la corrida inválida `v4-eval-20260923T190201Z-esquema-desactualizado`.
+
+**Reglas afectadas:** la migración `023` de D80/RN-174 se registra aquí. Agregada el 2026-10-02.
+
+#### D85 / RN-179: El límite de ingesta es un token bucket por agente
+
+**Descripción:** El límite de ingesta SHALL implementarse como token bucket por agente: régimen sostenido de 100 ev/min y ráfaga de 3.000, derivada de la cola local de 100 MiB y del tamaño medio de evento (derivación documentada). Los settings SHALL ser `RATE_LIMIT_INGEST_RATE_PER_S` y `RATE_LIMIT_INGEST_BURST`; `rate_limit_ingest_events` y `rate_limit_ingest_window_seconds` SHALL eliminarse o mapearse. Las baterías de evaluación SHALL correr con los defaults del producto.
+
+**Condición:** `backend/app/modules/events/consumer.py` (`_RateLimiter`), `backend/app/core/config.py:100-101`.
+
+**Motivo:** con la ventana deslizante de 100/60, reproducir 2.672 eventos exige al menos 26,7 min; las corridas usaron 100000/60.
+
+**Reglas afectadas:** relaciona D38/RN-132. Agregada el 2026-10-02.
+
+#### D86 / RN-180: El secreto compartido del agente se envuelve en reposo y se lee por un único helper
+
+**Descripción:** `Agent.shared_secret_hex` SHALL almacenarse envuelto con AES-GCM: clave de 32 bytes en un archivo fuera de la base (montado sólo en el backend, modo `0400`, generado por `certs-init`/`prepare_server_env.py`), AAD = `agent_id`, prefijo `v1:`. El hex heredado SHALL seguir siendo legible y una migración de datos SHALL envolver los valores existentes. Todo sitio de lectura SHALL usar un único helper. Un caché en memoria SHALL tener sólo TTL, porque no existe revocación de agente (`AgentStatus.revoked` nunca se asigna).
+
+**Condición:** `agents/models.py:39`, `agents/service.py:79` y los sitios de lectura en `consumer.py`, `command_ack_consumer.py`, `agents/streams.py`, `actions/streams.py`, `heartbeat_consumer.py` y `rules/service.py`.
+
+**Motivo:** el secreto se guardaba en claro y el riesgo no figuraba en la tabla STRIDE.
+
+**Reglas afectadas:** ninguna se reabre. Agregada el 2026-10-02.
+
+#### D87 / RN-181: El drenaje de ingesta tolera la pérdida de Valkey y alcanza el rendimiento mínimo
+
+**Descripción:** El cliente Valkey SHALL fijar `socket_timeout`, `socket_connect_timeout` y `health_check_interval`. Ante `NOGROUP`, el bucle de `run_consumer` SHALL invocar `_ensure_group`. Valkey SHALL correr con `--appendonly yes --appendfsync everysec`. `_get_agent_auth` SHALL cachearse con TTL de 5 s. XACK y `event_ack` SHALL emitirse por lote en `_process_batch` mediante pipeline, **sólo después** del `commit` de cada evento; el `INSERT` por lote SHALL adoptarse únicamente si lo anterior no alcanza, preservando el orden y la cadena `superseded`. Bajo `FIM_PROFILE_INGEST=1` SHALL registrarse `consumer.timing` por etapa. El rendimiento SHALL ser de al menos 95 ev/s, con objetivo de 150.
+
+**Condición:** `backend/app/core/valkey.py:72,77`, `events/consumer.py`, `docker-compose.yml`, `docker-compose.tls.yml`.
+
+**Motivo:** ingesta de ~76 ev/s (~13 ms/evento); en run-03 el backend consumió 33,5 s después de restaurar Valkey (hipótesis: reinicio del backend, a confirmar con `docker inspect`).
+
+**Reglas afectadas:** preserva D40/RN-134, D41/RN-135, D75/RN-169 y D76/RN-170; depende de D85/RN-179 y D86/RN-180. Agregada el 2026-10-02.
+
+#### D88 / RN-182: Ratificación de RN-94/W18 — `audit_log` no se depura nunca
+
+**Descripción:** Se ratifica RN-94/W18: `audit_log` SHALL NOT depurarse nunca. El ítem L-10 de la guía de laboratorio v29 se descarta. La purga de `rejected_events_audit` ya existe (`rejected_events_retention_days=90`, `backend/app/modules/events/service.py:540`). Lo que se corrige son las Tablas 24 y 25 de la tesis, no el comportamiento del sistema.
+
+**Condición:** tabla `audit_log` y `rejected_events_audit`.
+
+**Motivo:** el ítem L-10 proponía depurar `audit_log`, lo que contradice RN-94.
+
+**Reglas afectadas:** ratifica RN-94 sin cambio. Agregada el 2026-10-02.
+
 ### Decisiones técnicas referenciadas en otros documentos
 
 Las siguientes decisiones cierran suposiciones del roadmap pero su contenido es puramente técnico/operativo y se documenta en [arquitectura_stack.md](arquitectura_stack.md) bajo el mismo appendix:

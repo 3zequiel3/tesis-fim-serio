@@ -1264,6 +1264,166 @@ Reglas: RN-171 (nueva), RN-172 (nueva), D76/RN-170, D75/RN-169, D40/RN-134, D41/
 
 **Done**: existe una marca durable de aceptación del canal, distinta de `delivered_at`, escrita en el mismo `commit` y nunca cuando la cascada falla; `delivered_at` conserva su semántica y hay un test que lo demuestra; ningún test de la suite depende del puerto 8443/8444 ni del `.env` del directorio de invocación; `pki.py`, `main.py` y `config.py` son byte-idénticos; la suite de backend pasa sin las 15 fallas de referencia y con el mismo conteo en órdenes distintos; `scripts/check_spec_integrity.py` pasa antes y después de archivar; queda registrada la re-corrida completa del arnés unificado con tag nuevo y su resultado, **sin declarar mejora anticipada**.
 
+### Change 61 — `agent-publisher-fifo-reconnect`
+
+**Capa**: agente · **Depende de**: ninguna · **Paralelizable con**: ninguna que toque `agent/publisher.py` · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D79/RN-173; preserva RN-39
+
+> **Nota**: el publisher del agente no preserva el orden FIFO al reconectar. `_retry_loop` (`agent/publisher.py:639`) registra `publisher.retry_error` y **continúa con el evento siguiente** cuando Valkey vuelve a mitad de la pasada; `publish()` (`:168-196`) hace `XADD` de los eventos nuevos de inmediato aunque exista backlog sin enviar (sólo consulta `_is_paused()`); `_drain_queue` (`:321`, `except` en `:343`) también continúa tras un error. La pasada de reintento duerme 5 s (`:613`), de modo que la reconexión del agente toma entre 3,5 y 6,8 s.
+
+> **Evidencia.** 359 entregas fuera de orden en `v2-eval-20260923T215624Z`, resiliencia/run-03. Esta change **invalida el candidato congelado `v4.0-tesis`**; la re-medición se hace **una sola vez**, sobre `v5.0-tesis`, después de las Changes 61–69 (las demás la referencian). Esa re-medición satisface además la tarea 12.4, aún abierta en la Change 51 `agent-attribution-and-detection-gap`.
+
+Capacidades:
+- **Dos colas distintas**: `_unsent` (nunca transmitidos, FIFO) separada de `_pending` (esperando ACK).
+- **Sin adelantamiento**: mientras `_unsent` no esté vacía, los eventos nuevos se agregan a ella en vez de hacer `XADD`; el vaciado es estrictamente FIFO y se detiene en el primer error.
+- **`_retry_loop` y `_drain_queue` hacen `break` en lugar de `continue`**; sondeo cada 0,5 s mientras haya backlog.
+- **Purga de `_unsent`** al recibir ACK, en el desalojo (`_forget_evicted_event`) y en el descarte por `max_attempts_exceeded`.
+
+Reglas: RN-173 (nueva), RN-39 (preservada).
+
+**Done**: un test demuestra que, con backlog sin enviar, un evento nuevo no se publica antes que los previos; un error de Valkey a mitad del vaciado detiene la pasada sin saltear eventos; `_unsent` se purga en ACK, desalojo y descarte; la suite del agente pasa; `scripts/check_spec_integrity.py` pasa antes y después de archivar.
+
+---
+
+### Change 62 — `agent-offline-reconcile-on-start`
+
+**Capa**: agente + backend + frontend · **Depende de**: 61 (`agent-publisher-fifo-reconnect`, comparte la semántica de orden del publisher para la ráfaga) · **Paralelizable con**: ninguna que toque `agent/__main__.py`, `agent/baseline.py` o `agent/detector.py` · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D80/RN-174
+
+> **Nota**: defecto de **seguridad**. `agent/__main__.py:258` ejecuta `init_scan`, y `init_scan` (`agent/baseline.py:463`) omite todo path que ya tiene entrada (`:480-482`, `:495-496`); `verify_entry` (`:565`) no se invoca nunca al arrancar. Los archivos modificados o eliminados mientras el agente estuvo detenido **nunca se reportan**; un archivo eliminado offline conserva `present` y su recreación idéntica queda suprimida (causa de los 17 «falsos negativos» y de las 328–329 operaciones no encoladas). La re-medición ocurre una vez, sobre `v5.0-tesis` (ver Change 61); esta change invalida `v4.0-tesis`.
+
+Capacidades:
+- **`reconcile_on_start()`** después de `init_scan` y antes de arrancar el detector: `present` + faltante → `file_deleted`; hash distinto → `file_modified`; ausente + existe → `file_created`, cada uno con `detected_offline: true`.
+- **Por el camino normal del detector**: `DecisionEngine.evaluate_and_act` + `publisher.publish` + `commit_fn` (`detector.py` ~`:1131-1172`); nunca se publica por separado. Log `baseline.reconcile.complete` con conteos.
+- **Backend y frontend**: el backend acepta el campo opcional (columna booleana anulable, migración aditiva `023`, sin backfill) y el detalle del evento lo muestra.
+
+Reglas: RN-174 (nueva).
+
+**Done**: un test por cada caso offline (eliminado, modificado, creado, recreación idéntica tras eliminación) produce el evento correspondiente con `detected_offline`; el reconcile no publica sin pasar por `DecisionEngine`; la migración `023` es aditiva; el detalle del evento muestra la marca; las suites de agente, backend y frontend pasan; `scripts/check_spec_integrity.py` pasa antes y después de archivar.
+
+---
+
+### Change 63 — `agent-restore-verify-from-disk`
+
+**Capa**: agente · **Depende de**: ninguna · **Paralelizable con**: ninguna que toque `agent/decision.py` · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D81/RN-175
+
+> **Nota**: `agent/decision.py:295` calcula `restored_hash = _hash_bytes(content)` y compara el buffer en memoria **consigo mismo** después de `os.replace`; la verificación nunca puede fallar. Ya figura como residual en `docs/residuales_declarados.md` §1 (que cita líneas desactualizadas, `184-186`). Re-medición única sobre `v5.0-tesis` (ver Change 61).
+
+Capacidades:
+- **Relectura desde disco** del path restaurado tras `os.replace`; `OSError` → `verify_failed`; hash distinto → `hash_mismatch_after_restore`.
+- **Se retira el residual** de `docs/residuales_declarados.md` §1.
+
+Reglas: RN-175 (nueva).
+
+**Done**: un test inyecta una escritura corrupta tras `os.replace` y observa `hash_mismatch_after_restore`; un test inyecta `OSError` en la relectura y observa `verify_failed`; el residual §1 deja de figurar; la suite del agente pasa; `scripts/check_spec_integrity.py` pasa.
+
+---
+
+### Change 64 — `quarantine-baseline-preservation`
+
+**Capa**: agente · **Depende de**: 63 (`agent-restore-verify-from-disk`) · **Paralelizable con**: ninguna que toque `agent/detector.py`, `agent/baseline.py`, `agent/decision.py` o `agent/commands.py` · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D82/RN-176
+
+> **Nota**: `agent/detector.py:1158` llama a `mark_absent` tras la cuarentena; `mark_absent` (`baseline.py:385`) escribe `snapshots=[]` y `content_b64=None`, **perdiendo la versión aprobada**. Además, el `os.unlink` propio de la cuarentena rebota como un `FAN_DELETE` hacia la rama `file_deleted` del detector, que también llama a `mark_absent` (exploración previa en `docs/implementaciones/cuarentena-y-diff-arreglos-como-implementar.md`, demostrado por `agent/tests/test_restore_feedback_loop.py`). Existen dos implementaciones divergentes: `DecisionEngine._quarantine` (`decision.py:299`) y `handle_quarantine_file` (`commands.py:422`) — residual §9. Re-medición única sobre `v5.0-tesis` (ver Change 61).
+
+Capacidades:
+- **`BaselineEngine.mark_quarantined`** conserva `snapshots` y contenido.
+- **Se suprime el auto-eco** del `unlink` de la cuarentena.
+- **`quarantine_and_record` único** en `agent/quarantine.py`, usado por ambos caminos: journal `pending` → cuarentena → `mark_quarantined` → journal `completed`/`failed`.
+- **El rechazo humano con elección de cuarentena** termina en estado `quarantined`, no `rejected`.
+
+Reglas: RN-176 (nueva).
+
+**Done**: tras una cuarentena el baseline conserva snapshots y contenido; el `unlink` propio no produce un segundo `mark_absent`; sólo existe una implementación de cuarentena; el rechazo con cuarentena termina en `quarantined`; el residual §9 se retira; la suite del agente pasa; `scripts/check_spec_integrity.py` pasa.
+
+---
+
+### Change 65 — `quarantine-release-command`
+
+**Capa**: agente + backend + frontend · **Depende de**: 64 (`quarantine-baseline-preservation`) · **Paralelizable con**: ninguna que toque `agent/quarantine.py`, `agent/commands.py` o el publisher · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D83/RN-177; preserva RN-94
+
+> **Nota**: no existe operación alguna de liberación o restauración desde cuarentena; `QuarantineStore.read_artifact` (`quarantine.py:497`) no se usa. Re-medición única sobre `v5.0-tesis` (ver Change 61).
+
+Capacidades:
+- **Comando firmado `release_quarantine {event_id, mode: restore_original|restore_baseline|discard}`**, agregado a la whitelist del publisher y a `commands.dispatch`.
+- **Backend**: `POST /events/{id}/quarantine/release` con entrada en `audit_log` (RN-94).
+- **Frontend**: botón en el detalle del evento.
+
+Reglas: RN-177 (nueva), RN-94 (preservada).
+
+**Done**: los tres modos funcionan de extremo a extremo y dejan entrada en `audit_log`; el comando figura en la whitelist y es rechazado si la firma no valida; el botón aparece sólo para eventos en `quarantined`; las suites de agente, backend y frontend pasan; `scripts/check_spec_integrity.py` pasa.
+
+---
+
+### Change 66 — `backend-schema-migrations-registry`
+
+**Capa**: backend · **Depende de**: ninguna · **Paralelizable con**: ninguna que toque `backend/app/main.py` o agregue migraciones (la `023` de la Change 62 debe registrarse en este registro) · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D84/RN-178
+
+> **Nota**: `backend/app/main.py:90` sólo ejecuta `create_all`; las 22 migraciones SQL manuales (`001`–`022`) no tienen registro y el `Dockerfile` copia únicamente `app/`. Causó la corrida inválida `v4-eval-20260923T190201Z-esquema-desactualizado`. Re-medición única sobre `v5.0-tesis` (ver Change 61).
+
+Capacidades:
+- **`000_schema_migrations.sql`**: tabla con `version`, `filename`, `sha256`, `applied_at`.
+- **`scripts/migrar.py`**: aplica las pendientes en orden, cada una en una transacción, más `--marcar-hasta N` para bases existentes.
+- **Arranque con guarda**: aborta si `max(version)` es menor que la mayor migración del árbol (la versión esperada se incrusta en la compilación, porque las migraciones no están en la imagen).
+- **Preflight** lee `schema_migrations`.
+
+Reglas: RN-178 (nueva).
+
+**Done**: una base sin migraciones pendientes arranca; con una pendiente el backend aborta con mensaje explícito; `--marcar-hasta` registra una base existente sin reaplicar; el preflight detecta el esquema desactualizado; la suite de backend pasa; `scripts/check_spec_integrity.py` pasa.
+
+---
+
+### Change 67 — `ingest-token-bucket-rate-limit`
+
+**Capa**: backend · **Depende de**: ninguna · **Paralelizable con**: ninguna que toque `backend/app/modules/events/consumer.py` o `backend/app/core/config.py` · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D85/RN-179; relaciona D38/RN-132
+
+> **Nota**: `_RateLimiter` (`backend/app/modules/events/consumer.py`) es un log de ventana deslizante con defaults `rate_limit_ingest_events=100` y `rate_limit_ingest_window_seconds=60` (`config.py:100-101`): reproducir 2.672 eventos exige al menos 26,7 min; las corridas usaron 100000/60. Re-medición única sobre `v5.0-tesis` (ver Change 61).
+
+Capacidades:
+- **Token bucket por agente**: sostenido de 100 ev/min con ráfaga de 3.000 (derivada de la cola local de 100 MiB y del tamaño medio de evento; se documenta).
+- **Settings nuevos** `RATE_LIMIT_INGEST_RATE_PER_S` y `RATE_LIMIT_INGEST_BURST`; los anteriores se eliminan o se mapean.
+- **Las baterías corren con los defaults del producto**.
+
+Reglas: RN-179 (nueva), D38/RN-132 (relacionada).
+
+**Done**: un test demuestra que una ráfaga de hasta 3.000 eventos se admite y que el régimen sostenido se limita a 100 ev/min; los settings viejos tienen destino explícito; la derivación de 3.000 queda documentada; la suite de backend pasa; `scripts/check_spec_integrity.py` pasa.
+
+---
+
+### Change 68 — `agent-secret-wrap-at-rest`
+
+**Capa**: backend · **Depende de**: ninguna · **Paralelizable con**: ninguna que toque `backend/app/modules/agents/` ni los sitios de lectura del secreto · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D86/RN-180
+
+> **Nota**: `shared_secret_hex` (`backend/app/modules/agents/models.py:39`) se guarda en claro; se escribe en `agents/service.py:79` y se lee con `bytes.fromhex` en `consumer.py:541-544`, `command_ack_consumer.py:272-275`, `agents/streams.py:54-56`, `actions/streams.py:106-108`, `heartbeat_consumer.py:119-123` y `rules/service.py:186`. No figura en la tabla STRIDE. No existe función de revocación de agente (`AgentStatus.revoked` nunca se asigna): cualquier caché en memoria tiene sólo TTL. Re-medición única sobre `v5.0-tesis` (ver Change 61).
+
+Capacidades:
+- **Envoltura AES-GCM** con clave de 32 bytes en un archivo fuera de la base (montado sólo en el backend, `0400`, generado por `certs-init`/`prepare_server_env.py`), AAD = `agent_id`, prefijo `v1:`.
+- **El hex heredado sigue siendo legible**; migración de datos que envuelve los valores existentes.
+- **Un único helper** usado en todos los sitios de lectura.
+
+Reglas: RN-180 (nueva).
+
+**Done**: ningún secreto queda en claro tras la migración; los seis sitios de lectura usan el helper; un valor heredado en hex sigue siendo legible; un AAD distinto falla la verificación; la fila de la tabla STRIDE queda agregada; la suite de backend pasa; `scripts/check_spec_integrity.py` pasa.
+
+---
+
+### Change 69 — `ingest-drain-resilience-and-throughput`
+
+**Capa**: backend + compose · **Depende de**: 67 (`ingest-token-bucket-rate-limit`) y 68 (`agent-secret-wrap-at-rest`, el caché de `_get_agent_auth` usa su helper) · **Paralelizable con**: ninguna que toque `backend/app/core/valkey.py`, `backend/app/modules/events/consumer.py` o los archivos compose · **Origen**: guía de laboratorio de la tesis v29 (ítems L-2…L-9), verificada contra `devel` `b3751b8`; base para el candidato `v5.0-tesis` · **Decisiones**: D87/RN-181
+
+> **Nota**: `backend/app/core/valkey.py:72,77` usa `from_url` sin `socket_timeout`, `socket_connect_timeout` ni `health_check_interval`; el bucle de `run_consumer` no maneja `NOGROUP` (el grupo sólo se recrea al arrancar); Valkey corre sin AOF en `docker-compose.yml` y `docker-compose.tls.yml`; el backend tiene `restart: unless-stopped` y ningún healthcheck. En run-03 el backend empezó a consumir 33,5 s después de restaurar Valkey (hipótesis: reinicio del backend, a confirmar con `docker inspect` en la batería). La ingesta ronda 76 ev/s (~13 ms/evento); se requieren al menos 95 ev/s, objetivo ≥150. Re-medición única sobre `v5.0-tesis` (ver Change 61).
+
+Capacidades:
+- **Timeouts del cliente Valkey**; **`NOGROUP` → `_ensure_group`** dentro del bucle.
+- **AOF**: `--appendonly yes --appendfsync everysec` en ambos compose.
+- **Log opcional `consumer.timing`** por etapa bajo `FIM_PROFILE_INGEST=1`.
+- **Caché de `_get_agent_auth` con TTL de 5 s.**
+- **XACK + `event_ack` por lote** en `_process_batch` mediante pipeline, sólo tras el `commit` de cada evento.
+- **`INSERT` por lote sólo si lo anterior no alcanza**, preservando el orden y la cadena `superseded`.
+
+Reglas: RN-181 (nueva), D75/RN-169, D76/RN-170, D40/RN-134 y D41/RN-135 (preservadas).
+
+**Done**: tras perder el grupo, el consumer lo recrea sin reiniciar; Valkey conserva el stream tras un reinicio; el ACK por lote nunca precede al `commit`; el orden FIFO y la cadena `superseded` se preservan; la suite de backend pasa; `scripts/check_spec_integrity.py` pasa; queda registrada la re-corrida completa del arnés unificado sobre `v5.0-tesis` y su resultado, **sin declarar mejora anticipada**.
+
+---
+
 ---
 
 ## Decisiones de implementación cerradas — Abril 2026
