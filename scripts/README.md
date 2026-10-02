@@ -507,6 +507,41 @@ Variables de entorno: `API`, `ADMIN_USER`, `WATCH_PREFIX`, `CRITICAL_SUBDIR`,
 
 ---
 
+## `migrar.py` — registro de migraciones (D84/RN-178)
+
+Aplica las migraciones de `backend/db/migrations/` en orden y mantiene la tabla
+`schema_migrations` (`version`, `filename`, `sha256`, `applied_at`). El backend
+aborta al arrancar si ese registro no llega a su `EXPECTED_SCHEMA_VERSION`
+(`backend/app/core/schema_version.py`). Sólo biblioteca estándar en el modo por
+defecto; no publica el puerto 5432.
+
+| Modo | Qué hace |
+|---|---|
+| (sin banderas) | aplica las pendientes en orden, **una transacción por migración** junto con su fila de registro. Sobre una base **nueva** (sin tablas de aplicación) aplica `000` y registra `1..N` **sin ejecutar** (`create_all` construye el esquema en el primer arranque). |
+| `--marcar-hasta N` | base **existente** sin registro: aplica `000` si falta y registra `1..N` sin reaplicar. No aplica nada posterior. Ante la duda, marcar una versión menor. |
+| `--verificar` | sólo lectura: compara `sha256` y `max(version)` contra el árbol. |
+
+Conexión: por defecto `docker compose [-p P] [-f F]... exec -T db psql -X -q -v
+ON_ERROR_STOP=1`; con `--dsn URL`, directa por `psycopg` (import diferido).
+Banderas: `-f/--compose-file` (repetible), `-p/--project-name`, `--servicio`
+(`db`), `--usuario` (`fim`), `--base` (`fim`), `--migraciones` (directorio).
+
+Códigos de salida: `0` éxito o al día · `1` fallo de ejecución o conexión · `2`
+uso o árbol inválido · `3` integridad (`sha256` distinto, versión registrada sin
+archivo, hueco en el registro, base existente sin registro) · `4` `--verificar`
+encontró pendientes.
+
+```bash
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml --marcar-hasta 22
+python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml --verificar
+```
+
+Tests: `scripts/tests/test_migrar.py` (los de integración, con `-m integration`,
+usan `--dsn` contra `TEST_DATABASE_URL` y necesitan `psycopg`).
+
+---
+
 ## Verificación de estos scripts
 
 Corrida de humo real, ejecutada al escribirlos (directorio temporal, sin root):
