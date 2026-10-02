@@ -341,11 +341,16 @@ async def handle_restore_file(
     # 2. Restaurar (D36/RN-130: mismo camino de escritura que
     # DecisionEngine._auto_restore en agent/decision.py, duplicado porque la
     # razón ya llegaba al backend por otro canal — el ack — y ahora habla el
-    # mismo vocabulario cerrado)
+    # mismo vocabulario cerrado). La ESCRITURA sigue duplicada; la
+    # VERIFICACIÓN es compartida: `verify_restored_file` (D81/RN-175).)
     error_reason: str | None = None
     try:
         from agent.baseline import select_restorable_content
-        from agent.decision import action_error_from_oserror, parse_baseline_mode
+        from agent.decision import (
+            action_error_from_oserror,
+            parse_baseline_mode,
+            verify_restored_file,
+        )
 
         entry = baseline_engine.read_entry(path)
         if entry is None:
@@ -397,9 +402,9 @@ async def handle_restore_file(
                 pass
             raise ValueError(action_error_from_oserror(exc, fallback="write_failed")) from exc
 
-        restored_hash = hashlib.sha256(content).hexdigest()
-        if expected_hash and restored_hash != expected_hash:
-            raise ValueError("hash_mismatch_after_restore")
+        err = verify_restored_file(path, content, expected_hash)
+        if err is not None:
+            raise ValueError(err)
 
         log.info("commands.restore_file.done", path=path, command_id=command_id)
         journal.mark_completed(journal_key)

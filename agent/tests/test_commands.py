@@ -668,6 +668,92 @@ async def test_restore_handler_success_publishes_ack(
     assert target.read_bytes() == content
 
 
+# ── D81/RN-175: la verificación del restore del operador relee desde disco ───
+
+
+async def _run_restore_with_fault(
+    agent_config, shared_secret, baseline_engine, mock_valkey, journal, tmp_path, install_fault
+):
+    from agent import commands
+
+    target = tmp_path / "verify_target.txt"
+    content = b"original content from baseline"
+    target.write_bytes(content)
+    baseline_engine.write_entry(str(target))
+    target.write_bytes(b"corrupted content")
+
+    install_fault(content)
+
+    cmd: dict = {
+        "type": "restore_file",
+        "command_id": "cmd-verify-001",
+        "event_id": 12,
+        "target_agent_id": agent_config.agent_id,
+        "path": str(target),
+        "issued_at": "2026-01-01T00:00:00+00:00",
+    }
+    cmd["signature"] = sign_payload(shared_secret, cmd)
+    await commands.handle_restore_file(
+        command=cmd,
+        baseline_engine=baseline_engine,
+        journal=journal,
+        valkey_client=mock_valkey,
+        config=agent_config,
+    )
+    ack = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
+    jdata = json.loads((tmp_path / "journal" / "cmd-verify-001.json").read_text())
+    return ack, jdata
+
+
+@pytest.mark.asyncio
+async def test_restore_handler_truncated_write_publishes_mismatch_ack(
+    agent_config, shared_secret, baseline_engine, mock_valkey, journal, tmp_path, monkeypatch
+):
+    real_write = os.write
+
+    def install(content: bytes) -> None:
+        def half_write(fd, data):
+            if data == content:
+                return real_write(fd, data[: len(data) // 2])
+            return real_write(fd, data)
+
+        monkeypatch.setattr(os, "write", half_write)
+
+    ack, jdata = await _run_restore_with_fault(
+        agent_config, shared_secret, baseline_engine, mock_valkey, journal, tmp_path, install
+    )
+    assert ack["status"] == "error"
+    assert ack["error"] == "hash_mismatch_after_restore"
+    assert jdata["state"] == "failed"
+    assert jdata["error"] == "hash_mismatch_after_restore"
+
+
+@pytest.mark.asyncio
+async def test_restore_handler_reread_oserror_publishes_verify_failed_ack(
+    agent_config, shared_secret, baseline_engine, mock_valkey, journal, tmp_path, monkeypatch
+):
+    import errno
+
+    real_open = os.open
+    verify_target = str(tmp_path / "verify_target.txt")
+
+    def install(_content: bytes) -> None:
+        def failing_open(path, flags, *args, **kwargs):
+            if str(path) == verify_target and flags & os.O_NOFOLLOW and not flags & os.O_WRONLY:
+                raise OSError(errno.EIO, "injected")
+            return real_open(path, flags, *args, **kwargs)
+
+        monkeypatch.setattr(os, "open", failing_open)
+
+    ack, jdata = await _run_restore_with_fault(
+        agent_config, shared_secret, baseline_engine, mock_valkey, journal, tmp_path, install
+    )
+    assert ack["status"] == "error"
+    assert ack["error"] == "verify_failed"
+    assert jdata["state"] == "failed"
+    assert jdata["error"] == "verify_failed"
+
+
 # ── 13.10 test_restore_handler_no_baseline_publishes_error_ack ───────────────
 
 

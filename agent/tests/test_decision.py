@@ -16,6 +16,7 @@ from agent.decision import (
     DecisionEngine,
     action_error_from_oserror,
     parse_baseline_mode,
+    verify_restored_file,
 )
 from agent.journal import JournalManager
 from agent.quarantine import QuarantineStore
@@ -466,3 +467,193 @@ async def test_rehydrate_no_pending(tmp_path: Path) -> None:
     await engine.rehydrate(publisher)
 
     publisher.publish.assert_not_called()
+
+
+# ── verificación desde disco (D81/RN-175) ─────────────────────────────────────
+
+_CONTENT = b"baseline content that must land on disk intact"
+_REAL_OS_WRITE = os.write
+_REAL_OS_OPEN = os.open
+_REAL_OS_REPLACE = os.replace
+
+
+def _truncating_write(monkeypatch: pytest.MonkeyPatch, content: bytes) -> None:
+    """Writes half of `content` and nothing else is touched (design D-7)."""
+
+    def half_write(fd: int, data: bytes) -> int:
+        if data == content:
+            return _REAL_OS_WRITE(fd, data[: len(data) // 2])
+        return _REAL_OS_WRITE(fd, data)
+
+    monkeypatch.setattr(os, "write", half_write)
+
+
+def _restore_setup(
+    tmp_path: Path, *, hash_: str | None | object = ...
+) -> tuple[DecisionEngine, MagicMock, Path]:
+    target = tmp_path / "target.txt"
+    target.write_bytes(b"tampered")
+    engine, _journal, baseline = _make_engine(tmp_path, action="auto_restore")
+    entry_mock = MagicMock()
+    entry_mock.content_b64 = base64.b64encode(_CONTENT).decode()
+    entry_mock.hash = hashlib.sha256(_CONTENT).hexdigest() if hash_ is ... else hash_
+    _metadata(entry_mock)
+    baseline.read_entry.return_value = entry_mock
+    return engine, baseline, target
+
+
+def _journal_data(tmp_path: Path) -> dict:
+    return json.loads((tmp_path / "journal" / "test-event-001.json").read_text())
+
+
+def test_verify_restored_file_matching_returns_none(tmp_path: Path) -> None:
+    f = tmp_path / "f"
+    f.write_bytes(_CONTENT)
+    assert verify_restored_file(str(f), _CONTENT, hashlib.sha256(_CONTENT).hexdigest()) is None
+
+
+def test_verify_restored_file_different_content_is_mismatch(tmp_path: Path) -> None:
+    f = tmp_path / "f"
+    f.write_bytes(b"something else")
+    err = verify_restored_file(str(f), _CONTENT, hashlib.sha256(_CONTENT).hexdigest())
+    assert err == "hash_mismatch_after_restore"
+
+
+def test_verify_restored_file_empty_expected_uses_written_hash(tmp_path: Path) -> None:
+    f = tmp_path / "f"
+    f.write_bytes(_CONTENT)
+    assert verify_restored_file(str(f), _CONTENT, "") is None
+    f.write_bytes(b"something else")
+    assert verify_restored_file(str(f), _CONTENT, "") == "hash_mismatch_after_restore"
+
+
+def test_verify_restored_file_missing_path_is_verify_failed(tmp_path: Path) -> None:
+    assert verify_restored_file(str(tmp_path / "nope"), _CONTENT, "") == "verify_failed"
+
+
+def test_verify_restored_file_symlink_is_not_followed(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.write_bytes(_CONTENT)
+    link = tmp_path / "link"
+    link.symlink_to(real)
+    assert verify_restored_file(str(link), _CONTENT, "") == "verify_failed"
+
+
+def test_verify_restored_file_hashes_files_larger_than_one_block(tmp_path: Path) -> None:
+    big = os.urandom(2 * 1024 * 1024 + 123)
+    f = tmp_path / "big"
+    f.write_bytes(big)
+    assert verify_restored_file(str(f), big, hashlib.sha256(big).hexdigest()) is None
+
+
+def test_auto_restore_truncated_write_fails_with_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine, _baseline, target = _restore_setup(tmp_path)
+    _truncating_write(monkeypatch, _CONTENT)
+
+    payload, commit_fn = engine.evaluate_and_act(_make_change(tmp_path, path=str(target)))
+
+    assert payload["action_failed"] is True
+    assert payload["action_error"] == "hash_mismatch_after_restore"
+    commit_fn()
+    data = _journal_data(tmp_path)
+    assert data["state"] == "failed"
+    assert data["error"] == "hash_mismatch_after_restore"
+
+
+def test_auto_restore_raises_action_failed_on_truncated_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from agent.decision import _ActionFailed
+
+    engine, _baseline, target = _restore_setup(tmp_path)
+    _truncating_write(monkeypatch, _CONTENT)
+    with pytest.raises(_ActionFailed) as exc_info:
+        engine._auto_restore("evt", str(target), {})
+    assert exc_info.value.error == "hash_mismatch_after_restore"
+
+
+def test_auto_restore_file_overwritten_after_replace_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine, _baseline, target = _restore_setup(tmp_path)
+
+    def replace_then_overwrite(src, dst):
+        _REAL_OS_REPLACE(src, dst)
+        Path(dst).write_bytes(b"overwritten behind our back")
+
+    monkeypatch.setattr(os, "replace", replace_then_overwrite)
+    payload, _commit = engine.evaluate_and_act(_make_change(tmp_path, path=str(target)))
+    assert payload["action_error"] == "hash_mismatch_after_restore"
+
+
+def test_auto_restore_symlink_after_replace_is_verify_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine, _baseline, target = _restore_setup(tmp_path)
+    good = tmp_path / "good_copy"
+    good.write_bytes(_CONTENT)
+
+    def replace_then_symlink(src, dst):
+        _REAL_OS_REPLACE(src, dst)
+        os.unlink(dst)
+        os.symlink(good, dst)
+
+    monkeypatch.setattr(os, "replace", replace_then_symlink)
+    payload, _commit = engine.evaluate_and_act(_make_change(tmp_path, path=str(target)))
+    assert payload["action_error"] == "verify_failed"
+
+
+@pytest.mark.parametrize("err", [errno.EIO, errno.EACCES])
+def test_auto_restore_reread_oserror_is_verify_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, err: int
+) -> None:
+    engine, _baseline, target = _restore_setup(tmp_path)
+
+    def failing_open(path, flags, *args, **kwargs):
+        if flags & os.O_NOFOLLOW and not flags & os.O_WRONLY:
+            raise OSError(err, "injected")
+        return _REAL_OS_OPEN(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", failing_open)
+    payload, _commit = engine.evaluate_and_act(_make_change(tmp_path, path=str(target)))
+    assert payload["action_error"] == "verify_failed"
+    assert str(target) not in payload["action_error"]
+
+
+def test_auto_restore_without_expected_hash_still_verifies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine, _baseline, target = _restore_setup(tmp_path, hash_=None)
+    _truncating_write(monkeypatch, _CONTENT)
+    payload, _commit = engine.evaluate_and_act(_make_change(tmp_path, path=str(target)))
+    assert payload["action_error"] == "hash_mismatch_after_restore"
+
+
+def test_auto_restore_without_expected_hash_succeeds_when_intact(tmp_path: Path) -> None:
+    engine, _baseline, target = _restore_setup(tmp_path, hash_=None)
+    payload, _commit = engine.evaluate_and_act(_make_change(tmp_path, path=str(target)))
+    assert payload.get("action_failed") is not True
+    assert target.read_bytes() == _CONTENT
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_truncated_write_publishes_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine, _baseline, target = _restore_setup(tmp_path)
+    journal = engine._journal
+    journal.write_pending("evt-rehy-trunc", str(target), "auto_restore")
+    _truncating_write(monkeypatch, _CONTENT)
+
+    publisher = MagicMock()
+    publisher.publish = AsyncMock()
+    await engine.rehydrate(publisher)
+
+    payload = publisher.publish.call_args[0][0]
+    assert payload["action_failed"] is True
+    assert payload["action_error"] == "hash_mismatch_after_restore"
+    data = json.loads((tmp_path / "journal" / "evt-rehy-trunc.json").read_text())
+    assert data["state"] == "failed"
+    assert data["error"] == "hash_mismatch_after_restore"

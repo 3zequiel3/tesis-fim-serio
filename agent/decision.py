@@ -67,6 +67,56 @@ def action_error_from_oserror(exc: OSError, *, fallback: str) -> str:
     return fallback
 
 
+_VERIFY_BLOCK_SIZE = 1024 * 1024
+
+
+def verify_restored_file(path: str, written: bytes, expected_hash: str) -> str | None:
+    """Verifica el archivo restaurado releyéndolo desde disco (D81/RN-175).
+
+    Se invoca tras `os.replace` desde los dos caminos de restauración
+    (`DecisionEngine._auto_restore` y `handle_restore_file`). Devuelve `None`
+    si el SHA-256 de lo que hay en disco coincide con `expected_hash` (o, si
+    viene vacío, con el hash de `written`), o el literal de falla:
+
+    - `verify_failed`: cualquier OSError al abrir o leer (incluido ELOOP si el
+      path pasó a ser un symlink, por O_NOFOLLOW).
+    - `hash_mismatch_after_restore`: el contenido en disco difiere.
+
+    La relectura NO pasa por `action_error_from_oserror`: ese mapeo clasifica
+    fallas de ESCRITURA como barreras de despliegue (`permission_denied`,
+    `read_only_mount`); acá la escritura ya tuvo éxito, y un EACCES al releer
+    no describe una barrera sobre ella. El errno va al log, no a la causa.
+    Comparar `written` consigo mismo no es verificación: la verificación
+    nunca se omite, pero una de las dos partes siempre viene del disco.
+    """
+    expected = expected_hash or _hash_bytes(written)
+    digest = hashlib.sha256()
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        try:
+            while True:
+                block = os.read(fd, _VERIFY_BLOCK_SIZE)
+                if not block:
+                    break
+                digest.update(block)
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        log.error("restore.verify_failed", path=path, errno=exc.errno)
+        return "verify_failed"
+
+    actual = digest.hexdigest()
+    if actual != expected:
+        log.error(
+            "restore.verify_mismatch",
+            path=path,
+            expected_hash=expected,
+            actual_hash=actual,
+        )
+        return "hash_mismatch_after_restore"
+    return None
+
+
 class DecisionEngine:
     """Orquesta evaluación de reglas + ejecución de acciones + journal transaccional."""
 
@@ -226,7 +276,8 @@ class DecisionEngine:
     def _auto_restore(self, event_id: str, path: str, payload: dict[str, Any]) -> None:
         """Restaura archivo desde baseline o snapshot, incluida su metadata (RN-30–33, D36/RN-130 D-6).
 
-        Verifica SHA-256 igual que antes. Además restaura mode/uid/gid desde la
+        Verifica el resultado releyendo el archivo desde disco con
+        `verify_restored_file` (D81/RN-175). Además restaura mode/uid/gid desde la
         entry del baseline: sin esto, habilitar las capabilities de escritura
         convierte un feature roto en una vulnerabilidad (D-6 del design).
         """
@@ -292,9 +343,9 @@ class DecisionEngine:
                 pass
             raise _ActionFailed(action_error_from_oserror(exc, fallback="write_failed")) from exc
 
-        restored_hash = _hash_bytes(content)
-        if expected_hash and restored_hash != expected_hash:
-            raise _ActionFailed("hash_mismatch_after_restore")
+        err = verify_restored_file(path, content, expected_hash)
+        if err is not None:
+            raise _ActionFailed(err)
 
     def _quarantine(self, event_id: str, path: str, payload: dict[str, Any]) -> None:
         """Encrypt and remove a file through the shared quarantine store."""
