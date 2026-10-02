@@ -11,27 +11,8 @@ Origen: la tarea 15.5 de `agent-deployment-caps` pedía abrir tres changes de fo
 registrarlos acá (2026-09-16). Al mismo tiempo se sumaron los hallazgos de la jornada de
 verificación contra el despliegue real del VPS y del host del agente.
 
----
-
-## 1. La verificación de hash post-restauración es tautológica
-
-**Dónde**: `agent/decision.py:184-186`.
-
-**Qué pasa**: después de restaurar un archivo, el agente calcula el hash del **buffer que tiene en
-memoria** y lo compara contra ese mismo buffer, en lugar de releer el archivo del disco. La
-comprobación siempre da verdadero por construcción.
-
-**Por qué importa**: es el único punto que afirma "la restauración quedó bien escrita". Una escritura
-truncada, un `fsync` que falla silenciosamente o un filesystem lleno producirían un archivo distinto
-del baseline y el agente reportaría éxito igual. Es el modo de falla más caro de todos los de esta
-lista, porque miente en la dirección peligrosa: dice que el sistema remedió cuando no lo hizo.
-
-**Por qué no se arregla ahora**: releer el archivo tras `os.replace` cambia el camino caliente de la
-restauración y exige tests de filesystem nuevos para el caso de escritura parcial, que es
-precisamente el que hoy no está cubierto.
-
-**Para cerrarlo**: releer el path restaurado y comparar contra el hash del baseline, con un test que
-provoque una escritura truncada real y afirme que la acción reporta fallo.
+Las entradas retiradas se eliminan sin renumerar las restantes: otros documentos citan las entradas
+por su número.
 
 ---
 
