@@ -454,12 +454,12 @@ def test_settings_executor_workers_zero_aborts() -> None:
 def test_rate_limiter_thread_safe_exact_admission_count() -> None:
     """
     `check()` invocado concurrentemente desde varios hilos sobre el mismo
-    agent_id no debe admitir más eventos que el límite configurado, ni uno
+    agent_id no debe admitir más eventos que el burst configurado, ni uno
     menos por una condición de carrera perdida (D75/RN-169, D-6 del design).
     """
     import app.modules.events.consumer as consumer_mod
 
-    limiter = consumer_mod._RateLimiter(limit=100, window_s=60.0)
+    limiter = consumer_mod._RateLimiter(rate_per_s=1.0, burst=100, clock=lambda: 0.0)
     admitted = 0
     admitted_lock = threading.Lock()
 
@@ -483,13 +483,18 @@ def test_rate_limiter_seconds_until_available_thread_safe() -> None:
     cruce loop/executor descrito en D-6 del design)."""
     import app.modules.events.consumer as consumer_mod
 
-    limiter = consumer_mod._RateLimiter(limit=10, window_s=60.0)
+    limiter = consumer_mod._RateLimiter(rate_per_s=1.0, burst=10, clock=lambda: 0.0)
     errors: list[Exception] = []
+    admitted = 0
+    admitted_lock = threading.Lock()
 
     def checker() -> None:
         try:
+            nonlocal admitted
             for _ in range(50):
-                limiter.check("agent-mixed")
+                if limiter.check("agent-mixed"):
+                    with admitted_lock:
+                        admitted += 1
         except Exception as exc:  # pragma: no cover - solo si el lock falla
             errors.append(exc)
 
@@ -508,3 +513,5 @@ def test_rate_limiter_seconds_until_available_thread_safe() -> None:
             f.result()
 
     assert not errors
+    # Frozen clock: no refill, so admissions equal the bucket capacity exactly.
+    assert admitted == 10

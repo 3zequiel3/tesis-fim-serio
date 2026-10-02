@@ -22,7 +22,6 @@ import json
 import os
 import time
 import uuid
-from collections import deque
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
@@ -306,10 +305,14 @@ def test_response_matrix_clock_skew_terminal_nack(mem_engine, agent, shared_secr
     assert "retry_after" not in nack
 
 
-def test_response_matrix_rate_limited_nack_with_retry_after(mem_engine, agent, shared_secret) -> None:
+def test_response_matrix_rate_limited_nack_with_retry_after(
+    mem_engine, agent, shared_secret, monkeypatch
+) -> None:
     import app.modules.events.consumer as consumer_mod
-    for _ in range(100):
-        consumer_mod._rate_limiter.check("agent-durability")
+    limiter = consumer_mod._RateLimiter(rate_per_s=1.0, burst=3, clock=_FakeClock())
+    monkeypatch.setattr(consumer_mod, "_rate_limiter", limiter)
+    for _ in range(3):
+        limiter.check("agent-durability")
 
     payload = _sign(_base_payload("agent-durability"), shared_secret)
     mock_client = _run_handle(mem_engine, payload)
@@ -500,45 +503,59 @@ def test_sqlalchemy_error_no_xack_no_response(mem_engine, agent, shared_secret) 
 # ── 14.8 — retry_after derivado del rate limiter ───────────────────────────────
 
 
-def test_retry_after_budget_just_filled_close_to_full_window() -> None:
+class _FakeClock:
+    """Injectable monotonic clock: tests advance time explicitly, no sleeping."""
+
+    def __init__(self, now: float = 0.0) -> None:
+        self.now = now
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def _drain(limiter, key: str, burst: int) -> None:
+    for _ in range(burst):
+        assert limiter.check(key) is True
+    assert limiter.check(key) is False
+
+
+def test_retry_after_empty_bucket_is_time_to_next_token() -> None:
     from app.modules.events.consumer import _RateLimiter
-    limiter = _RateLimiter(limit=100, window_s=60.0)
-    now = time.monotonic()
-    limiter._buckets["a1"] = deque([now] * 100)
+    limiter = _RateLimiter(rate_per_s=100 / 60, burst=5, clock=_FakeClock())
+    _drain(limiter, "a1", 5)
 
-    retry = limiter.seconds_until_available("a1")
-    assert retry == pytest.approx(60.0, abs=1.0)
+    # (1 - 0) / (100/60) = 0.6 s
+    assert limiter.seconds_until_available("a1") == pytest.approx(0.6)
 
 
-def test_retry_after_window_almost_expired_waits_briefly() -> None:
+def test_retry_after_floor_when_next_token_is_imminent() -> None:
     from app.modules.events.consumer import _RateLimiter
-    limiter = _RateLimiter(limit=100, window_s=60.0)
-    now = time.monotonic()
-    limiter._buckets["a1"] = deque([now - 58.0] + [now] * 99)
+    clock = _FakeClock()
+    limiter = _RateLimiter(rate_per_s=100 / 60, burst=5, clock=clock)
+    _drain(limiter, "a1", 5)
+    clock.advance(0.54)  # 0.9 tokens: 0.06 s from the next token, below the floor
 
-    retry = limiter.seconds_until_available("a1")
-    assert retry == pytest.approx(2.0, abs=1.0)
+    assert limiter.seconds_until_available("a1") == limiter._MIN_RETRY_AFTER_S == 0.5
 
 
-def test_retry_after_never_zero_or_negative() -> None:
+def test_retry_after_slow_rate_gives_long_wait() -> None:
     from app.modules.events.consumer import _RateLimiter
-    limiter = _RateLimiter(limit=100, window_s=60.0)
-    now = time.monotonic()
-    # Remanente calculado ~0 (o levemente negativo por el tiempo transcurrido
-    # entre construir el bucket y llamar al método) — nunca se expone tal cual.
-    limiter._buckets["a1"] = deque([now - 60.0 + 0.0005] + [now] * 99)
+    limiter = _RateLimiter(rate_per_s=0.1, burst=2, clock=_FakeClock())
+    _drain(limiter, "a1", 2)
 
-    retry = limiter.seconds_until_available("a1")
-    assert retry > 0
-    assert retry >= limiter._MIN_RETRY_AFTER_S
+    assert limiter.seconds_until_available("a1") == pytest.approx(10.0)
 
 
 def test_retry_after_zero_when_budget_available() -> None:
     from app.modules.events.consumer import _RateLimiter
-    limiter = _RateLimiter(limit=100, window_s=60.0)
+    limiter = _RateLimiter(rate_per_s=100 / 60, burst=100, clock=_FakeClock())
     assert limiter.seconds_until_available("never-used") == 0.0
+    assert "never-used" not in limiter._buckets  # querying must not create state
 
-    limiter.check("a1")  # solo 1 de 100
+    limiter.check("a1")  # 99 tokens left
     assert limiter.seconds_until_available("a1") == 0.0
 
 

@@ -12,15 +12,17 @@ Orden de inicialización:
 """
 
 import asyncio
+import os
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any
 
+from dotenv import dotenv_values
 from fastapi import FastAPI, Depends
 from sqlmodel import SQLModel, Session
 
 import app.modules  # noqa: F401 — registra todos los modelos en SQLModel.metadata
-from app.core.config import settings
+from app.core.config import Settings, legacy_ingest_rate_limit_vars, settings
 from app.core.database import engine, get_session
 from app.core.executors import install_executors
 from app.core.health import check_components
@@ -76,10 +78,31 @@ def _log_console_tls_mode() -> None:
         log.info("backend.console_tls_mode", console_tls_mode=settings.console_tls_mode)
 
 
+def _warn_legacy_ingest_rate_limit_vars() -> None:
+    """D85/RN-179: warn once when the removed ingest rate-limit variables are still set.
+
+    `Settings` ignores unknown variables, so without this warning an operator keeping
+    `RATE_LIMIT_INGEST_EVENTS` in `.env` would lose that tuning silently. Startup continues.
+    The `.env` is read from the same path `Settings` uses.
+    """
+    env_file = Settings.model_config.get("env_file")
+    env_file_values: dict[str, str | None] = {}
+    if isinstance(env_file, (str, os.PathLike)) and os.path.exists(env_file):
+        env_file_values = dict(dotenv_values(env_file))
+    variables = legacy_ingest_rate_limit_vars(os.environ, env_file_values)
+    if variables:
+        log.warning(
+            "config.legacy_ingest_rate_limit_ignored",
+            variables=variables,
+            replacements=["RATE_LIMIT_INGEST_RATE_PER_S", "RATE_LIMIT_INGEST_BURST"],
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     log.info("backend.startup", environment=settings.environment)
     _log_console_tls_mode()
+    _warn_legacy_ingest_rate_limit_vars()
     # D84/RN-178: abort BEFORE any side effect (ensure_ca writes certs, create_all creates
     # tables, seed_admin inserts) when the schema registry is missing or behind.
     check_schema_version(engine)

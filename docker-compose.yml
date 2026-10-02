@@ -283,12 +283,16 @@ services:
       SMTP_STARTTLS: ${SMTP_STARTTLS}
       SMTP_SSL: ${SMTP_SSL}
       WEBHOOK_FALLBACK_URL: ${WEBHOOK_FALLBACK_URL}
-      # P1 del plan de medición (Cap. 5): rate limit de ingesta parametrizado
-      # (RN-88). Los defaults reproducen el comportamiento histórico —
-      # 100 eventos por ventana de 60 s y por agent_id. Subirlos SOLO para las
-      # baterías de carga; también fija el retry_after del event_nack (D37/RN-131).
-      RATE_LIMIT_INGEST_EVENTS: ${RATE_LIMIT_INGEST_EVENTS:-100}
-      RATE_LIMIT_INGEST_WINDOW_SECONDS: ${RATE_LIMIT_INGEST_WINDOW_SECONDS:-60}
+      # Ingest rate limit (RN-88, D85/RN-179): token bucket per agent_id.
+      # Defaults: 100 events/min sustained (100/60 tokens per second) with a
+      # burst of 3,000 events. The measurement batteries run with these
+      # defaults; D38/RN-132 still requires declaring any raised value.
+      RATE_LIMIT_INGEST_RATE_PER_S: ${RATE_LIMIT_INGEST_RATE_PER_S:-1.6666666666666667}
+      RATE_LIMIT_INGEST_BURST: ${RATE_LIMIT_INGEST_BURST:-3000}
+      # Removed by D85/RN-179. Forwarded ONLY so the backend can warn that they
+      # are ignored (config.legacy_ingest_rate_limit_ignored); they have no effect.
+      RATE_LIMIT_INGEST_EVENTS: ${RATE_LIMIT_INGEST_EVENTS:-}
+      RATE_LIMIT_INGEST_WINDOW_SECONDS: ${RATE_LIMIT_INGEST_WINDOW_SECONDS:-}
     volumes:
       - backend_certs:/certs
     ports:

@@ -514,11 +514,10 @@ def test_fix05_compact_chain_retains_newest(mem_engine):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def test_fix06_redelivery_does_not_consume_rate_budget(mem_engine):
+def test_fix06_redelivery_does_not_consume_rate_budget(mem_engine, monkeypatch):
     """8.9 — Re-entrega detectada en dedup NO llama a _rate_limiter.check().
-    Tras la re-entrega, el slot 100 (límite) aún está disponible."""
+    Tras la re-entrega, el último token del balde aún está disponible."""
     import app.modules.events.consumer as consumer_mod
-    from app.modules.events.consumer import reset_rate_limiter, _rate_limiter
 
     # Setup: agente registrado
     secret = os.urandom(32)
@@ -531,10 +530,11 @@ def test_fix06_redelivery_does_not_consume_rate_budget(mem_engine):
         s.add(a)
         s.commit()
 
-    # Llenar el bucket hasta 99 (queda un slot disponible: el #100)
-    reset_rate_limiter()
+    # Small bucket (burst=100) with exactly one token left (frozen clock, no refill).
+    limiter = consumer_mod._RateLimiter(rate_per_s=1.0, burst=100, clock=lambda: 0.0)
+    monkeypatch.setattr(consumer_mod, "_rate_limiter", limiter)
     for _ in range(99):
-        _rate_limiter.check("agent-ratelimit")
+        limiter.check("agent-ratelimit")
 
     # Insertar un evento existente para simular re-entrega
     from app.core.streams import SCHEMA_VERSION, sign_payload
@@ -574,15 +574,15 @@ def test_fix06_redelivery_does_not_consume_rate_budget(mem_engine):
             mock_client, "1-0", {"data": json.dumps(payload, sort_keys=True, separators=(",", ":"))}
         ))
 
-    # La re-entrega debe XACK sin llamar rate limiter → slot #100 aún disponible
+    # The redelivery must XACK without calling the rate limiter → last token still available
     mock_client.xack.assert_called_once()
-    assert _rate_limiter.check("agent-ratelimit") is True, (
-        "el slot #100 debe estar disponible: la re-entrega no debe haber consumido rate budget"
+    assert limiter.check("agent-ratelimit") is True, (
+        "el último token debe estar disponible: la re-entrega no debe haber consumido rate budget"
     )
 
-    # Ahora el bucket tiene 100 → el próximo evento nuevo debe ser rate-limited
-    assert _rate_limiter.check("agent-ratelimit") is False, (
-        "el bucket está lleno (101): debe retornar False"
+    # Now the bucket is empty → the next new event must be rate-limited
+    assert limiter.check("agent-ratelimit") is False, (
+        "el balde está vacío: debe retornar False"
     )
 
 

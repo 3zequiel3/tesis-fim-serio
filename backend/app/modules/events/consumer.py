@@ -41,7 +41,7 @@ import inspect
 import json
 import threading
 import time
-from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -140,84 +140,107 @@ def _build_payload_dump(raw: str, payload: dict[str, Any]) -> str:
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
 
+@dataclass(slots=True)
+class _TokenBucket:
+    """Mutable per-agent bucket state: available tokens and last refill instant."""
+
+    tokens: float
+    updated_at: float
+
+
 class _RateLimiter:
     """
-    Ventana deslizante por agent_id (RN-88).
+    Token bucket per agent_id (RN-88, D85/RN-179).
 
-    Thread-safe (D75/RN-169, D-6 del design de `ingest-offload-blocking-db`):
-    desde que `_get_agent_auth` e `_ingest` corren en `run_in_executor`
-    (D-1 del design), `check()` se invoca desde un hilo del executor —llega
-    por el `accept_new=lambda: _rate_limiter.check(agent_id)` que `_ingest`
-    pasa a `_ingest_event_outcome`— mientras `seconds_until_available()` se
-    invoca desde el event loop, vía `_reject` en el camino de rechazo. Las
-    dos hacen lectura-modificación-escritura sobre el mismo `deque` del mismo
-    bucket (`popleft` en la purga, `append` en el alta), así que un
-    `threading.Lock` envuelve el cuerpo de `check()`, `seconds_until_available()`
-    y `reset()`. Ya NO vale la premisa histórica "single-threaded asyncio":
-    con el despacho secuencial (D-2 del design) no hay solapamiento efectivo
-    hoy porque `_handle_message` espera a que `_ingest` termine antes de
-    llegar a `_reject`, pero el invariante pasaría a depender de una
-    propiedad no local del bucle de despacho, y un refactor futuro del
-    despacho volvería esa dependencia una carrera real. El costo del lock es
-    despreciable (sin contención real) y el algoritmo NO cambia: mismos
-    `popleft`/`append`, mismo `_MIN_RETRY_AFTER_S`, mismo `retry_after`
-    derivado de RN-88 / D37/RN-131.
+    Each agent has a bucket of capacity `burst` that refills lazily at
+    `rate_per_s` tokens per second; a new event consumes one token. An agent
+    never seen before starts with a full bucket, so the replay that follows a
+    reconnection is admitted without rejections. Sustained regime: 100
+    events/min; burst: 3,000 events (see `Settings`).
 
-    Límite y ventana salen de `Settings` (`rate_limit_ingest_events` /
-    `rate_limit_ingest_window_seconds`, defaults 100 / 60.0 = comportamiento
-    histórico). Los argumentos explícitos siguen existiendo para los tests que
-    necesitan una ventana chica; `_RateLimiter()` sin argumentos lee la config.
+    Thread-safe (D75/RN-169, D-6 of the design of `ingest-offload-blocking-db`,
+    kept by D-7 of `ingest-token-bucket-rate-limit`): `check()` runs in a
+    thread of the executor — it arrives through the
+    `accept_new=lambda: _rate_limiter.check(agent_id)` that `_ingest` passes to
+    `_ingest_event_outcome` — while `seconds_until_available()` runs in the
+    event loop, through `_reject` on the rejection path. Both do
+    read-modify-write on the same token record of the same agent, so a single
+    `threading.Lock` wraps the body of `check()`, `seconds_until_available()`
+    and `reset()`. With the sequential dispatch there is no effective overlap
+    today, but the invariant would depend on a non-local property of the
+    dispatch loop, and a future refactor would turn that dependency into a
+    real race. The lock cost is negligible (no real contention).
+
+    The clock is injectable (`clock`, monotonic by default) so tests advance
+    time explicitly instead of sleeping. `retry_after` semantics (D37/RN-131):
+    `seconds_until_available()` is the time until the agent accumulates the
+    missing token, never below `_MIN_RETRY_AFTER_S`. State lives in process
+    memory and is lost on restart (RN-76).
+
+    Rate and burst come from `Settings` (`rate_limit_ingest_rate_per_s` /
+    `rate_limit_ingest_burst`); explicit arguments exist for tests that need a
+    small bucket. `_RateLimiter()` without arguments reads the config.
     """
 
-    # D37/RN-131: piso positivo pequeño para el retry_after derivado — un
-    # remanente <=0 por una carrera entre check() y seconds_until_available()
-    # nunca se expone tal cual, para no inducir un busy-loop en el agente.
+    # D37/RN-131: small positive floor for the derived retry_after — a
+    # remainder <=0 caused by a race between check() and seconds_until_available()
+    # is never exposed as is, to avoid inducing a busy-loop in the agent.
     _MIN_RETRY_AFTER_S = 0.5
 
-    def __init__(self, limit: int | None = None, window_s: float | None = None) -> None:
-        self._limit = limit if limit is not None else settings.rate_limit_ingest_events
-        self._window_s = (
-            window_s if window_s is not None else settings.rate_limit_ingest_window_seconds
+    def __init__(
+        self,
+        rate_per_s: float | None = None,
+        burst: int | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._rate_per_s = (
+            rate_per_s if rate_per_s is not None else settings.rate_limit_ingest_rate_per_s
         )
-        self._buckets: dict[str, deque[float]] = {}
+        self._burst = burst if burst is not None else settings.rate_limit_ingest_burst
+        self._clock = clock
+        self._buckets: dict[str, _TokenBucket] = {}
         self._lock = threading.Lock()
 
+    def _refill(self, bucket: _TokenBucket, now: float) -> None:
+        """Lazy refill, capped at `burst`. Must be called with the lock held."""
+        elapsed = now - bucket.updated_at
+        bucket.tokens = min(self._burst, bucket.tokens + elapsed * self._rate_per_s)
+        bucket.updated_at = now
+
     def check(self, key: str) -> bool:
-        """Retorna True si está dentro del límite (registra el timestamp). False si excede."""
+        """Return True and consume one token if available; False (tokens untouched) otherwise."""
         with self._lock:
-            now = time.monotonic()
-            cutoff = now - self._window_s
-            bucket = self._buckets.setdefault(key, deque())
-            while bucket and bucket[0] < cutoff:
-                bucket.popleft()
-            if len(bucket) >= self._limit:
-                return False
-            bucket.append(now)
-            return True
+            now = self._clock()
+            bucket = self._buckets.get(key)
+            if bucket is None:
+                # D-2: an unseen agent starts with a full bucket.
+                bucket = self._buckets[key] = _TokenBucket(tokens=float(self._burst), updated_at=now)
+            else:
+                self._refill(bucket, now)
+            if bucket.tokens >= 1:
+                bucket.tokens -= 1
+                return True
+            return False
 
     def seconds_until_available(self, key: str) -> float:
         """
-        Segundos hasta que se libere cupo para `key` (D37/RN-131, RN-88): usado
-        para derivar el `retry_after` del nack de rate_limited. NO expone el
-        `deque` — este es el único punto por el que el consumer conoce el
-        estado del limiter para ese fin.
+        Seconds until `key` has a token again (D37/RN-131, RN-88): used to derive
+        the `retry_after` of the rate_limited nack. It does not expose the
+        bucket — this is the only point through which the consumer knows the
+        limiter state for that purpose.
 
-        0.0 si ya hay cupo. Si la ventana está llena, el remanente hasta que
-        el timestamp más viejo salga de la ventana, nunca por debajo de
-        `_MIN_RETRY_AFTER_S`.
+        0.0 if a token is available or the key has no state (no record is
+        created). Otherwise the time to accumulate the missing token, never
+        below `_MIN_RETRY_AFTER_S`.
         """
         with self._lock:
-            now = time.monotonic()
-            cutoff = now - self._window_s
             bucket = self._buckets.get(key)
-            if not bucket:
+            if bucket is None:
                 return 0.0
-            while bucket and bucket[0] < cutoff:
-                bucket.popleft()
-            if len(bucket) < self._limit:
+            self._refill(bucket, self._clock())
+            if bucket.tokens >= 1:
                 return 0.0
-            remaining = self._window_s - (now - bucket[0])
-            return max(remaining, self._MIN_RETRY_AFTER_S)
+            return max((1 - bucket.tokens) / self._rate_per_s, self._MIN_RETRY_AFTER_S)
 
     def reset(self) -> None:
         with self._lock:
@@ -228,7 +251,7 @@ _rate_limiter = _RateLimiter()
 
 
 def reset_rate_limiter() -> None:
-    """Limpia todos los contadores. Usado en tests."""
+    """Clears all agent buckets. Used in tests."""
     _rate_limiter.reset()
 
 

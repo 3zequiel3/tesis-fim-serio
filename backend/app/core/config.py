@@ -10,6 +10,7 @@ conexiones (fail-fast por diseño — D-CHANGE-04).
 (ej. DB_PASSWORD para `db`, variables de n8n, etc.) sin causar fallo al arranque.
 """
 
+from collections.abc import Mapping
 from typing import Literal
 
 from pydantic import Field
@@ -89,16 +90,18 @@ class Settings(BaseSettings):
     rate_limit_login_window_seconds: int = 900  # ventana login en segundos
     rate_limit_api_per_minute: int = 100        # req/min por user_id autenticado
 
-    # Rate limiting de ingesta de eventos (RN-88, D7) — ventana deslizante por
-    # agent_id del consumer del stream `events`. Parametrizado para las corridas
-    # de laboratorio del Cap. 5 (P1 del plan de medición): con el límite fijo en
-    # 100/60s la batería de concurrencia se estrangula a sí misma. Los defaults
-    # reproducen exactamente el comportamiento hardcodeado previo.
-    # La ventana es float (no int como la de login) porque además de acotar el
-    # presupuesto deriva el `retry_after` del `event_nack` de rate_limited
-    # (D37/RN-131), que se expresa en segundos fraccionarios.
-    rate_limit_ingest_events: int = 100             # eventos máximos por ventana y agent_id
-    rate_limit_ingest_window_seconds: float = 60.0  # ventana de ingesta en segundos
+    # Ingest rate limit (RN-88, D7; D85/RN-179) — token bucket per agent_id in
+    # the consumer of the `events` stream. Sustained regime: 100 events/min
+    # (100/60 tokens per second). Burst: 3,000 events, sized by the replay of
+    # 2,672 events measured in battery 5 (plus margin) and NOT by the agent's
+    # 100 MiB local queue, which holds ~137,600 events and would make the
+    # bucket equivalent to no limit at all. An unseen agent starts with a full
+    # bucket. The `retry_after` of the `rate_limited` `event_nack` (D37/RN-131)
+    # is the time until the next token, in fractional seconds.
+    # Replaces `rate_limit_ingest_events` / `rate_limit_ingest_window_seconds`,
+    # which are removed and ignored (see `legacy_ingest_rate_limit_vars`).
+    rate_limit_ingest_rate_per_s: float = Field(default=100 / 60, gt=0)  # tokens per second
+    rate_limit_ingest_burst: int = Field(default=3000, ge=1)  # bucket capacity (events)
 
     # command_ack (D30/RN-124, C36) — umbral del barrido de timeout de comandos sin confirmar.
     # Default alineado con _DEAD_THRESHOLD_S del heartbeat_consumer (300s).
@@ -205,8 +208,10 @@ class Settings(BaseSettings):
     # agotarían un cupo de ocho sin usar ningún hilo. El default de 32 cubre
     # el caso normal —a ~302,8 ms de costo aislado por notificación, 32 en
     # vuelo sostienen un orden de magnitud más de notificaciones por segundo
-    # de las que el rate limit de ingesta permite generar (100/60s por
-    # agent_id, `rate_limit_ingest_events`)— sin dejar de ser una cota.
+    # de las que el rate limit de ingesta permite generar en régimen sostenido
+    # (token bucket de 100 ev/min por agent_id, con una ráfaga de 3.000 —
+    # `rate_limit_ingest_rate_per_s` / `rate_limit_ingest_burst`, D85/RN-179)—
+    # sin dejar de ser una cota.
     notify_max_concurrent_deliveries: int = Field(default=32, ge=1)
     # Cantidad de entregas EN ESPERA (no en vuelo) que dispara la advertencia
     # de backlog. Disparada por FLANCO —una vez al cruzar el umbral hacia
@@ -248,6 +253,33 @@ class Settings(BaseSettings):
 
     def get_allowed_origins(self) -> list[str]:
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
+
+
+# Names of the ingest rate-limit settings removed by D85/RN-179, in a fixed order.
+_LEGACY_INGEST_RATE_LIMIT_VARS = (
+    "RATE_LIMIT_INGEST_EVENTS",
+    "RATE_LIMIT_INGEST_WINDOW_SECONDS",
+)
+
+
+def legacy_ingest_rate_limit_vars(
+    environ: Mapping[str, str | None],
+    env_file_values: Mapping[str, str | None],
+) -> list[str]:
+    """Names of the removed ingest rate-limit variables that are still set (D85/RN-179).
+
+    `Settings` ignores unknown variables (`extra="ignore"`), so an operator who
+    keeps `RATE_LIMIT_INGEST_EVENTS=100000` in `.env` would lose that tuning
+    silently. This pure function lets the startup warn about it. A variable counts
+    as set when it has a non-empty value in either mapping; names are compared
+    case-insensitively, like `Settings`. The result has no duplicates and a fixed order.
+    """
+    defined: set[str] = set()
+    for mapping in (environ, env_file_values):
+        for name, value in mapping.items():
+            if value:
+                defined.add(name.upper())
+    return [name for name in _LEGACY_INGEST_RATE_LIMIT_VARS if name in defined]
 
 
 # Instancia singleton — falla en import-time si DATABASE_URL o VALKEY_URL faltan.
