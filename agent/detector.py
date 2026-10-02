@@ -24,7 +24,7 @@ import structlog
 from agent.experiment_trace import ExperimentTrace
 
 if TYPE_CHECKING:
-    from agent.baseline import BaselineEngine
+    from agent.baseline import BaselineEngine, OfflineFinding
     from agent.decision import DecisionEngine
     from agent.publisher import Publisher
 
@@ -65,7 +65,9 @@ else:
 class FanotifyEvent:
     """Evento raw recibido del backend fanotify interno (agent/_fanotify.py)."""
     path: str
-    pid: int
+    # D80/RN-174: None también en un hallazgo del reconcile al arrancar (no hay
+    # proceso causante). 0 no sirve: significa root.
+    pid: int | None
     # D49/RN-143: None = atribución no resuelta (el proceso ya no existe cuando se
     # consulta /proc/<pid>/status). 0 significa EXCLUSIVAMENTE root. Ver _get_uid.
     uid: int | None
@@ -84,7 +86,7 @@ class DetectedChange:
     hash_expected: str | None
     hash_detected: str | None
     diff_text: str | None
-    process_pid: int
+    process_pid: int | None
     # D49/RN-143: None = atribución no resuelta. 0 = root, y solo root.
     process_uid: int | None
     process_exe: str | None
@@ -99,6 +101,10 @@ class DetectedChange:
     is_binary: bool = False
     hex_dump_before: str | None = None
     hex_dump_after: str | None = None
+    # D80/RN-174: True solo para hallazgos del reconcile al arrancar (el cambio
+    # ocurrió con el agente detenido; detected_at es una cota superior). Siempre
+    # presente en el payload: False = detección en línea, ausente = agente viejo.
+    detected_offline: bool = False
 
     def to_event_data(self) -> dict[str, Any]:
         data = dataclasses.asdict(self)
@@ -820,7 +826,34 @@ class FanotifyDetector:
             return "file_created"
         return None
 
-    async def _process_event(self, fan_event: FanotifyEvent) -> None:
+    async def emit_offline(self, finding: "OfflineFinding") -> None:
+        """Emit one start-up reconcile finding through the normal event path.
+
+        D80/RN-174. Builds a synthetic event with null process context (D49/RN-143:
+        no causing process exists, and 0 would mean root) and hands it to
+        `_process_event` with the class forced, so candidate staging,
+        `DecisionEngine.evaluate_and_act`, baseline update, publish and `commit_fn`
+        run exactly as for a fanotify event. `detected_at` is the emission instant:
+        `mtime` is attacker-controlled and does not exist for a deleted file (D-4).
+        """
+        forced_class = "close_write" if finding.event_class == "file_modified" else finding.event_class
+        fan_event = FanotifyEvent(
+            path=finding.path,
+            pid=None,
+            uid=None,
+            exe=None,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            mask=0,
+        )
+        await self._process_event(fan_event, forced_class=forced_class, detected_offline=True)
+
+    async def _process_event(
+        self,
+        fan_event: FanotifyEvent,
+        *,
+        forced_class: str | None = None,
+        detected_offline: bool = False,
+    ) -> None:
         path = fan_event.path
         if path.endswith(".fim_restore_tmp"):
             return  # suppress agent-internal atomic write tmp files (D19)
@@ -841,7 +874,9 @@ class FanotifyDetector:
         was_symlink = entry.symlink_target is not None if entry else False
         previous_symlink_target = entry.symlink_target if entry else None
 
-        event_class = self._classify_event(fan_event.mask)
+        event_class = (
+            forced_class if forced_class is not None else self._classify_event(fan_event.mask)
+        )
 
         # ── Borrado / moved-from: sin hash, marcar ausente ─────────────────
         if event_class == "file_deleted":
@@ -867,6 +902,7 @@ class FanotifyDetector:
                 parent_event_id=parent_event_id,
                 is_symlink=was_symlink,
                 symlink_target=previous_symlink_target,
+                detected_offline=detected_offline,
             )
             self._stage_approval_candidate(change, is_symlink=was_symlink)
             self._trace_change_created(change, entry.status if entry else "missing")
@@ -972,6 +1008,7 @@ class FanotifyDetector:
                 parent_event_id=parent_event_id,
                 is_symlink=is_symlink,
                 symlink_target=symlink_target,
+                detected_offline=detected_offline,
             )
             self._stage_approval_candidate(change, is_symlink=is_symlink)
             self._trace_change_created(change, entry.status if entry else "missing")
@@ -1119,6 +1156,7 @@ class FanotifyDetector:
             is_binary=is_binary,
             hex_dump_before=hex_dump_before,
             hex_dump_after=hex_dump_after,
+            detected_offline=detected_offline,
         )
         self._stage_approval_candidate(change, is_symlink=is_symlink)
         self._trace_change_created(

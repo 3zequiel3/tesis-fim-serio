@@ -1148,3 +1148,39 @@ async def test_update_config_without_registry_still_works(
 
     ack_payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
     assert ack_payload["status"] == "ok"
+
+
+# ── D80/RN-174 (D-5): update_config mantiene initialized_roots ────────────────
+
+@pytest.mark.asyncio
+async def test_update_config_adds_scanned_root_and_drops_removed_one(
+    agent_config, shared_secret, baseline_engine, agent_state, mock_valkey, tmp_path
+):
+    from agent import commands
+    from agent.state import load_state
+
+    kept = tmp_path / "kept"
+    added = tmp_path / "added"
+    kept.mkdir()
+    added.mkdir()
+    (added / "f.txt").write_text("x")
+    removed = "/old/root"
+    agent_config.watch_paths = [str(kept), removed]
+    agent_state.initialized_roots = [str(kept), removed]
+
+    cmd = _make_command(agent_config, shared_secret, "update_config", {
+        "watch_paths": [str(kept), str(added)],
+        "ruleset_version": 1,
+    })
+    await commands.handle_update_config(
+        command=cmd,
+        detector=None,
+        baseline_engine=baseline_engine,
+        state=agent_state,
+        valkey_client=mock_valkey,
+        config=agent_config,
+    )
+
+    expected = sorted([str(kept), str(added)])
+    assert agent_state.initialized_roots == expected
+    assert load_state(agent_state.state_path).initialized_roots == expected

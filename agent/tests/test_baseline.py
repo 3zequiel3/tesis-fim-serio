@@ -501,3 +501,61 @@ def test_run_scan_baselines_escape_symlink_as_object(
     assert link_entry is not None
     assert link_entry.content_b64 is None
     assert link_entry.symlink_target == str(secret_file)
+
+
+# ── D80/RN-174: init_scan y raíces inicializadas (Change 62, D-5) ─────────────
+
+def test_init_scan_first_start_marks_root_and_emits_nothing(
+    engine: BaselineEngine, tmp_path: Path
+) -> None:
+    root = tmp_path / "watched"
+    root.mkdir()
+    (root / "a.txt").write_text("a")
+
+    report = engine.init_scan([str(root)], [])
+
+    assert report.scanned == 1
+    assert report.initialized == [str(root)]
+    assert engine.read_entry(str(root / "a.txt")) is not None
+
+
+def test_init_scan_does_not_baseline_new_file_in_initialized_root(
+    engine: BaselineEngine, tmp_path: Path
+) -> None:
+    from agent.baseline import _entry_path
+
+    root = tmp_path / "watched"
+    root.mkdir()
+    (root / "a.txt").write_text("a")
+    engine.init_scan([str(root)], [])
+
+    (root / "new.txt").write_text("created while stopped")
+    report = engine.init_scan([str(root)], [str(root)])
+
+    assert report.scanned == 0
+    assert report.initialized == []
+    assert not _entry_path(engine._baseline_dir, str(root / "new.txt")).exists()
+
+
+def test_init_scan_missing_root_is_not_marked(engine: BaselineEngine, tmp_path: Path) -> None:
+    report = engine.init_scan([str(tmp_path / "nope")], [])
+
+    assert report.initialized == []
+
+
+def test_init_scan_new_root_is_scanned_and_marked_alongside_initialized_one(
+    engine: BaselineEngine, tmp_path: Path
+) -> None:
+    old = tmp_path / "old"
+    new = tmp_path / "new"
+    old.mkdir()
+    new.mkdir()
+    (new / "n.txt").write_text("n")
+    (old / "o.txt").write_text("o")
+
+    report = engine.init_scan([str(old), str(new)], [str(old)])
+
+    assert report.initialized == [str(new)]
+    assert report.scanned == 1
+    assert engine.read_entry(str(new / "n.txt")) is not None
+    assert engine.read_entry(str(old / "o.txt")) is None

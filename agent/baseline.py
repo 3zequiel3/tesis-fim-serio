@@ -20,7 +20,7 @@ import stat
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Collection, Iterator
 
 _LINUX = platform.system() == "Linux"
 
@@ -117,6 +117,26 @@ class ScanReport:
     skipped: int
     oversize: int
     errors: int
+    # D80/RN-174: existing watch roots whose first scan completed in this call.
+    initialized: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class OfflineFinding:
+    """One change found while the agent was stopped (D80/RN-174)."""
+
+    path: str
+    event_class: str  # "file_deleted" | "file_modified" | "file_created"
+
+
+@dataclass
+class ReconcilePlan:
+    """Result of `reconcile_on_start`: what to emit and what was not emitted."""
+
+    findings: list[OfflineFinding]
+    unchanged: int = 0
+    suppressed_already_reported: int = 0
+    errors: int = 0
 
 
 # ── 1. Cripto ────────────────────────────────────────────────────────────────
@@ -196,6 +216,22 @@ def _sha256_file(path: str) -> tuple[str, bytes]:
             h.update(chunk)
             chunks.append(chunk)
     return h.hexdigest(), b"".join(chunks)
+
+
+def _hash_disk_object(path: str) -> tuple[str, bool]:
+    """Hash the on-disk object the way the baseline does (D33/RN-127).
+
+    Returns ``(hash, is_symlink)``. A symlink hashes its raw ``readlink`` string;
+    a regular file hashes its full content, with no 10 MiB cap (same as
+    ``write_entry``, which hashes oversize files too). Raises ``OSError``.
+    """
+    if os.path.islink(path):
+        return hashlib.sha256(os.readlink(path).encode()).hexdigest(), True
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest(), False
 
 
 def _now_iso() -> str:
@@ -460,55 +496,202 @@ class BaselineEngine:
 
     # ── 5. Scan y verificación ────────────────────────────────────────────
 
-    def init_scan(self, watch_paths: list[str]) -> ScanReport:
-        """Escaneo inicial idempotente: solo procesa archivos sin entry existente."""
+    @staticmethod
+    def _iter_root_candidates(
+        watch_path: str,
+        on_out_of_scope: Callable[[str], None] | None = None,
+    ) -> Iterator[tuple[str, bool]]:
+        """Yield ``(path, is_symlink)`` for every baselinable object under a root.
+
+        Shared by `init_scan` and the reconcile (phase B) so both classify
+        candidates identically. The root must exist.
+        """
+        p = Path(watch_path)
+        watch_path_real = os.path.realpath(watch_path)
+        candidates = [p] if p.is_file() else list(p.rglob("*"))
+        for file_path in candidates:
+            path_str = str(file_path)
+            # D33/RN-127: is_symlink() ANTES de is_file() — Path.is_file() sigue
+            # symlinks y clasificaría mal un symlink como archivo regular.
+            # Todo candidato de rglob ya vive dentro de watch_path (rglob no
+            # recursa dentro de dirs simbólicos), así que el symlink está en
+            # scope por ubicación sin chequeo adicional (Philosophy B).
+            if file_path.is_symlink():
+                yield path_str, True
+                continue
+            if not file_path.is_file():
+                continue
+            if not _target_in_scope(path_str, [watch_path_real]):
+                log.warning("baseline.out_of_scope_skip", path=path_str)
+                if on_out_of_scope is not None:
+                    on_out_of_scope(path_str)
+                continue
+            yield path_str, False
+
+    def init_scan(
+        self,
+        watch_paths: list[str],
+        initialized_roots: Collection[str] = (),
+    ) -> ScanReport:
+        """Initial scan: silently baselines roots that have not been initialized.
+
+        D80/RN-174: a root already in ``initialized_roots`` is NOT walked here.
+        Files without an entry under such a root were created while the agent
+        was stopped; the start-up reconcile reports them as ``file_created``
+        instead of approving them in silence. Roots not in the set (first start,
+        or a newly configured watch path) are walked as before, never emit
+        events, and are reported back in ``ScanReport.initialized`` so the
+        caller can persist them. Entries that already exist are never touched.
+        """
         scanned = skipped = oversize_count = errors = 0
+        initialized: list[str] = []
+        known = set(initialized_roots)
+
+        def _count_skip(_path: str) -> None:
+            nonlocal skipped
+            skipped += 1
+
         for watch_path in watch_paths:
-            p = Path(watch_path)
-            if not p.exists():
+            if watch_path in known:
+                continue
+            if not Path(watch_path).exists():
                 log.warning("baseline.watch_path_missing", path=watch_path)
                 continue
-            watch_path_real = os.path.realpath(watch_path)
-            candidates = [p] if p.is_file() else list(p.rglob("*"))
-            for file_path in candidates:
-                path_str = str(file_path)
-                # D33/RN-127: is_symlink() ANTES de is_file() — Path.is_file() sigue
-                # symlinks y clasificaría mal un symlink como archivo regular.
-                # Todo candidato de rglob ya vive dentro de watch_path (rglob no
-                # recursa dentro de dirs simbólicos), así que el symlink está en
-                # scope por ubicación sin chequeo adicional (Philosophy B).
-                if file_path.is_symlink():
-                    if _entry_path(self._baseline_dir, path_str).exists():
-                        skipped += 1
-                        continue
-                    try:
-                        self.write_symlink_entry(path_str)
-                        scanned += 1
-                    except OSError as exc:
-                        log.error("baseline.scan_error", path=path_str, error=str(exc))
-                        errors += 1
-                    continue
-                if not file_path.is_file():
-                    continue
-                if not _target_in_scope(path_str, [watch_path_real]):
-                    log.warning("baseline.out_of_scope_skip", path=path_str)
-                    skipped += 1
-                    continue
+            for path_str, is_symlink in self._iter_root_candidates(watch_path, _count_skip):
                 if _entry_path(self._baseline_dir, path_str).exists():
                     skipped += 1
                     continue
                 try:
-                    entry = self.write_entry(path_str)
-                    scanned += 1
-                    if entry.oversize:
-                        oversize_count += 1
+                    if is_symlink:
+                        self.write_symlink_entry(path_str)
+                        scanned += 1
+                    else:
+                        entry = self.write_entry(path_str)
+                        scanned += 1
+                        if entry.oversize:
+                            oversize_count += 1
                 except OSError as exc:
                     log.error("baseline.scan_error", path=path_str, error=str(exc))
                     errors += 1
+            # A per-file read error does not leave the root uninitialized: the
+            # file is reported as file_created on the next start instead.
+            initialized.append(watch_path)
         return ScanReport(
             scanned=scanned,
             skipped=skipped,
             oversize=oversize_count,
+            errors=errors,
+            initialized=initialized,
+        )
+
+    def read_approval_candidate(self, path: str) -> ApprovalCandidate | None:
+        """Decrypt the pending approval candidate of a path, or None.
+
+        Read-only: never deletes or rewrites the candidate. Any unreadable
+        candidate (tampered tag, corrupt JSON, I/O error) yields None.
+        """
+        candidate_path = _candidate_path(self._candidate_dir, path)
+        try:
+            plaintext = _decrypt(self._key, candidate_path.read_bytes())
+            return ApprovalCandidate(**json.loads(plaintext))
+        except (InvalidTag, OSError, ValueError, TypeError, json.JSONDecodeError):
+            return None
+
+    def reconcile_on_start(
+        self,
+        watch_paths: list[str],
+        initialized_roots: Collection[str],
+    ) -> ReconcilePlan:
+        """Compare the baseline against the disk for every initialized root.
+
+        D80/RN-174. Pure classification: this method never writes the baseline,
+        never stages a candidate and never publishes. The caller emits each
+        finding through the detector's normal event path so the decision engine,
+        BUG-03 and D14 apply unchanged.
+
+        Phase A walks baseline entries under the roots (deleted / modified /
+        reappeared); phase B walks the roots for files with no entry (created).
+        A ``file_modified`` is suppressed when the path's approval candidate
+        already holds the current disk hash (already reported, D80 amendment);
+        BUG-03 keeps the active hash stale until approval, so without this every
+        restart would re-emit it. Files above 10 MiB never get a candidate, so
+        they are re-reported on each start (the safe side).
+        """
+        known = set(initialized_roots)
+        roots = [r for r in watch_paths if r in known]
+        if not roots:
+            return ReconcilePlan(findings=[])
+
+        findings: dict[str, str] = {}
+        unchanged = suppressed = errors = 0
+
+        def _under_root(entry_path: str) -> bool:
+            for root in roots:
+                if entry_path == root or Path(entry_path).is_relative_to(Path(root)):
+                    return True
+            return False
+
+        # Phase A — baseline entries.
+        for path in self.list_entries():
+            if not _under_root(path) or path in findings:
+                continue
+            try:
+                entry = self.read_entry(path)
+                if entry is None:
+                    continue
+                exists = os.path.lexists(path)
+                if entry.status == "absent":
+                    if exists and (os.path.islink(path) or os.path.isfile(path)):
+                        findings[path] = "file_created"
+                    continue
+                if not exists:
+                    findings[path] = "file_deleted"
+                    continue
+                disk_hash, disk_is_symlink = _hash_disk_object(path)
+                baseline_is_symlink = entry.symlink_target is not None
+                if disk_hash == entry.hash and disk_is_symlink == baseline_is_symlink:
+                    unchanged += 1
+                    continue
+                candidate = self.read_approval_candidate(path)
+                if (
+                    candidate is not None
+                    and candidate.status == "present"
+                    and candidate.hash == disk_hash
+                    and (candidate.symlink_target is not None) == disk_is_symlink
+                ):
+                    suppressed += 1
+                    continue
+                findings[path] = "file_modified"
+            except (BaselineIntegrityError, OSError) as exc:
+                log.warning(
+                    "baseline.reconcile.path_error",
+                    path=path,
+                    error=type(exc).__name__,
+                )
+                errors += 1
+
+        # Phase B — files with no entry.
+        for root in roots:
+            if not Path(root).exists():
+                continue
+            try:
+                for path_str, _is_symlink in self._iter_root_candidates(root):
+                    if path_str in findings:
+                        continue
+                    if not _entry_path(self._baseline_dir, path_str).exists():
+                        findings[path_str] = "file_created"
+            except OSError as exc:
+                log.warning(
+                    "baseline.reconcile.path_error",
+                    path=root,
+                    error=type(exc).__name__,
+                )
+                errors += 1
+
+        return ReconcilePlan(
+            findings=[OfflineFinding(path=p, event_class=c) for p, c in sorted(findings.items())],
+            unchanged=unchanged,
+            suppressed_already_reported=suppressed,
             errors=errors,
         )
 

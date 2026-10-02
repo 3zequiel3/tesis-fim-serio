@@ -576,6 +576,12 @@ async def handle_update_config(
         # Scan solo paths nuevos
         if added_paths:
             baseline_engine.run_scan(added_paths)
+            # D80/RN-174: a root scanned here has completed its first scan. Persisted
+            # by the save_state below, together with the removals.
+            scanned_roots = [p for p in added_paths if Path(p).exists()]
+            state.initialized_roots = sorted(set(state.initialized_roots) | set(scanned_roots))
+        if removed_paths:
+            state.initialized_roots = sorted(set(state.initialized_roots) - set(removed_paths))
 
         # D36/RN-130: reejecutar el preflight sobre el conjunto nuevo. No
         # bloquea el reload — es la vista de reporte, no un gate (D-7/D-9).

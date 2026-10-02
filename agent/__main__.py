@@ -7,6 +7,7 @@ import os
 import platform
 import signal
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -24,7 +25,7 @@ from agent.preflight import PreflightRegistry, run_preflight
 from agent.publisher import Publisher
 from agent.queue import EventQueue
 from agent.rules import RulesCache
-from agent.state import load_state
+from agent.state import AgentState, load_state, save_state
 from agent.streams import load_shared_secret
 from agent.transport import create_valkey_client
 
@@ -194,6 +195,43 @@ async def _quarantine_maintenance_loop(
             await asyncio.to_thread(_run_quarantine_maintenance, quarantine_store)
 
 
+async def _run_offline_reconcile(
+    engine: BaselineEngine,
+    detector: object,
+    state: AgentState,
+    cfg: AgentConfig,
+) -> None:
+    """Report changes made while the agent was stopped (D80/RN-174).
+
+    Classification runs in a worker thread (it hashes the whole tree); every
+    finding is then emitted through `detector.emit_offline`, i.e. the normal
+    detector path. A failure here never aborts start-up: live detection is the
+    primary function.
+    """
+    started = time.monotonic()
+    try:
+        plan = await asyncio.to_thread(
+            engine.reconcile_on_start, cfg.watch_paths, list(state.initialized_roots)
+        )
+        for finding in plan.findings:
+            await detector.emit_offline(finding)  # type: ignore[attr-defined]
+        counts = {"file_deleted": 0, "file_modified": 0, "file_created": 0}
+        for finding in plan.findings:
+            counts[finding.event_class] += 1
+        log.info(
+            "baseline.reconcile.complete",
+            deleted=counts["file_deleted"],
+            modified=counts["file_modified"],
+            created=counts["file_created"],
+            suppressed_already_reported=plan.suppressed_already_reported,
+            unchanged=plan.unchanged,
+            errors=plan.errors,
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+    except Exception as exc:
+        log.error("baseline.reconcile.failed", error=type(exc).__name__)
+
+
 async def main(config_path: Path, log_level: str, log_format: str) -> None:
     configure_logging(level=log_level, fmt=log_format)
 
@@ -255,13 +293,21 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
         degraded=len(degraded),
     )
 
-    report = engine.init_scan(cfg.watch_paths)
+    # D80/RN-174: a root that is no longer watched loses its continuity; if it
+    # comes back it is treated as new.
+    previous_roots = sorted(state.initialized_roots)
+    state.initialized_roots = [r for r in state.initialized_roots if r in cfg.watch_paths]
+    report = engine.init_scan(cfg.watch_paths, state.initialized_roots)
+    state.initialized_roots = sorted(set(state.initialized_roots) | set(report.initialized))
+    if state.initialized_roots != previous_roots:
+        save_state(state)
     log.info(
         "baseline.init_scan.complete",
         scanned=report.scanned,
         skipped=report.skipped,
         oversize=report.oversize,
         errors=report.errors,
+        initialized=len(report.initialized),
     )
 
     log.info(
@@ -378,6 +424,12 @@ async def main(config_path: Path, log_level: str, log_format: str) -> None:
         # Inside the try so the finally block always runs cleanup on failure.
         if _LINUX and detector is not None:
             await decision_engine.rehydrate(publisher)
+        # D80/RN-174: after rehydration (RN-83, so a restore the journal replays is
+        # not reported as a change) and before the detector starts.
+        if detector is not None:
+            await _run_offline_reconcile(engine, detector, state, cfg)
+        else:
+            log.info("baseline.reconcile.skipped", reason="no_detector")
         await asyncio.gather(*coroutines)
     except Exception as exc:
         log.error("agent.unexpected_crash", error=str(exc))
