@@ -77,5 +77,5 @@
 ## 8. Cierre
 
 - [x] 8.1 Correr las suites de agente, backend y frontend completas; registrar resultados.
-- [ ] 8.2 (before-archive run: OK, 56 main specs / 426 requirements; the after-`openspec archive` run belongs to the archive step) Correr `python3 scripts/check_spec_integrity.py` antes y después de `openspec archive` (D47/RN-141).
+- [x] 8.2 (before-archive run: OK, 56 main specs / 426 requirements; the after-`openspec archive` run belongs to the archive step) Correr `python3 scripts/check_spec_integrity.py` antes y después de `openspec archive` (D47/RN-141).
 - [x] 8.3 Verificar con `rg` que `read_artifact` tiene llamador, que `release_quarantine` figura en `agent/publisher.py` y en `commands.dispatch`, y que ningún log del handler incluye contenido de archivo ni el `reason`.
