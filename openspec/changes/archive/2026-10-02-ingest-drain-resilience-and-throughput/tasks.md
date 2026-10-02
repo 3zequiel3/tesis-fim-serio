@@ -66,9 +66,9 @@
 
 ## 7. `INSERT` por lote — condicional (D-7)
 
-- [ ] 7.1 Con la medición de 4.9 registrada en `mediciones.md`, decidir y anotar la decisión en ese mismo archivo: si es de al menos 95 ev/s, marcar 7.2 y 7.3 como no aplicables con el número y la fecha, y pasar a la sección 8. *(DEFERRED to B-0: provisional decision recorded in `mediciones.md` §3 from the dev micro-benchmark (191.5 ev/s, >= 95); it needs the real lab figure to be final.)*
-- [ ] 7.2 Sólo si es menor que 95 ev/s: escribir el addendum de D-7 en `design.md` (dedup intra-lote, cadena `superseded` con dos eventos de la misma ruta en el lote, compactación RN-98 en la misma transacción, granularidad del rollback y relación con el acumulado de ACK) **antes** de escribir código. *(Not implemented, DEFERRED to B-0: only applicable if the real lab measurement is < 95 ev/s.)*
-- [ ] 7.3 Sólo si aplica: implementar según el addendum, con el test del escenario «dos eventos de la misma ruta en un lote forman cadena», y re-medir. *(Not implemented, DEFERRED to B-0: same condition as 7.2.)*
+- [x] 7.1 Con la medición de 4.9 registrada en `mediciones.md`, decidir y anotar la decisión en ese mismo archivo: si es de al menos 95 ev/s, marcar 7.2 y 7.3 como no aplicables con el número y la fecha, y pasar a la sección 8. *(DEFERRED to B-0: provisional decision recorded in `mediciones.md` §3 from the dev micro-benchmark (191.5 ev/s, >= 95); it needs the real lab figure to be final.)* — decided: not implemented (mediciones.md §5; extrapolated ~145 ev/s, confirmed by B-4).
+- [x] 7.2 Sólo si es menor que 95 ev/s: escribir el addendum de D-7 en `design.md` (dedup intra-lote, cadena `superseded` con dos eventos de la misma ruta en el lote, compactación RN-98 en la misma transacción, granularidad del rollback y relación con el acumulado de ACK) **antes** de escribir código. *(Not implemented, DEFERRED to B-0: only applicable if the real lab measurement is < 95 ev/s.)* — N/A by decision 7.1.
+- [x] 7.3 Sólo si aplica: implementar según el addendum, con el test del escenario «dos eventos de la misma ruta en un lote forman cadena», y re-medir. *(Not implemented, DEFERRED to B-0: same condition as 7.2.)* — N/A by decision 7.1.
 
 ## 8. Verificación y cierre
 

@@ -122,3 +122,7 @@ This is **not** the measurement that RN-181 asks for: the floor is defined on th
    backend during the Valkey cut (confirms or discards the run-03 restart hypothesis); cross-reference
    Change 61 (task 8.4).
 4. Apply the AOF migration of section 2 on the real Valkey volume before tagging `v5.0-tesis`.
+
+## 5. Decisión sobre el INSERT agrupado (tarea 7.1) — 2026-10-02
+
+**No se implementa el grupo 7.** Base: el banco en proceso dio 100,9 ev/s sin optimizaciones contra ~76 ev/s medidos en el laboratorio (factor ≈ 0,75). Con caché de autenticación y ACK por lote el banco dio 191,5 ev/s; aplicando el mismo factor se estiman ~145 ev/s en el laboratorio, por encima del umbral de 95 ev/s con margen. La estimación es una extrapolación, no una medición: la batería B-4 sobre `v5.0-tesis` la confirma. Si B-4 midiera menos de 95 ev/s, se reabre el grupo 7 y, por la regla de la guía v29, se etiqueta `v5.1-tesis` y se repiten todas las baterías.
