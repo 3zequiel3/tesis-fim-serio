@@ -2766,6 +2766,8 @@ comportamiento. Agregada el 2026-09-23.
 
 **Motivo:** con la ventana deslizante de 100/60, reproducir 2.672 eventos exige al menos 26,7 min; las corridas usaron 100000/60.
 
+**Protocolo de medición (2026-10-02):** el arnés SHALL recrear el contenedor del backend antes de cada batería y de cada repetición (en `reset_lab`), de modo que cada medición arranque con el bucket lleno; MUST NOT reiniciarlo durante un corte de Valkey (L-9a).
+
 **Reglas afectadas:** relaciona D38/RN-132. Agregada el 2026-10-02.
 
 #### D86 / RN-180: El secreto compartido del agente se envuelve en reposo y se lee por un único helper
