@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unified evaluation run on candidate v2.0-tesis.
+# Unified evaluation run on the candidate named by TAG (required, e.g. TAG=v5.0-tesis).
 #
 # Everything the thesis reports comes from this single candidate, so that the
 # hardest question at a defence — "which version am I looking at?" — has a
@@ -16,29 +16,37 @@
 set -uo pipefail
 REPO=/home/ezequiel/Facultad/tesis/tesis-fim-serio
 LAB=/home/ezequiel/fim-lab
+# The candidate is a parameter with NO default: a code change invalidates the
+# frozen candidate and forces a new tag, and a harness that hardcodes one tag
+# silently measures the wrong tree (L-13).
+TAG="${TAG:?ABORTA: TAG is required (e.g. TAG=v5.0-tesis)}"
 TS=$(date -u +%Y%m%dT%H%M%SZ)
-OUT=$REPO/tesis/cierre/evidencia/v2-eval-$TS
+# v5.0-tesis -> v5-eval-<ts>, the naming of the earlier packages (v2-eval-...).
+OUT=$REPO/tesis/cierre/evidencia/${TAG%%.*}-eval-$TS
 RES=$LAB/corrida_unificada.out
 CERTS=$LAB/suites_certs
-DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml -f "$LAB/docker-compose.mailpit.yml")
+COMPOSE_FILES=(docker-compose.yml docker-compose.tls.yml "$LAB/docker-compose.mailpit.yml")
+DC=(docker compose)
+for f in "${COMPOSE_FILES[@]}"; do DC+=(-f "$f"); done
 cd "$REPO" || exit 1
+# shellcheck source=lib_arnes.sh
+source "$LAB/lib_arnes.sh"
+# L-13: provenance guard BEFORE anything is built or written. Aborts unless HEAD is
+# the tag's commit and agent/backend/frontend/n8n are clean; writes env/procedencia.txt
+# with tag= and commit=. The tag must therefore be CHECKED OUT in $REPO.
+procedencia_exigir "$TAG" "$OUT/env" || exit 1
 mkdir -p "$OUT"/{env,suites,latencia,control,notificacion,resiliencia,diagnostico,invalidos}
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 say() { echo "[$(ts)] $*" | tee -a "$RES"; }
 mp() { curl -s "http://127.0.0.1:8025/api/v1/$1" 2>/dev/null; }
 mp_count() { mp messages | python3 -c 'import json,sys; print(json.load(sys.stdin)["messages_count"])' 2>/dev/null || echo 0; }
 
-# The candidate is a parameter, not a constant: a code change invalidates the
-# frozen candidate and forces a new tag, and a harness that hardcodes one tag
-# silently measures the wrong tree.
-TAG="${TAG:-v2.0-tesis}"
-git rev-parse -q --verify "refs/tags/$TAG" >/dev/null \
-  || { say "ABORTA: el tag $TAG no existe"; exit 1; }
-say "=== corrida unificada — candidato $TAG ==="
+say "=== corrida unificada — candidato $TAG commit=$COMMIT ==="
 
 # ── procedencia ───────────────────────────────────────────────────────────────
+# HEAD is the tag (checked by procedencia_exigir), so the working tree IS the tag:
+# the old `git checkout $TAG -- .` is gone, it only masked a HEAD on another commit.
 say "reconstruyendo el backend desde el tag"
-git checkout -q "$TAG" -- . 2>/dev/null
 "${DC[@]}" build -q backend >/dev/null 2>&1
 # ── registro de migraciones (D84/RN-178) ─────────────────────────────────────
 # Runs BEFORE the backend starts: the backend refuses to start against a registry
@@ -72,7 +80,7 @@ ARBOL=$(fd -e py . backend/app -x sha256sum | sd 'backend/app/' 'app/' | sort -k
   echo "agent_tree_matches=$(git diff --quiet "$TAG" -- agent/ && echo yes || echo no)"
   echo "notification_sink=mailpit (canal SMTP real, local)"
   echo "gmail_verified=yes (autenticacion y entrega comprobadas por separado)"
-} > "$OUT/env/procedencia.txt"
+} >> "$OUT/env/procedencia.txt"
 cat "$OUT/env/procedencia.txt" | tee -a "$RES"
 [ "$CONT" = "$ARBOL" ] || { say "ABORTADO: la procedencia no coincide"; exit 1; }
 
@@ -127,8 +135,7 @@ PY
 say "verificando el sumidero de notificacion"
 "${DC[@]}" exec -T backend python -c "import socket; socket.gethostbyname('fim-mailpit')" >/dev/null 2>&1 \
   || { say "ABORTA: el backend no resuelve fim-mailpit"; exit 1; }
-curl -sf http://127.0.0.1:8025/api/v1/messages >/dev/null 2>&1 \
-  || { say "ABORTA: la API de mailpit no responde en 8025"; exit 1; }
+preflight_sumidero || { say "ABORTA: la API de mailpit no responde en /api/v1/info (8025)"; exit 1; }
 say "sumidero operativo: mailpit resuelve y su API responde"
 
 # ── convergencia de reloj antes de medir latencia ─────────────────────────────
@@ -180,6 +187,23 @@ say "desvio de reloj: anfitrion ${HOST_US} us, huesped ${VM_US} us"
 } >> "$OUT/env/procedencia.txt"
 say "relojes sincronizados; esperando ${CLOCK_SETTLE_S:-120}s de asentamiento antes de medir latencia"
 sleep "${CLOCK_SETTLE_S:-120}"
+
+# ── guardas de preflight (L-14) ───────────────────────────────────────────────
+# Schema registry (re-checked: the candidate tree may have moved since the early
+# migrar.py run), ingest limit == product defaults unless RATE_LIMIT_VARIANT is
+# declared, and Valkey with AOF on. The clock and the sink were proven above and the
+# baseline purge is checked by every reset (reset_lab). The observed values are
+# recorded next to the provenance.
+say "preflight: esquema, limite de ingesta, AOF"
+preflight_esquema || { say "ABORTA: preflight del esquema"; exit 1; }
+preflight_rate_limit || { say "ABORTA: el limite de ingesta no es el del producto"; exit 1; }
+preflight_aof || { say "ABORTA: Valkey sin AOF (ver pasos de migracion arriba)"; exit 1; }
+{
+  echo "preflight=ok"
+  echo "rate_limit=$RATE_LIMIT_OBSERVED variant=${RATE_LIMIT_VARIANT:-none}"
+  echo "valkey_appendonly=yes"
+} > "$OUT/env/preflight.txt"
+say "preflight ok ($RATE_LIMIT_OBSERVED, appendonly=yes)"
 
 say "capturando el entorno"
 { uname -a; echo "--- monitoreado:"; multipass exec fim-host -- uname -a; } > "$OUT/env/uname.txt" 2>&1
@@ -250,13 +274,17 @@ recreate_backend() {  # $1 label  $2 evidence file
 }
 
 reset_lab() {  # $1 label  $2 evidence file
-  multipass exec fim-host -- sudo sh /tmp/vm_reset.sh
-  "${DC[@]}" exec -T db psql -U fim -d fim -tAc "DELETE FROM alerts; DELETE FROM events; DELETE FROM rejected_events_audit;" >/dev/null 2>&1
-  # Purge the ingest stream too. Wiping the database and the agent queue is not
-  # enough: events already published into the stream survive both and are
-  # consumed by the next repetition as if they were its own, which shifts the
-  # lower end of a drain window computed as max(received_at) - min(received_at).
-  bash "$LAB/purgar_stream.sh" >/dev/null 2>&1
+  # L-11: vm_reset.sh purges the agent (state.json, baseline, queue, discarded, journal,
+  # quarantine, watch dir, trace) and exits non-zero unless baseline_entries_after_reset
+  # is 0; reset_servidor TRUNCATEs events/alerts/rejected_events_audit (audit_log and
+  # published_commands are kept) and XTRIMs the ingest stream to 0, which also covers
+  # the events that survive a database wipe and a queue purge (they would be consumed
+  # by the next repetition and shift max(received_at) - min(received_at)).
+  # Any failure aborts the whole run: a repetition on a dirty lab is not a repetition.
+  local rst
+  rst=$(reset_laboratorio 2>> "$RES") \
+    || { say "ABORTA: el reset del laboratorio fallo (${1:-reset_lab}); ver $RES"; exit 1; }
+  say "reset ok (${1:-reset_lab}): ${rst:-sin salida}"
   sleep 18
   recreate_backend "${1:-reset_lab}" "${2:-$OUT/env/backend_recreations.txt}" || exit 1
 }
@@ -287,24 +315,51 @@ for name in ("agente.xml", "backend.xml", "frontend.xml"):
     print(f"  {name:14s} tests={g('tests'):5d} fallas={g('failures')} errores={g('errors')} omitidos={g('skipped')}")
 PY
 
-# ── 2. latencia + control, misma ventana ──────────────────────────────────────
-say "--- baterias de latencia y control (30 min, misma ventana) ---"
-reset_lab latencia "$OUT/latencia/backend_recreation.txt"
-nohup multipass exec fim-host -- sudo sh /tmp/vm_control.sh > "$OUT/control/control.log" 2>&1 &
-CTRL=$!
-sleep 30
-multipass exec fim-host -- sudo sh /tmp/vm_gen_b3.sh >> "$OUT/latencia/generador_stdout.log" 2>&1
-say "generador de latencia finalizado; esperando el ultimo scan del control"
-wait $CTRL 2>/dev/null
-sleep 30
-"${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT event_id, path, detected_at, received_at, EXTRACT(EPOCH FROM (received_at-detected_at))*1000 AS latencia_ms FROM events ORDER BY received_at) TO STDOUT WITH CSV HEADER" > "$OUT/latencia/eventos.csv" 2>/dev/null
-"$LAB/.venv/bin/python" "$LAB/latencia.py" "$OUT/latencia/eventos.csv" > "$OUT/latencia/resumen.txt" 2>&1
-say "latencia: $(tr '\n' ' ' < "$OUT/latencia/resumen.txt")"
-# A negative latency means the guest stamped the detection after the host
-# stamped the reception, which is impossible and therefore measures the clocks,
-# not the system. Report where they fall: clustered at the start is a clock
-# still converging, spread across the window is a skew that invalidates the run.
-"$LAB/.venv/bin/python" - "$OUT/latencia/eventos.csv" >> "$RES" 2>&1 <<'PY'
+# ── 2. latencia + control, misma ventana, tres repeticiones (L-12) ─────────────
+# Three repetitions, each with its own generator seed and its own control phase:
+# the control scanner's 900 s grid used to start at the same offset every time, so
+# its mean latency could not be told apart from the offset that happened to be
+# chosen. fase_control_s = random.Random(SEED).randrange(900) is the delay between
+# the baseline scan and the first `control_hashing.py --loop` scan. The generator
+# rate is the original one (0.2778 ch/s, 500 changes, mix 20/70/10; vm_gen_b3.sh).
+# Every run gets a FRESH control CSV (vm_control.sh removes it): never cumulative.
+say "--- baterias de latencia y control (30 min, misma ventana, 3 repeticiones) ---"
+SEEDS=(20261001 20261002 20261003)
+for i in 1 2 3; do
+  R=$(printf "run-%02d" "$i")
+  SEED=${SEEDS[$((i-1))]}
+  FASE=$(python3 -c 'import random, sys; print(random.Random(int(sys.argv[1])).randrange(900))' "$SEED")
+  LD="$OUT/latencia/$R"; CD="$OUT/control/$R"
+  mkdir -p "$LD" "$CD"
+  say "latencia+control $R: seed=$SEED fase_control_s=$FASE"
+  reset_lab "latencia/$R" "$LD/backend_recreation.txt"
+  {
+    echo "tag=$TAG"
+    echo "commit=$COMMIT"
+    echo "repeticion=$R"
+    echo "seed=$SEED"
+    echo "fase_control_s=$FASE"
+    echo "generador=--rate 0.2778 --count 500 --mix 20/70/10 --critical-frac 0.2"
+    echo "control=control_hashing.py --loop --interval 900 tras baseline inmediato y espera de fase_control_s"
+    echo "csv_control=nuevo por corrida (vm_control.sh lo borra antes de empezar)"
+    echo "inicio_utc=$(ts)"
+  } > "$LD/condiciones.txt"
+  cp "$LD/condiciones.txt" "$CD/condiciones.txt"
+  nohup multipass exec fim-host -- sudo sh /tmp/vm_control.sh "$SEED" "$FASE" > "$CD/control.log" 2>&1 &
+  CTRL=$!
+  sleep 30
+  multipass exec fim-host -- sudo sh /tmp/vm_gen_b3.sh "$SEED" >> "$LD/generador_stdout.log" 2>&1
+  say "generador de latencia finalizado ($R); esperando el ultimo scan del control"
+  wait $CTRL 2>/dev/null
+  sleep 30
+  "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT event_id, path, detected_at, received_at, EXTRACT(EPOCH FROM (received_at-detected_at))*1000 AS latencia_ms FROM events ORDER BY received_at) TO STDOUT WITH CSV HEADER" > "$LD/eventos.csv" 2>/dev/null
+  "$LAB/.venv/bin/python" "$LAB/latencia.py" "$LD/eventos.csv" > "$LD/resumen.txt" 2>&1
+  say "latencia $R: $(tr '\n' ' ' < "$LD/resumen.txt")"
+  # A negative latency means the guest stamped the detection after the host
+  # stamped the reception, which is impossible and therefore measures the clocks,
+  # not the system. Report where they fall: clustered at the start is a clock
+  # still converging, spread across the window is a skew that invalidates the run.
+  "$LAB/.venv/bin/python" - "$LD/eventos.csv" >> "$RES" 2>&1 <<'PY'
 import csv, sys, datetime
 rows = list(csv.DictReader(open(sys.argv[1])))
 neg = [r for r in rows if float(r["latencia_ms"]) < 0]
@@ -317,14 +372,17 @@ head = (min(ts) - allts[0]).total_seconds()
 print(f"  ATENCION negativos: {len(neg)} de {len(rows)}, el peor {min(float(r['latencia_ms']) for r in neg):.1f} ms")
 print(f"  se concentran en {span:.0f}s de una ventana de {full:.0f}s, desde +{head:.0f}s del inicio")
 PY
-for f in bateria3_manifiesto.json bateria3_manifiesto.jsonl bateria3_generador.log; do
-  multipass transfer "fim-host:/srv/evidencia/$f" "$OUT/latencia/" 2>/dev/null; done
-for f in bateria7_control.csv control_estado.json; do
-  multipass transfer "fim-host:/srv/evidencia/$f" "$OUT/control/" 2>/dev/null; done
-multipass exec fim-host -- sudo cp /var/lib/fim-agent/traza_b3.jsonl /srv/evidencia/traza_lat.jsonl 2>/dev/null
-multipass exec fim-host -- sudo chmod 644 /srv/evidencia/traza_lat.jsonl 2>/dev/null
-multipass transfer fim-host:/srv/evidencia/traza_lat.jsonl "$OUT/diagnostico/" 2>/dev/null
-say "traza causal: $(wc -l < "$OUT/diagnostico/traza_lat.jsonl" 2>/dev/null || echo 0) registros"
+  for f in bateria3_manifiesto.json bateria3_manifiesto.jsonl bateria3_generador.log; do
+    multipass transfer "fim-host:/srv/evidencia/$f" "$LD/" 2>/dev/null; done
+  for f in bateria7_control.csv control_estado.json; do
+    multipass transfer "fim-host:/srv/evidencia/$f" "$CD/" 2>/dev/null; done
+  echo "fin_utc=$(ts)" >> "$LD/condiciones.txt"; echo "fin_utc=$(ts)" >> "$CD/condiciones.txt"
+  # Trace path is the unit's FIM_EXPERIMENT_TRACE_FILE (vm_trace_on.sh).
+  multipass exec fim-host -- sudo cp /var/lib/fim-agent/traza_b3.jsonl "/srv/evidencia/traza_lat_$R.jsonl" 2>/dev/null
+  multipass exec fim-host -- sudo chmod 644 "/srv/evidencia/traza_lat_$R.jsonl" 2>/dev/null
+  multipass transfer "fim-host:/srv/evidencia/traza_lat_$R.jsonl" "$OUT/diagnostico/" 2>/dev/null
+  say "traza causal $R: $(wc -l < "$OUT/diagnostico/traza_lat_$R.jsonl" 2>/dev/null || echo 0) registros"
+done
 
 # ── 3. notificacion, tres escenarios contra Mailpit ───────────────────────────
 say "--- bateria de notificacion, tres escenarios ---"
@@ -381,7 +439,7 @@ for i in 1 2 3; do
   # was carried over from a previous run and the trace is not this run's.
   WIN_START=$(date -u +%Y-%m-%dT%H:%M:%S)
   # bateria5.sh gets exactly the compose file set the backend was brought up with.
-  DC_FILES="docker-compose.yml docker-compose.tls.yml $LAB/docker-compose.mailpit.yml" \
+  TAG="$TAG" DC_FILES="docker-compose.yml docker-compose.tls.yml $LAB/docker-compose.mailpit.yml" \
     bash "$LAB/bateria5.sh" "$OUT/resiliencia/$R" "$R" \
     || say "$R: REPETICION INVALIDA — el backend se recreo durante el corte"
   "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT event_id, path, detected_at, received_at FROM events ORDER BY received_at) TO STDOUT WITH CSV HEADER" > "$OUT/resiliencia/$R/eventos.csv" 2>/dev/null
@@ -414,6 +472,30 @@ for i in 1 2 3; do
                          || say "$R: ARRANCA CONTAMINADO (events=${INIT:-?}) — la ventana de drenaje queda inflada"
 
   say "$R: $(cat "$OUT/resiliencia/$R/counts.json" 2>/dev/null)"
+
+  # A-2 (out-of-order arrivals) and A-3 (drain decomposition) -> metricas.json. This
+  # runs INSIDE the loop, so every metricas.json exists before the package is sealed
+  # (SHA256SUMS below): a file written after the seal would not be covered by it.
+  RD="$OUT/resiliencia/$R"
+  python3 "$REPO/scripts/fuera_de_orden.py" "$RD/eventos.csv" --json > "$RD/fuera_de_orden.json" 2>"$RD/fuera_de_orden.err"
+  python3 "$REPO/scripts/descomponer_drenaje.py" --log "$RD/bateria5_$R.log" --traza "$RD/traza_$R.jsonl" \
+    --eventos "$RD/eventos.csv" --backend-pre "$RD/backend_inspect_pre.txt" --backend-post "$RD/backend_inspect_post.txt" \
+    --json > "$RD/descomposicion_drenaje.json" 2>"$RD/descomposicion_drenaje.err"
+  python3 - "$RD" "$R" "$TAG" "$COMMIT" <<'PY'
+import json, pathlib, sys
+rd, run, tag, commit = pathlib.Path(sys.argv[1]), *sys.argv[2:5]
+def load(name):
+    f, err = rd / f"{name}.json", rd / f"{name}.err"
+    try:
+        return json.loads(f.read_text())
+    except (OSError, ValueError):
+        return {"error": (err.read_text().strip() if err.exists() else "") or "sin salida"}
+m = {"run": run, "tag": tag, "commit": commit,
+     "fuera_de_orden": load("fuera_de_orden"), "drenaje": load("descomposicion_drenaje")}
+(rd / "metricas.json").write_text(json.dumps(m, indent=2) + "\n")
+print("metricas.json:", json.dumps(m))
+PY
+  say "$R: metricas.json escrito ($(wc -c < "$RD/metricas.json") bytes)"
 done
 
 # ── cierre ────────────────────────────────────────────────────────────────────
