@@ -2756,7 +2756,7 @@ comportamiento. Agregada el 2026-09-23.
 
 #### D85 / RN-179: El límite de ingesta es un token bucket por agente
 
-**Descripción:** El límite de ingesta SHALL implementarse como token bucket por agente: régimen sostenido de 100 ev/min y ráfaga de 3.000, derivada de la cola local de 100 MiB y del tamaño medio de evento (derivación documentada). Los settings SHALL ser `RATE_LIMIT_INGEST_RATE_PER_S` y `RATE_LIMIT_INGEST_BURST`; `rate_limit_ingest_events` y `rate_limit_ingest_window_seconds` SHALL eliminarse o mapearse. Las baterías de evaluación SHALL correr con los defaults del producto.
+**Descripción:** El límite de ingesta SHALL implementarse como token bucket por agente: régimen sostenido de 100 ev/min y ráfaga de 3.000, elegida para cubrir el replay de 2.672 eventos de la batería 5 con margen; la cola local de 100 MiB es sólo una cota superior (~137.600 eventos de ~762 B sin diff), no la base del valor. Los settings SHALL ser `RATE_LIMIT_INGEST_RATE_PER_S` y `RATE_LIMIT_INGEST_BURST`; `rate_limit_ingest_events` y `rate_limit_ingest_window_seconds` SHALL eliminarse; si siguen definidas en el entorno, el arranque SHALL registrar una advertencia. Consecuencia aceptada: `retry_after` pasa a ser el tiempo hasta el próximo token (~0,6 s a 100 ev/min), compatible con D37/RN-131. Las baterías de evaluación SHALL correr con los defaults del producto.
 
 **Condición:** `backend/app/modules/events/consumer.py` (`_RateLimiter`), `backend/app/core/config.py:100-101`.
 
