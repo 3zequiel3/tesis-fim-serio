@@ -23,8 +23,15 @@ reintentar para siempre"):
   se ignora — D-4: contención ante un nack inducido por un tercero antes de
   la verificación HMAC en el backend.
 
-Drenaje al arrancar: re-publica toda la cola local en orden FIFO antes de
-procesar eventos nuevos (RN-39), respetando backpressure.
+Orden FIFO estricto (D79/RN-173, RN-39): los eventos nunca transmitidos viven
+en _unsent (orden de creación) y los transmitidos que esperan ack en _pending.
+Un evento pasa de _unsent a _pending solo tras un XADD exitoso; el vaciado de
+_unsent y el reenvío por vencimiento de ack se detienen en el primer error, y
+todo XADD de eventos se serializa con un único lock.
+
+Drenaje al arrancar: siembra _unsent con la cola local en orden FIFO, la
+vacía tras el flush de comandos (RN-85) y se detiene en el primer error; lo que
+quede lo vacía el lazo de reintento (RN-39). Respeta backpressure.
 
 Listener de commands: filtra target_agent_id == agent_id | null (D5, RN-106).
 """
@@ -35,6 +42,7 @@ import asyncio
 import json
 import time
 import uuid
+from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -60,6 +68,11 @@ log = structlog.get_logger()
 STREAM_EVENTS = "events"
 STREAM_COMMANDS = "commands"
 _ACK_TIMEOUT_S = 60.0
+# D79/RN-173: período del lazo de reintento. Con backlog sin transmitir se
+# sondea cada 0,5 s; el período fijo de 5 s estiraba la reconexión a 3,5-6,8 s
+# medidos. Sin backlog se conserva el período de 5 s.
+_BACKLOG_POLL_S = 0.5
+_IDLE_POLL_S = 5.0
 # D37/RN-131 (D-6 del design): piso de retry_after — un valor ausente, no
 # numérico o negativo en un event_nack retenible se trata como este mínimo,
 # nunca como cero (busy-loop) ni como el techo (castigo de más).
@@ -85,6 +98,25 @@ class Publisher:
         self._shared_secret = load_shared_secret(config.storage.secrets_dir)
         # event_id → (loop_time_published, payload)
         self._pending: dict[str, tuple[float, dict[str, Any]]] = {}
+        # D79/RN-173: eventos NUNCA transmitidos en este proceso, en orden FIFO
+        # de creación (event_id → payload estable). Invariante: _unsent y
+        # _pending son disjuntos y todo evento de _pending es más viejo que
+        # todo evento de _unsent. Solo se pasa a _pending tras un XADD exitoso.
+        self._unsent: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        # D79/RN-173 (ampliación 2026-10-02): único lock sobre los XADD de
+        # eventos (camino rápido, vaciado de _unsent, reenvío por ack vencido).
+        self._send_lock = asyncio.Lock()
+        # D79/RN-173: despierta al lazo de reintento cuando un evento queda en
+        # _unsent sin esperar el período completo.
+        self._wake = asyncio.Event()
+        # D79/RN-173: la cola en disco se siembra en _unsent una sola vez, en
+        # el primer uso (ver _ensure_backlog_seeded).
+        self._backlog_seeded = False
+        # D79/RN-173 (RN-85): mientras haya backlog de disco sembrado y el
+        # flush de comandos no haya terminado, nada se transmite.
+        self._hold_until_flush = False
+        # D79/RN-173: la pasada anterior del lazo terminó en error de XADD.
+        self._last_pass_failed = False
         self._shutdown = False
         # D37/RN-131 (D-6): reloj monotónico hasta el cual está suspendida la
         # transmisión (backpressure agente-wide). 0.0 == sin pausa.
@@ -171,6 +203,9 @@ class Publisher:
         Encolar SIEMPRE ocurre, incluso si el publisher está en backpressure
         (D-6 del design): la detección no se suspende, solo la transmisión.
         """
+        # D79/RN-173: el backlog de disco entra en _unsent antes que el evento
+        # propio (también el de la rehidratación, que publica antes de run()).
+        self._ensure_backlog_seeded()
         payload = self._build_payload(event_data)
         try:
             self._queue.enqueue(payload, on_evict=self._forget_evicted_event)
@@ -179,26 +214,63 @@ class Publisher:
             raise
         self._trace_events[payload["event_id"]] = payload
         self._trace_record("queue_enqueue_persisted", payload, outcome="enqueued")
-        # Register in _pending BEFORE xadd so _retry_loop can pick it up if xadd fails.
-        self._pending[payload["event_id"]] = (
-            asyncio.get_running_loop().time(),
-            payload,
+        # D79/RN-173: el evento queda en _unsent hasta que su XADD tenga éxito.
+        # Una segunda corrutina que publique ahora lo encuentra y se encola
+        # detrás: ningún evento nuevo adelanta al backlog.
+        self._unsent[payload["event_id"]] = payload
+        deferred = True
+        paused = self._is_paused()
+        can_send_now = (
+            len(self._unsent) == 1
+            and not paused
+            and not self._hold_until_flush
+            and not self._send_lock.locked()
         )
-        if self._is_paused():
+        if can_send_now:
+            async with self._send_lock:
+                try:
+                    await self._xadd_with_trace(payload, source="initial")
+                except Exception:
+                    # El evento sigue en la cabeza de _unsent; el lazo lo reintenta.
+                    self._wake.set()
+                else:
+                    self._mark_transmitted(payload["event_id"], payload)
+                    deferred = False
+        elif paused:
             self._trace_record("xadd_deferred", payload, source="initial", reason="backpressure", outcome="deferred")
             log.debug("publisher.publish_paused", event_id=payload["event_id"])
+            self._wake.set()
         else:
-            try:
-                await self._xadd_with_trace(payload, source="initial")
-                self._queue.bump_attempts(payload["event_id"])
-            except Exception:
-                pass  # event stays in _pending; _retry_loop will retry
-        log.info("publisher.event_published", event_id=payload["event_id"])
+            self._trace_record("xadd_deferred", payload, source="initial", reason="backlog", outcome="deferred")
+            self._wake.set()
+        log.info("publisher.event_published", event_id=payload["event_id"], deferred=deferred)
+
+    def _retire(self, event_id: str) -> None:
+        """Retira un evento de _unsent y de _pending (D79/RN-173, D-6).
+
+        Salida común de la cola local: ack, desalojo por capacidad y descarte
+        (max_attempts_exceeded o event_nack terminal). Idempotente; cada
+        salida emite su propio log.
+        """
+        self._unsent.pop(event_id, None)
+        self._pending.pop(event_id, None)
+
+    def _mark_transmitted(self, event_id: str, payload: dict[str, Any]) -> None:
+        """Único paso de _unsent a _pending, tras un XADD exitoso (D79/RN-173).
+
+        El plazo de ack cuenta desde la transmisión, no desde el encolado.
+        """
+        if self._unsent.pop(event_id, None) is None:
+            # Retirado mientras el XADD estaba en vuelo (ack, desalojo o
+            # descarte): no resucitarlo en _pending.
+            return
+        self._pending[event_id] = (asyncio.get_running_loop().time(), payload)
+        self._queue.bump_attempts(event_id)
 
     def _forget_evicted_event(self, event_id: str) -> None:
         """Retire an event synchronously when queue capacity evicts it."""
         payload = self._trace_events.pop(event_id, None)
-        self._pending.pop(event_id, None)
+        self._retire(event_id)
         self._trace_record("queue_evicted", payload or {"event_id": event_id}, reason="queue_capacity", outcome="dropped")
 
     def register_callbacks(
@@ -318,31 +390,74 @@ class Publisher:
 
     # ── drenaje de cola ───────────────────────────────────────────────────────
 
-    async def _drain_queue(self) -> None:
-        """Publica en FIFO todos los eventos pendientes en cola (RN-39).
+    def _ensure_backlog_seeded(self) -> None:
+        """Siembra _unsent con la cola en disco, una sola vez (D79/RN-173, D-5).
 
-        Consume iter_entries() (no iter_fifo()) para sembrar _pending con el
-        payload estable del sobre y respeta backpressure (D-6): si el
-        publisher está pausado, el evento se registra en _pending pero no se
-        transmite hasta que la pausa termine.
+        Sincrónica: solo arma estado, no transmite ni toma _send_lock. Se
+        invoca en el primer uso (publish o _drain_queue) y no en __init__ ni
+        solo en _drain_queue porque la rehidratación del journal publica antes
+        de publisher.run() (agent/__main__.py, agent/decision.py) y adelantaría
+        al backlog de disco: el orden es el de detección, no el de reinicio.
+        Si sembró algo, retiene todo hasta que termine el flush de comandos
+        (RN-85).
         """
+        if self._backlog_seeded:
+            return
+        seeded = False
         for entry in self._queue.iter_entries():
             payload = entry.get("payload") or {}
             event_id = payload.get("event_id")
-            if not event_id or event_id in self._pending:
+            if not event_id or event_id in self._unsent or event_id in self._pending:
                 continue
             self._trace_events[event_id] = payload
-            self._pending[event_id] = (asyncio.get_running_loop().time(), payload)
-            if self._is_paused():
+            self._unsent[event_id] = payload
+            seeded = True
+        if seeded:
+            self._hold_until_flush = True
+        self._backlog_seeded = True
+
+    async def _drain_unsent_locked(self, source: str) -> bool:
+        """Vacía _unsent desde la cabeza; requiere _send_lock tomado (D79/RN-173).
+
+        Ante el primer error de XADD interrumpe la pasada: ningún evento
+        posterior al que falló se transmite. Retorna True si terminó sin error.
+        """
+        while self._unsent and not self._is_paused():
+            event_id, payload = next(iter(self._unsent.items()))
+            try:
+                await self._xadd_with_trace(payload, source=source)
+            except Exception as exc:
+                log.warning(
+                    "publisher.unsent_drain_stopped",
+                    event_id=event_id,
+                    remaining=len(self._unsent),
+                    error=str(exc),
+                )
+                return False
+            self._mark_transmitted(event_id, payload)
+            if source == "drain":
+                log.info("publisher.queue_drained", event_id=event_id)
+        return True
+
+    async def _drain_queue(self) -> None:
+        """Siembra _unsent con la cola local y la vacía en FIFO (RN-39).
+
+        Abre el gate de arranque (el flush de comandos ya terminó, RN-85) y
+        hace una pasada de vaciado bajo el lock, respetando backpressure (D-6):
+        si el publisher está pausado, los eventos quedan en _unsent sin
+        transmitir. Se detiene en el primer error (D79/RN-173); lo que quede lo
+        vacía el lazo de reintento.
+        """
+        self._ensure_backlog_seeded()
+        self._hold_until_flush = False
+        if self._is_paused():
+            for event_id, payload in self._unsent.items():
                 self._trace_record("xadd_deferred", payload, source="drain", reason="backpressure", outcome="deferred")
                 log.debug("publisher.drain_paused", event_id=event_id)
-                continue
-            try:
-                await self._xadd_with_trace(payload, source="drain")
-                self._queue.bump_attempts(event_id)
-                log.info("publisher.queue_drained", event_id=event_id)
-            except Exception as exc:
-                log.warning("publisher.drain_error", event_id=event_id, error=str(exc))
+            return
+        async with self._send_lock:
+            ok = await self._drain_unsent_locked("drain")
+        self._last_pass_failed = not ok
 
     # ── flush de comandos pendientes al arrancar ──────────────────────────────
 
@@ -502,7 +617,7 @@ class Publisher:
                 return
             self._trace_record("ack_valid", event_payload, source="command", outcome="acknowledged")
             self._queue.remove(event_id)
-            self._pending.pop(event_id, None)
+            self._retire(event_id)
             self._trace_events.pop(event_id, None)
             if self._on_ack_cb is not None:
                 self._on_ack_cb(event_id)
@@ -537,7 +652,7 @@ class Publisher:
             else:
                 # Terminal (invalid_schema de payload ilegible, clock_skew).
                 self._queue.discard(event_id, reason)
-                self._pending.pop(event_id, None)
+                self._retire(event_id)
                 self._trace_record("nack_valid_terminal", event_payload, source="command", reason=self._trace_reason(reason), outcome="dropped")
                 self._trace_events.pop(event_id, None)
                 self._discarded_events += 1
@@ -601,39 +716,74 @@ class Publisher:
 
     # ── retry loop ─────────────────────────────────────────────────────────────
 
+    async def _wait_for_next_pass(self, stop_event: asyncio.Event) -> None:
+        """Espera entre pasadas del lazo de reintento (D79/RN-173, D-4).
+
+        Tras una pasada con error duerme _BACKLOG_POLL_S sin atender
+        despertares (no martilla a Valkey durante una caída). Si no, espera
+        _wake con timeout _BACKLOG_POLL_S si hay backlog o _IDLE_POLL_S si no.
+        Es el punto de inyección de los tests del lazo.
+        """
+        if self._last_pass_failed:
+            await asyncio.sleep(_BACKLOG_POLL_S)
+        else:
+            timeout = _BACKLOG_POLL_S if self._unsent else _IDLE_POLL_S
+            try:
+                await asyncio.wait_for(self._wake.wait(), timeout=timeout)
+            except asyncio.TimeoutError:
+                pass
+        self._wake.clear()
+
     async def _retry_loop(self, stop_event: asyncio.Event) -> None:
-        """Re-publica eventos sin ack tras 60 s (RN-40, RN-73).
+        """Re-publica eventos sin ack tras 60 s y vacía _unsent (RN-40, RN-73, D79).
 
         Acotado por el techo de intentos por evento (D-7): al alcanzarlo, el
         evento se descarta con 'max_attempts_exceeded' y deja de publicarse.
         Respeta backpressure (D-6): mientras el publisher está pausado, no
-        emite ningún XADD.
+        emite ningún XADD. Cada pasada corre bajo _send_lock y se interrumpe en
+        el primer error de XADD (D79/RN-173): primero el reenvío de _pending
+        (más viejo) y, si salió sin error, el vaciado de _unsent.
         """
         while not stop_event.is_set():
-            await asyncio.sleep(5)
+            await self._wait_for_next_pass(stop_event)
+            if stop_event.is_set():
+                break
             if self._is_paused():
                 continue
-            now = asyncio.get_running_loop().time()
-            for event_id, (published_at, payload) in list(self._pending.items()):
-                if now - published_at < _ACK_TIMEOUT_S:
-                    continue
-                attempts = self._queue.get_attempts(event_id)
-                if attempts >= self._config.publisher.max_publish_attempts:
-                    self._queue.discard(event_id, "max_attempts_exceeded")
-                    self._pending.pop(event_id, None)
-                    self._trace_record("queue_discarded", self._trace_events.pop(event_id, payload), source="retry", attempt=attempts, reason="max_attempts_exceeded", outcome="dropped")
-                    self._discarded_events += 1
-                    log.warning(
-                        "publisher.event_discarded",
-                        event_id=event_id,
-                        reason="max_attempts_exceeded",
-                        attempts=attempts,
-                    )
-                    continue
-                try:
-                    await self._xadd_with_trace(payload, source="retry")
-                    self._queue.bump_attempts(event_id)
-                    self._pending[event_id] = (now, payload)
-                    log.info("publisher.event_retried", event_id=event_id)
-                except Exception as exc:
-                    log.warning("publisher.retry_error", event_id=event_id, error=str(exc))
+            async with self._send_lock:
+                ok = await self._retry_pass_locked()
+            self._last_pass_failed = not ok
+
+    async def _retry_pass_locked(self) -> bool:
+        """Una pasada del lazo con _send_lock tomado. True si no hubo error de XADD."""
+        now = asyncio.get_running_loop().time()
+        for event_id, (published_at, payload) in list(self._pending.items()):
+            if now - published_at < _ACK_TIMEOUT_S:
+                continue
+            attempts = self._queue.get_attempts(event_id)
+            if attempts >= self._config.publisher.max_publish_attempts:
+                self._queue.discard(event_id, "max_attempts_exceeded")
+                self._retire(event_id)
+                self._trace_record("queue_discarded", self._trace_events.pop(event_id, payload), source="retry", attempt=attempts, reason="max_attempts_exceeded", outcome="dropped")
+                self._discarded_events += 1
+                log.warning(
+                    "publisher.event_discarded",
+                    event_id=event_id,
+                    reason="max_attempts_exceeded",
+                    attempts=attempts,
+                )
+                continue
+            try:
+                await self._xadd_with_trace(payload, source="retry")
+            except Exception as exc:
+                # D79/RN-173: cortar la pasada; seguir transmitiría eventos
+                # más nuevos antes que este.
+                log.warning("publisher.retry_error", event_id=event_id, error=str(exc))
+                return False
+            if event_id not in self._pending:
+                # Retirado (ack/descarte) mientras el XADD estaba en vuelo.
+                continue
+            self._queue.bump_attempts(event_id)
+            self._pending[event_id] = (now, payload)
+            log.info("publisher.event_retried", event_id=event_id)
+        return await self._drain_unsent_locked("retry")
