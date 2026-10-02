@@ -118,6 +118,7 @@ export function EventDetail() {
         <div className="flex items-center gap-2 shrink-0">
           <SymlinkBadge isSymlink={event.is_symlink} />
           <StatusBadge status={event.status} />
+          <OfflineDetectionBadge detectedOffline={event.detected_offline} />
           <ActionFailedBadge actionFailed={event.action_failed} />
           <AckStatusBadge ackStatus={event.ack_status} />
         </div>
@@ -350,6 +351,22 @@ function SymlinkBadge({ isSymlink }: { isSymlink: boolean }) {
   return (
     <span className="shrink-0 px-2.5 py-1 rounded border text-xs font-mono uppercase bg-cyan-900 text-cyan-300 border-cyan-800">
       symlink
+    </span>
+  )
+}
+
+// Indicator for changes found by the agent's start-up reconcile (D80/RN-174).
+// Rendered only for `true`; false, null and absent render nothing. Styled apart
+// from ActionFailedBadge: this one qualifies *when* the change was detected,
+// it does not signal a failure.
+function OfflineDetectionBadge({ detectedOffline }: { detectedOffline?: boolean | null }) {
+  if (detectedOffline !== true) return null
+  return (
+    <span
+      className="shrink-0 px-2.5 py-1 rounded border text-xs font-mono bg-indigo-900 text-indigo-300 border-indigo-800"
+      title="El cambio ocurrió con el agente detenido. La fecha de detección es el instante en que el agente lo detectó al arrancar, no cuando ocurrió."
+    >
+      detectado offline
     </span>
   )
 }

@@ -432,3 +432,44 @@ describe('EventDetail — US-12 (toast baseline_absent en reject)', () => {
     expect(toastInfo).not.toHaveBeenCalled()
   })
 })
+
+describe('EventDetail — detección offline (D80/RN-174)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+  })
+
+  it('con detected_offline=true muestra el indicador con su explicación', async () => {
+    mockDetailAndChain(makeEvent({ id: 21, path: '/etc/hosts', detected_offline: true }))
+
+    renderDetail(21)
+
+    const badge = await screen.findByText('detectado offline')
+    expect(badge).toBeInTheDocument()
+    expect(badge).toHaveAttribute('title', expect.stringMatching(/agente detenido/))
+    expect(badge).toHaveAttribute('title', expect.stringMatching(/al arrancar/))
+  })
+
+  it.each([
+    ['false', false],
+    ['null', null],
+    ['ausente', undefined],
+  ])('con detected_offline %s no muestra el indicador y los demás siguen igual', async (_label, value) => {
+    mockDetailAndChain(
+      makeEvent({
+        id: 22,
+        path: '/etc/hosts',
+        is_symlink: true,
+        symlink_target: '/etc/other',
+        action_failed: true,
+        detected_offline: value,
+      })
+    )
+
+    renderDetail(22)
+
+    await screen.findByText('/etc/hosts')
+    expect(screen.queryByText('detectado offline')).not.toBeInTheDocument()
+    expect(screen.getByText('symlink')).toBeInTheDocument()
+    expect(screen.getByText('Remediación fallida')).toBeInTheDocument()
+  })
+})

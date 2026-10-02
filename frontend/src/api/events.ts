@@ -64,6 +64,11 @@ export interface EventListItem {
   // de datos (no_baseline_content, no_baseline_metadata, ...). Ausente
   // cuando action_failed es false.
   action_error?: string | null
+  // D80/RN-174: true when the agent detected the change on start by reconciling
+  // its baseline against the disk, i.e. the change happened while the agent was
+  // stopped and `detected_at` is the detection instant, not the change instant.
+  // false = detected online; null/absent = agent older than Change 62.
+  detected_offline?: boolean | null
   // US-12 (C10, D-8): estado del baseline del path del evento — sólo lo
   // envía GET /events/{id} (EventDetailOut); el listado no lo trae.
   baseline_status?: 'present' | 'absent' | null
