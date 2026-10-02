@@ -1,0 +1,78 @@
+## 0. Precondiciones
+
+- [ ] 0.1 Confirmar con `openspec list --json` y `fd . openspec/changes/archive` que las Changes 67 (`ingest-token-bucket-rate-limit`) y 68 (`agent-secret-wrap-at-rest`) están **archivadas**. Si alguna no lo está, detenerse: las dos tocan `backend/app/modules/events/consumer.py` y la 68 provee el helper de lectura del secreto que usa la sección 3.
+- [ ] 0.2 Re-verificar contra el árbol actual todas las referencias `archivo:línea` de `design.md` (tomadas en `7306ecc`), en particular `run_consumer`, `_ensure_group`, `_process_batch`, `_handle_message`, `_get_agent_auth`, `_reject` y `_ack_with_event_ack`. Anotar en este archivo cualquier desplazamiento antes de editar.
+- [ ] 0.3 Identificar el nombre del helper único de D86/RN-180 que dejó la Change 68 y confirmar que `_get_agent_auth` ya lo usa en lugar de `bytes.fromhex`.
+- [ ] 0.4 Correr `python3 scripts/check_spec_integrity.py` y la suite de backend en la base, y anotar cualquier falla preexistente como evidencia.
+
+## 1. Perfilado `consumer.timing` (D-1)
+
+- [ ] 1.1 En `backend/app/core/config.py`, agregar `fim_profile_ingest: bool = False` con un comentario que cite D87/RN-181 y aclare que se lee de `FIM_PROFILE_INGEST`.
+- [ ] 1.2 En `_handle_message`, medir con `time.perf_counter()` las etapas autenticación, validación (pasos 1, 3, 4 y 5), ingesta (`run_in_executor` de `_ingest`) y total, y emitir `log.info("consumer.timing", scope="event", ...)` con los milisegundos de cada etapa, `event_id` y `agent_id`, **sólo** si `settings.fim_profile_ingest` está activo. No incluir payload, firma ni secreto.
+- [ ] 1.3 Verificar que en los caminos de rechazo temprano no se emite un `consumer.timing` con etapas sin medir: o se omite, o las etapas no alcanzadas van en `None`. Elegir uno y documentarlo en el comentario.
+- [ ] 1.4 Tests: con el flag activo se emite `consumer.timing` con las claves esperadas; con el flag inactivo no se emite ninguno.
+- [ ] 1.5 Crear `mediciones.md` en la carpeta de esta change con una tabla por medición (fecha, commit, comando exacto, cantidad de eventos, ev/s, desglose de `consumer.timing` por etapa) y una nota que aclare que son mediciones de desarrollo, no resultados de la tesis (ampliación de RN-181).
+- [ ] 1.6 Medir la línea base con el arnés de `lab/` (`lab/bateria4_publicador.py`) sobre el build de desarrollo con `FIM_PROFILE_INGEST=1`, y registrarla en `mediciones.md`.
+
+## 2. Timeouts del cliente Valkey (D-2)
+
+- [ ] 2.1 En `config.py`, agregar `valkey_socket_connect_timeout_seconds: float = 5.0`, `valkey_socket_timeout_seconds: float = 10.0` y `valkey_health_check_interval_seconds: int = 15`, con comentario que cite D87/RN-181 y la restricción `socket_timeout > BLOCK`.
+- [ ] 2.2 En `backend/app/core/valkey.py`, agregar un helper que devuelva los tres kwargs y usarlo en `build_async_valkey_client` (`:72`) y en `init_valkey` (`:77`), combinado con `_tls_kwargs(url)` sin alterarlo.
+- [ ] 2.3 Test: ambos clientes, con URL `valkey://` y con URL `valkeys://` y certificados configurados, quedan con los tres parámetros; el caso TLS conserva los cuatro `ssl_*`.
+- [ ] 2.4 Test de guarda: `settings.valkey_socket_timeout_seconds * 1000` es estrictamente mayor que `_BLOCK_MS` de `events/consumer.py`, `agents/heartbeat_consumer.py` y `agents/command_ack_consumer.py`.
+- [ ] 2.5 Actualizar `.env.example` si el proyecto documenta ahí los settings opcionales del backend; si no, dejar constancia de que no aplica.
+
+## 3. Caché de autenticación con TTL de 5 s (D-5)
+
+- [ ] 3.1 Agregar en `consumer.py` el caché de módulo `agent_id → (_AgentAuth, expira_en)` con TTL de 5 s sobre `time.monotonic()`, y la corrutina `_resolve_agent_auth(agent_id)`: acierto vigente → devuelve sin executor; fallo o vencido → `run_in_executor(None, _get_agent_auth, agent_id)` y guarda **sólo** si `shared_secret` no es `None`.
+- [ ] 3.2 Reemplazar la llamada de `_handle_message` (hoy `consumer.py:342`) por `await _resolve_agent_auth(agent_id)`.
+- [ ] 3.3 Reemplazar en `_reject` la resolución vía `_get_shared_secret` (hoy `:609-611`) por `_resolve_agent_auth`. Conservar `_get_shared_secret` si algún otro sitio o test lo usa; si no, decidir y anotar.
+- [ ] 3.4 Agregar `reset_agent_auth_cache()` para tests, análogo a `reset_rate_limiter()`, y registrarlo en el fixture que hoy resetea el limitador si existe uno compartido.
+- [ ] 3.5 Comentar el caché citando D87/RN-181 y D86/RN-180 (sólo TTL porque no hay revocación) y la razón de no cachear negativos (crecimiento sin límite y rechazo silencioso de un agente recién enrolado).
+- [ ] 3.6 Tests: dos eventos del mismo agente dentro del TTL → una sola consulta a la base; vencido el TTL (reloj monótono parcheado) → segunda consulta; `agent_id` desconocido → no queda en el caché; un acierto no pasa por `run_in_executor`.
+- [ ] 3.7 Re-medir igual que en 1.6 y registrar en `mediciones.md` los ev/s y la etapa de autenticación.
+
+## 4. `XACK` + `event_ack` por lote (D-6)
+
+- [ ] 4.1 Introducir un acumulador de ACK (lista de `(msg_id, data_firmada)`) y un parámetro opcional en `_handle_message`. Sin acumulador, `_handle_message` conserva la emisión inmediata de `_ack_with_event_ack`.
+- [ ] 4.2 En las tres ramas que hoy llaman a `_ack_with_event_ack` (dedup, persistido y carrera de supersesión), agregar al acumulador cuando existe. Verificar leyendo el diff que las tres ramas sólo se alcanzan después del retorno de `_ingest` y que ninguna otra rama agrega.
+- [ ] 4.3 Mantener la notificación `_fire_and_forget(notify_if_applicable(...))` en el punto actual, inmediatamente después de la persistencia, sin diferirla al final del lote.
+- [ ] 4.4 En `_process_batch`, crear el acumulador por lote y emitirlo en un `finally`: con `pipeline` sincrónico disponible, un pipeline transaccional con un `XADD commands` por entrada y un único `XACK events` con todos los ids; con dobles asyncio sin `pipeline`, primero los `XADD` y después el `XACK`, como hoy hace `_ack_with_event_ack`. Con acumulado vacío no se emite nada.
+- [ ] 4.5 Si la emisión del acumulado falla, loguear `consumer.ack_flush_error` y propagar al bucle, sin reintentar dentro del lote: las entradas quedan en la PEL.
+- [ ] 4.6 Agregar al perfilado el `consumer.timing` con `scope="batch"`, la duración de la emisión y el tamaño del lote.
+- [ ] 4.7 Tests: lote de N eventos válidos → un único pipeline con N `XADD` y un `XACK` de N ids; `SQLAlchemyError` en el evento del medio → ese `msg_id` no aparece en el `XACK` ni en ningún `XADD`; falla del pipeline → filas persistidas, sin `XACK`, y una re-entrega posterior no duplica la fila; un doble que registra el orden de llamadas demuestra que cada agregado al acumulado ocurre después del `commit` de su evento.
+- [ ] 4.8 Correr sin modificar `test_fifo_order_preserved_after_batch_drain` y `test_no_duplicate_after_transient_db_error_and_pel_redelivery` (`backend/tests/test_ingest_offload_blocking_db.py:140,177`) y el resto de ese archivo, incluido el test de despacho secuencial. Si alguno falla, el defecto está en la implementación, no en el test.
+- [ ] 4.9 Re-medir igual que en 1.6 y registrar en `mediciones.md` los ev/s y la duración de la emisión por lote.
+
+## 5. `NOGROUP` en el bucle principal (D-3)
+
+- [ ] 5.1 En el bucle principal de `run_consumer`, antes del `except Exception` genérico, reconocer el error cuyo texto contiene `NOGROUP`: log `consumer.group_recreated`, `await _ensure_group(client)`, `await _process_batch(client, "0")` y continuar sin `sleep`. Si `_ensure_group` lanza, dejar que caiga en el tratamiento genérico.
+- [ ] 5.2 Comentar citando D87/RN-181 y por qué el group se recrea con id `0` y no `$`.
+- [ ] 5.3 Tests con doble de cliente: `xreadgroup` lanza `NOGROUP` una vez → se llama a `xgroup_create` y el bucle sigue leyendo; error distinto de `NOGROUP` → no se llama a `xgroup_create` y se registra `consumer.loop_error`; `xgroup_create` falla → el bucle no termina.
+- [ ] 5.4 Test de integración contra Valkey real (marcado como los demás tests que requieren servicios): crear el group, destruirlo con `XGROUP DESTROY`, publicar un evento firmado y verificar que se persiste y recibe `event_ack` sin reiniciar el consumer.
+- [ ] 5.5 En `_reader_loop` de `backend/app/modules/agents/command_ack_consumer.py` (hoy `:96-122`), aplicar el mismo tratamiento: ante `NOGROUP`, log `command_ack_consumer.group_recreated`, `await _ensure_group(client)` (group `fim-command-ack` desde `0`, `:125-133`), `await _process_batch(client, "0")` y continuar sin `sleep`; ante cualquier otro error, conservar `command_ack_consumer.loop_error` y `sleep(1)`. No extraer un helper común con el consumer de eventos (D-3). Comentar citando la ampliación de D87/RN-181.
+- [ ] 5.6 Verificar leyendo el diff que `_sweep_loop` no cambia y que `run_command_ack_consumer` sigue lanzando las dos tareas con `asyncio.gather`.
+- [ ] 5.7 Tests de `command_ack` con doble de cliente: `xreadgroup` lanza `NOGROUP` una vez → se llama a `xgroup_create` con `fim-command-ack` e id `0` y el lector sigue leyendo; un error distinto de `NOGROUP` → no se recrea el group y se registra `command_ack_consumer.loop_error`.
+- [ ] 5.8 Test de integración de `command_ack` contra Valkey real: destruir `fim-command-ack`, publicar un `command_ack` firmado para un `PublishedCommand` existente y verificar que su estado se actualiza sin reiniciar el backend.
+
+## 6. AOF en Valkey (D-4)
+
+- [ ] 6.1 En `docker-compose.yml`, agregar al servicio `valkey` `command: ["valkey-server", "--appendonly", "yes", "--appendfsync", "everysec"]`, con comentario que cite D87/RN-181.
+- [ ] 6.2 En `docker-compose.tls.yml`, agregar `--appendonly yes` y `--appendfsync everysec` al `command` del servicio `valkey`, sin tocar los flags de TLS.
+- [ ] 6.3 Verificar con `docker compose config` (base y base+TLS) que el `command` resultante contiene los dos flags y, en TLS, también `--port 0` y `--tls-port 6380`.
+- [ ] 6.4 Verificar en Valkey 9.0.3, **antes de etiquetar `v5.0-tesis`** (ampliación de RN-181), que el primer arranque con `appendonly yes` sobre un volumen con snapshot RDB previo conserva los datos (`XLEN events` y `XINFO GROUPS events` antes y después). Registrar el resultado en `mediciones.md`. Si no los conserva, detenerse y documentar el paso de migración antes de seguir.
+- [ ] 6.5 Verificar el escenario de la spec: con entradas en `events` y el group creado, `docker compose restart valkey` conserva `XLEN events` y `XINFO GROUPS events`.
+- [ ] 6.6 Revisar si `lab/docker-compose.exp.yml` u otro compose del laboratorio redefine el `command` de `valkey`; si lo hace, alinearlo o dejar constancia de por qué no.
+
+## 7. `INSERT` por lote — condicional (D-7)
+
+- [ ] 7.1 Con la medición de 4.9 registrada en `mediciones.md`, decidir y anotar la decisión en ese mismo archivo: si es de al menos 95 ev/s, marcar 7.2 y 7.3 como no aplicables con el número y la fecha, y pasar a la sección 8.
+- [ ] 7.2 Sólo si es menor que 95 ev/s: escribir el addendum de D-7 en `design.md` (dedup intra-lote, cadena `superseded` con dos eventos de la misma ruta en el lote, compactación RN-98 en la misma transacción, granularidad del rollback y relación con el acumulado de ACK) **antes** de escribir código.
+- [ ] 7.3 Sólo si aplica: implementar según el addendum, con el test del escenario «dos eventos de la misma ruta en un lote forman cadena», y re-medir.
+
+## 8. Verificación y cierre
+
+- [ ] 8.1 Correr la suite completa de backend y `python3 scripts/check_spec_integrity.py`.
+- [ ] 8.2 Verificar con `rg -n "consumer.timing" backend/app` que el perfilado sólo se emite bajo el flag.
+- [ ] 8.3 Verificar que `mediciones.md` contiene la línea base (1.6), las mediciones de 3.7 y 4.9, la de 7.3 si aplica, la decisión de 7.1 y la verificación de AOF de 6.4.
+- [ ] 8.4 Registrar la re-corrida completa del arnés unificado (`lab/corrida_unificada.sh`) sobre `v5.0-tesis`, con su resultado tal como se mida, **sin declarar mejora anticipada**, incluido el `docker inspect` del backend durante el corte de Valkey que confirma o descarta la hipótesis del reinicio de run-03. Si la re-corrida corresponde a la Change 61, dejar acá la referencia cruzada.
