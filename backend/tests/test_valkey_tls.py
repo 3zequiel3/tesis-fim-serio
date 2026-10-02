@@ -108,6 +108,13 @@ def test_tls_scheme_missing_all_certs_raises_with_all_names():
 # ── init_valkey / init_async_valkey / build_async_valkey_client wiring ───────
 
 
+def _timeouts() -> dict:
+    """Socket timeouts every client carries since D87/RN-181 (values from Settings)."""
+    import app.core.valkey as valkey_mod
+
+    return valkey_mod._timeout_kwargs()
+
+
 def test_init_valkey_passes_tls_kwargs_to_from_url():
     import app.core.valkey as valkey_mod
 
@@ -118,6 +125,7 @@ def test_init_valkey_passes_tls_kwargs_to_from_url():
     mock_from_url.assert_called_once_with(
         "valkeys://valkey:6380",
         decode_responses=True,
+        **_timeouts(),
         ssl_certfile="/certs/backend.pem",
         ssl_keyfile="/certs/backend-key.pem",
         ssl_ca_certs="/certs/ca.pem",
@@ -133,7 +141,9 @@ def test_init_valkey_plaintext_unchanged():
         mock_from_url.return_value = MagicMock()
         valkey_mod.init_valkey("valkey://localhost:6379")
 
-    mock_from_url.assert_called_once_with("valkey://localhost:6379", decode_responses=True)
+    mock_from_url.assert_called_once_with(
+        "valkey://localhost:6379", decode_responses=True, **_timeouts()
+    )
     valkey_mod.close_valkey()
 
 
@@ -147,6 +157,7 @@ def test_init_async_valkey_passes_tls_kwargs_to_from_url():
     mock_from_url.assert_called_once_with(
         "rediss://valkey:6380",
         decode_responses=True,
+        **_timeouts(),
         ssl_certfile="/certs/backend.pem",
         ssl_keyfile="/certs/backend-key.pem",
         ssl_ca_certs="/certs/ca.pem",
@@ -168,6 +179,7 @@ def test_build_async_valkey_client_used_by_main_dedicated_consumer_client():
     mock_from_url.assert_called_once_with(
         "valkeys://valkey:6380",
         decode_responses=True,
+        **_timeouts(),
         ssl_certfile="/certs/backend.pem",
         ssl_keyfile="/certs/backend-key.pem",
         ssl_ca_certs="/certs/ca.pem",
