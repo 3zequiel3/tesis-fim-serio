@@ -1327,11 +1327,11 @@ Capacidades:
 - **`BaselineEngine.mark_quarantined`** conserva `snapshots` y contenido.
 - **Se suprime el auto-eco** del `unlink` de la cuarentena.
 - **`quarantine_and_record` único** en `agent/quarantine.py`, usado por ambos caminos: journal `pending` → cuarentena → `mark_quarantined` → journal `completed`/`failed`.
-- **El rechazo humano con elección de cuarentena** termina en estado `quarantined`, no `rejected`.
+- **Sin cambios en la máquina de estados**: el rechazo con cuarentena sigue `rejected` (RN-11/RN-72 intactas) y la cuarentena se expone como `quarantine_state` derivado en lectura (`none | quarantined | released | discarded`), filtrable en `GET /events`; la change abarca agente + backend + frontend para esa derivación.
 
 Reglas: RN-176 (nueva).
 
-**Done**: tras una cuarentena el baseline conserva snapshots y contenido; el `unlink` propio no produce un segundo `mark_absent`; sólo existe una implementación de cuarentena; el rechazo con cuarentena termina en `quarantined`; el residual §9 se retira; la suite del agente pasa; `scripts/check_spec_integrity.py` pasa.
+**Done**: tras una cuarentena el baseline conserva snapshots y contenido; el `unlink` propio no produce un segundo `mark_absent`; sólo existe una implementación de cuarentena; el rechazo con cuarentena sigue `rejected` y `quarantine_state` lo expone como `quarantined`; el residual §9 se retira; la suite del agente pasa; `scripts/check_spec_integrity.py` pasa.
 
 ---
 

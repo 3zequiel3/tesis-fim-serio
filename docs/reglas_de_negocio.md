@@ -2746,6 +2746,8 @@ comportamiento. Agregada el 2026-09-23.
 
 **Motivo:** no existe operación de liberación; `QuarantineStore.read_artifact` (`quarantine.py:497`) no se usa.
 
+**Ratificación (2026-10-02):** `restore_original` sobre un symlink cuarentenado falla con `unsupported_file_type` (`discard` sigue disponible); un `release_quarantine` con `ruleset_version` obsoleto responde `stale_ruleset_version` en vez de expirar en silencio.
+
 **Reglas afectadas:** preserva RN-94; depende de D82/RN-176. Agregada el 2026-10-02.
 
 #### D84 / RN-178: El esquema de base de datos se versiona en un registro y el arranque verifica su vigencia
