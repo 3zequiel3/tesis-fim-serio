@@ -184,15 +184,21 @@ async def test_drop_oldest_event_is_removed_from_pending_and_never_retried(
 
     assert queue.contains(evicted_id) is False
     assert evicted_id not in publisher._pending
+    assert evicted_id not in publisher._unsent
 
     publisher._client.xadd.reset_mock()
     monkeypatch.setattr(publisher_module, "_ACK_TIMEOUT_S", 0)
     stop_event = asyncio.Event()
 
-    async def stop_after_sleep(_delay: float) -> None:
-        stop_event.set()
+    calls = {"n": 0}
 
-    monkeypatch.setattr(publisher_module.asyncio, "sleep", stop_after_sleep)
+    async def stop_after_first_pass(_stop: asyncio.Event) -> None:
+        # Let one pass run, then stop on the next wait.
+        calls["n"] += 1
+        if calls["n"] > 1:
+            stop_event.set()
+
+    monkeypatch.setattr(publisher, "_wait_for_next_pass", stop_after_first_pass)
     await publisher._retry_loop(stop_event)
 
     retransmitted_ids = {

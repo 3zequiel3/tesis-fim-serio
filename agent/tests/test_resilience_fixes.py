@@ -4,7 +4,7 @@ Tests for C29 — agent-resilience-fixes.
 Covers:
   FIX-01  test_fim_restore_tmp_event_suppressed
   FIX-02  test_rehydrate_inside_try_block (structural)
-  FIX-03  test_xadd_failure_keeps_event_in_pending
+  FIX-03  test_xadd_failure_keeps_event_in_unsent (D79/RN-173)
   FIX-04a test_quarantine_outside_watch_paths_rejected
   FIX-04b test_restore_outside_watch_paths_rejected
   FIX-04c test_quarantine_no_watch_paths_rejected
@@ -213,8 +213,12 @@ def test_rehydrate_not_before_try_block() -> None:
 
 
 @pytest.mark.asyncio
-async def test_xadd_failure_keeps_event_in_pending(tmp_path: Path) -> None:
-    """When _xadd raises, the event_id must still be in _pending for retry."""
+async def test_xadd_failure_keeps_event_in_unsent(tmp_path: Path) -> None:
+    """When _xadd raises, the event stays in _unsent (never transmitted) for retry.
+
+    D79/RN-173: a failed XADD no longer parks the event in _pending (which means
+    "transmitted, awaiting ack"); the retry loop re-sends it from _unsent.
+    """
     from agent.publisher import Publisher
     from agent.queue import EventQueue
     from agent.tests.conftest import TEST_MASTER_SECRET
@@ -242,7 +246,8 @@ async def test_xadd_failure_keeps_event_in_pending(tmp_path: Path) -> None:
 
     await publisher.publish(event_data)
 
-    assert len(publisher._pending) == 1, "event must be in _pending even when xadd fails"
+    assert len(publisher._unsent) == 1, "event must stay in _unsent when xadd fails"
+    assert len(publisher._pending) == 0, "a never-transmitted event is not awaiting ack"
 
 
 @pytest.mark.asyncio
@@ -273,6 +278,7 @@ async def test_xadd_success_also_sets_pending(tmp_path: Path) -> None:
     })
 
     assert len(publisher._pending) == 1
+    assert len(publisher._unsent) == 0
 
 
 # ── FIX-04: path containment in file handlers ─────────────────────────────────

@@ -489,7 +489,9 @@ async def test_drain_and_xadd_suppressed_while_paused(
     await publisher._drain_queue()
 
     assert publisher._client.xadd.call_count == 0
-    assert "paused1" in publisher._pending  # sembrado, pero sin transmitir
+    # D79/RN-173: sembrado en _unsent, pero sin transmitir.
+    assert "paused1" in publisher._unsent
+    assert "paused1" not in publisher._pending
 
 
 @pytest.mark.asyncio
@@ -516,7 +518,7 @@ async def test_attempt_ceiling_discards_via_retry_loop(
     stop_event = asyncio.Event()
     calls = {"n": 0}
 
-    async def _fake_sleep(_seconds: float) -> None:
+    async def _fake_wait(_stop: asyncio.Event) -> None:
         calls["n"] += 1
         if calls["n"] >= 4:
             stop_event.set()
@@ -524,14 +526,11 @@ async def test_attempt_ceiling_discards_via_retry_loop(
             t, p = pub._pending[event_id]
             pub._pending[event_id] = (t - _ACK_TIMEOUT_S - 1, p)
 
-    original_sleep = asyncio.sleep
-    asyncio.sleep = _fake_sleep  # type: ignore[assignment]
-    try:
-        await pub._retry_loop(stop_event)
-    finally:
-        asyncio.sleep = original_sleep  # type: ignore[assignment]
+    pub._wait_for_next_pass = _fake_wait  # type: ignore[method-assign]
+    await pub._retry_loop(stop_event)
 
     assert event_id not in pub._pending
+    assert event_id not in pub._unsent
     assert queue.contains(event_id) is False
     discarded = list(queue._discard_dir.glob("*.json"))
     assert len(discarded) == 1
