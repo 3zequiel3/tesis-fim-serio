@@ -1425,26 +1425,37 @@ scripts/register-agent.sh <agent_id>-2
 restauración de backup) genera muchos más eventos de los que llegan a la consola
 de inmediato.
 
-**Causa.** El consumer del stream `events` aplica un rate limit por ventana
-deslizante **por `agent_id`**: por defecto **`RATE_LIMIT_INGEST_EVENTS=100` cada
-`RATE_LIMIT_INGEST_WINDOW_SECONDS=60`**. Los eventos que exceden el presupuesto
-no se descartan: reciben un `event_nack` de tipo `rate_limited` con un
-`retry_after` derivado de esa misma ventana, y el agente los **reintenta** cuando
-se libera cupo.
+**Causa.** El consumer del stream `events` aplica un rate limit de tipo *token
+bucket* **por `agent_id`**: régimen sostenido de **100 eventos por minuto**
+(`RATE_LIMIT_INGEST_RATE_PER_S`, por defecto 100/60 tokens por segundo) con una
+**ráfaga de 3.000 eventos** (`RATE_LIMIT_INGEST_BURST`). Un agente que todavía no
+envió nada arranca con el balde lleno. Los eventos que exceden el presupuesto no
+se descartan: reciben un `event_nack` de tipo `rate_limited` con un `retry_after`
+igual al tiempo hasta el próximo token (≈0,6 s a 100 ev/min), y el agente los
+**reintenta**.
 
-**Qué significa en la práctica.** Una ráfaga de, por ejemplo, 3.000 eventos no se
-pierde, pero tarda: a 100 por minuto, el drenaje completo se extiende por unos 30
-minutos. Mientras tanto los eventos se acumulan en la cola local del agente
-(`/var/lib/fim-agent/queue`, con un tope de 100 MB y política drop‑oldest). Un
-evento que agota `publisher.max_publish_attempts` (20 por defecto, con reintentos
-cada ~60 s ≈ 20 horas) termina en `/var/lib/fim-agent/discarded` con razón
-`max_attempts_exceeded` — ahí sí hay pérdida, y el contenido de ese directorio es
-evidencia de una detección perdida, no datos descartables.
+**Qué significa en la práctica.** Una ráfaga de hasta ~3.000 eventos entra a la
+velocidad de ingesta del backend, sin rechazos. Por encima de eso el ritmo cae a
+~100 por minuto, y el balde tarda unos 30 minutos de silencio en recuperarse por
+completo. Mientras tanto los eventos excedentes se acumulan en la cola local del
+agente (`/var/lib/fim-agent/queue`, con un tope de 100 MB y política
+drop‑oldest). Un backlog muy superior a la ráfaga corre el riesgo de que un evento
+agote `publisher.max_publish_attempts` (20 por defecto) antes de entrar: termina en
+`/var/lib/fim-agent/discarded` con razón `max_attempts_exceeded` — ahí sí hay
+pérdida, y el contenido de ese directorio es evidencia de una detección perdida,
+no datos descartables.
 
-**Solución.** Si se espera una ráfaga legítima (una batería de medición, una
-migración), subir `RATE_LIMIT_INGEST_EVENTS` en el `.env` y recrear el backend.
-Los valores por defecto son los de producción; subirlos permanentemente cambia el
-perfil de protección contra un agente comprometido o en bucle.
+**Solución.** Si se espera una ráfaga legítima mayor (una migración, una batería
+de medición), subir `RATE_LIMIT_INGEST_BURST` y/o `RATE_LIMIT_INGEST_RATE_PER_S`
+en el `.env` y recrear el backend. Los valores por defecto son los de producción;
+subirlos permanentemente cambia el perfil de protección contra un agente
+comprometido o en bucle.
+
+**Variables heredadas.** `RATE_LIMIT_INGEST_EVENTS` y
+`RATE_LIMIT_INGEST_WINDOW_SECONDS` ya no existen y no tienen efecto. Si el entorno
+del backend todavía las define, el arranque registra una advertencia
+`config.legacy_ingest_rate_limit_ignored` con los nombres ignorados y sus
+reemplazos; borrarlas del `.env`.
 
 ### F.13 — `ADMIN_PASSWORD` del `.env` no se aplica
 
