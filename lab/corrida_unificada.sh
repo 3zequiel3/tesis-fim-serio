@@ -41,6 +41,18 @@ say "=== corrida unificada — candidato $TAG ==="
 say "reconstruyendo el backend desde el tag"
 git checkout -q "$TAG" -- . 2>/dev/null
 "${DC[@]}" build -q backend >/dev/null 2>&1
+# ── registro de migraciones (D84/RN-178) ─────────────────────────────────────
+# Runs BEFORE the backend starts: the backend refuses to start against a registry
+# that is behind its EXPECTED_SCHEMA_VERSION, so bringing it up first would leave
+# it restarting in a loop and the provenance check below could not `exec` into it.
+# See the "esquema" section below for why the registry alone is not enough.
+"${DC[@]}" up -d --wait db >/dev/null 2>&1 \
+  || { say "ABORTA: la base no levanto"; exit 1; }
+MIGRAR=(python3 scripts/migrar.py -f docker-compose.yml -f docker-compose.tls.yml -f "$LAB/docker-compose.mailpit.yml")
+MIG_OUT=$("${MIGRAR[@]}" 2>&1) \
+  || { say "ABORTA: migrar.py no pudo aplicar las migraciones pendientes: $MIG_OUT"; exit 1; }
+MIG_OUT=$("${MIGRAR[@]}" --verificar 2>&1) \
+  || { say "ABORTA: el registro schema_migrations no llega a la version esperada: $MIG_OUT"; exit 1; }
 # Bring up the SMTP sink alongside the backend. The harness used to assume it
 # was already running from an earlier manual start: a run once measured the
 # notification batteries with no sink at all, reported zero deliveries in all
@@ -66,17 +78,22 @@ cat "$OUT/env/procedencia.txt" | tee -a "$RES"
 [ "$CONT" = "$ARBOL" ] || { say "ABORTADO: la procedencia no coincide"; exit 1; }
 
 # ── el esquema tiene que coincidir con el modelo ──────────────────────────────
-# Migrations are applied by hand in this project (D3), and the harness never
-# applied them: a candidate whose model carried a new column ran against a table
-# that did not have it, every INSERT on `alerts` failed, and the notification
-# batteries reported zero deliveries. The dangerous part is what it did to the
-# other number — with no alerts created, the notification lane did no work at all
-# and the ingest drain looked FASTER than the previous candidate. A defect that
-# improves the headline figure is the one that gets published.
-say "aplicando migraciones y verificando el esquema"
-for f in "$REPO"/backend/db/migrations/*.sql; do
-  "${DC[@]}" exec -T db psql -U fim -d fim -q -f - < "$f" >/dev/null 2>&1
-done
+# A candidate whose model carried a new column once ran against a table that did
+# not have it: every INSERT on `alerts` failed and the notification batteries
+# reported zero deliveries. The dangerous part is what it did to the other number
+# — with no alerts created, the notification lane did no work at all and the
+# ingest drain looked FASTER than the previous candidate. A defect that improves
+# the headline figure is the one that gets published.
+#
+# Two independent checks (D84/RN-178). The `schema_migrations` registry proves
+# WHICH scripts ran: `migrar.py` applies the pending ones and `--verificar` proves
+# the registry reaches the candidate's tree. The column comparison below proves
+# that the model HAS a script for every column: the registry cannot know about a
+# column nobody wrote a migration for. This harness never runs `--marcar-hasta`:
+# registering automatically would hide the very drift the guard exists to show.
+# The registry part of the check ran earlier, before the backend started (see
+# "registro de migraciones" above); only the column comparison runs here.
+say "verificando que el modelo no declare columnas sin migracion"
 FALTANTES=$("${DC[@]}" exec -T backend python - <<'PY' 2>/dev/null | tr -d '\r'
 # Compara los campos que el modelo declara contra las columnas que la tabla
 # tiene. No alcanza con correr las migraciones: hay que verificar el resultado.

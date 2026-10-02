@@ -123,8 +123,13 @@ echo '[1/6] Build frontend and isolated images'
 (cd "$RUN_ROOT/frontend" && pnpm run build) > "$EVIDENCE/frontend-build.log" 2>&1
 dc build backend frontend > "$EVIDENCE/compose-build.log" 2>&1
 
-echo '[2/6] Start isolated DB, Valkey, backend, SSE proxy and frontend'
-dc up -d db valkey backend sse-proxy frontend > "$EVIDENCE/compose-up.log" 2>&1
+echo '[2/6] Start isolated DB, register the schema, then Valkey, backend, SSE proxy and frontend'
+dc up -d --wait db > "$EVIDENCE/compose-up.log" 2>&1
+# D84/RN-178: the backend refuses to start without the schema registry. The DB is new, so
+# migrar.py registers every version without executing the migrations; create_all builds the tables.
+python3 "$ROOT/scripts/migrar.py" -p "$FIM_LAB_PROJECT" -f "$COMPOSE" > "$EVIDENCE/migrar.log" 2>&1 \
+  || { echo 'migrar.py failed; see migrar.log' >&2; exit 1; }
+dc up -d db valkey backend sse-proxy frontend >> "$EVIDENCE/compose-up.log" 2>&1
 for _ in $(seq 1 90); do curl -fsS "http://127.0.0.1:$FIM_LAB_API_PORT/health" >/dev/null && break; sleep 1; done
 curl -fsS "http://127.0.0.1:$FIM_LAB_API_PORT/health" >/dev/null
 curl -fsS "http://127.0.0.1:$FIM_LAB_FRONTEND_PORT" >/dev/null
