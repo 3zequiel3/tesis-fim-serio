@@ -1,0 +1,9 @@
+# Override efímero para la variante experimental de la Batería 5.
+# Sube el presupuesto de ingesta para que el drenaje no quede estrangulado por
+# el límite nominal (P1 del plan de medición; D38/RN-132 exige declarar el valor
+# efectivo usado en la corrida). No se versiona: vive fuera del repositorio.
+services:
+  backend:
+    environment:
+      RATE_LIMIT_INGEST_EVENTS: "100000"
+      RATE_LIMIT_INGEST_WINDOW_SECONDS: "60"
