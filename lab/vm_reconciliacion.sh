@@ -38,7 +38,22 @@ for d in baseline queue discarded journal quarantine; do
   chmod 0700 "$STATE_DIR/$d"
   chown "$AGENT_USER:$AGENT_USER" "$STATE_DIR/$d"
 done
-rm -f "$STATE_DIR/state.json" "$STATE_DIR/state.tmp"
+# Keep state.json: it holds the command-stream cursor and the local ruleset.
+# Deleting it made the agent replay the whole `commands` stream from 0-0
+# (209,619 stale event_acks in the aborted run v5-eval-20261002T215744Z), which
+# starved publishing and inflated latency to minutes. Only initialized_roots is
+# cleared, so the next start silently baselines every root (D80/RN-174).
+rm -f "$STATE_DIR/state.tmp"
+if [ -f "$STATE_DIR/state.json" ]; then
+  python3 - "$STATE_DIR/state.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d["initialized_roots"] = []
+json.dump(d, open(p, "w"))
+PY
+  chown "$AGENT_USER:$AGENT_USER" "$STATE_DIR/state.json"
+fi
 find "$WATCH" -mindepth 1 -delete 2>/dev/null
 mkdir -p "$WATCH/critico"
 
