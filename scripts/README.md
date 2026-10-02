@@ -584,3 +584,16 @@ la batería no modificó nada.
 `analisis_mmap.py` sale con código 2 y un mensaje claro si falta `psycopg`, y con
 código 1 si el manifiesto no tiene operaciones correlacionables (JSONL vacío o
 truncado), antes de intentar escribir el CSV.
+
+## Análisis añadidos para `v5.0-tesis` (A-1, A-2, A-3) y caso D de la Batería 8 (B-5)
+
+Todos de sólo biblioteca estándar.
+
+| Script | Qué hace | Verificación de referencia |
+|---|---|---|
+| `p99_bootstrap.py` | A-1. P99 por archivo y combinado de la columna `latencia_ms`, con IC95 percentil de 10.000 remuestreos (`random.Random(20261001)` por serie). Acepta archivos o el directorio del paquete (`latencia/run-*/eventos.csv`). | El P99 puntual coincide con `latencia/resumen.txt` (46,274 ms en `v2-eval-20260923T215624Z`). |
+| `fuera_de_orden.py` | A-2. Ordena por `received_at` y cuenta los eventos cuyo `detected_at` es anterior al máximo ya recibido; informa únicos y duplicados. Entiende `2026-09-23 23:13:06.162939+00` (psql) e ISO con `Z`. | `…/resiliencia/run-03/eventos.csv` → `fuera_de_orden=359` (comparar sólo pares consecutivos da 1: no es la métrica). |
+| `descomponer_drenaje.py` | A-3. `reconexion_agente` (t0 → primer `xadd_succeeded` de la traza), `sin_consumo` (→ primer `received_at`), `consumo` (primer → último `received_at`) y `drenaje` (t0 → último). t0 sale de la línea `FIN_CORTE` del log de la Batería 5 (o `(t0)` en logs anteriores). Con `--backend-pre/--backend-post` suma `StartedAt` y `RestartCount`. | run-03: reconexión 0,426 s, sin consumo 1,302 s, consumo 35,257 s, drenaje 36,985 s. |
+| `bateria_mmap.py --casos C,D` | B-5, caso D: `mmap → close(fd) → dormir d ms → escribir → msync → munmap`, d ∈ {0, 5, 10, 20, 50, 100, 500} ms. Sin hipótesis fijada (`deteccion_agente_esperada` null); `analisis_mmap.py` da una fila por retardo con `detectada` / `evento_sin_cambio` / `sin_evento`. Se pide con `C,D` para conservar el testigo de validez. | — |
+
+`latencia_por_tipo.py` acepta ahora también la carpeta de una repetición (`latencia/run-0N/`).
