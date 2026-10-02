@@ -19,7 +19,9 @@ QUÉ ESCRIBE
     `DB_PASSWORD`, `JWT_SECRET_CURRENT` (32 bytes hex), `JWT_SECRET_PREVIOUS`
     (vacío), `ADMIN_USERNAME`, `ADMIN_PASSWORD`, las rutas canónicas de
     certificados (`CA_CERT_PATH`, `CA_KEY_PATH`, `BACKEND_CERT_PATH`,
-    `BACKEND_KEY_PATH`), `CORS_ALLOWED_ORIGINS` (derivado de
+    `BACKEND_KEY_PATH`), la ruta de la clave de envoltura del secreto de los
+    agentes (`AGENT_SECRET_WRAP_KEY_PATH`, D86/RN-180; sólo la ruta: la clave
+    la genera `certs-init` en el volumen `backend_secrets`), `CORS_ALLOWED_ORIGINS` (derivado de
     `FIM_PUBLIC_HOSTS` ∪ `localhost` con AMBOS esquemas, `http` y `https` —
     D59/RN-153, revisado 2026-09-15 para que cambiar el modo de consola no
     exija editar `CORS_ALLOWED_ORIGINS` a mano), `FIM_PUBLIC_HOSTS`, las seis `CONSOLE_*`,
@@ -211,6 +213,7 @@ def render_env(values: dict[str, str]) -> str:
         f"CA_KEY_PATH={values['CA_KEY_PATH']}",
         f"BACKEND_CERT_PATH={values['BACKEND_CERT_PATH']}",
         f"BACKEND_KEY_PATH={values['BACKEND_KEY_PATH']}",
+        f"AGENT_SECRET_WRAP_KEY_PATH={values['AGENT_SECRET_WRAP_KEY_PATH']}",
         "",
         "# --- CORS (RN-95, D59/RN-153) ------------------------------------------------",
         f"CORS_ALLOWED_ORIGINS={values['CORS_ALLOWED_ORIGINS']}",
@@ -350,6 +353,7 @@ def run(argv: list[str] | None = None) -> int:
             "CA_KEY_PATH": "/certs/ca-key.pem",
             "BACKEND_CERT_PATH": "/certs/backend.pem",
             "BACKEND_KEY_PATH": "/certs/backend-key.pem",
+            "AGENT_SECRET_WRAP_KEY_PATH": "/secrets/agent-secret-wrap.key",
             "CORS_ALLOWED_ORIGINS": cors_origins,
             "FIM_PUBLIC_HOSTS": fim_public_hosts_raw,
             "CONSOLE_TLS_MODE": args.console_tls_mode,

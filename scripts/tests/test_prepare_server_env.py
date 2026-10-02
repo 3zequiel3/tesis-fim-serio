@@ -169,7 +169,7 @@ def test_run_crea_env_0600_con_todas_las_claves(tmp_path) -> None:
     required_keys = [
         "DB_PASSWORD", "JWT_SECRET_CURRENT", "ADMIN_USERNAME", "ADMIN_PASSWORD",
         "CA_CERT_PATH", "CA_KEY_PATH", "BACKEND_CERT_PATH", "BACKEND_KEY_PATH",
-        "CORS_ALLOWED_ORIGINS", "FIM_PUBLIC_HOSTS", "CONSOLE_TLS_MODE",
+        "AGENT_SECRET_WRAP_KEY_PATH", "CORS_ALLOWED_ORIGINS", "FIM_PUBLIC_HOSTS", "CONSOLE_TLS_MODE",
         "CONSOLE_HTTP_PORT", "CONSOLE_HTTPS_PORT", "CONSOLE_TLS_DIR",
         "CONSOLE_TLS_CERT_FILE", "CONSOLE_TLS_KEY_FILE", "N8N_WEBHOOK_URL",
         "N8N_HEALTH_URL", "N8N_ENCRYPTION_KEY", "N8N_INSTANCE_OWNER_EMAIL",
@@ -186,6 +186,8 @@ def test_run_crea_env_0600_con_todas_las_claves(tmp_path) -> None:
         assert values[key] != "", key
     # JWT_SECRET_PREVIOUS is intentionally empty on first generation.
     assert values["JWT_SECRET_PREVIOUS"] == ""
+    # D86/RN-180: only the path of the wrapping key is written; certs-init generates the key.
+    assert values["AGENT_SECRET_WRAP_KEY_PATH"] == "/secrets/agent-secret-wrap.key"
 
 
 def test_run_env_existente_exit_distinto_de_cero_e_identico(tmp_path) -> None:

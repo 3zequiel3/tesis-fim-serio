@@ -26,6 +26,11 @@ volumes:
   valkey_data:
   n8n_data:
   backend_certs:
+  # Wrapping key for the agent shared secret at rest (D86/RN-180, change 68). A volume of its
+  # own, NOT backend_certs: the lab `agent` container mounts backend_certs (below), and the key
+  # must be mounted only by certs-init (sole generator, rw) and backend (ro). Back it up
+  # SEPARATELY from pg_data; losing it forces a re-bootstrap of every agent.
+  backend_secrets:
   # Material TLS propio de Valkey (certificado de servidor, clave y una copia
   # de ca.pem) — NUNCA la clave privada de la CA (D53/RN-147, change 52).
   valkey_tls:
@@ -209,8 +214,10 @@ services:
       CONSOLE_TLS_GENERATED_DIR: /console-certs
       FIM_PUBLIC_HOSTS: ${FIM_PUBLIC_HOSTS:-}
       CONSOLE_TLS_MODE: ${CONSOLE_TLS_MODE:-off}
+      AGENT_SECRET_WRAP_KEY_PATH: ${AGENT_SECRET_WRAP_KEY_PATH:-/secrets/agent-secret-wrap.key}
     volumes:
       - backend_certs:/certs
+      - backend_secrets:/secrets
       - valkey_tls:/valkey-certs
       - console_tls_generated:/console-certs
     networks:
@@ -260,6 +267,9 @@ services:
       # que SAN, cookie Secure y esquema de nginx no puedan divergir.
       FIM_PUBLIC_HOSTS: ${FIM_PUBLIC_HOSTS:-}
       CONSOLE_TLS_MODE: ${CONSOLE_TLS_MODE:-off}
+      # D86/RN-180: wrapping key for the agent shared secret; certs-init generates it in
+      # backend_secrets and the backend loads it read-only at startup.
+      AGENT_SECRET_WRAP_KEY_PATH: ${AGENT_SECRET_WRAP_KEY_PATH:-/secrets/agent-secret-wrap.key}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1}
       # Notificaciones (D43/RN-137). NINGUNA de estas variables lleva default.
       #
@@ -295,6 +305,7 @@ services:
       RATE_LIMIT_INGEST_WINDOW_SECONDS: ${RATE_LIMIT_INGEST_WINDOW_SECONDS:-}
     volumes:
       - backend_certs:/certs
+      - backend_secrets:/secrets:ro
     ports:
       - "8443:8443"
       - "8444:8444"
