@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Battery 5 — offline resilience and drain after reconnection (items 36-43, D38/RN-132).
 # Runs on the central server; the load generator is invoked on the VM through multipass.
+# TAG (env, required) names the candidate; the repository must be checked out at it (L-13).
 set -uo pipefail
 
 REPO=/home/ezequiel/Facultad/tesis/tesis-fim-serio
-OUT=${1:?usage: bateria5.sh <output_dir> <label>   (DC_FILES="<compose files>" optional)}
+OUT=${1:?usage: TAG=<tag> bateria5.sh <output_dir> <label>   (DC_FILES="<compose files>" optional)}
 ETIQUETA=${2:?}
 LOG="$OUT/bateria5_${ETIQUETA}.log"
 mkdir -p "$OUT"
 cd "$REPO" || exit 1
+# shellcheck source=lib_arnes.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib_arnes.sh"
 
 ts() { date -u +%Y-%m-%dT%H:%M:%S.%6NZ; }
 log() { echo "[$(ts)] $*" | tee -a "$LOG"; }
@@ -48,14 +51,30 @@ log "ingest_rate_limit: rate_per_s=$("${DC[@]}" exec -T backend printenv RATE_LI
 log "legacy_RATE_LIMIT_INGEST_EVENTS='$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_EVENTS 2>/dev/null | tr -d '\r')' legacy_RATE_LIMIT_INGEST_WINDOW_SECONDS='$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_WINDOW_SECONDS 2>/dev/null | tr -d '\r')'"
 BACKEND_ID_BEFORE=$(backend_id)
 log "backend_container_id_before=$BACKEND_ID_BEFORE"
-log "candidate=$(git rev-parse HEAD) tree=$(git rev-parse HEAD^{tree}) tag=v1.0-tesis"
+# L-13: TAG required, HEAD must be the tag's commit, agent/backend/frontend/n8n clean.
+# Writes $OUT/env/procedencia.txt (tag=, commit=).
+procedencia_exigir "${TAG:-}" "$OUT/env" 2>&1 | tee -a "$LOG"; [ "${PIPESTATUS[0]}" = "0" ] || exit 1
+log "candidate=$COMMIT tree=$(git rev-parse HEAD^{tree}) tag=$TAG"
 log "initial: events=$(q_events) queue+discarded=$(q_counts) valkey_6380=$(q_valkey)"
+
+# L-14: preflight guards (schema registry, clock on host and VM, SMTP sink, baseline
+# purged, ingest limit == product defaults unless RATE_LIMIT_VARIANT is declared,
+# Valkey AOF on). Any failure aborts BEFORE the cut and before any generator write.
+if ! PF=$(preflight_todo "$OUT/env" 2>&1); then
+  log "ABORTED by preflight: $PF"; exit 1
+fi
+log "preflight ok: $(tr '\n' ' ' < "$OUT/env/preflight.txt")"
+BACKEND_CID=$(backend_id)
+docker inspect -f 'id={{.Id}} started_at={{.State.StartedAt}} restart_count={{.RestartCount}}' "$BACKEND_CID" > "$OUT/backend_inspect_pre.txt" 2>&1
+log "backend_inspect_pre: $(cat "$OUT/backend_inspect_pre.txt")"
 
 # Protocol cut (plan_medicion_cap5.md:338): connectivity with Valkey is severed, not the
 # backend. Stopping the backend instead leaves Valkey up, the agent keeps XADDing during the
 # outage, and events age past the 300 s skew window inside the stream — that measures a
 # different scenario (backend down, broker up) and must be labelled as such.
 log "--- phase 1: stop Valkey (5-minute outage, service down) ---"
+INICIO_CORTE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+log "INICIO_CORTE t=$INICIO_CORTE"
 "${DC[@]}" stop valkey >/dev/null 2>&1
 log "valkey stopped; valkey_6380=$(q_valkey)"
 
@@ -68,6 +87,9 @@ log "--- phase 3: restore Valkey and time the drain ---"
 # not named here, and --no-recreate keeps a configuration difference from replacing a
 # running container mid-measurement (D85/RN-179, D-9).
 "${DC[@]}" --profile app up -d --no-recreate valkey >/dev/null 2>&1
+# FIN_CORTE: the restore command has returned. scripts/descomponer_drenaje.py (A-3) takes
+# t0 from this line; "valkey up (t0)" below is the later instant the TLS port answered.
+log "FIN_CORTE t=$(ts)"
 # t0 is the instant connectivity is actually restored: the TLS port serving again.
 for _ in $(seq 1 60); do [ "$(q_valkey)" = "1" ] && break; sleep 1; done
 T0=$(date -u +%s.%N)
@@ -106,6 +128,12 @@ done
 # repetition would not measure the product's drain (D85/RN-179, D-9).
 BACKEND_ID_AFTER=$(backend_id)
 log "backend_container_id_after=$BACKEND_ID_AFTER"
+# docker inspect pre/post and the backend logs since the cut began: they confirm or
+# discard the "the backend restarted during the cut" hypothesis (run-03).
+docker inspect -f 'id={{.Id}} started_at={{.State.StartedAt}} restart_count={{.RestartCount}}' "${BACKEND_ID_AFTER:-$BACKEND_CID}" > "$OUT/backend_inspect_post.txt" 2>&1
+log "backend_inspect_post: $(cat "$OUT/backend_inspect_post.txt")"
+"${DC[@]}" logs --no-color --since "$INICIO_CORTE" backend > "$OUT/backend_logs_desde_inicio_corte.log" 2>&1
+log "backend logs since INICIO_CORTE: $(wc -l < "$OUT/backend_logs_desde_inicio_corte.log") lines"
 INVALID=0
 if [ "$BACKEND_ID_BEFORE" != "$BACKEND_ID_AFTER" ]; then
   INVALID=1
