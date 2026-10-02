@@ -8,7 +8,7 @@ REPO=/home/ezequiel/Facultad/tesis/tesis-fim-serio
 OUT=$REPO/tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/bateria4
 LAB=/home/ezequiel/fim-lab
 RES=$LAB/bateria4.out
-DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml -f "$LAB/docker-compose.exp.yml")
+DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml)
 cd "$REPO" || exit 1
 mkdir -p "$OUT"
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -19,7 +19,8 @@ say "=== Battery 4 on candidate v1.0-tesis ==="
   echo "candidate_commit=$(git rev-parse 7a906c2)"
   echo "candidate_tag=v1.0-tesis"
   echo "backend_tree_sha256=$(docker compose -f docker-compose.yml -f docker-compose.tls.yml exec -T backend sh -c 'cd /app && find app -name "*.py" -exec sha256sum {} \;' | sort -k2 | sha256sum | cut -d' ' -f1)"
-  echo "rate_limit_ingest_events=$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_EVENTS | tr -d '\r')  # elevado, declarado por D38/RN-132"
+  echo "rate_limit_ingest_rate_per_s=$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_RATE_PER_S | tr -d '\r')  # product default, D85/RN-179"
+  echo "rate_limit_ingest_burst=$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_BURST | tr -d '\r')  # product default, D85/RN-179"
   echo "n8n_channel=email (slack y ticketing deshabilitados a proposito)"
   echo "smtp=smtp.gmail.com:587 STARTTLS, canal real"
   echo "interval=events.received_at -> alerts.delivered_at"

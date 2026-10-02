@@ -18,7 +18,6 @@ LAB=/home/ezequiel/fim-lab
 OUT=$REPO/tesis/cierre/evidencia/v2-eval-20260922T175053Z
 RES=$LAB/rehacer.out
 DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml -f "$LAB/docker-compose.mailpit.yml")
-DCX=("${DC[@]}" -f "$LAB/docker-compose.exp.yml")
 N=300
 cd "$REPO" || exit 1
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -26,11 +25,30 @@ say() { echo "[$(ts)] $*" | tee -a "$RES"; }
 purgar() { bash "$LAB/purgar_stream.sh" >/dev/null 2>&1; }
 mp_count() { curl -s http://127.0.0.1:8025/api/v1/messages 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["messages_count"])' 2>/dev/null || echo 0; }
 
+# Measurement protocol (D85/RN-179, D-9): every measurement starts with the ingest token
+# bucket full. The bucket lives in the backend's memory, so the backend container is
+# recreated at the END of reset_lab and the function returns only once the consumer is
+# running again (bounded wait, not a fixed sleep). NEVER call this during a Valkey cut.
+recreate_backend() {
+  local since id
+  since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  "${DC[@]}" --profile app up -d --force-recreate backend >/dev/null 2>&1
+  id=$("${DC[@]}" --profile app ps -q backend 2>/dev/null | tr -d '\r')
+  say "backend recreated at $since id=$id"
+  for _ in $(seq 1 60); do
+    "${DC[@]}" logs --since "$since" backend 2>/dev/null | rg -q 'consumer\.started' && return 0
+    sleep 2
+  done
+  say "ABORTED: the backend did not resume consuming after the recreation"
+  return 1
+}
+
 reset_lab() {
   multipass exec fim-host -- sudo sh /tmp/vm_reset.sh
   "${DC[@]}" exec -T db psql -U fim -d fim -tAc "DELETE FROM alerts; DELETE FROM events; DELETE FROM rejected_events_audit;" >/dev/null 2>&1
   purgar
   sleep 18
+  recreate_backend || exit 1
 }
 
 say "=== rehaciendo notificacion y resiliencia ==="
@@ -39,12 +57,15 @@ rm -rf "$OUT/notificacion" "$OUT/resiliencia"
 mkdir -p "$OUT/notificacion" "$OUT/resiliencia"
 
 # ── notificacion ──────────────────────────────────────────────────────────────
-"${DCX[@]}" --profile app up -d backend >/dev/null 2>&1
-sleep 25
+# One reset for the whole battery: the three scenarios are parts of the same battery, not
+# repetitions, so the backend is NOT recreated between them (D85/RN-179, D-9).
+reset_lab
+RL_PREV=0
 "${DC[@]}" cp "$LAB/bateria4_publicador.py" backend:/tmp/b4.py >/dev/null 2>&1
 {
   echo "muestra_por_escenario=$N  # reducida desde 1000: la cadena satura y el pedido admite declarar el valor usado"
-  echo "rate_limit_ingest_events=$("${DCX[@]}" exec -T backend printenv RATE_LIMIT_INGEST_EVENTS | tr -d '\r')"
+  echo "rate_limit_ingest_rate_per_s=$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_RATE_PER_S | tr -d '\r')  # product default, D85/RN-179"
+  echo "rate_limit_ingest_burst=$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_BURST | tr -d '\r')"
   echo "canal=mailpit (SMTP real, local)"
   echo "intervalo=events.received_at -> alerts.delivered_at"
   echo "costo_notificacion_aislada_ms=302.8 media / 349.4 max (n=10)"
@@ -56,7 +77,7 @@ notif() {  # $1 etiqueta  $2 concurrencia
   purgar
   curl -s -X DELETE http://127.0.0.1:8025/api/v1/messages >/dev/null 2>&1
   sleep 3
-  "${DCX[@]}" exec -T backend sh -c "cd /app && PYTHONPATH=/app python /tmp/b4.py $1 $N $2" >> "$RES" 2>&1
+  "${DC[@]}" exec -T backend sh -c "cd /app && PYTHONPATH=/app python /tmp/b4.py $1 $N $2" >> "$RES" 2>&1
   prev=-1; est=0
   for _ in $(seq 1 120); do
     n=$("${DC[@]}" exec -T db psql -U fim -d fim -tAc "SELECT count(*) FROM alerts WHERE delivered_at IS NOT NULL;" | tr -d ' \r')
@@ -65,6 +86,11 @@ notif() {  # $1 etiqueta  $2 concurrencia
   done
   "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT a.id, EXTRACT(EPOCH FROM (a.delivered_at - e.received_at))*1000 AS notif_ms FROM alerts a JOIN events e ON e.id = a.event_id WHERE a.delivered_at IS NOT NULL) TO STDOUT WITH CSV HEADER" > "$OUT/notificacion/$1.csv" 2>/dev/null
   say "escenario $1: $(( $(wc -l < "$OUT/notificacion/$1.csv") - 1 )) de $N entregadas; correos en mailpit: $(mp_count)"
+  # rate_limited rejections of THIS scenario (the audit table is cumulative since the reset);
+  # a non-zero count is a result to report, not something to fix by recreating the backend.
+  RL_TOTAL=$("${DC[@]}" exec -T db psql -U fim -d fim -tAc "SELECT count(*) FROM rejected_events_audit WHERE reason = 'rate_limited';" 2>/dev/null | tr -d ' \r')
+  echo "$1 rate_limited=$(( ${RL_TOTAL:-0} - RL_PREV ))" >> "$OUT/notificacion/rate_limited.txt"
+  RL_PREV=${RL_TOTAL:-0}
 }
 notif secuencial 1
 notif conc50 50
@@ -89,10 +115,10 @@ for i in 1 2 3; do
   R=$(printf "run-%02d" "$i"); mkdir -p "$OUT/resiliencia/$R"
   say "repeticion $R"
   reset_lab
-  "${DCX[@]}" --profile app up -d backend >/dev/null 2>&1
-  sleep 20
   say "$R: stream en $(docker compose -f docker-compose.yml -f docker-compose.tls.yml exec -T valkey sh -c 'valkey-cli --tls --cert /certs/valkey.pem --key /certs/valkey-key.pem --cacert /certs/ca.pem -p 6380 XLEN events' 2>/dev/null | tr -d '\r') antes de empezar"
-  DC_OVERRIDE="$LAB/docker-compose.exp.yml" bash "$LAB/bateria5.sh" "$OUT/resiliencia/$R" 100000 "$R"
+  DC_FILES="docker-compose.yml docker-compose.tls.yml $LAB/docker-compose.mailpit.yml" \
+    bash "$LAB/bateria5.sh" "$OUT/resiliencia/$R" "$R" \
+    || say "$R: INVALID REPETITION — the backend was recreated during the cut"
   "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT event_id, path, detected_at, received_at FROM events ORDER BY received_at) TO STDOUT WITH CSV HEADER" > "$OUT/resiliencia/$R/eventos.csv" 2>/dev/null
   "${DC[@]}" exec -T db psql -U fim -d fim -tAc "SELECT json_build_object('eventos', count(*), 'unicos', count(DISTINCT event_id), 'ventana_s', round(EXTRACT(EPOCH FROM (max(received_at)-min(received_at)))::numeric,3)) FROM events;" > "$OUT/resiliencia/$R/counts.json" 2>/dev/null
   multipass exec fim-host -- sudo cp /var/lib/fim-agent/traza_b3.jsonl "/srv/evidencia/traza_$R.jsonl" 2>/dev/null
@@ -101,9 +127,6 @@ for i in 1 2 3; do
   say "$R: $(cat "$OUT/resiliencia/$R/counts.json" 2>/dev/null)"
 done
 
-say "restaurando el limite nominal"
-"${DC[@]}" --profile app up -d --force-recreate backend >/dev/null 2>&1
-sleep 20
 say "resellando el paquete"
 cd "$OUT" && rm -f SHA256SUMS && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
 say "sellado: $(wc -l < SHA256SUMS) archivos | $(sha256sum -c SHA256SUMS 2>/dev/null | grep -c ': OK$') OK"

@@ -27,6 +27,17 @@ multipass exec fim-host -- sudo systemctl start fim-agent
 sleep 20
 echo "[$(ts)] estado inicial: eventos=$("${DC[@]}" exec -T db psql -U fim -d fim -tAc 'SELECT count(*) FROM events;' | tr -d ' ') valkey6380=$(ss -lntp 2>/dev/null | grep -c '0.0.0.0:6380')"
 
-echo "[$(ts)] lanzando Batería 5 (nominal, 100/60 s)"
-bash /home/ezequiel/fim-lab/bateria5.sh "$D" 100 nominal
+# Measurement protocol (D85/RN-179, D-9): start with the ingest token bucket full by
+# recreating the backend BEFORE the battery (never during the Valkey cut), and wait
+# (bounded) until its consumer is running again.
+SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+"${DC[@]}" --profile app up -d --force-recreate backend >/dev/null 2>&1
+echo "[$(ts)] backend recreado id=$("${DC[@]}" --profile app ps -q backend | tr -d '\r')"
+for _ in $(seq 1 60); do
+  "${DC[@]}" logs --since "$SINCE" backend 2>/dev/null | rg -q 'consumer\.started' && break
+  sleep 2
+done
+
+echo "[$(ts)] lanzando Batería 5 (límite por defecto del producto, D85/RN-179)"
+bash /home/ezequiel/fim-lab/bateria5.sh "$D" nominal
 echo "[$(ts)] fin"

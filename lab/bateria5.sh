@@ -4,22 +4,30 @@
 set -uo pipefail
 
 REPO=/home/ezequiel/Facultad/tesis/tesis-fim-serio
-OUT=${1:?usage: bateria5.sh <output_dir> <rate_limit_events> <label>}
-LIMIT=${2:?}
-ETIQUETA=${3:?}
+OUT=${1:?usage: bateria5.sh <output_dir> <label>   (DC_FILES="<compose files>" optional)}
+ETIQUETA=${2:?}
 LOG="$OUT/bateria5_${ETIQUETA}.log"
-COMPOSE=${DC_OVERRIDE:-}
 mkdir -p "$OUT"
 cd "$REPO" || exit 1
 
-# ALWAYS both compose files: the override publishes Valkey over TLS on 6380.
-# Omitting it recreates the services without TLS and the agent loses the transport
-# (invalid attempt of 2026-09-17T22:41:18Z).
-DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml)
-[ -n "$COMPOSE" ] && DC+=(-f "$COMPOSE")
-
 ts() { date -u +%Y-%m-%dT%H:%M:%S.%6NZ; }
 log() { echo "[$(ts)] $*" | tee -a "$LOG"; }
+
+# The caller provides the COMPLETE list of compose files (DC_FILES, space separated):
+# exactly the set it used to bring the backend up. Compose recreates any service whose
+# effective configuration differs from the running container's, so a different file set
+# here (e.g. without docker-compose.mailpit.yml, which changes the backend environment)
+# can recreate the backend in the middle of the measurement (D85/RN-179, D-9).
+# Base + TLS are ALWAYS required: the TLS file publishes Valkey over TLS on 6380.
+# Omitting it recreates the services without TLS and the agent loses the transport
+# (invalid attempt of 2026-09-17T22:41:18Z).
+read -r -a COMPOSE_FILES <<<"${DC_FILES:-docker-compose.yml docker-compose.tls.yml}"
+for required in docker-compose.yml docker-compose.tls.yml; do
+  printf '%s\n' "${COMPOSE_FILES[@]}" | rg -q -x "(.*/)?${required//./\\.}" \
+    || { echo "ABORTED: DC_FILES must include $required (got: ${COMPOSE_FILES[*]})" >&2; exit 1; }
+done
+DC=(docker compose)
+for f in "${COMPOSE_FILES[@]}"; do DC+=(-f "$f"); done
 
 # VM-side probes MUST go through transferred scripts: multipass exec re-parses
 # inline quoting, so `bash -c 'ls <dir> | wc -l'` ran `bash -c ls` in the working
@@ -30,7 +38,16 @@ q_queue()    { q_counts | awk '{print $1}'; }
 q_discard()  { q_counts | awk '{print $2}'; }
 q_valkey()   { ss -lntp 2>/dev/null | grep -c '0.0.0.0:6380'; }
 
-log "=== Battery 5 — label=$ETIQUETA rate_limit=${LIMIT}/60s ==="
+backend_id() { "${DC[@]}" --profile app ps -q backend 2>/dev/null | tr -d '\r'; }
+
+# Effective ingest limit, read from the running backend (D38/RN-132, D85/RN-179).
+# The removed variables are only reported: they are ignored by the backend.
+log "=== Battery 5 — label=$ETIQUETA ==="
+log "compose_files=${COMPOSE_FILES[*]}"
+log "ingest_rate_limit: rate_per_s=$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_RATE_PER_S 2>/dev/null | tr -d '\r') burst=$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_BURST 2>/dev/null | tr -d '\r')"
+log "legacy_RATE_LIMIT_INGEST_EVENTS='$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_EVENTS 2>/dev/null | tr -d '\r')' legacy_RATE_LIMIT_INGEST_WINDOW_SECONDS='$("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_WINDOW_SECONDS 2>/dev/null | tr -d '\r')'"
+BACKEND_ID_BEFORE=$(backend_id)
+log "backend_container_id_before=$BACKEND_ID_BEFORE"
 log "candidate=$(git rev-parse HEAD) tree=$(git rev-parse HEAD^{tree}) tag=v1.0-tesis"
 log "initial: events=$(q_events) queue+discarded=$(q_counts) valkey_6380=$(q_valkey)"
 
@@ -47,11 +64,14 @@ multipass exec fim-host -- sudo sh /tmp/vm_gen.sh "$ETIQUETA" >> "$LOG" 2>&1
 log "generator finished; queue+discarded=$(q_counts)"
 
 log "--- phase 3: restore Valkey and time the drain ---"
-"${DC[@]}" --profile app up -d valkey backend >/dev/null 2>&1
+# Restore ONLY Valkey and never recreate: the backend was not stopped by the cut, so it is
+# not named here, and --no-recreate keeps a configuration difference from replacing a
+# running container mid-measurement (D85/RN-179, D-9).
+"${DC[@]}" --profile app up -d --no-recreate valkey >/dev/null 2>&1
 # t0 is the instant connectivity is actually restored: the TLS port serving again.
 for _ in $(seq 1 60); do [ "$(q_valkey)" = "1" ] && break; sleep 1; done
 T0=$(date -u +%s.%N)
-log "valkey+backend up (t0); valkey_6380=$(q_valkey)"
+log "valkey up (t0); valkey_6380=$(q_valkey)"
 
 PREV=-1; STABLE=0
 for i in $(seq 1 1400); do
@@ -81,8 +101,21 @@ for i in $(seq 1 1400); do
   sleep 5
 done
 
+# The backend container must be the same one that was running before phase 1: a
+# recreation during the cut refills the token bucket and restarts the consumer, so the
+# repetition would not measure the product's drain (D85/RN-179, D-9).
+BACKEND_ID_AFTER=$(backend_id)
+log "backend_container_id_after=$BACKEND_ID_AFTER"
+INVALID=0
+if [ "$BACKEND_ID_BEFORE" != "$BACKEND_ID_AFTER" ]; then
+  INVALID=1
+  log "INVALID: the backend container was recreated during the run (id before != after)"
+  touch "$OUT/INVALID_${ETIQUETA}"
+fi
+
 log "--- summary ---"
 log "final: events=$(q_events) queue+discarded=$(q_counts)"
 "${DC[@]}" exec -T db psql -U fim -d fim -c "SELECT count(*) AS events, count(DISTINCT event_id) AS unique_events FROM events;" >> "$LOG" 2>&1
 "${DC[@]}" exec -T db psql -U fim -d fim -c "SELECT reason, count(*) FROM rejected_events_audit GROUP BY 1;" >> "$LOG" 2>&1
 log "=== end ==="
+[ "$INVALID" = "0" ] || exit 1

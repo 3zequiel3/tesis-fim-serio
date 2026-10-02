@@ -21,7 +21,6 @@ OUT=$REPO/tesis/cierre/evidencia/v2-eval-$TS
 RES=$LAB/corrida_unificada.out
 CERTS=$LAB/suites_certs
 DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml -f "$LAB/docker-compose.mailpit.yml")
-DCX=("${DC[@]}" -f "$LAB/docker-compose.exp.yml")
 cd "$REPO" || exit 1
 mkdir -p "$OUT"/{env,suites,latencia,control,notificacion,resiliencia,diagnostico,invalidos}
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -191,9 +190,16 @@ say "capturando el entorno"
 docker images --digests --format '{{.Repository}}:{{.Tag}} {{.Digest}}' > "$OUT/env/images.txt" 2>&1
 mkdir -p "$OUT/env/config"
 for f in docker-compose.yml docker-compose.tls.yml; do cp "$f" "$OUT/env/config/"; done
-cp "$LAB/docker-compose.mailpit.yml" "$LAB/docker-compose.exp.yml" "$OUT/env/config/" 2>/dev/null
+cp "$LAB/docker-compose.mailpit.yml" "$OUT/env/config/" 2>/dev/null
 multipass exec fim-host -- sudo cat /etc/fim-agent/config.yaml > "$OUT/env/config/agente.yaml" 2>&1
-"${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_EVENTS RATE_LIMIT_INGEST_WINDOW_SECONDS > "$OUT/env/rate_limit_nominal.txt" 2>&1
+# The batteries run with the product's defaults (D85/RN-179); D38/RN-132 still requires
+# declaring the effective limit next to every result.
+"${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_RATE_PER_S RATE_LIMIT_INGEST_BURST > "$OUT/env/rate_limit_nominal.txt" 2>&1
+# The removed variables are ignored by the backend; record whether the environment still sets them.
+{ for v in RATE_LIMIT_INGEST_EVENTS RATE_LIMIT_INGEST_WINDOW_SECONDS; do
+    val=$("${DC[@]}" exec -T backend printenv "$v" 2>/dev/null | tr -d '\r')
+    echo "$v=${val:-<unset>}"
+  done; } >> "$OUT/env/rate_limit_nominal.txt"
 
 # ── helpers en la VM ──────────────────────────────────────────────────────────
 # Transfer them on every run. They live in /tmp on the guest, and /tmp does not
@@ -221,7 +227,29 @@ case "$TRACE_ENV" in
   *) say "ABORTA: las trazas no quedaron activas (Environment='$TRACE_ENV')"; exit 1 ;;
 esac
 
-reset_lab() {
+# Measurement protocol (D85/RN-179, D-9): every measurement starts with the ingest token
+# bucket of the VM's agent_id full. The bucket lives in the backend's memory, so the
+# backend container is recreated at the END of reset_lab, after the database, the agent
+# queue and the stream are empty, and the function returns only once the consumer is
+# running again (bounded wait, not a fixed sleep).
+# NEVER call this during a Valkey cut: recreating the backend there refills the bucket
+# and restarts the consumer in the middle of the measurement.
+recreate_backend() {  # $1 label  $2 evidence file
+  local since id
+  since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  "${DC[@]}" --profile app up -d --force-recreate backend >/dev/null 2>&1
+  id=$("${DC[@]}" --profile app ps -q backend 2>/dev/null | tr -d '\r')
+  say "backend recreated for $1 at $since id=$id"
+  echo "label=$1 recreated_at=$since backend_container_id=$id" >> "$2"
+  for _ in $(seq 1 60); do
+    "${DC[@]}" logs --since "$since" backend 2>/dev/null | rg -q 'consumer\.started' && return 0
+    sleep 2
+  done
+  say "ABORTA: el backend no volvio a consumir tras recrearlo ($1)"
+  return 1
+}
+
+reset_lab() {  # $1 label  $2 evidence file
   multipass exec fim-host -- sudo sh /tmp/vm_reset.sh
   "${DC[@]}" exec -T db psql -U fim -d fim -tAc "DELETE FROM alerts; DELETE FROM events; DELETE FROM rejected_events_audit;" >/dev/null 2>&1
   # Purge the ingest stream too. Wiping the database and the agent queue is not
@@ -230,6 +258,7 @@ reset_lab() {
   # lower end of a drain window computed as max(received_at) - min(received_at).
   bash "$LAB/purgar_stream.sh" >/dev/null 2>&1
   sleep 18
+  recreate_backend "${1:-reset_lab}" "${2:-$OUT/env/backend_recreations.txt}" || exit 1
 }
 
 # ── 1. suites ─────────────────────────────────────────────────────────────────
@@ -260,7 +289,7 @@ PY
 
 # ── 2. latencia + control, misma ventana ──────────────────────────────────────
 say "--- baterias de latencia y control (30 min, misma ventana) ---"
-reset_lab
+reset_lab latencia "$OUT/latencia/backend_recreation.txt"
 nohup multipass exec fim-host -- sudo sh /tmp/vm_control.sh > "$OUT/control/control.log" 2>&1 &
 CTRL=$!
 sleep 30
@@ -299,16 +328,19 @@ say "traza causal: $(wc -l < "$OUT/diagnostico/traza_lat.jsonl" 2>/dev/null || e
 
 # ── 3. notificacion, tres escenarios contra Mailpit ───────────────────────────
 say "--- bateria de notificacion, tres escenarios ---"
-"${DCX[@]}" --profile app up -d backend >/dev/null 2>&1
-sleep 25
-"${DCX[@]}" exec -T backend printenv RATE_LIMIT_INGEST_EVENTS > "$OUT/notificacion/rate_limit_usado.txt" 2>&1
+# One reset for the whole battery: the three series are parts of the same battery, not
+# repetitions, so the backend is NOT recreated between them (D85/RN-179, D-9). Together
+# they publish 3,000 events under the same agent_id, within the 3,000 burst.
+reset_lab notificacion "$OUT/notificacion/backend_recreation.txt"
+"${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_RATE_PER_S RATE_LIMIT_INGEST_BURST > "$OUT/notificacion/rate_limit_usado.txt" 2>&1
+RL_PREV=0
 "${DC[@]}" cp "$LAB/bateria4_publicador.py" backend:/tmp/b4.py >/dev/null 2>&1
-notif() {  # $1 etiqueta  $2 total  $3 concurrencia
+notif() {  # $1 label  $2 total  $3 concurrency
   say "escenario $1: $2 eventos, concurrencia $3"
   "${DC[@]}" exec -T db psql -U fim -d fim -tAc "DELETE FROM alerts; DELETE FROM events;" >/dev/null 2>&1
   curl -s -X DELETE http://127.0.0.1:8025/api/v1/messages >/dev/null 2>&1
   sleep 3
-  "${DCX[@]}" exec -T backend sh -c "cd /app && PYTHONPATH=/app python /tmp/b4.py $1 $2 $3" >> "$RES" 2>&1
+  "${DC[@]}" exec -T backend sh -c "cd /app && PYTHONPATH=/app python /tmp/b4.py $1 $2 $3" >> "$RES" 2>&1
   prev=-1; est=0
   for _ in $(seq 1 180); do
     n=$("${DC[@]}" exec -T db psql -U fim -d fim -tAc "SELECT count(*) FROM alerts WHERE delivered_at IS NOT NULL;" | tr -d ' \r')
@@ -317,6 +349,12 @@ notif() {  # $1 etiqueta  $2 total  $3 concurrencia
   done
   "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT a.id, EXTRACT(EPOCH FROM (a.delivered_at - e.received_at))*1000 AS notif_ms FROM alerts a JOIN events e ON e.id = a.event_id WHERE a.delivered_at IS NOT NULL) TO STDOUT WITH CSV HEADER" > "$OUT/notificacion/$1.csv" 2>/dev/null
   say "escenario $1: $(( $(wc -l < "$OUT/notificacion/$1.csv") - 1 )) muestras; correos en mailpit: $(mp_count)"
+  # rate_limited rejections of THIS series (the audit table is cumulative since the reset).
+  # A non-zero count is a result to report, not something to fix by recreating the backend.
+  RL_TOTAL=$("${DC[@]}" exec -T db psql -U fim -d fim -tAc "SELECT count(*) FROM rejected_events_audit WHERE reason = 'rate_limited';" 2>/dev/null | tr -d ' \r')
+  echo "$1 rate_limited=$(( ${RL_TOTAL:-0} - RL_PREV ))" >> "$OUT/notificacion/rate_limited.txt"
+  [ "$(( ${RL_TOTAL:-0} - RL_PREV ))" = "0" ] || say "ATENCION: escenario $1 tuvo $(( ${RL_TOTAL:-0} - RL_PREV )) rechazos rate_limited"
+  RL_PREV=${RL_TOTAL:-0}
 }
 notif secuencial 1000 1
 notif conc50 1000 50
@@ -337,13 +375,15 @@ say "--- bateria de resiliencia, 3 repeticiones ---"
 for i in 1 2 3; do
   R=$(printf "run-%02d" "$i"); mkdir -p "$OUT/resiliencia/$R"
   say "repeticion $R"
-  reset_lab
+  # reset_lab recreates the backend (full bucket) and waits for the consumer.
+  reset_lab "resiliencia/$R" "$OUT/resiliencia/$R/backend_recreation.txt"
   # Reference instant for this repetition: any trace record older than this one
   # was carried over from a previous run and the trace is not this run's.
   WIN_START=$(date -u +%Y-%m-%dT%H:%M:%S)
-  "${DCX[@]}" --profile app up -d backend >/dev/null 2>&1
-  sleep 20
-  DC_OVERRIDE="$LAB/docker-compose.exp.yml" bash "$LAB/bateria5.sh" "$OUT/resiliencia/$R" 100000 "$R"
+  # bateria5.sh gets exactly the compose file set the backend was brought up with.
+  DC_FILES="docker-compose.yml docker-compose.tls.yml $LAB/docker-compose.mailpit.yml" \
+    bash "$LAB/bateria5.sh" "$OUT/resiliencia/$R" "$R" \
+    || say "$R: REPETICION INVALIDA — el backend se recreo durante el corte"
   "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT event_id, path, detected_at, received_at FROM events ORDER BY received_at) TO STDOUT WITH CSV HEADER" > "$OUT/resiliencia/$R/eventos.csv" 2>/dev/null
   "${DC[@]}" exec -T db psql -U fim -d fim -tAc "SELECT json_build_object('eventos', count(*), 'unicos', count(DISTINCT event_id), 'ventana_s', round(EXTRACT(EPOCH FROM (max(received_at)-min(received_at)))::numeric,3)) FROM events;" > "$OUT/resiliencia/$R/counts.json" 2>/dev/null
   multipass exec fim-host -- sudo cp /var/lib/fim-agent/traza_b3.jsonl "/srv/evidencia/traza_$R.jsonl" 2>/dev/null
@@ -377,9 +417,6 @@ for i in 1 2 3; do
 done
 
 # ── cierre ────────────────────────────────────────────────────────────────────
-say "restaurando el limite nominal"
-"${DC[@]}" --profile app up -d --force-recreate backend >/dev/null 2>&1
-sleep 20
 multipass exec fim-host -- sudo sh /tmp/vm_trace_off.sh >/dev/null 2>&1
 
 say "sellando"

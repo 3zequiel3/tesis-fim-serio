@@ -10,16 +10,34 @@ PAQ=$REPO/docs/cierre/evidencia/oficial-cap5-20260917T223823Z
 LAB=/home/ezequiel/fim-lab
 RES=$LAB/repetir_cap5.out
 DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml)
-DCX=(docker compose -f docker-compose.yml -f docker-compose.tls.yml -f "$LAB/docker-compose.exp.yml")
 cd "$REPO" || exit 1
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 say() { echo "[$(ts)] $*" | tee -a "$RES"; }
+
+# Measurement protocol (D85/RN-179, D-9): every measurement starts with the ingest token
+# bucket full. The bucket lives in the backend's memory, so the backend container is
+# recreated before each battery and the function returns only once the consumer is running
+# again (bounded wait, not a fixed sleep). NEVER call this during a Valkey cut.
+recreate_backend() {
+  local since id
+  since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  "${DC[@]}" --profile app up -d --force-recreate backend >/dev/null 2>&1
+  id=$("${DC[@]}" --profile app ps -q backend 2>/dev/null | tr -d '\r')
+  say "backend recreated at $since id=$id"
+  for _ in $(seq 1 60); do
+    "${DC[@]}" logs --since "$since" backend 2>/dev/null | rg -q 'consumer\.started' && return 0
+    sleep 2
+  done
+  say "ABORTED: the backend did not resume consuming after the recreation"
+  return 1
+}
 
 reset_lab() {
   multipass exec fim-host -- sudo sh /tmp/vm_reset.sh
   "${DC[@]}" exec -T db psql -U fim -d fim -tAc \
     "DELETE FROM alerts; DELETE FROM events; DELETE FROM rejected_events_audit;" >/dev/null 2>&1
   sleep 20
+  recreate_backend || exit 1
 }
 
 say "=== Chapter 5 re-run on the rebuilt image ==="
@@ -51,13 +69,11 @@ for f in bateria7_control.csv control_estado.json; do
   multipass transfer "fim-host:/srv/evidencia/$f" "$PAQ/control/" 2>/dev/null
 done
 
-# ── Battery 5: protocol cut (Valkey down), raised limit declared ──────────────
+# ── Battery 5: protocol cut (Valkey down), product default limit declared ─────
 say "--- Battery 5 (protocol cut) ---"
 reset_lab
-"${DCX[@]}" --profile app up -d backend >/dev/null 2>&1
-sleep 25
-say "effective ingest limit: $("${DCX[@]}" exec -T backend printenv RATE_LIMIT_INGEST_EVENTS 2>/dev/null | tr -d '\r')"
-DC_OVERRIDE="$LAB/docker-compose.exp.yml" bash "$LAB/bateria5.sh" "$PAQ/bateria5" 100000 corte-valkey
+say "effective ingest limit (rate_per_s burst): $("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_RATE_PER_S RATE_LIMIT_INGEST_BURST 2>/dev/null | tr '\n' ' ')"
+bash "$LAB/bateria5.sh" "$PAQ/bateria5" corte-valkey
 mkdir -p "$PAQ/bateria5/corte-valkey"
 for f in bateria5_corte-valkey_manifiesto.json bateria5_corte-valkey_manifiesto.jsonl bateria5_corte-valkey_generador.log; do
   multipass transfer "fim-host:/srv/evidencia/$f" "$PAQ/bateria5/corte-valkey/" 2>/dev/null
@@ -69,10 +85,6 @@ mv "$PAQ/bateria5/bateria5_corte-valkey.log" "$PAQ/bateria5/corte-valkey/" 2>/de
 # stability window added ~20 s of its own hysteresis to the previous figure.
 say "ingest window from the DB: $("${DC[@]}" exec -T db psql -U fim -d fim -tAc "SELECT round(EXTRACT(EPOCH FROM (max(received_at)-min(received_at)))::numeric,3) || ' s / ' || count(*) || ' events' FROM events;" | tr -d '\r')"
 
-say "restoring the nominal limit"
-"${DC[@]}" --profile app up -d --force-recreate backend >/dev/null 2>&1
-sleep 20
-say "limit after restore: $("${DC[@]}" exec -T backend printenv RATE_LIMIT_INGEST_EVENTS 2>/dev/null | tr -d '\r')"
 
 say "sealing the package"
 cd "$PAQ" && rm -f SHA256SUMS && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
