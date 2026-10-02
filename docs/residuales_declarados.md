@@ -135,16 +135,12 @@ título**. Renombrarlos exigiría una decisión que modifique RN-71.
 
 ---
 
-## 9. Dos implementaciones divergentes de cuarentena
+## 9. (Retirado) Dos implementaciones divergentes de cuarentena
 
-**Dónde**: agente.
-
-**Qué pasa**: la acción de cuarentena está implementada dos veces por caminos distintos.
-
-**Por qué importa**: dos implementaciones del mismo contrato divergen con el tiempo; es la misma
-lección de C46 y del contrato agente↔backend que este proyecto ya pagó una vez.
-
-**Para cerrarlo**: unificar en una sola implementación con tests compartidos.
+Cerrado por D82/RN-176 en la change `quarantine-baseline-preservation`: `DecisionEngine._quarantine`
+y `handle_quarantine_file` delegan en `quarantine_and_record` (`agent/quarantine.py`), con un único
+vocabulario de causas de falla y una prueba parametrizada sobre los dos caminos. Se conserva la
+numeración porque otros documentos citan la entrada por su número.
 
 ---
 
