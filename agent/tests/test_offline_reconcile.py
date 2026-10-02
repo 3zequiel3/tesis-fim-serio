@@ -128,6 +128,41 @@ def test_absent_entry_still_missing_yields_nothing(engine: BaselineEngine, root:
     assert plan.findings == []
 
 
+def test_quarantined_entry_with_missing_file_is_not_reported(
+    engine: BaselineEngine, root: Path
+) -> None:
+    """D82/RN-176: the absence is the recorded consequence of the agent's own
+    quarantine; no finding and the entry is not mutated."""
+    f = root / "a.txt"
+    f.write_text("v1")
+    engine.init_scan([str(root)])
+    f.unlink()
+    engine.mark_quarantined(str(f), "evt-q1")
+    before = _blobs(engine)
+
+    plan = _plan(engine, root)
+
+    assert plan.findings == []
+    assert _blobs(engine) == before
+    entry = engine.read_entry(str(f))
+    assert entry is not None and entry.status == "quarantined"
+
+
+def test_present_entry_with_missing_file_still_reports_deleted(
+    engine: BaselineEngine, root: Path
+) -> None:
+    """Counterpart of the quarantine guard: a genuine deletion keeps reporting."""
+    quarantined, present = root / "q.txt", root / "p.txt"
+    for f in (quarantined, present):
+        f.write_text("v1")
+    engine.init_scan([str(root)])
+    engine.mark_quarantined(str(quarantined), "evt-q1")
+    quarantined.unlink()
+    present.unlink()
+
+    assert _classes(_plan(engine, root)) == {str(present): "file_deleted"}
+
+
 def test_new_file_without_entry_in_initialized_root_is_created(
     engine: BaselineEngine, root: Path
 ) -> None:

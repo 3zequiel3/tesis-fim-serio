@@ -100,7 +100,14 @@ def mock_valkey():
     return client
 
 
-def _signed_command(agent_config: AgentConfig, shared_secret: bytes, cmd_type: str, path: str, command_id: str) -> dict:
+def _signed_command(
+    agent_config: AgentConfig,
+    shared_secret: bytes,
+    cmd_type: str,
+    path: str,
+    command_id: str,
+    agent_event_id: str | None = None,
+) -> dict:
     cmd: dict = {
         "type": cmd_type,
         "command_id": command_id,
@@ -109,6 +116,8 @@ def _signed_command(agent_config: AgentConfig, shared_secret: bytes, cmd_type: s
         "path": path,
         "issued_at": "2026-01-01T00:00:00+00:00",
     }
+    if agent_event_id is not None:
+        cmd["agent_event_id"] = agent_event_id
     cmd["signature"] = sign_payload(shared_secret, cmd)
     return cmd
 
@@ -179,7 +188,7 @@ async def test_handle_restore_file_no_baseline_leaves_journal_failed(
 @pytest.mark.asyncio
 @pytest.mark.skipif(not _LINUX, reason="chmod/quarantine dir requires Unix")
 async def test_handle_quarantine_file_success_leaves_journal_completed(
-    agent_config, shared_secret, master_secret, mock_valkey, journal, tmp_path
+    agent_config, shared_secret, master_secret, baseline_engine, mock_valkey, journal, tmp_path
 ):
     target = tmp_path / "quarantine-target.sh"
     target.write_text("#!/bin/bash\necho hi\n")
@@ -188,21 +197,28 @@ async def test_handle_quarantine_file_success_leaves_journal_completed(
     quarantine_dir.mkdir(exist_ok=True)
 
     command_id = "cmd-journal-quarantine-ok"
-    cmd = _signed_command(agent_config, shared_secret, "quarantine_file", str(target), command_id)
+    agent_event_id = "agent-event-quarantine-ok"
+    cmd = _signed_command(
+        agent_config, shared_secret, "quarantine_file", str(target), command_id,
+        agent_event_id=agent_event_id,
+    )
 
     from agent import commands
 
     await commands.handle_quarantine_file(
         command=cmd,
+        baseline_engine=baseline_engine,
         journal=journal,
         valkey_client=mock_valkey,
         config=agent_config,
         quarantine_dir=str(quarantine_dir),
     )
 
-    entry = journal._read(command_id)
+    # D82/RN-176: the journal key is the agent's event_id, not the command_id.
+    entry = journal._read(agent_event_id)
     assert entry is not None
     assert entry.state == "completed"
+    assert journal._read(command_id) is None
 
 
 # ── 6.4 handle_quarantine_file con fallo del store → journal failed ─────────
@@ -210,7 +226,7 @@ async def test_handle_quarantine_file_success_leaves_journal_completed(
 
 @pytest.mark.asyncio
 async def test_handle_quarantine_file_store_failure_leaves_journal_failed(
-    agent_config, shared_secret, mock_valkey, journal, tmp_path
+    agent_config, shared_secret, baseline_engine, mock_valkey, journal, tmp_path
 ):
     from unittest.mock import MagicMock
 
@@ -220,7 +236,11 @@ async def test_handle_quarantine_file_store_failure_leaves_journal_failed(
     target.write_text("#!/bin/bash\necho hi\n")
 
     command_id = "cmd-journal-quarantine-fail"
-    cmd = _signed_command(agent_config, shared_secret, "quarantine_file", str(target), command_id)
+    agent_event_id = "agent-event-quarantine-fail"
+    cmd = _signed_command(
+        agent_config, shared_secret, "quarantine_file", str(target), command_id,
+        agent_event_id=agent_event_id,
+    )
 
     failing_store = MagicMock()
     failing_store.quarantine.side_effect = QuarantineError("encrypt_failed")
@@ -229,13 +249,14 @@ async def test_handle_quarantine_file_store_failure_leaves_journal_failed(
 
     await commands.handle_quarantine_file(
         command=cmd,
+        baseline_engine=baseline_engine,
         journal=journal,
         valkey_client=mock_valkey,
         config=agent_config,
         quarantine_store=failing_store,
     )
 
-    entry = journal._read(command_id)
+    entry = journal._read(agent_event_id)
     assert entry is not None
     assert entry.state == "failed"
     assert entry.error

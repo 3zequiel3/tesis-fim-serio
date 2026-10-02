@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from agent.baseline import BaselineEngine
 from agent.commands import handle_quarantine_file
 from agent.config import AgentConfig, StorageConfig
 from agent.decision import DecisionEngine
@@ -25,6 +26,10 @@ from agent.streams import sign_payload
 
 MASTER = b"m" * 32
 SHARED = b"s" * 32
+
+
+def _baseline(tmp_path: Path, config: AgentConfig) -> BaselineEngine:
+    return BaselineEngine(config, MASTER)
 
 
 def _store(tmp_path: Path) -> QuarantineStore:
@@ -313,6 +318,7 @@ async def test_command_quarantine_uses_supplied_shared_store(tmp_path: Path) -> 
         "type": "quarantine_file",
         "command_id": "command-1",
         "event_id": 9,
+        "agent_event_id": "agent-event-1",
         "target_agent_id": config.agent_id,
         "path": str(source),
     }
@@ -320,12 +326,14 @@ async def test_command_quarantine_uses_supplied_shared_store(tmp_path: Path) -> 
     valkey = AsyncMock()
 
     await handle_quarantine_file(
-        command, journal, valkey, config, quarantine_store=store
+        command, journal, valkey, config, baseline_engine=_baseline(tmp_path, config),
+        quarantine_store=store,
     )
 
     ack = json.loads(valkey.xadd.call_args.args[1]["data"])
     assert ack["status"] == "ok"
-    artifact = store.artifact_path("command-1", str(source))
+    # D82/RN-176: artifact identity is the agent's event_id, never the command_id.
+    artifact = store.artifact_path("agent-event-1", str(source))
     assert store.read_artifact(artifact).content == b"command bytes"
 
 
@@ -342,6 +350,7 @@ async def test_command_hardlink_failure_is_not_acknowledged_as_success(tmp_path:
         "type": "quarantine_file",
         "command_id": "command-hardlink",
         "event_id": 10,
+        "agent_event_id": "agent-event-hardlink",
         "target_agent_id": config.agent_id,
         "path": str(source),
     }
@@ -349,7 +358,8 @@ async def test_command_hardlink_failure_is_not_acknowledged_as_success(tmp_path:
     valkey = AsyncMock()
 
     await handle_quarantine_file(
-        command, journal, valkey, config, quarantine_store=store
+        command, journal, valkey, config, baseline_engine=_baseline(tmp_path, config),
+        quarantine_store=store,
     )
 
     ack = json.loads(valkey.xadd.call_args.args[1]["data"])

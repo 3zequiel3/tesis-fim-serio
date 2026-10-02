@@ -553,15 +553,24 @@ async def test_operator_restore_failure_publishes_only_its_ack(restore_rig: Rest
 
 
 @pytest.mark.asyncio
-async def test_quarantine_still_reports_the_absence(no_remediation_rig: RestoreRig) -> None:
-    """Sin regla `auto_restore` compitiendo por el mismo path (RN-30: cualquier
-    regla `auto_restore` alcanza, D-1 del design) — este test aísla la
-    asimetría de `quarantine_file`, no la interacción con la remediación."""
+async def test_quarantine_own_unlink_echo_publishes_nothing(no_remediation_rig: RestoreRig) -> None:
+    """Replaces `test_quarantine_still_reports_the_absence` (D82/RN-176).
+
+    The requirement «quarantine_file keeps reporting the absence it creates» is
+    REMOVED: the echo of the quarantine's own unlink used to empty the baseline
+    entry (`mark_absent`) and destroy the approved version. The absence is
+    already reported by the command ack and the rejected event; the echo is now
+    dropped by state and the entry stays `quarantined` with its content.
+
+    Sin regla `auto_restore` compitiendo por el mismo path (RN-30), este test
+    aísla el eco del operador, no la interacción con la remediación.
+    """
     from agent import commands
 
     rig = no_remediation_rig
     quarantine_dir = rig.tmp_path / "quarantine"
     quarantine_dir.mkdir(exist_ok=True)
+    agent_event_id = "6f1c2b0e-7d1a-4c55-9a53-3f0a1d1e00aa"
 
     mock_valkey = AsyncMock()
     mock_valkey.xadd = AsyncMock()
@@ -569,11 +578,13 @@ async def test_quarantine_still_reports_the_absence(no_remediation_rig: RestoreR
     cmd = {
         "command_id": "cmd-quarantine-001",
         "event_id": "evt-3",
+        "agent_event_id": agent_event_id,
         "path": str(rig.target),
     }
 
     await commands.handle_quarantine_file(
         command=cmd,
+        baseline_engine=rig.baseline,
         journal=rig.journal,
         valkey_client=mock_valkey,
         config=rig.config,
@@ -588,11 +599,13 @@ async def test_quarantine_still_reports_the_absence(no_remediation_rig: RestoreR
     # shutil.move produce el FAN_MOVED_FROM sobre el path original.
     await _inject(rig, rig.target, FAN_MOVED_FROM)
 
-    assert len(rig.publisher.payloads) == 1
-    assert rig.publisher.payloads[0]["event_type"] == "file_deleted"
+    assert rig.publisher.payloads == []
     entry = rig.baseline.read_entry(str(rig.target))
     assert entry is not None
-    assert entry.status == "absent"
+    assert entry.status == "quarantined"
+    assert entry.quarantine_action_id == agent_event_id
+    assert entry.content_b64 == rig.known_entry.content_b64
+    assert select_restorable_content(entry) is not None
 
 
 @pytest.mark.asyncio

@@ -801,7 +801,9 @@ async def test_file_deleted_auto_restore_evaluates_before_mark_absent(tmp_path: 
 async def test_file_created_quarantine_evaluates_before_write_entry(tmp_path: Path) -> None:
     """
     file_created + quarantine: evaluate_and_act is called BEFORE write_entry.
-    After successful quarantine: mark_absent called (not write_entry with quarantined file).
+    After successful quarantine: mark_quarantined called (D82/RN-176), never
+    mark_absent (it would discard the approved version) nor write_entry with the
+    quarantined file.
 
     Regression: before fix, write_entry ran before evaluate, creating an inconsistent
     baseline entry (present) for a file that was immediately quarantined.
@@ -864,8 +866,9 @@ async def test_file_created_quarantine_evaluates_before_write_entry(tmp_path: Pa
 
     assert payload.get("action_failed") is not True, "quarantine must have succeeded"
 
-    # After successful quarantine: mark_absent (not write_entry)
-    baseline.mark_absent.assert_called_once_with(str(target_path))
+    # After successful quarantine: mark_quarantined (D82/RN-176), not mark_absent
+    baseline.mark_quarantined.assert_called_once_with(str(target_path), payload["event_id"])
+    baseline.mark_absent.assert_not_called()
     baseline.write_entry.assert_not_called()
 
     # File was moved away

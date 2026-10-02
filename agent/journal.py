@@ -53,6 +53,18 @@ class JournalManager:
         self._write(entry)
         return entry
 
+    def ensure_pending(self, event_id: str, path: str, action: str) -> None:
+        """Write a pending entry only when the key has no readable entry yet.
+
+        D82/RN-176: the automatic path already wrote ``pending`` before acting and
+        rehydration reuses an existing entry; rewriting it would change its
+        ``created_at``, which rehydration uses as ``detected_at``. Same HMAC and
+        same write as ``write_pending``.
+        """
+        if self._read(event_id) is not None:
+            return
+        self.write_pending(event_id, path, action)
+
     def mark_completed(self, event_id: str) -> None:
         entry = self._read(event_id)
         if entry is None:

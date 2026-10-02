@@ -173,6 +173,7 @@ async def dispatch(
             return
         await handle_quarantine_file(
             command=command,
+            baseline_engine=baseline_engine,
             journal=journal,
             valkey_client=valkey_client,
             config=config,
@@ -344,6 +345,7 @@ async def handle_restore_file(
     # mismo vocabulario cerrado). La ESCRITURA sigue duplicada; la
     # VERIFICACIÓN es compartida: `verify_restored_file` (D81/RN-175).)
     error_reason: str | None = None
+    was_quarantined = False
     try:
         from agent.baseline import select_restorable_content
         from agent.decision import (
@@ -355,6 +357,7 @@ async def handle_restore_file(
         entry = baseline_engine.read_entry(path)
         if entry is None:
             raise ValueError("no_baseline_content")
+        was_quarantined = entry.status == "quarantined"
 
         result = select_restorable_content(entry)
         if result is None:
@@ -406,6 +409,21 @@ async def handle_restore_file(
         if err is not None:
             raise ValueError(err)
 
+        # D82/RN-176 exit (a): a verified restore returns a quarantined entry to
+        # "present" without re-reading metadata from disk. Reached only after
+        # the disk verification above succeeded; any failure leaves it untouched.
+        if was_quarantined:
+            try:
+                baseline_engine.clear_quarantine(path)
+            except Exception as clear_exc:
+                # The restore itself succeeded. The identical-hash echo of the
+                # os.replace clears the state in the detector (D-10).
+                log.error(
+                    "commands.restore_file.clear_quarantine_failed",
+                    path=path,
+                    error_type=type(clear_exc).__name__,
+                )
+
         log.info("commands.restore_file.done", path=path, command_id=command_id)
         journal.mark_completed(journal_key)
 
@@ -429,16 +447,20 @@ async def handle_quarantine_file(
     journal: "JournalManager",
     valkey_client: "avalkey.Valkey",
     config: "AgentConfig",
+    baseline_engine: "BaselineEngine",
     quarantine_dir: str | None = None,
     quarantine_store: "QuarantineStore | None" = None,
 ) -> None:
     """
-    Pone un archivo en cuarentena con journal transaccional.
+    Pone un archivo en cuarentena con journal transaccional (D82/RN-176).
 
-    1. Journal pre-acción (pending).
-    2. Encrypt and remove the source through QuarantineStore.
-    3. Journal post-acción (completed/failed).
-    4. Publicar event_ack.
+    Usa la implementación única `quarantine_and_record` (la misma que el
+    `DecisionEngine`; cierra el residual 9): journal pending -> artefacto cifrado
+    y retiro del origen -> entrada de baseline `quarantined` que conserva la
+    versión aprobada. La identidad de acción y la clave de journal son el
+    `agent_event_id` del comando (el `event_id` UUID del agente), nunca el
+    `command_id`. Sin él: `quarantine_identity_missing`, sin journal ni acción.
+    El handler cierra el journal (completed/failed) y después publica event_ack.
     """
     command_id = command.get("command_id", "")
     event_id = command.get("event_id")
@@ -460,12 +482,18 @@ async def handle_quarantine_file(
         )
         return
 
-    journal_key = command_id or str(uuid.uuid4())
+    # D82/RN-176: the artifact identity is the agent's event_id, shared with the
+    # automatic path; falling back to command_id would orphan the artifact.
+    agent_event_id = command.get("agent_event_id")
+    if not isinstance(agent_event_id, str) or not agent_event_id:
+        log.error("commands.quarantine_file.identity_missing", command_id=command_id)
+        await _publish_ack(
+            valkey_client, command_id, "quarantine_file", event_id, config,
+            ok=False, error="quarantine_identity_missing",
+        )
+        return
+    journal_key = agent_event_id
 
-    # 1. Journal pre-acción
-    journal.write_pending(journal_key, path, "quarantine")
-
-    # 2. Quarantine
     error_reason: str | None = None
     try:
         if quarantine_store is None:
@@ -478,32 +506,41 @@ async def handle_quarantine_file(
                 load_master_secret(config.storage.secrets_dir),
                 config.agent_id,
             )
-        artifact = quarantine_store.quarantine(journal_key, path)
-        dest = artifact.path
-
-        log.info("commands.quarantine_file.done", path=path, dest=str(dest))
-        journal.mark_completed(journal_key)
-
-    except FileNotFoundError:
-        # Source absence is normalized by QuarantineStore. A raw
-        # FileNotFoundError here means the local master secret is unavailable.
-        error_reason = "quarantine_store_unavailable"
-        log.error("commands.quarantine_file.store_unavailable", path=path)
-        journal.mark_failed(journal_key, error_reason)
-    except OSError as exc:
-        from agent.decision import action_error_from_oserror
-
-        error_reason = action_error_from_oserror(exc, fallback="move_failed")
-        log.error("commands.quarantine_file.failed", path=path, error=error_reason)
-        journal.mark_failed(journal_key, error_reason)
     except Exception as exc:
-        from agent.quarantine import QuarantineError
-
-        error_reason = exc.reason if isinstance(exc, QuarantineError) else str(exc)
-        log.error("commands.quarantine_file.failed", path=path, error=error_reason)
+        # Resource acquisition, not quarantine: a missing master secret or an
+        # unusable directory both mean there is no usable store.
+        error_reason = "quarantine_store_unavailable"
+        log.error(
+            "commands.quarantine_file.store_unavailable",
+            path=path,
+            error_type=type(exc).__name__,
+        )
+        journal.ensure_pending(journal_key, path, "quarantine")
         journal.mark_failed(journal_key, error_reason)
+    else:
+        from agent.quarantine import quarantine_and_record
 
-    # 4. Publicar event_ack
+        outcome = quarantine_and_record(
+            store=quarantine_store,
+            baseline=baseline_engine,
+            journal=journal,
+            action_id=journal_key,
+            path=path,
+        )
+        if outcome.error is None:
+            assert outcome.artifact is not None
+            log.info(
+                "commands.quarantine_file.done",
+                path=path,
+                dest=str(outcome.artifact.path),
+            )
+            journal.mark_completed(journal_key)
+        else:
+            error_reason = outcome.error
+            log.error("commands.quarantine_file.failed", path=path, error=error_reason)
+            journal.mark_failed(journal_key, error_reason)
+
+    # Publicar event_ack
     await _publish_ack(
         valkey_client, command_id, "quarantine_file", event_id, config,
         ok=error_reason is None, error=error_reason,

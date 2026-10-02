@@ -19,12 +19,19 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO
 
+import structlog
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+if TYPE_CHECKING:
+    from agent.baseline import BaselineEngine
+    from agent.journal import JournalManager
+
+log = structlog.get_logger()
 
 _MAGIC_VERSION = b"FIMQ\x01"
 _NONCE_BYTES = 12
@@ -627,3 +634,62 @@ class QuarantineStore:
             _fsync_directory(Path(source).parent)
         except OSError as exc:
             raise QuarantineError("quarantine_source_remove_failed") from exc
+
+
+@dataclass(frozen=True)
+class QuarantineOutcome:
+    """Result of ``quarantine_and_record``: the artifact or a closed-vocabulary cause."""
+
+    artifact: QuarantineArtifact | None
+    error: str | None
+
+
+def quarantine_and_record(
+    *,
+    store: QuarantineStore,
+    baseline: BaselineEngine,
+    journal: JournalManager,
+    action_id: str,
+    path: str,
+) -> QuarantineOutcome:
+    """The single quarantine implementation (D82/RN-176, residual 9).
+
+    Order: journal ``pending`` (never overwriting one the caller already wrote)
+    -> encrypted artifact and source removal -> ``mark_quarantined`` -> outcome.
+    The baseline is marked inside the same synchronous call as the ``unlink`` so
+    the filesystem echo of that ``unlink`` can never be processed before the
+    entry is ``quarantined``. The terminal journal step belongs to the caller:
+    the automatic path closes it after publishing (crash replay), the operator
+    handler closes it before its ack.
+
+    Expected failures never raise: they map to the closed vocabulary
+    (``QuarantineError.reason``, ``action_error_from_oserror`` with fallback
+    ``move_failed``, ``quarantine_failed``, ``baseline_mark_failed``). The cause
+    never interpolates the OS message or the path; detail goes to the log.
+    """
+    from agent.decision import action_error_from_oserror
+
+    journal.ensure_pending(action_id, path, "quarantine")
+    try:
+        artifact = store.quarantine(action_id, path)
+    except QuarantineError as exc:
+        return QuarantineOutcome(artifact=None, error=exc.reason)
+    except OSError as exc:
+        log.warning("quarantine.os_error", action_id=action_id, errno=exc.errno)
+        return QuarantineOutcome(
+            artifact=None, error=action_error_from_oserror(exc, fallback="move_failed")
+        )
+    except Exception as exc:
+        log.warning("quarantine.unexpected", action_id=action_id, error_type=type(exc).__name__)
+        return QuarantineOutcome(artifact=None, error="quarantine_failed")
+
+    try:
+        baseline.mark_quarantined(path, action_id)
+    except Exception as exc:
+        log.error(
+            "quarantine.baseline_mark_failed",
+            action_id=action_id,
+            error_type=type(exc).__name__,
+        )
+        return QuarantineOutcome(artifact=artifact, error="baseline_mark_failed")
+    return QuarantineOutcome(artifact=artifact, error=None)

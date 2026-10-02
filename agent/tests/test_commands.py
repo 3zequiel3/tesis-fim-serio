@@ -203,6 +203,7 @@ async def test_filesystem_commands_reject_canonical_scope_escapes(
     else:
         await commands.handle_quarantine_file(
             command=command,
+            baseline_engine=baseline_engine,
             journal=journal,
             valkey_client=mock_valkey,
             config=scoped_config,
@@ -810,6 +811,7 @@ async def test_quarantine_handler_success(
         "type": "quarantine_file",
         "command_id": "cmd-quarantine-001",
         "event_id": 20,
+        "agent_event_id": "6f1c2b0e-7d1a-4c55-9a53-3f0a1d1e0001",
         "target_agent_id": agent_config.agent_id,
         "path": str(target),
         "issued_at": "2026-01-01T00:00:00+00:00",
@@ -818,6 +820,7 @@ async def test_quarantine_handler_success(
 
     await commands.handle_quarantine_file(
         command=cmd,
+        baseline_engine=baseline_engine,
         journal=journal,
         valkey_client=mock_valkey,
         config=agent_config,
@@ -863,6 +866,7 @@ async def test_quarantine_handler_file_not_found_publishes_error_ack(
         "type": "quarantine_file",
         "command_id": "cmd-quarantine-002",
         "event_id": 21,
+        "agent_event_id": "6f1c2b0e-7d1a-4c55-9a53-3f0a1d1e0002",
         "target_agent_id": agent_config.agent_id,
         "path": "/etc/nonexistent_test_fim_file",
         "issued_at": "2026-01-01T00:00:00+00:00",
@@ -871,6 +875,7 @@ async def test_quarantine_handler_file_not_found_publishes_error_ack(
 
     await commands.handle_quarantine_file(
         command=cmd,
+        baseline_engine=baseline_engine,
         journal=journal,
         valkey_client=mock_valkey,
         config=agent_config,

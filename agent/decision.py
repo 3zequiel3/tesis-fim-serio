@@ -348,15 +348,26 @@ class DecisionEngine:
             raise _ActionFailed(err)
 
     def _quarantine(self, event_id: str, path: str, payload: dict[str, Any]) -> None:
-        """Encrypt and remove a file through the shared quarantine store."""
+        """Quarantine through the shared implementation (D82/RN-176).
+
+        Delegates to ``quarantine_and_record``: the baseline entry ends
+        ``quarantined`` (approved version preserved) before any filesystem echo
+        can be processed. The terminal journal step stays in ``commit_fn`` /
+        ``rehydrate`` so a crash before publishing leaves the entry ``pending``.
+        Closes residual 9 (two quarantine implementations).
+        """
         if self._quarantine_store is None:
             raise _ActionFailed("quarantine_store_unavailable")
-        try:
-            artifact = self._quarantine_store.quarantine(event_id, path)
-        except Exception as exc:
-            from agent.quarantine import QuarantineError
+        from agent.quarantine import quarantine_and_record
 
-            if isinstance(exc, QuarantineError):
-                raise _ActionFailed(exc.reason) from exc
-            raise _ActionFailed("quarantine_failed") from exc
-        payload["quarantine_path"] = str(artifact.path)
+        outcome = quarantine_and_record(
+            store=self._quarantine_store,
+            baseline=self._baseline,
+            journal=self._journal,
+            action_id=event_id,
+            path=path,
+        )
+        if outcome.error is not None:
+            raise _ActionFailed(outcome.error)
+        assert outcome.artifact is not None
+        payload["quarantine_path"] = str(outcome.artifact.path)

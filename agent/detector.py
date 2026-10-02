@@ -880,6 +880,23 @@ class FanotifyDetector:
 
         # ── Borrado / moved-from: sin hash, marcar ausente ─────────────────
         if event_class == "file_deleted":
+            # D82/RN-176: the unlink of the agent's own quarantine echoes back as
+            # FAN_DELETE / FAN_MOVED_FROM. The entry is already "quarantined"
+            # (marked inside the same synchronous call as the unlink), so the echo
+            # is dropped by state, never by PID (Change 43). Before event_id: no
+            # rules, no journal, no candidate, no publish, no baseline mutation,
+            # and _pending / _event_to_path stay untouched.
+            if entry is not None and entry.status == "quarantined":
+                self._trace_record(
+                    "decision_suppressed",
+                    path=path,
+                    operation="file_deleted",
+                    baseline_status="quarantined",
+                    decision="suppress",
+                    reason="quarantined_by_agent",
+                    outcome="dropped",
+                )
+                return
             event_id = str(uuid.uuid4())
             parent_event_id = self._pending.get(path)
             if parent_event_id is not None:
@@ -984,6 +1001,13 @@ class FanotifyDetector:
                     path=path,
                     event_class=event_class,
                 )
+                # D82/RN-176 ratification (D-10): a file recreated with exactly the
+                # approved hash is the healthy state, equivalent to a verified
+                # restore. clear_quarantine rather than write_entry: the preserved
+                # entry already holds the approved mode/uid/gid, and write_entry
+                # would adopt them from the disk.
+                if entry is not None and entry.status == "quarantined":
+                    self._baseline.clear_quarantine(path)
                 return
 
             event_id = str(uuid.uuid4())
@@ -1025,8 +1049,19 @@ class FanotifyDetector:
                 action_failed = False
             self._trace_decision(change, enriched_payload)
             if action == "quarantine" and not action_failed:
-                # File was quarantined — record as absent (file was moved away)
-                self._baseline.mark_absent(path)
+                # D82/RN-176: the entry was marked "quarantined" inside the action,
+                # preserving the approved version; mark_absent would discard it.
+                pass
+            elif entry is not None and entry.status == "quarantined":
+                # D82/RN-176: a new file with other content is reported but never
+                # overwrites the preserved approved entry (write_entry would turn
+                # the attacker content into the baseline); it is adopted only by
+                # approval.
+                pass
+            elif enriched_payload.get("action_error") == "baseline_mark_failed":
+                # The quarantine removed the source but the entry could not be
+                # marked; there is no file left to record.
+                pass
             elif is_symlink:
                 self._baseline.write_symlink_entry(path)
             else:
@@ -1056,8 +1091,27 @@ class FanotifyDetector:
         else:
             current_hash = await _hash_file_async(path)
 
+        # D82/RN-176: absence echo of the agent's own quarantine (generic branch,
+        # becomes file_absent). Dropped by state before any event_id is assigned.
+        if current_hash is None and entry is not None and entry.status == "quarantined":
+            self._trace_record(
+                "decision_suppressed",
+                path=path,
+                operation="file_absent",
+                baseline_status="quarantined",
+                decision="suppress",
+                reason="quarantined_by_agent",
+                outcome="dropped",
+            )
+            return
+
         # Descartar si el contenido no cambió
         if current_hash is not None and current_hash == previous_hash:
+            # D82/RN-176 ratification (D-10): exactly the approved hash again is
+            # the healthy state; clear_quarantine (not write_entry) keeps the
+            # approved metadata instead of adopting it from the disk.
+            if entry is not None and entry.status == "quarantined":
+                self._baseline.clear_quarantine(path)
             self._trace_record(
                 "decision_suppressed",
                 path=path,
@@ -1191,9 +1245,15 @@ class FanotifyDetector:
                 self._baseline.mark_absent(path)
         else:  # file_modified
             if action == "auto_restore" and not action_failed:
-                pass  # archivo restaurado, baseline anterior sigue siendo válido
+                # archivo restaurado, baseline anterior sigue siendo válido.
+                # D82/RN-176: a verified restore of a quarantined path returns it
+                # to present.
+                if entry is not None and entry.status == "quarantined":
+                    self._baseline.clear_quarantine(path)
             elif action == "quarantine" and not action_failed:
-                self._baseline.mark_absent(path)  # archivo movido
+                # D82/RN-176: marked "quarantined" inside the action; mark_absent
+                # would discard the approved version.
+                pass
             else:
                 # BUG-03 (D14): only snapshot for audit; do NOT write_entry with attacker
                 # content. Active content_b64/hash stay pinned to known-good so

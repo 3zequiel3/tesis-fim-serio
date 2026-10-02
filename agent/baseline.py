@@ -64,7 +64,7 @@ class Snapshot:
 @dataclass
 class BaselineEntry:
     path: str
-    status: str  # "present" | "absent"
+    status: str  # "present" | "absent" | "quarantined"
     hash: str | None
     size: int | None
     mode: str | None
@@ -82,6 +82,11 @@ class BaselineEntry:
     # UUID emitted by the agent for the event that last established this active
     # baseline. It makes command redelivery idempotent without reusing stale bytes.
     approved_event_id: str | None = None
+    # D82/RN-176: action identity (agent event_id) of the quarantine that put the
+    # entry in the "quarantined" state; None otherwise. Rollback limitation: an
+    # older agent does not know this key and `from_dict` (`cls(**fields)`) fails
+    # on it, so downgrading requires deleting the quarantined entries.
+    quarantine_action_id: str | None = None
 
     def to_json_bytes(self) -> bytes:
         return json.dumps(dataclasses.asdict(self), ensure_ascii=False).encode()
@@ -419,6 +424,12 @@ class BaselineEngine:
             raise
 
     def mark_absent(self, path: str) -> BaselineEntry:
+        """Record that the path must not exist.
+
+        Reserved for absences NOT caused by the agent (D82/RN-176): a quarantine
+        records ``mark_quarantined`` instead, because this method discards the
+        approved content and snapshots.
+        """
         entry = BaselineEntry(
             path=path,
             status="absent",
@@ -434,6 +445,58 @@ class BaselineEngine:
         )
         blob = self._encrypt_entry(entry)
         _atomic_write(_entry_path(self._baseline_dir, path), blob)
+        return entry
+
+    def mark_quarantined(self, path: str, action_id: str) -> BaselineEntry:
+        """Record the physical absence caused by the agent's own quarantine.
+
+        D82/RN-176: keeps hash, metadata, content and snapshots of the previous
+        entry so the approved version stays restorable; only ``status``,
+        ``quarantine_action_id`` and ``captured_at`` change. Without a previous
+        entry the result is a ``quarantined`` entry with null fields (the healthy
+        state of that path is absence).
+        """
+        existing = self.read_entry(path)
+        if existing is not None:
+            entry = dataclasses.replace(
+                existing,
+                status="quarantined",
+                quarantine_action_id=action_id,
+                captured_at=_now_iso(),
+            )
+        else:
+            entry = BaselineEntry(
+                path=path,
+                status="quarantined",
+                hash=None,
+                size=None,
+                mode=None,
+                uid=None,
+                gid=None,
+                mtime=None,
+                captured_at=_now_iso(),
+                snapshots=[],
+                content_b64=None,
+                quarantine_action_id=action_id,
+            )
+        _atomic_write(_entry_path(self._baseline_dir, path), self._encrypt_entry(entry))
+        return entry
+
+    def clear_quarantine(self, path: str) -> BaselineEntry | None:
+        """Return a ``quarantined`` entry to ``present`` (D82/RN-176 exits a/c).
+
+        Rewrites only ``status`` and ``quarantine_action_id``: it neither
+        re-hashes nor reads the disk. ``write_entry`` is deliberately not used
+        because it adopts mode/uid/gid from the file on disk, which would open a
+        window to adopt altered metadata between the verified restore (or the
+        identical recreation) and the write; the preserved entry already is the
+        approved truth (D-2). A no-op for any other state.
+        """
+        existing = self.read_entry(path)
+        if existing is None or existing.status != "quarantined":
+            return None
+        entry = dataclasses.replace(existing, status="present", quarantine_action_id=None)
+        _atomic_write(_entry_path(self._baseline_dir, path), self._encrypt_entry(entry))
         return entry
 
     def list_entries(self) -> list[str]:
@@ -645,6 +708,10 @@ class BaselineEngine:
                         findings[path] = "file_created"
                     continue
                 if not exists:
+                    if entry.status == "quarantined":
+                        # D82/RN-176: the absence is the recorded consequence of
+                        # the agent's own quarantine, not a change.
+                        continue
                     findings[path] = "file_deleted"
                     continue
                 disk_hash, disk_is_symlink = _hash_disk_object(path)
