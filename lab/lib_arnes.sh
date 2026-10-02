@@ -28,14 +28,18 @@ procedencia_exigir() {
   COMMIT=$(git -C "$REPO" rev-list -n 1 "$tag")
   local head
   head=$(git -C "$REPO" rev-parse HEAD)
-  [ "$head" = "$COMMIT" ] \
-    || { _aborta "HEAD ($head) is not the commit of $tag ($COMMIT): check out the tag first"; return 1; }
+  # HEAD may be the tag or a descendant that only adds evidence/harness/docs:
+  # the measured product (agent/ backend/ frontend/ n8n/) must be byte-identical.
+  git -C "$REPO" merge-base --is-ancestor "$COMMIT" "$head" \
+    || { _aborta "HEAD ($head) does not descend from $tag ($COMMIT)"; return 1; }
+  git -C "$REPO" diff --quiet "$COMMIT" "$head" -- agent backend frontend n8n \
+    || { _aborta "agent/ backend/ frontend/ n8n/ differ between $tag and HEAD: retag a new candidate"; return 1; }
   # `git diff` alone misses staged changes, so the index is checked as well.
   { git -C "$REPO" diff --quiet -- agent backend frontend n8n \
     && git -C "$REPO" diff --cached --quiet -- agent backend frontend n8n; } \
     || { _aborta "agent/ backend/ frontend/ n8n/ have uncommitted changes"; return 1; }
   mkdir -p "$envdir"
-  { echo "tag=$tag"; echo "commit=$COMMIT"; } > "$envdir/procedencia.txt"
+  { echo "tag=$tag"; echo "commit=$COMMIT"; echo "head=$head"; } > "$envdir/procedencia.txt"
 }
 
 # ── L-14: preflight guards ────────────────────────────────────────────────────
