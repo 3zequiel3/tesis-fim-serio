@@ -1,0 +1,94 @@
+## MODIFIED Requirements
+
+### Requirement: Operaciones DB en consumers ejecutadas en threadpool
+
+Las funciones síncronas de los consumers que acceden a PostgreSQL MUST ejecutarse via
+`asyncio.get_running_loop().run_in_executor(None, fn, *args)` en sus call sites dentro de coroutines
+async. Las funciones síncronas NO deben ser convertidas a async — solo el call site cambia.
+
+El alcance de esta obligación es **todo** camino síncrono a PostgreSQL que se invoque desde una
+corrutina de un consumer, **sin excepción para el carril ordenado de ingesta** (D75/RN-169, que
+amplía D21). En particular incluye, además de las funciones que D21 ya enumeraba:
+
+- `_get_shared_secret`, `_event_exists`, `_reject` (`events/consumer.py`) — D21.
+- `_handle_heartbeat`, `_sweep_offline` (`agents/heartbeat_consumer.py`) — D21.
+- `_get_agent_auth` (`events/consumer.py`) — D75/RN-169. La justificación previa de su llamada
+  síncrona ("resolver la única fila de autenticación evita un cambio de executor redundante") queda
+  **derogada**: el carril ordenado es precisamente donde el bloqueo se acumula, porque cada evento
+  espera a que el anterior termine su viaje a la base.
+- `_ingest` (`events/consumer.py`), y con él la `Session` que `ingest_event` abre en
+  `events/service.py` — D75/RN-169.
+
+El despacho de mensajes del lote MUST permanecer **secuencial**: el lote SHALL procesarse mensaje a
+mensaje, y el sistema MUST NOT introducir `gather`, `TaskGroup`, `create_task` por mensaje ni
+ninguna otra forma de concurrencia entre eventos del mismo lote. La ganancia buscada es de
+**solapamiento** —que la cadena de notificación de eventos previos avance mientras la ingesta del
+evento actual espera a la base en un hilo—, NO de paralelismo de ingesta. El orden FIFO de entrega y
+la ausencia de eventos duplicados MUST NOT degradarse.
+
+El sistema MUST NOT migrar a `AsyncSession` de SQLAlchemy: el fundamento de D21 sigue vigente para un
+backend single-instance (RN-76).
+
+Las `Session` abiertas desde hilos del executor MUST ser locales a la invocación: ninguna `Session`
+SHALL compartirse entre hilos, guardarse en estado de módulo ni cruzar el límite del executor. Los
+objetos ORM que sí crucen ese límite MUST estar desligados (`expunge`) con sus atributos ya
+materializados antes de devolverse, de modo que leerlos desde el event loop no dispare I/O.
+
+#### Scenario: Lookup de shared_secret no bloquea el loop
+
+- **WHEN** el consumer de eventos llama `_get_shared_secret(agent_id)` durante el procesamiento de un mensaje
+- **THEN** la llamada se realiza via `run_in_executor` en el threadpool por defecto
+- **AND** el event loop queda libre para procesar otros coroutines durante el I/O de DB
+
+#### Scenario: Múltiples mensajes pueden entrelazarse con otras tasks
+
+- **WHEN** el consumer procesa un mensaje mientras hay requests HTTP entrantes
+- **THEN** el event loop no queda bloqueado durante las operaciones DB del consumer
+- **AND** los endpoints HTTP reciben respuesta sin esperar a que el consumer complete su DB I/O
+
+#### Scenario: La resolución de autenticación del agente no bloquea el loop
+
+- **WHEN** el consumer de eventos resuelve la credencial HMAC y el estado de revocación del agente en
+  el carril feliz de ingesta
+- **THEN** la consulta se realiza via `run_in_executor` y no sobre el event loop
+- **AND** la función síncrona conserva su firma y su tipo de retorno sin convertirse en `async def`
+
+#### Scenario: La inserción del evento no bloquea el loop
+
+- **WHEN** el consumer de eventos persiste un evento del carril feliz
+- **THEN** la sesión, la deduplicación por `event_id`, el `INSERT` y el `commit` se ejecutan en un
+  hilo del executor y no sobre el event loop
+- **AND** la taxonomía de resultado (persistido, duplicado, carrera de supersesión, limitado por
+  tasa) y las excepciones de transición inválida y de error transitorio de base de datos se propagan
+  al call site con la misma semántica de `XACK` / no-`XACK` que antes del cambio
+
+#### Scenario: El despacho del lote sigue siendo mensaje a mensaje
+
+- **WHEN** el consumer lee un lote de mensajes del stream de eventos
+- **THEN** hay a lo sumo un mensaje en procesamiento en cualquier instante
+- **AND** el lote se despacha en el mismo orden en que el broker lo entregó
+
+#### Scenario: El orden FIFO se preserva tras un drenaje
+
+- **WHEN** se drena una cola acumulada durante una desconexión del broker
+- **THEN** el orden de los eventos persistidos, ordenados por su marca de detección, es monótono
+  respecto del orden en que el agente los generó
+
+#### Scenario: El drenaje no produce duplicados
+
+- **WHEN** se drena una cola acumulada durante una desconexión del broker
+- **THEN** ningún `event_id` aparece más de una vez en la tabla de eventos
+
+#### Scenario: El objeto persistido cruza el límite del executor sin disparar I/O
+
+- **WHEN** el hilo del executor devuelve el evento recién persistido al event loop
+- **THEN** leer sus atributos desde el event loop no abre ninguna sesión ni emite ninguna consulta
+- **AND** ninguna `Session` queda viva fuera del hilo que la abrió
+
+#### Scenario: El limitador de tasa de ingesta tolera el cruce de hilos
+
+- **WHEN** el presupuesto de ingesta se consume desde un hilo del executor y el remanente para el
+  `retry_after` se consulta desde el event loop
+- **THEN** el estado del token bucket de cada agente queda protegido frente a accesos concurrentes
+- **AND** el número de eventos admitidos es exactamente el que corresponde a los tokens disponibles,
+  sin admisiones de más ni de menos por una carrera (D85/RN-179)
