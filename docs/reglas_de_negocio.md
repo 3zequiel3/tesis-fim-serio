@@ -2718,9 +2718,9 @@ comportamiento. Agregada el 2026-09-23.
 
 **Descripción:** Tras `os.replace`, el agente SHALL releer el path restaurado desde disco y comparar su hash con el esperado. Un `OSError` SHALL producir `verify_failed`; una discrepancia, `hash_mismatch_after_restore`. La comparación del buffer en memoria consigo mismo MUST NOT considerarse verificación.
 
-**Condición:** `agent/decision.py` (restauración, `:295`).
+**Condición:** ambos caminos de restauración, `agent/decision.py` (`_auto_restore`, `:295`) y `agent/commands.py` (`handle_restore_file`, `:398-400`), mediante un único helper compartido. Sin hash esperado, se compara contra el hash de los bytes escritos; la verificación nunca se omite.
 
-**Motivo:** `restored_hash = _hash_bytes(content)` nunca puede fallar; ya figuraba en `docs/residuales_declarados.md` §1, que se retira.
+**Motivo:** `restored_hash = _hash_bytes(content)` nunca puede fallar, y `handle_restore_file` replica el mismo bloque; ya figuraba en `docs/residuales_declarados.md` §1, que se retira.
 
 **Reglas afectadas:** ninguna se reabre. Agregada el 2026-10-02.
 
