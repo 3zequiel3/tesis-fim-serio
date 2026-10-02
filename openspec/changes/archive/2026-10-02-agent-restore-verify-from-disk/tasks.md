@@ -45,4 +45,4 @@
 - [x] 6.2 Verificar que ningún documento fuera de `docs/residuales_declarados.md` cite el residual §1 como abierto (`rg -n "residuales_declarados.md\` §1" docs/ README.md`); las citas en `CHANGES.md` y en D81/RN-175 describen el retiro y no se tocan
 - [x] 6.3 Correr la suite completa del agente (`pytest agent/tests`) y confirmar cero fallas nuevas
 - [x] 6.4 Correr `python3 scripts/check_spec_integrity.py` y `openspec validate agent-restore-verify-from-disk --strict`
-- [ ] 6.5 Marcar la Change 63 en `CHANGES.md` al cerrar el apply (el orquestador decide el momento; no se edita durante el propose)
+- [x] 6.5 Marcar la Change 63 en `CHANGES.md` al cerrar el apply (el orquestador decide el momento; no se edita durante el propose) — CHANGES.md has no completion marker convention; the archive commit records it.
