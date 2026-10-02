@@ -36,6 +36,7 @@ Al arrancar releer pendientes con id '0' antes de nuevos '>' (RN-76).
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import functools
 import inspect
 import json
@@ -97,6 +98,16 @@ _SCHEMA_VERSION_UNSUPPORTED_RETRY_S = 60.0
 _SILENT_REJECTION_REASONS = frozenset({RejectionReason.invalid_signature, RejectionReason.unknown_agent})
 
 _background_tasks: set[asyncio.Task] = set()
+
+# D87/RN-181: ACK accumulator of the batch being dispatched by `_process_batch`.
+# Carried in a ContextVar and not as a parameter of `_handle_message` because
+# `test_batch_dispatch_is_strictly_sequential` substitutes `_handle_message` with a
+# three-argument double whose assertions must stay untouched. It is safe because
+# dispatch is strictly sequential (D75/RN-169): at most one batch is in flight per
+# task. `None` outside a batch, which keeps the immediate emission.
+_ack_batch_var: contextvars.ContextVar[list[tuple[str, str]] | None] = contextvars.ContextVar(
+    "consumer_ack_batch", default=None
+)
 
 
 def _fire_and_forget(coro) -> None:
@@ -284,6 +295,26 @@ async def run_consumer(client: Any, stop_event: asyncio.Event) -> None:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            # D87/RN-181: if Valkey came back without the consumer group, every
+            # read fails with NOGROUP forever. Recreate it in place instead of
+            # waiting for a restart of the backend. The group is recreated from
+            # id "0" (same as at startup), NOT "$": with "$" the entries published
+            # between Valkey coming back and the recreation would never be read;
+            # with "0" nothing in the stream is skipped (entries already
+            # persisted end in dedup, stale ones in a clock_skew rejection).
+            if "NOGROUP" in str(exc):
+                try:
+                    await _ensure_group(client)
+                    log.warning("consumer.group_recreated", group=CONSUMER_GROUP)
+                    await _process_batch(client, "0")
+                    continue
+                except asyncio.CancelledError:
+                    raise
+                except Exception as recreate_exc:
+                    # Valkey not answering yet (or the PEL re-read failed): same
+                    # treatment as any other error; the next iteration retries
+                    # and sees NOGROUP again if the group is still missing.
+                    exc = recreate_exc
             log.error("consumer.loop_error", error=str(exc))
             await asyncio.sleep(1)
 
@@ -310,6 +341,13 @@ async def _process_batch(client: Any, start_id: str) -> None:
     )
     if not results:
         return
+    # D87/RN-181: `event_ack` + `XACK` of every event resolved with an
+    # `event_ack` are accumulated here and emitted together once the batch is
+    # done, in a single transactional pipeline. An entry is appended only after
+    # the `commit` of its ingest returned (see `_handle_message`).
+    acks: list[tuple[str, str]] = []
+    batch_token = _ack_batch_var.set(acks)
+    batch_size = 0
     # Despacho SECUENCIAL por contrato (D-2 del design de
     # `ingest-offload-blocking-db`, D75/RN-169): sin `gather`, sin
     # `TaskGroup`, sin `create_task` por mensaje. En todo momento hay un
@@ -319,13 +357,46 @@ async def _process_batch(client: Any, start_id: str) -> None:
     # del executor resuelve la ingesta del evento N, el loop queda libre
     # para retomar la cadena de notificación fire-and-forget del evento
     # N-1 — no de paralelismo entre eventos del lote.
-    for _stream, messages in results:
-        for msg_id, msg_data in messages:
-            await _handle_message(client, msg_id, msg_data)
+    try:
+        for _stream, messages in results:
+            for msg_id, msg_data in messages:
+                batch_size += 1
+                await _handle_message(client, msg_id, msg_data)
+    finally:
+        _ack_batch_var.reset(batch_token)
+        # Flush even if a later message of the batch raised: the events already
+        # persisted must not wait in the PEL for nothing. If the flush itself
+        # fails the entries stay in the PEL (re-delivery is idempotent: dedup by
+        # event_id) and the error propagates to the loop, without retrying here.
+        ack_count = len(acks)
+        flush_started = time.perf_counter()
+        await _flush_acks(client, acks)
+        if settings.fim_profile_ingest:
+            log.info(
+                "consumer.timing",
+                scope="batch",
+                batch_size=batch_size,
+                acks=ack_count,
+                ack_flush_ms=round((time.perf_counter() - flush_started) * 1000, 3),
+            )
 
 
 async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) -> None:
+    # D87/RN-181: inside `_process_batch` (`_ack_batch_var` set), the `event_ack` +
+    # `XACK` of events resolved with an `event_ack` are appended to the batch
+    # accumulator instead of being emitted one by one. Outside a batch (direct call)
+    # the immediate emission is preserved.
+    ack_batch = _ack_batch_var.get()
     received_at = datetime.now(timezone.utc)
+    # Profiling (D87/RN-181), only when `settings.fim_profile_ingest` is on.
+    # `consumer.timing` is emitted only for events that reach the ingest stage;
+    # early rejections and transient DB errors are omitted (no log with unmeasured
+    # stages). `total_ms` runs until the ingest outcome is known: with the batched
+    # ACK the `XACK` is not part of the per-event path (see the `scope="batch"` log).
+    t_start = time.perf_counter()
+    auth_ms = 0.0
+    auth_cache_hit = False
+    ingest_ms = 0.0
     raw = msg_data.get("data", "{}")
     try:
         payload = json.loads(raw)
@@ -363,7 +434,13 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
     # ~3,8 s de event loop bloqueado sólo en esta llamada. El carril de
     # rechazo del mismo archivo ya usaba `run_in_executor` (`:420`, `:554`,
     # `:563`); este call site replica exactamente ese patrón.
-    agent_auth = await loop.run_in_executor(None, _get_agent_auth, agent_id)
+    #
+    # D87/RN-181: the result is cached in memory for 5 s (`_resolve_agent_auth`);
+    # a miss still resolves in the executor, as D75/RN-169 requires, and a hit
+    # touches neither the `Session` nor the executor.
+    t_auth = time.perf_counter()
+    agent_auth, auth_cache_hit = await _resolve_agent_auth_with_hit(agent_id)
+    auth_ms = (time.perf_counter() - t_auth) * 1000
     if agent_auth.shared_secret is None:
         await _reject(client, msg_id, event_id, agent_id, RejectionReason.unknown_agent, received_at, payload, payload_dump)
         return
@@ -467,9 +544,11 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         # `try/except InvalidTransitionError / SQLAlchemyError` de abajo
         # sigue capturando exactamente lo mismo, en el mismo lugar, con la
         # misma semántica de XACK / no-XACK que antes del cambio.
+        t_ingest = time.perf_counter()
         outcome = await loop.run_in_executor(
             None, functools.partial(_ingest, payload, received_at, detected_at, agent_id)
         )
+        ingest_ms = (time.perf_counter() - t_ingest) * 1000
     except InvalidTransitionError as exc:
         # Dato inválido, no reintentable → XACK + audit log + nack terminal
         # (D-3 del design): sin la respuesta, el agente republica para
@@ -498,6 +577,20 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         log.error("consumer.db_error", event_id=event_id, exc_info=True)
         return
 
+    if settings.fim_profile_ingest:
+        total_ms = (time.perf_counter() - t_start) * 1000
+        log.info(
+            "consumer.timing",
+            scope="event",
+            event_id=event_id,
+            agent_id=agent_id,
+            auth_ms=round(auth_ms, 3),
+            auth_cache_hit=auth_cache_hit,
+            validation_ms=round(total_ms - auth_ms - ingest_ms, 3),
+            ingest_ms=round(ingest_ms, 3),
+            total_ms=round(total_ms, 3),
+        )
+
     # Compatibilidad con dobles de prueba anteriores al resultado tipado.
     if outcome is None:
         outcome = IngestOutcome(IngestDisposition.supersede_race)
@@ -511,19 +604,23 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         return
 
     if outcome.disposition == IngestDisposition.duplicate:
-        await _ack_with_event_ack(client, msg_id, event_id, agent_id, shared_secret)
+        # Only reached after `_ingest` returned (i.e. after its commit): safe to ACK.
+        await _ack_or_defer(client, ack_batch, msg_id, event_id, agent_id, shared_secret)
         log.info("consumer.event_dedup", event_id=event_id)
         return
 
     if outcome.disposition == IngestDisposition.persisted and outcome.event is not None:
-        await _ack_with_event_ack(client, msg_id, event_id, agent_id, shared_secret)
+        # Only reached after `_ingest` returned (i.e. after its commit): safe to ACK.
+        await _ack_or_defer(client, ack_batch, msg_id, event_id, agent_id, shared_secret)
         log.info("consumer.event_persisted", event_id=event_id, agent_id=agent_id)
+        # The notification depends on the commit, not on the ACK: it is scheduled
+        # right away, never deferred to the end of the batch (D76/RN-170).
         _fire_and_forget(notify_if_applicable(outcome.event))
     else:
         # Una transición concurrente dejó otro pending como representación
         # activa. Resolver esta entrega con el mismo ACK atómico.
         log.info("consumer.event_ingest_skipped", event_id=event_id, reason="supersede_race")
-        await _ack_with_event_ack(client, msg_id, event_id, agent_id, shared_secret)
+        await _ack_or_defer(client, ack_batch, msg_id, event_id, agent_id, shared_secret)
 
 
 # ── helpers de ingesta ────────────────────────────────────────────────────────
@@ -571,9 +668,45 @@ def _get_agent_auth(agent_id: str) -> _AgentAuth:
     return _AgentAuth(secret, agent.status == AgentStatus.revoked)
 
 
-def _get_shared_secret(agent_id: str) -> bytes | None:
-    """Helper compatible para rechazos y consumidores focales."""
-    return _get_agent_auth(agent_id).shared_secret
+# D87/RN-181: in-memory cache of `_get_agent_auth`, per agent_id, TTL 5 s on the
+# monotonic clock. Invalidated ONLY by TTL because there is no agent revocation
+# (`AgentStatus.revoked` is never assigned, D86/RN-180) and no secret rotation in
+# `v5.0-tesis`; if either is added, this window must be documented with it.
+# Only successes (a resolved secret) are cached, on purpose: (1) a stream of fake
+# agent_ids would grow the cache without bound, and (2) a cached negative would
+# reject, silently and with an XACK, an event of a freshly enrolled agent as
+# `unknown_agent`. The cost is that an unknown agent_id still hits the DB per
+# event, as before. The cache holds the already unwrapped `_AgentAuth` produced by
+# `_get_agent_auth` (which reads the secret through `unwrap_agent_secret`, the
+# single helper of D86/RN-180); it never stores the wrapped value nor re-reads
+# `shared_secret_hex`. Read and written only from the event loop: no lock needed.
+_AUTH_CACHE_TTL_S = 5.0
+_auth_clock: Callable[[], float] = time.monotonic
+_agent_auth_cache: dict[str, tuple[_AgentAuth, float]] = {}
+
+
+def reset_agent_auth_cache() -> None:
+    """Clears the agent authentication cache. Used in tests."""
+    _agent_auth_cache.clear()
+
+
+async def _resolve_agent_auth_with_hit(agent_id: str) -> tuple[_AgentAuth, bool]:
+    """Cached `_get_agent_auth`: returns (auth, cache_hit). See the cache comment above."""
+    entry = _agent_auth_cache.get(agent_id)
+    if entry is not None and entry[1] > _auth_clock():
+        return entry[0], True
+    loop = asyncio.get_running_loop()
+    auth = await loop.run_in_executor(None, _get_agent_auth, agent_id)
+    if auth.shared_secret is not None:
+        _agent_auth_cache[agent_id] = (auth, _auth_clock() + _AUTH_CACHE_TTL_S)
+    else:
+        _agent_auth_cache.pop(agent_id, None)
+    return auth, False
+
+
+async def _resolve_agent_auth(agent_id: str) -> _AgentAuth:
+    auth, _hit = await _resolve_agent_auth_with_hit(agent_id)
+    return auth
 
 
 def _write_rejection_audit(audit: RejectedEventAudit) -> None:
@@ -632,7 +765,8 @@ async def _reject(
 
     secret = shared_secret
     if secret is None:
-        secret = await loop.run_in_executor(None, _get_shared_secret, agent_id)
+        # Same cache as the happy path (D87/RN-181).
+        secret = (await _resolve_agent_auth(agent_id)).shared_secret
     if secret is None:
         # D-4: sin agente conocido no hay secreto con el que firmar una
         # respuesta verificable. Colapsa en el mismo silencio que unknown_agent.
@@ -687,6 +821,54 @@ async def _ack_with_event_ack(
     # Publicar primero evita un XACK parcial cuando falla la respuesta.
     await client.xadd(STREAM_COMMANDS, {"data": data})
     await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
+
+
+async def _ack_or_defer(
+    client: Any,
+    ack_batch: list[tuple[str, str]] | None,
+    msg_id: str,
+    event_id: str,
+    agent_id: str,
+    shared_secret: bytes,
+) -> None:
+    """Defer the signed `event_ack` + `XACK` to the batch flush, or emit now without a batch."""
+    if ack_batch is None:
+        await _ack_with_event_ack(client, msg_id, event_id, agent_id, shared_secret)
+        return
+    ack_batch.append((msg_id, _build_event_ack(event_id, agent_id, shared_secret)))
+
+
+async def _flush_acks(client: Any, acks: list[tuple[str, str]]) -> None:
+    """
+    Emit the accumulated `event_ack` + `XACK` of a batch (D87/RN-181): one
+    transactional pipeline with an `XADD commands` per entry and a single
+    `XACK events` with every id. Nothing is emitted for an empty batch. A failure
+    is logged and propagated, with no retry here: the entries stay in the PEL.
+    """
+    if not acks:
+        return
+    msg_ids = [msg_id for msg_id, _data in acks]
+    try:
+        pipeline_factory = getattr(client, "pipeline", None)
+        if pipeline_factory is not None and not inspect.iscoroutinefunction(pipeline_factory):
+            pipe = pipeline_factory(transaction=True)
+            for _msg_id, data in acks:
+                pipe.xadd(STREAM_COMMANDS, {"data": data})
+            pipe.xack(STREAM_EVENTS, CONSUMER_GROUP, *msg_ids)
+            await pipe.execute()
+        else:
+            # Minimal asyncio fakes do not expose redis-py's sync pipeline factory:
+            # publish first, then ACK (same order as `_ack_with_event_ack`).
+            for _msg_id, data in acks:
+                await client.xadd(STREAM_COMMANDS, {"data": data})
+            await client.xack(STREAM_EVENTS, CONSUMER_GROUP, *msg_ids)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        log.error("consumer.ack_flush_error", count=len(acks), error=str(exc))
+        raise
+    finally:
+        acks.clear()
 
 
 async def _publish_event_nack(

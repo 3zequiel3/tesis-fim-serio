@@ -65,16 +65,30 @@ def _tls_kwargs(url: str) -> dict[str, object]:
     }
 
 
+def _timeout_kwargs() -> dict[str, object]:
+    """Socket timeouts and connection health check shared by both clients (D87/RN-181).
+
+    `socket_timeout` must stay strictly greater than the largest blocking read
+    (BLOCK 2,000 ms of the consumers sharing the async client); `Settings`
+    defaults satisfy it and a test guards it. Applies to plaintext and TLS URLs.
+    """
+    return {
+        "socket_timeout": settings.valkey_socket_timeout_seconds,
+        "socket_connect_timeout": settings.valkey_socket_connect_timeout_seconds,
+        "health_check_interval": settings.valkey_health_check_interval_seconds,
+    }
+
+
 def build_async_valkey_client(url: str) -> _valkey_async_pkg.Valkey:
     """Factory shared by init_async_valkey() and the dedicated consumer client
     in app.main (one per asyncio consumer task, outside the FastAPI DI client).
     """
-    return _valkey_async_pkg.Valkey.from_url(url, decode_responses=True, **_tls_kwargs(url))
+    return _valkey_async_pkg.Valkey.from_url(url, decode_responses=True, **_timeout_kwargs(), **_tls_kwargs(url))
 
 
 def init_valkey(url: str) -> None:
     global _client
-    _client = _valkey_pkg.Valkey.from_url(url, decode_responses=True, **_tls_kwargs(url))
+    _client = _valkey_pkg.Valkey.from_url(url, decode_responses=True, **_timeout_kwargs(), **_tls_kwargs(url))
 
 
 def close_valkey() -> None:

@@ -108,6 +108,23 @@ class Settings(BaseSettings):
     rate_limit_ingest_rate_per_s: float = Field(default=100 / 60, gt=0)  # tokens per second
     rate_limit_ingest_burst: int = Field(default=3000, ge=1)  # bucket capacity (events)
 
+    # Valkey client timeouts (D87/RN-181). Without them a half-open connection
+    # (left behind by a Valkey restart) hangs a consumer forever. Applied to both
+    # the sync and the async client from one helper in `app.core.valkey`.
+    # `socket_timeout` MUST stay strictly greater than the largest blocking read
+    # (`XREADGROUP`/`XREAD` with BLOCK = 2,000 ms in the events, heartbeat and
+    # command_ack consumers, which share the async client): 10 s leaves 5x margin.
+    # `health_check_interval` makes the client PING before reusing a connection
+    # idle for longer than it, which detects those half-open sockets.
+    valkey_socket_connect_timeout_seconds: float = Field(default=5.0, gt=0)
+    valkey_socket_timeout_seconds: float = Field(default=10.0, gt=0)
+    valkey_health_check_interval_seconds: int = Field(default=15, ge=1)
+
+    # Opt-in per-stage ingest profiling (D87/RN-181), read from FIM_PROFILE_INGEST.
+    # When true the events consumer emits `consumer.timing` logs (per event and
+    # per batch). Off by default: the disabled cost is one boolean check per event.
+    fim_profile_ingest: bool = False
+
     # command_ack (D30/RN-124, C36) — umbral del barrido de timeout de comandos sin confirmar.
     # Default alineado con _DEAD_THRESHOLD_S del heartbeat_consumer (300s).
     command_ack_timeout_seconds: int = 300

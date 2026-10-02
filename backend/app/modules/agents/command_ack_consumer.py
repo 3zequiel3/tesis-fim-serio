@@ -119,6 +119,22 @@ async def _reader_loop(client: Any, stop_event: asyncio.Event) -> None:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            # D87/RN-181 (amendment): same treatment as events/consumer.py. If
+            # Valkey came back without `fim-command-ack`, recreate it in place (from
+            # id "0", with MKSTREAM, as at startup) instead of failing with NOGROUP
+            # forever: meanwhile `_sweep_loop` would mark as `timeout` commands the
+            # agent did apply. Deliberately not a helper shared with the events
+            # consumer: each has its own group, stream and log names.
+            if "NOGROUP" in str(exc):
+                try:
+                    await _ensure_group(client)
+                    log.warning("command_ack_consumer.group_recreated", group=CONSUMER_GROUP_COMMAND_ACK)
+                    await _process_batch(client, "0")
+                    continue
+                except asyncio.CancelledError:
+                    raise
+                except Exception as recreate_exc:
+                    exc = recreate_exc
             log.error("command_ack_consumer.loop_error", error=str(exc))
             await asyncio.sleep(1)
 

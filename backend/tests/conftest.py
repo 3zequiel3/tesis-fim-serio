@@ -312,6 +312,19 @@ def _install_notify_executors():
     executors_mod.reset_executors_for_tests()
 
 
+# D87/RN-181: the events consumer caches `_get_agent_auth` per agent_id for 5 s.
+# Tests reuse the same agent_id ("agent-test", ...) with a different random secret
+# and a different in-memory engine, so a cache entry leaking across tests would
+# validate against a stale secret. Reset before and after every test.
+@pytest.fixture(autouse=True)
+def _reset_agent_auth_cache():
+    from app.modules.events import consumer as consumer_mod
+
+    consumer_mod.reset_agent_auth_cache()
+    yield
+    consumer_mod.reset_agent_auth_cache()
+
+
 # ── Admin seed helper ─────────────────────────────────────────────────────────
 
 def _seed_admin_impl() -> None:
