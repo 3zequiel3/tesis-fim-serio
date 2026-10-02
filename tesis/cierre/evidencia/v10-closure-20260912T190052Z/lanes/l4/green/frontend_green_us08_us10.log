@@ -1,0 +1,14 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l4-events-chain/frontend
+
+ ✓ src/api/events.test.ts (5 tests) 23ms
+ ✓ src/pages/EventChain.test.tsx (3 tests) 551ms
+   ✓ EventChain (US-10) > cada evento de la cadena es navegable hacia su detalle 327ms
+ ✓ src/pages/EventDetail.test.tsx (11 tests) 1087ms
+   ✓ EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) > si el evento tiene parent_event_id, muestra un enlace al evento padre 303ms
+
+ Test Files  3 passed (3)
+      Tests  19 passed (19)
+   Start at  16:52:05
+   Duration  6.31s (transform 835ms, setup 2.17s, collect 1.99s, tests 1.66s, environment 7.36s, prepare 564ms)
+

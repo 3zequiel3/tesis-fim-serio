@@ -1,0 +1,74 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l3-alerts/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 32 items
+
+backend/tests/test_sse_alerts.py ....................FFF.........        [100%]
+
+=================================== FAILURES ===================================
+________________ test_get_alerts_includes_path_and_action_taken ________________
+backend/tests/test_sse_alerts.py:490: in test_get_alerts_includes_path_and_action_taken
+    assert item["path"] == "/etc/shadow"
+E   KeyError: 'path'
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T19:50:27.835860Z"}
+{"reason": "CA_CERT_PATH or CA_KEY_PATH not set", "event": "pki.ensure_ca.skipped", "level": "warning", "timestamp": "2026-09-12T19:50:27.836452Z"}
+{"reason": "cert paths not configured", "event": "pki.mtls_server.skipped", "level": "warning", "timestamp": "2026-09-12T19:50:27.908786Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:27.921040Z"}
+{"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:27.935502Z"}
+{"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:27.937251Z"}
+{"event": "HTTP Request: GET http://testserver/alerts \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:50:27.950922Z"}
+{"event": "backend.shutdown", "level": "info", "timestamp": "2026-09-12T19:50:27.952692Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/alerts "HTTP/1.1 200 OK"
+________________ test_get_alerts_action_taken_null_when_pending ________________
+backend/tests/test_sse_alerts.py:508: in test_get_alerts_action_taken_null_when_pending
+    assert item["path"] == "/etc/passwd"
+E   KeyError: 'path'
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T19:50:28.258954Z"}
+{"reason": "CA_CERT_PATH or CA_KEY_PATH not set", "event": "pki.ensure_ca.skipped", "level": "warning", "timestamp": "2026-09-12T19:50:28.259563Z"}
+{"reason": "cert paths not configured", "event": "pki.mtls_server.skipped", "level": "warning", "timestamp": "2026-09-12T19:50:28.336401Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:28.345376Z"}
+{"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:28.349918Z"}
+{"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:28.353134Z"}
+{"event": "HTTP Request: GET http://testserver/alerts \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:50:28.354347Z"}
+{"event": "backend.shutdown", "level": "info", "timestamp": "2026-09-12T19:50:28.355727Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/alerts "HTTP/1.1 200 OK"
+____________ test_get_failed_alerts_includes_path_and_action_taken _____________
+backend/tests/test_sse_alerts.py:536: in test_get_failed_alerts_includes_path_and_action_taken
+    assert item["path"] == "/etc/cron.d/rogue"
+E   KeyError: 'path'
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T19:50:28.601890Z"}
+{"reason": "CA_CERT_PATH or CA_KEY_PATH not set", "event": "pki.ensure_ca.skipped", "level": "warning", "timestamp": "2026-09-12T19:50:28.602391Z"}
+{"reason": "cert paths not configured", "event": "pki.mtls_server.skipped", "level": "warning", "timestamp": "2026-09-12T19:50:28.646426Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:28.653094Z"}
+{"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:28.660295Z"}
+{"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T19:50:28.662903Z"}
+{"event": "HTTP Request: GET http://testserver/alerts/failed \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:50:28.669926Z"}
+{"event": "backend.shutdown", "level": "info", "timestamp": "2026-09-12T19:50:28.673159Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/alerts/failed "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_sse_alerts.py::test_get_alerts_includes_path_and_action_taken
+FAILED backend/tests/test_sse_alerts.py::test_get_alerts_action_taken_null_when_pending
+FAILED backend/tests/test_sse_alerts.py::test_get_failed_alerts_includes_path_and_action_taken
+=================== 3 failed, 29 passed, 1 warning in 8.66s ====================

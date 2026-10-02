@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="19" failures="1" errors="0" time="1.879">
+    <testsuite name="src/components/ui/AgentCard.test.tsx" timestamp="2026-09-12T20:39:19.114Z" hostname="Eze-Linux" tests="19" failures="1" errors="0" skipped="0" time="0.570690916">
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — transcurrido desde el último latido (8.4) &gt; un latido de hace pocos segundos produce un transcurrido positivo y pequeño" time="0.053752568">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — transcurrido desde el último latido (8.4) &gt; un agente que nunca latió muestra &quot;nunca&quot;, no un transcurrido calculado" time="0.007077262">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — transcurrido desde el último latido (8.4) &gt; un heartbeat futuro (reloj del agente desincronizado) se rotula, no se resta en negativo" time="0.00695804">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — invariancia de zona del transcurrido (8.5) &gt; el mismo last_heartbeat produce el mismo transcurrido bajo dos zonas de visor distintas" time="0.013309274">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — queue_size local (US-21) &gt; muestra el queue_size reportado por el agente" time="0.005232801">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — queue_size local (US-21) &gt; un agente que nunca reportó queue_size lo muestra como desconocido, no como 0" time="0.004522722">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — indicador de drenaje graceful (US-30) &gt; un agente draining muestra &quot;Drenando N eventos&quot; con el queue_size actual" time="0.005665461">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — indicador de drenaje graceful (US-30) &gt; un agente online no muestra el indicador de drenaje" time="0.005322929">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — indicador de drenaje graceful (US-30) &gt; el botón de rescan tiene el tooltip canónico exacto durante el drenaje" time="0.093191833">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — indicador de drenaje graceful (US-30) &gt; el botón de editar paths (update config) tiene el mismo tooltip canónico durante el drenaje" time="0.014160686">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — banner de presión de cola alta (US-21/W3) &gt; queue_pressure &gt; 80% muestra un banner de alerta específico del agente" time="0.008050653">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — banner de presión de cola alta (US-21/W3) &gt; queue_pressure &lt;= 80% no muestra el banner" time="0.005231499">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — selección de paths para rescan (US-22) &gt; con múltiples watch_paths, permite deseleccionar uno y sólo pasa los seleccionados a onRescan" time="0.068237512">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — selección de paths para rescan (US-22) &gt; sin deseleccionar nada, pasa todos los watch_paths" time="0.022899969">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — lista de paths monitoreados (US-24/C1) &gt; muestra todos los watch_paths actualmente monitoreados por el agente" time="0.00880232">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — agregar un nuevo path (US-24/C2) &gt; agrega el path escrito al listado y lo envía en onConfigSave al guardar" time="0.12630347">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — quitar un path existente (US-24/C3) &gt; quita el path seleccionado del listado y lo envía sin él en onConfigSave al guardar" time="0.06236342">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — botón de guardar deshabilitado durante drenaje (US-24/C11, ver US-30) &gt; el botón &quot;Guardar paths&quot; está deshabilitado con el tooltip canónico cuando el agente está draining" time="0.047649879">
+            <failure message="expect(element).toBeDisabled()
+
+Received element is not disabled:
+  &lt;button
+  class=&quot;px-3 py-1 text-xs bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-40&quot;
+/&gt;" type="Error">
+Error: expect(element).toBeDisabled()
+
+Received element is not disabled:
+  &lt;button
+  class=&quot;px-3 py-1 text-xs bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-40&quot;
+/&gt;
+ ❯ src/components/ui/AgentCard.test.tsx:336:24
+            </failure>
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — botón de guardar deshabilitado durante drenaje (US-24/C11, ver US-30) &gt; un agente que ya está draining al abrir la tarjeta no puede llegar a guardar (Editar deshabilitado)" time="0.009791902">
+        </testcase>
+    </testsuite>
+</testsuites>

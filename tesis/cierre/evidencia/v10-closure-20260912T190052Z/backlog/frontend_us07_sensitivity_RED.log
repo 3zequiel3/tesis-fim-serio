@@ -1,0 +1,389 @@
+
+ RUN  v2.1.9 /home/ezequiel/Facultad/tesis/tesis-fim-serio/frontend
+
+ ❯ src/pages/Events.test.tsx (9 tests | 1 failed | 8 skipped) 1346ms
+   × Events — filtro por estado (US-07) > seleccionar dos estados refleja ambos en la petición (selección múltiple) 1344ms
+     → expected [ 'pending', 'quarantined' ] to deeply equal [ 'quarantined', 'pending' ]
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-4"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between"[39m
+        [36m>[39m
+          [36m<h1[39m
+            [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+          [36m>[39m
+            [0mEventos[0m
+          [36m</h1>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+            [36m>[39m
+              [0mEstado[0m
+            [36m</p>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mpending[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mapproved[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mrejected[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mauto_restored[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mquarantined[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0malert_only[0m
+                [36m</span>[39m
+              [36m</label>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+            [36m>[39m
+              [0mSeveridad[0m
+            [36m</p>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mcritical[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mhigh[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mmedium[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mlow[0m
+                [36m</span>[39m
+              [36m</label>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33m...
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/Events.test.tsx > Events — filtro por estado (US-07) > seleccionar dos estados refleja ambos en la petición (selección múltiple)
+AssertionError: expected [ 'pending', 'quarantined' ] to deeply equal [ 'quarantined', 'pending' ]
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-4"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between"[39m
+        [36m>[39m
+          [36m<h1[39m
+            [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+          [36m>[39m
+            [0mEventos[0m
+          [36m</h1>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+            [36m>[39m
+              [0mEstado[0m
+            [36m</p>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mpending[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mapproved[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mrejected[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mauto_restored[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mquarantined[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0malert_only[0m
+                [36m</span>[39m
+              [36m</label>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+            [36m>[39m
+              [0mSeveridad[0m
+            [36m</p>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mcritical[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mhigh[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mmedium[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"rounded"[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"font-mono text-xs"[39m
+                [36m>[39m
+                  [0mlow[0m
+                [36m</span>[39m
+              [36m</label>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33m...
+
+- Expected
++ Received
+
+  Array [
+-   "quarantined",
+    "pending",
++   "quarantined",
+  ]
+
+ ❯ src/pages/Events.test.tsx:151:49
+    149|     await user.click(screen.getByRole('checkbox', { name: 'quarantined…
+    150|     await waitFor(() =>
+    151|       expect(lastEventsRequestParams()?.status).toEqual(['quarantined'…
+       |                                                 ^
+    152|     )
+    153|     expect(screen.getByRole('checkbox', { name: 'pending' })).toBeChec…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  16:35:13
+   Duration  3.42s (transform 257ms, setup 269ms, collect 499ms, tests 1.35s, environment 800ms, prepare 74ms)
+

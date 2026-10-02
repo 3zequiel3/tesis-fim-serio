@@ -1,0 +1,197 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l3-alerts/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 32 items
+
+backend/tests/test_sse_alerts.py ...................FFFF.........        [100%]
+
+=================================== FAILURES ===================================
+___________________ test_get_alerts_order_desc_by_created_at ___________________
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: alerts
+
+The above exception was the direct cause of the following exception:
+backend/tests/test_sse_alerts.py:439: in test_get_alerts_order_desc_by_created_at
+    resp = tc.get("/alerts")
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:482: in get
+    return super().get(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/httpx/_client.py:1053: in get
+    return self.request(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:454: in request
+    return super().request(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/httpx/_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/httpx/_client.py:914: in send
+    response = self._send_handling_auth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/httpx/_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/httpx/_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/httpx/_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:356: in handle_request
+    raise exc
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/testclient.py:353: in handle_request
+    portal.call(self.app, scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:338: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+../../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/concurrent/futures/_base.py:460: in result
+    return self.__get_result()
+../../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/concurrent/futures/_base.py:402: in __get_result
+    raise self._exception
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/anyio/from_thread.py:263: in _call_func
+    retval = await retval_or_awaitable
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+backend/app/core/middleware/trace_id.py:68: in __call__
+    await self.app(scope, receive, send_with_trace)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/middleware/base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+backend/app/core/middleware/cors.py:42: in dispatch
+    response = await call_next(request)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/middleware/base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/middleware/base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/routing.py:680: in app
+    await route.handle(scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py:134: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py:120: in app
+    response = await f(request)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py:674: in app
+    raw_response = await run_endpoint_function(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py:328: in run_endpoint_function
+    return await dependant.call(**values)
+backend/app/modules/alerts/router.py:229: in list_all_alerts
+    items, total = list_alerts(session, status=filter_status, severity=severity, page=page, size=size)
+backend/app/modules/alerts/service.py:412: in list_alerts
+    total: int = session.exec(count_stmt).one()  # type: ignore[assignment]
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlmodel/orm/session.py:66: in exec
+    results = super().execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2373: in execute
+    return self._execute_internal(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2271: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/context.py:306: in orm_execute_statement
+    result = conn.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: alerts
+E   [SQL: SELECT count(*) AS count_1 
+E   FROM alerts]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T19:44:31.351294Z"}
+{"reason": "CA_CERT_PATH or CA_KEY_PATH not set", "event": "pki.ensure_ca.skipped", "level": "warning", "timestamp": "2026-09-12T19:44:31.351641Z"}
+{"reason": "cert paths not configured", "event": "pki.mtls_server.skipped", "level": "warning", "timestamp": "2026-09-12T19:44:31.372660Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:31.375668Z"}
+{"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:31.379336Z"}
+{"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:31.379812Z"}
+{"event": "backend.shutdown", "level": "info", "timestamp": "2026-09-12T19:44:31.383374Z"}
+________________ test_get_alerts_includes_path_and_action_taken ________________
+backend/tests/test_sse_alerts.py:476: in test_get_alerts_includes_path_and_action_taken
+    assert item["path"] == "/etc/shadow"
+E   KeyError: 'path'
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T19:44:32.205064Z"}
+{"reason": "CA_CERT_PATH or CA_KEY_PATH not set", "event": "pki.ensure_ca.skipped", "level": "warning", "timestamp": "2026-09-12T19:44:32.205444Z"}
+{"reason": "cert paths not configured", "event": "pki.mtls_server.skipped", "level": "warning", "timestamp": "2026-09-12T19:44:32.231758Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.235274Z"}
+{"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.246756Z"}
+{"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.247727Z"}
+{"event": "HTTP Request: GET http://testserver/alerts \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:44:32.248748Z"}
+{"event": "backend.shutdown", "level": "info", "timestamp": "2026-09-12T19:44:32.250348Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/alerts "HTTP/1.1 200 OK"
+________________ test_get_alerts_action_taken_null_when_pending ________________
+backend/tests/test_sse_alerts.py:494: in test_get_alerts_action_taken_null_when_pending
+    assert item["path"] == "/etc/passwd"
+E   KeyError: 'path'
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T19:44:32.389637Z"}
+{"reason": "CA_CERT_PATH or CA_KEY_PATH not set", "event": "pki.ensure_ca.skipped", "level": "warning", "timestamp": "2026-09-12T19:44:32.390003Z"}
+{"reason": "cert paths not configured", "event": "pki.mtls_server.skipped", "level": "warning", "timestamp": "2026-09-12T19:44:32.427837Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.432567Z"}
+{"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.437060Z"}
+{"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.437996Z"}
+{"event": "HTTP Request: GET http://testserver/alerts \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:44:32.441383Z"}
+{"event": "backend.shutdown", "level": "info", "timestamp": "2026-09-12T19:44:32.442104Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/alerts "HTTP/1.1 200 OK"
+____________ test_get_failed_alerts_includes_path_and_action_taken _____________
+backend/tests/test_sse_alerts.py:522: in test_get_failed_alerts_includes_path_and_action_taken
+    assert item["path"] == "/etc/cron.d/rogue"
+E   KeyError: 'path'
+----------------------------- Captured stdout call -----------------------------
+{"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T19:44:32.546150Z"}
+{"reason": "CA_CERT_PATH or CA_KEY_PATH not set", "event": "pki.ensure_ca.skipped", "level": "warning", "timestamp": "2026-09-12T19:44:32.546700Z"}
+{"reason": "cert paths not configured", "event": "pki.mtls_server.skipped", "level": "warning", "timestamp": "2026-09-12T19:44:32.565522Z"}
+{"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.568752Z"}
+{"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.572420Z"}
+{"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T19:44:32.572909Z"}
+{"event": "HTTP Request: GET http://testserver/alerts/failed \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:44:32.575068Z"}
+{"event": "backend.shutdown", "level": "info", "timestamp": "2026-09-12T19:44:32.576470Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/alerts/failed "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_sse_alerts.py::test_get_alerts_order_desc_by_created_at
+FAILED backend/tests/test_sse_alerts.py::test_get_alerts_includes_path_and_action_taken
+FAILED backend/tests/test_sse_alerts.py::test_get_alerts_action_taken_null_when_pending
+FAILED backend/tests/test_sse_alerts.py::test_get_failed_alerts_includes_path_and_action_taken
+=================== 4 failed, 28 passed, 1 warning in 7.45s ====================

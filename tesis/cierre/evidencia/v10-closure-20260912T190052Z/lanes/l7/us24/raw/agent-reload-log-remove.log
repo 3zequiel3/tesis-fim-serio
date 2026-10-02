@@ -1,0 +1,2 @@
+agent-1  | [2m2026-09-12T20:06:08.027923Z[0m [[32m[1minfo     [0m] [1mdetector.reload_watch_paths.done[0m [36madded[0m=[35m['/watch/b'][0m [36mremoved[0m=[35m[][0m [36mwatch_paths[0m=[35m['/watch/a', '/watch/b'][0m
+agent-1  | [2m2026-09-12T20:06:10.946825Z[0m [[32m[1minfo     [0m] [1mdetector.reload_watch_paths.done[0m [36madded[0m=[35m[][0m [36mremoved[0m=[35m['/watch/a'][0m [36mwatch_paths[0m=[35m['/watch/b'][0m

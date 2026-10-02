@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="138" failures="0" errors="0" time="17.652">
+    <testsuite name="src/api/actions.test.ts" timestamp="2026-09-12T19:55:14.213Z" hostname="Eze-Linux" tests="3" failures="0" errors="0" skipped="0" time="0.014096357">
+        <testcase classname="src/api/actions.test.ts" name="bulk actions — canonical event_ids wire contract &gt; serializes bulk reject exactly as the shared canonical fixture" time="0.007766007">
+        </testcase>
+        <testcase classname="src/api/actions.test.ts" name="bulk actions — canonical event_ids wire contract &gt; serializes bulk approve with event_ids only" time="0.00235672">
+        </testcase>
+        <testcase classname="src/api/actions.test.ts" name="bulk actions — canonical event_ids wire contract &gt; does not emit the legacy items/version representation" time="0.002352616">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/api/auth.test.ts" timestamp="2026-09-12T19:55:14.221Z" hostname="Eze-Linux" tests="3" failures="0" errors="0" skipped="0" time="0.047438188">
+        <testcase classname="src/api/auth.test.ts" name="refreshApi — US-03 renovación single-flight del cliente &gt; comparte una única petición de refresh entre llamadores concurrentes" time="0.024621405">
+        </testcase>
+        <testcase classname="src/api/auth.test.ts" name="refreshApi — US-03 renovación single-flight del cliente &gt; libera el single-flight al terminar para permitir la próxima rotación" time="0.000666072">
+        </testcase>
+        <testcase classname="src/api/auth.test.ts" name="logoutApi — US-02 invalidación de la sesión &gt; envía el access token al endpoint autenticado de logout" time="0.01754155">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/api/client.test.ts" timestamp="2026-09-12T19:55:14.229Z" hostname="Eze-Linux" tests="1" failures="0" errors="0" skipped="0" time="0.020856172">
+        <testcase classname="src/api/client.test.ts" name="apiClient — US-03 renovación transparente &gt; reintenta la petición original con el token rotado después de un 401" time="0.018144529">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/api/events.contract.test.ts" timestamp="2026-09-12T19:55:14.232Z" hostname="Eze-Linux" tests="1" failures="0" errors="0" skipped="0" time="0.021507953">
+        <testcase classname="src/api/events.contract.test.ts" name="getEvents — contrato de wire de severidad contra contracts/events.list-severity.request.json (7.7) &gt; emite un parámetro `severity` repetido por valor, no comma-joined ni bracket notation" time="0.016004573">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/api/events.test.ts" timestamp="2026-09-12T19:55:14.233Z" hostname="Eze-Linux" tests="5" failures="0" errors="0" skipped="0" time="0.105275471">
+        <testcase classname="src/api/events.test.ts" name="getEvents — conversión de filtros de fecha local a UTC (8.7) &gt; un rango tipeado en hora local (America/Argentina/Buenos_Aires, UTC-3) produce instantes UTC en la petición" time="0.029612405">
+        </testcase>
+        <testcase classname="src/api/events.test.ts" name="getEvents — conversión de filtros de fecha local a UTC (8.7) &gt; un filtro de fecha ausente no agrega date_from/date_to a la query string (7.4)" time="0.023475229">
+        </testcase>
+        <testcase classname="src/api/events.test.ts" name="getEvents — conversión de filtros de fecha local a UTC (8.7) &gt; serializa include_superseded=true en el camino real que construye GET /events" time="0.001256024">
+        </testcase>
+        <testcase classname="src/api/events.test.ts" name="getEvents — conversión de filtros de fecha local a UTC (8.7) &gt; omite include_superseded cuando el toggle está apagado" time="0.009179598">
+        </testcase>
+        <testcase classname="src/api/events.test.ts" name="getEventChain &gt; llama a GET /events/{id}/chain y retorna path + items" time="0.018842694">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/config/viteProxy.test.ts" timestamp="2026-09-12T19:55:14.237Z" hostname="Eze-Linux" tests="1" failures="0" errors="0" skipped="0" time="0.01755863">
+        <testcase classname="src/config/viteProxy.test.ts" name="development refresh proxy &gt; exposes the exact same-origin path required by the scoped cookie" time="0.01587035">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/hooks/useAlertsSSE.test.tsx" timestamp="2026-09-12T19:55:14.238Z" hostname="Eze-Linux" tests="2" failures="0" errors="0" skipped="0" time="0.089629584">
+        <testcase classname="src/hooks/useAlertsSSE.test.tsx" name="useAlertsSSE — US-20 cliente en tiempo real &gt; abre el stream autenticado y una alerta muestra una notificación sin recargar e invalida las vistas relacionadas" time="0.07851658">
+        </testcase>
+        <testcase classname="src/hooks/useAlertsSSE.test.tsx" name="useAlertsSSE — US-20 cliente en tiempo real &gt; ante un cierre definitivo cierra el stream vencido e intenta renovar la sesión" time="0.009093674">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/pages/Dashboard.test.tsx" timestamp="2026-09-12T19:55:14.239Z" hostname="Eze-Linux" tests="11" failures="0" errors="0" skipped="0" time="2.961251516">
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-04: metricas generales &gt; carga las metricas al entrar al dashboard, sin interaccion del usuario" time="1.09695649">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-04: metricas generales &gt; presenta cada metrica como un indicador numerico junto a su etiqueta" time="0.153024457">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-04: metricas generales &gt; consulta al backend usando el lexico canonico en minusculas snake_case (C1)" time="0.114181392">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-04: metricas generales &gt; muestra un contador para cada uno de los 7 estados canonicos, incluido superseded" time="0.121371367">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-04: metricas generales &gt; ninguna etiqueta de estado de evento difiere de su valor canónico (C1/RN-71)" time="0.402386961">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-05: estado general del sistema &gt; indica cuantos eventos pending hay sin resolver" time="0.146336214">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-05: estado general del sistema &gt; muestra el estado de conectividad de los agentes registrados" time="0.160750894">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-05: estado general del sistema &gt; destaca visualmente los pending critical/high cuando existen" time="0.100038873">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-05: estado general del sistema &gt; la tarjeta de pending critical/high enlaza a la lista prefiltrada con los dos severity presentes (8.4)" time="0.149015383">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-05: estado general del sistema &gt; no destaca la tarjeta de pending critical/high cuando no hay ninguno" time="0.27677158">
+        </testcase>
+        <testcase classname="src/pages/Dashboard.test.tsx" name="Dashboard — US-05: estado general del sistema &gt; muestra el estado de la infraestructura monitoreada" time="0.225536187">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/pages/EventChain.test.tsx" timestamp="2026-09-12T19:55:14.244Z" hostname="Eze-Linux" tests="3" failures="0" errors="0" skipped="0" time="0.935197576">
+        <testcase classname="src/pages/EventChain.test.tsx" name="EventChain (US-10) &gt; muestra todos los eventos de la cadena ordenados cronológicamente" time="0.312388966">
+        </testcase>
+        <testcase classname="src/pages/EventChain.test.tsx" name="EventChain (US-10) &gt; cada evento de la cadena es navegable hacia su detalle" time="0.532530597">
+        </testcase>
+        <testcase classname="src/pages/EventChain.test.tsx" name="EventChain (US-10) &gt; marca los eventos superseded con ícono de cadena rota y referencia a su parent_event_id" time="0.088305881">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/pages/EventDetail.test.tsx" timestamp="2026-09-12T19:55:14.247Z" hostname="Eze-Linux" tests="11" failures="0" errors="0" skipped="0" time="2.049212449">
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — evento sin ruta (D51/RN-145) &gt; el detalle de un evento sin ruta muestra el tipo de evento y su causa, no rompe al renderizar" time="0.333505578">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — evento sin ruta (D51/RN-145) &gt; el detalle de un evento sin ruta omite el bloque de contexto de proceso cuando los tres campos son nulos" time="0.092227506">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — evento sin ruta (D51/RN-145) &gt; el detalle de un evento con ruta renderiza igual que antes (no regresión)" time="0.117578486">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — evento sin ruta (D51/RN-145) &gt; renderiza el diff textual real recibido por la API" time="0.107694792">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — evento sin ruta (D51/RN-145) &gt; declara la ausencia sin presentar hashes como diff" time="0.122200935">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) &gt; muestra el tipo de acción, la severidad y la fecha de creación" time="0.069023605">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) &gt; si el evento tiene parent_event_id, muestra un enlace al evento padre" time="0.876865156">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) &gt; sin parent_event_id no muestra enlace al evento padre" time="0.09585448">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) &gt; si el evento pertenece a una cadena de más de un elemento, indica su posición y permite navegar a la cadena (US-10)" time="0.083350105">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) &gt; si la cadena tiene un solo evento, no muestra el indicador de posición" time="0.096184997">
+        </testcase>
+        <testcase classname="src/pages/EventDetail.test.tsx" name="EventDetail — US-08 (tipo de acción, severidad, fecha de creación, cadena) &gt; un evento sin path (detection_gap) no dispara la consulta de cadena" time="0.052147615">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/pages/Events.test.tsx" timestamp="2026-09-12T19:55:14.256Z" hostname="Eze-Linux" tests="4" failures="0" errors="0" skipped="0" time="2.132650073">
+        <testcase classname="src/pages/Events.test.tsx" name="Events — filtro por severidad (8.6) &gt; activar un checkbox de severidad lo deja marcado y dispara una petición con esa severidad" time="0.949910058">
+        </testcase>
+        <testcase classname="src/pages/Events.test.tsx" name="Events — filtro por severidad (8.6) &gt; desactivar el último nivel seleccionado lo saca del checkbox y de la petición" time="0.520507018">
+        </testcase>
+        <testcase classname="src/pages/Events.test.tsx" name="Events — US-31 toggle superseded &gt; está desmarcado por defecto y al activarlo persiste en la URL lógica y llega a la petición" time="0.446216308">
+        </testcase>
+        <testcase classname="src/pages/Events.test.tsx" name="Events — US-31 toggle superseded &gt; restaura el toggle desde include_superseded=true de la URL" time="0.213664915">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/pages/Rules.test.tsx" timestamp="2026-09-12T19:55:14.270Z" hostname="Eze-Linux" tests="2" failures="0" errors="0" skipped="0" time="1.719369182">
+        <testcase classname="src/pages/Rules.test.tsx" name="Rules — US-16 edición y US-17 eliminación &gt; abre el formulario de edición precargado con patrón, severidad y acción de la regla elegida" time="1.08204916">
+        </testcase>
+        <testcase classname="src/pages/Rules.test.tsx" name="Rules — US-16 edición y US-17 eliminación &gt; no elimina al mostrar la confirmación y llama al endpoint sólo después de confirmar" time="0.635407821">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/stores/auth.store.test.ts" timestamp="2026-09-12T19:55:14.271Z" hostname="Eze-Linux" tests="4" failures="0" errors="0" skipped="0" time="0.020016116">
+        <testcase classname="src/stores/auth.store.test.ts" name="auth store — US-03 refresh anticipado &gt; renueva una vez sesenta segundos antes de expirar y reemplaza el token en memoria" time="0.010779446">
+        </testcase>
+        <testcase classname="src/stores/auth.store.test.ts" name="auth store — US-03 refresh anticipado &gt; si el refresh anticipado falla limpia la sesión local" time="0.00241901">
+        </testcase>
+        <testcase classname="src/stores/auth.store.test.ts" name="auth store — US-03 refresh anticipado &gt; agenda desde la duración exp-iat y no entra en loop cuando el reloj cliente está adelantado" time="0.002044397">
+        </testcase>
+        <testcase classname="src/stores/auth.store.test.ts" name="auth store — US-03 refresh anticipado &gt; un token ilegible no dispara refresh basado en claims no verificadas" time="0.001352495">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/ackStatus.test.ts" timestamp="2026-09-12T19:55:14.273Z" hostname="Eze-Linux" tests="3" failures="0" errors="0" skipped="0" time="0.00707553">
+        <testcase classname="src/utils/ackStatus.test.ts" name="getAckStatusMeta &gt; retorna null cuando no hay ack_status (sin comando confirmable)" time="0.00174201">
+        </testcase>
+        <testcase classname="src/utils/ackStatus.test.ts" name="getAckStatusMeta &gt; retorna label y clase para pending" time="0.001275844">
+        </testcase>
+        <testcase classname="src/utils/ackStatus.test.ts" name="getAckStatusMeta &gt; retorna label y clase distintos para acked, failed y timeout" time="0.002323322">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/actionError.test.ts" timestamp="2026-09-12T19:55:14.275Z" hostname="Eze-Linux" tests="5" failures="0" errors="0" skipped="0" time="0.00945769">
+        <testcase classname="src/utils/actionError.test.ts" name="getActionErrorMeta &gt; retorna null cuando no hay causa" time="0.002530735">
+        </testcase>
+        <testcase classname="src/utils/actionError.test.ts" name="getActionErrorMeta &gt; mapea read_only_mount como problema de despliegue" time="0.00101685">
+        </testcase>
+        <testcase classname="src/utils/actionError.test.ts" name="getActionErrorMeta &gt; mapea permission_denied como problema de despliegue" time="0.001002349">
+        </testcase>
+        <testcase classname="src/utils/actionError.test.ts" name="getActionErrorMeta &gt; mapea no_baseline_metadata como problema de datos, distinto de los de despliegue" time="0.002045372">
+        </testcase>
+        <testcase classname="src/utils/actionError.test.ts" name="getActionErrorMeta &gt; un valor desconocido cae al literal crudo en vez de ocultarse" time="0.000777294">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/actionFailed.test.ts" timestamp="2026-09-12T19:55:14.280Z" hostname="Eze-Linux" tests="2" failures="0" errors="0" skipped="0" time="0.010374447">
+        <testcase classname="src/utils/actionFailed.test.ts" name="getActionFailedMeta &gt; retorna null cuando action_failed es false" time="0.006206291">
+        </testcase>
+        <testcase classname="src/utils/actionFailed.test.ts" name="getActionFailedMeta &gt; retorna label y clase cuando action_failed es true" time="0.00121782">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/discardedEvents.test.ts" timestamp="2026-09-12T19:55:14.281Z" hostname="Eze-Linux" tests="7" failures="0" errors="0" skipped="0" time="0.05365593">
+        <testcase classname="src/utils/discardedEvents.test.ts" name="getDiscardedEventsMeta &gt; trata null como desconocido, no como cero" time="0.016756609">
+        </testcase>
+        <testcase classname="src/utils/discardedEvents.test.ts" name="getDiscardedEventsMeta &gt; trata undefined como desconocido, no como cero" time="0.007203692">
+        </testcase>
+        <testcase classname="src/utils/discardedEvents.test.ts" name="getDiscardedEventsMeta &gt; cero se muestra como estado sano, distinto de desconocido" time="0.001301144">
+        </testcase>
+        <testcase classname="src/utils/discardedEvents.test.ts" name="getDiscardedEventsMeta &gt; un conteo positivo se presenta como anomalía" time="0.011653312">
+        </testcase>
+        <testcase classname="src/utils/discardedEvents.test.ts" name="getDiscardedEventsMeta &gt; el estado positivo usa una clase visualmente distinta del estado sano" time="0.003908489">
+        </testcase>
+        <testcase classname="src/utils/discardedEvents.test.ts" name="getDiscardedEventsMeta &gt; nunca lanza ante valores inesperados" time="0.004046155">
+        </testcase>
+        <testcase classname="src/utils/discardedEvents.test.ts" name="getDiscardedEventsMeta &gt; cubre los tres estados con resultados distintos" time="0.000446366">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/eventFilters.test.ts" timestamp="2026-09-12T19:55:14.302Z" hostname="Eze-Linux" tests="13" failures="0" errors="0" skipped="0" time="0.018032613">
+        <testcase classname="src/utils/eventFilters.test.ts" name="parseEventFilters &gt; retorna defaults cuando el URLSearchParams está vacío" time="0.003309504">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="parseEventFilters &gt; parsea multi-select status" time="0.001545346">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="parseEventFilters &gt; parsea include_superseded=true" time="0.000619136">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="parseEventFilters &gt; include_superseded=false queda como undefined" time="0.00056922">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="parseEventFilters &gt; parsea page, path_prefix, date_from, date_to" time="0.000998325">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="serializeEventFilters &gt; genera URLSearchParams vacío con filtros default" time="0.000912762">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="serializeEventFilters &gt; serializa multi-select status como repeated params" time="0.000967576">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="serializeEventFilters &gt; serializa include_superseded=true" time="0.001092758">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="serializeEventFilters &gt; omite include_superseded cuando es false/undefined" time="0.000806025">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="serializeEventFilters &gt; omite page cuando es 1 (default)" time="0.001199304">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="serializeEventFilters &gt; incluye page cuando es mayor a 1" time="0.000496603">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="round-trip parse/serialize &gt; preserva filtros complejos en ida y vuelta" time="0.002231398">
+        </testcase>
+        <testcase classname="src/utils/eventFilters.test.ts" name="round-trip parse/serialize &gt; filtros vacíos round-trip produce URLSearchParams vacío" time="0.000541492">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/severity.test.ts" timestamp="2026-09-12T19:55:14.315Z" hostname="Eze-Linux" tests="5" failures="0" errors="0" skipped="0" time="0.021607726">
+        <testcase classname="src/utils/severity.test.ts" name="getSeverityMeta &gt; cada uno de los cuatro niveles conocidos resuelve un tratamiento distinto" time="0.009690622">
+        </testcase>
+        <testcase classname="src/utils/severity.test.ts" name="getSeverityMeta &gt; las clases de texto son idénticas a las que las tres pantallas migradas producían antes (Alerts.tsx:29-32)" time="0.000741288">
+        </testcase>
+        <testcase classname="src/utils/severity.test.ts" name="getSeverityMeta &gt; un valor fuera de los cuatro niveles degrada a un tratamiento neutro en vez de lanzar" time="0.00373045">
+        </testcase>
+        <testcase classname="src/utils/severity.test.ts" name="getSeverityMeta &gt; null/undefined también degradan al tratamiento neutro" time="0.003753401">
+        </testcase>
+        <testcase classname="src/utils/severity.test.ts" name="getSeverityMeta &gt; la precedencia ordena los niveles como el dominio lo hace: critical &gt; high &gt; medium &gt; low" time="0.001621826">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/timeDisplay.test.ts" timestamp="2026-09-12T19:55:14.339Z" hostname="Eze-Linux" tests="11" failures="0" errors="0" skipped="0" time="0.127749905">
+        <testcase classname="src/utils/timeDisplay.test.ts" name="entorno de tests — guarda de zona horaria (8.2) &gt; el desfase efectivo del entorno de tests no es cero" time="0.027440236">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatAbsolute — forma absoluta con zona visible (6.2, 8.3) &gt; 2026-08-20T19:55:59+00:00 renderiza como 16:55:59 del 2026-08-20, con la zona visible" time="0.080657899">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatAbsolute — forma absoluta con zona visible (6.2, 8.3) &gt; un instante con desfase explícito no se desplaza — se parsea como ese instante" time="0.001496664">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatAbsolute — forma absoluta con zona visible (6.2, 8.3) &gt; un instante futuro se muestra sin lanzar, con su zona" time="0.001430821">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatAbsolute/formatRelative — contrato del nulo (6.4, 8.6) &gt; null renderiza como ausencia explícita, nunca Invalid Date" time="0.001118368">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatAbsolute/formatRelative — contrato del nulo (6.4, 8.6) &gt; acepta un nullLabel específico por sitio de uso (p.ej. AgentCard)" time="0.001054573">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatRelative — futuro rotulado, nunca negativo (6.5, 8.6) &gt; un instante futuro se rotula como tal, no como un intervalo negativo" time="0.00211874">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatRelative — futuro rotulado, nunca negativo (6.5, 8.6) &gt; un instante pasado reciente da un intervalo positivo pequeño (&quot;hace ...&quot;)" time="0.000979267">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatAbsolute/formatRelative — valor no parseable (6.6, 8.6) &gt; un valor presente pero no parseable degrada de forma visible" time="0.001224834">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatAbsolute/formatRelative — valor no parseable (6.6, 8.6) &gt; nunca produce el texto literal &quot;Invalid Date&quot;" time="0.000756471">
+        </testcase>
+        <testcase classname="src/utils/timeDisplay.test.ts" name="formatRelative — invariancia de zona (D-6, RN-90/RN-131) &gt; el intervalo transcurrido es igual bajo dos zonas de visualización distintas" time="0.003110702">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/utils/watchPathStatus.test.ts" timestamp="2026-09-12T19:55:14.363Z" hostname="Eze-Linux" tests="6" failures="0" errors="0" skipped="0" time="0.033040739">
+        <testcase classname="src/utils/watchPathStatus.test.ts" name="getWatchPathStatusMeta &gt; retorna null cuando no hay dato reportado (agente viejo o sin heartbeat)" time="0.013550309">
+        </testcase>
+        <testcase classname="src/utils/watchPathStatus.test.ts" name="getWatchPathStatusMeta &gt; retorna null para writable — sin indicador alarmante" time="0.000429717">
+        </testcase>
+        <testcase classname="src/utils/watchPathStatus.test.ts" name="getWatchPathStatusMeta &gt; marca read_only_mount como solo-detección" time="0.000681185">
+        </testcase>
+        <testcase classname="src/utils/watchPathStatus.test.ts" name="getWatchPathStatusMeta &gt; marca permission_denied como solo-detección" time="0.014763834">
+        </testcase>
+        <testcase classname="src/utils/watchPathStatus.test.ts" name="getWatchPathStatusMeta &gt; distingue missing de un problema de permisos" time="0.001380063">
+        </testcase>
+        <testcase classname="src/utils/watchPathStatus.test.ts" name="getWatchPathStatusMeta &gt; un valor desconocido cae al literal crudo en vez de ocultarse" time="0.000461991">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/layout/AlertsBanner.test.tsx" timestamp="2026-09-12T19:55:14.376Z" hostname="Eze-Linux" tests="5" failures="0" errors="0" skipped="0" time="0.793860682">
+        <testcase classname="src/components/layout/AlertsBanner.test.tsx" name="AlertsBanner — US-05: banner amarillo de notificaciones fallidas &gt; no muestra ningun banner cuando no hay alertas fallidas" time="0.095552474">
+        </testcase>
+        <testcase classname="src/components/layout/AlertsBanner.test.tsx" name="AlertsBanner — US-05: banner amarillo de notificaciones fallidas &gt; muestra un banner amarillo con la cantidad de alertas fallidas en la DLQ" time="0.563029542">
+        </testcase>
+        <testcase classname="src/components/layout/AlertsBanner.test.tsx" name="AlertsBanner — US-05: banner amarillo de notificaciones fallidas &gt; ofrece un enlace para revisar las alertas fallidas" time="0.063407177">
+        </testcase>
+        <testcase classname="src/components/layout/AlertsBanner.test.tsx" name="AlertsBanner — US-05: banner amarillo de notificaciones fallidas &gt; consulta unicamente las alertas en estado failed" time="0.040101015">
+        </testcase>
+        <testcase classname="src/components/layout/AlertsBanner.test.tsx" name="AlertsBanner — US-05: banner amarillo de notificaciones fallidas &gt; usa el singular cuando hay una sola alerta fallida" time="0.029878766">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/layout/Navbar.test.tsx" timestamp="2026-09-12T19:55:14.382Z" hostname="Eze-Linux" tests="2" failures="0" errors="0" skipped="0" time="0.785114926">
+        <testcase classname="src/components/layout/Navbar.test.tsx" name="Navbar — US-02 logout del cliente &gt; muestra el botón y al usarlo limpia el token y el usuario, solicita logout y navega a /login con replace" time="0.700130231">
+        </testcase>
+        <testcase classname="src/components/layout/Navbar.test.tsx" name="Navbar — US-02 logout del cliente &gt; limpia el cliente pero informa cuando no puede confirmar la revocación remota" time="0.083159913">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/layout/ProtectedRoute.test.tsx" timestamp="2026-09-12T19:55:14.384Z" hostname="Eze-Linux" tests="1" failures="0" errors="0" skipped="0" time="0.075779958">
+        <testcase classname="src/components/layout/ProtectedRoute.test.tsx" name="ProtectedRoute — US-03 expiración de sesión &gt; navega una sola vez a login cuando una sesión ya verificada queda sin token" time="0.073934794">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/layout/SystemBanner.test.tsx" timestamp="2026-09-12T19:55:14.386Z" hostname="Eze-Linux" tests="4" failures="0" errors="0" skipped="0" time="0.549357925">
+        <testcase classname="src/components/layout/SystemBanner.test.tsx" name="SystemBanner — US-05: banner rojo de degradacion &gt; no muestra ningun banner cuando todos los componentes estan ok" time="0.132253284">
+        </testcase>
+        <testcase classname="src/components/layout/SystemBanner.test.tsx" name="SystemBanner — US-05: banner rojo de degradacion &gt; muestra un banner rojo que nombra el componente degradado" time="0.300432163">
+        </testcase>
+        <testcase classname="src/components/layout/SystemBanner.test.tsx" name="SystemBanner — US-05: banner rojo de degradacion &gt; trata al subsistema de agentes como degradado cuando su status no es ok" time="0.05225102">
+        </testcase>
+        <testcase classname="src/components/layout/SystemBanner.test.tsx" name="SystemBanner — US-05: banner rojo de degradacion &gt; nombra todos los componentes caidos a la vez" time="0.05656504">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/ui/AgentCard.test.tsx" timestamp="2026-09-12T19:55:14.392Z" hostname="Eze-Linux" tests="4" failures="0" errors="0" skipped="0" time="0.426901589">
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — transcurrido desde el último latido (8.4) &gt; un latido de hace pocos segundos produce un transcurrido positivo y pequeño" time="0.174395977">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — transcurrido desde el último latido (8.4) &gt; un agente que nunca latió muestra &quot;nunca&quot;, no un transcurrido calculado" time="0.073000365">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — transcurrido desde el último latido (8.4) &gt; un heartbeat futuro (reloj del agente desincronizado) se rotula, no se resta en negativo" time="0.069011151">
+        </testcase>
+        <testcase classname="src/components/ui/AgentCard.test.tsx" name="AgentCard — invariancia de zona del transcurrido (8.5) &gt; el mismo last_heartbeat produce el mismo transcurrido bajo dos zonas de visor distintas" time="0.086259726">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/ui/BulkActionBar.test.tsx" timestamp="2026-09-12T19:55:14.405Z" hostname="Eze-Linux" tests="4" failures="0" errors="0" skipped="0" time="2.95538369">
+        <testcase classname="src/components/ui/BulkActionBar.test.tsx" name="BulkActionBar — bulk reject con acción por ítem (8.7) &gt; rechazar 3 eventos emite event_ids y una única action, sin items legacy" time="1.193760643">
+        </testcase>
+        <testcase classname="src/components/ui/BulkActionBar.test.tsx" name="BulkActionBar — bulk reject con acción por ítem (8.7) &gt; el modal resume la cantidad, muestra sólo los primeros 10 paths y anuncia el excedente" time="0.256278822">
+        </testcase>
+        <testcase classname="src/components/ui/BulkActionBar.test.tsx" name="BulkActionBar — bulk reject con acción por ítem (8.7) &gt; muestra un resumen expandible por evento y conserva seleccionados sólo los fallidos" time="0.587006131">
+        </testcase>
+        <testcase classname="src/components/ui/BulkActionBar.test.tsx" name="BulkActionBar — bulk reject con acción por ítem (8.7) &gt; aplica el resultado sobre la selección actual sin perder cambios hechos durante la petición" time="0.916054532">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/ui/DiffViewer.test.ts" timestamp="2026-09-12T19:55:14.415Z" hostname="Eze-Linux" tests="2" failures="0" errors="0" skipped="0" time="0.377983013">
+        <testcase classname="src/components/ui/DiffViewer.test.ts" name="DiffViewer &gt; preserva encabezados y offsets de múltiples hunks sin crear continuidad falsa" time="0.064341746">
+        </testcase>
+        <testcase classname="src/components/ui/DiffViewer.test.ts" name="DiffViewer &gt; hace visible que el backend truncó el patch" time="0.311770182">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/ui/EventsTable.test.tsx" timestamp="2026-09-12T19:55:14.417Z" hostname="Eze-Linux" tests="11" failures="0" errors="0" skipped="0" time="1.818103319">
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — severidad (8.1, 8.2) &gt; la fila de un critical muestra el texto &quot;critical&quot; y la de un low muestra &quot;low&quot;" time="0.480337402">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — severidad (8.1, 8.2) &gt; la fila de un critical y la de un low no comparten la clase de banda de borde" time="0.042973376">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — contenido de fila (US-06) &gt; una fila muestra path, estado, severidad y fecha juntos" time="0.01838554">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — proceso causante (8.3) &gt; una fila con contexto de proceso muestra el ejecutable, el pid y el uid" time="0.043385411">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — proceso causante (8.3) &gt; un evento sin contexto de proceso no renderiza la sublínea ni el texto &quot;null&quot;" time="0.040794403">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — evento sin ruta (D51/RN-145) &gt; una fila con path: null y event_type: &quot;detection_gap&quot; muestra la etiqueta y enlaza al detalle" time="0.024634692">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — evento sin ruta (D51/RN-145) &gt; una fila sin ruta no muestra un guion, una cadena vacía ni el literal &quot;null&quot;" time="0.049934161">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — evento sin ruta (D51/RN-145) &gt; una fila con ruta renderiza igual que antes (no regresión)" time="0.0282711">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — US-25 selección en lote &gt; permite seleccionar una fila individual sin seleccionar las demás" time="0.767889121">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — US-25 selección en lote &gt; seleccionar todo agrega exclusivamente los eventos de la página visible" time="0.269744141">
+        </testcase>
+        <testcase classname="src/components/ui/EventsTable.test.tsx" name="EventsTable — US-31 vínculo de cadena superseded &gt; un superseded con parent_event_id muestra el indicador y enlaza al evento padre" time="0.045985088">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/components/ui/RuleForm.test.tsx" timestamp="2026-09-12T19:55:14.430Z" hostname="Eze-Linux" tests="2" failures="0" errors="0" skipped="0" time="0.583784697">
+        <testcase classname="src/components/ui/RuleForm.test.tsx" name="RuleForm accessibility labels &gt; associates every control with a visible label" time="0.212546476">
+        </testcase>
+        <testcase classname="src/components/ui/RuleForm.test.tsx" name="RuleForm accessibility labels &gt; connects the required error to the pattern input" time="0.369337561">
+        </testcase>
+    </testsuite>
+</testsuites>

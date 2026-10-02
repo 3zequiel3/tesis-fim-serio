@@ -1,0 +1,6 @@
+705b3249da028bb3e859fdd610e9a986595eec23cf0ab627370301a07a0fc8d0 /tesis-fim-serio-n8n-1 started=2026-09-10T20:14:06.829023186Z restarts=0
+9639d049e84c5b087c7a26c17d9b170240cd083f538bc66777419d76a50de91c /tesis-fim-serio-valkey-1 started=2026-09-07T15:18:11.041977846Z restarts=0
+babaacff17e2dbf6dd1c90816970cfcc4435da8fb670a14ccbd1c01062de743a /tesis-fim-serio-db-1 started=2026-09-07T15:18:11.05283719Z restarts=0
+e21d4255727b7666a697e94e1215c0b80e92a375adfe26a4fc2ed2e8402dc3d5 /tesis-fim-serio-frontend-1 started=2026-09-10T20:14:04.858508083Z restarts=4269
+eb20a2a7ffc69af93bd1da2449425ea94cad4f5a5d40033729f64e8b0c7c9dc2 /tesis-fim-serio-agent-1 started=2026-09-10T20:20:48.375055018Z restarts=0
+eedbec1ec1fe832566728aff2afc743f1c8ea818e33628989ebf3ef3e183fb9f /tesis-fim-serio-backend-1 started=2026-09-11T22:45:01.772575969Z restarts=0

@@ -1,0 +1,12 @@
+event_id=182aa4c5-dc8f-4ee2-b556-61678b387bde db_id=2
+2026-09-12 19:56:35 [info     ] notify.alert_created           alert_id=2 event_id=182aa4c5-dc8f-4ee2-b556-61678b387bde severity=critical
+2026-09-12 19:56:35 [warning  ] notifier.n8n_failed            error='All connection attempts failed'
+2026-09-12 19:56:35 [info     ] notify.retry_wait              alert_id=2 attempt=1 delay_s=5.0
+2026-09-12 19:56:40 [warning  ] notifier.n8n_failed            error='All connection attempts failed'
+2026-09-12 19:56:40 [info     ] notify.retry_wait              alert_id=2 attempt=2 delay_s=30.0
+2026-09-12 19:57:10 [warning  ] notifier.n8n_failed            error='All connection attempts failed'
+2026-09-12 19:57:10 [info     ] notify.retry_wait              alert_id=2 attempt=3 delay_s=120.0
+2026-09-12 19:59:10 [warning  ] notifier.n8n_failed            error='All connection attempts failed'
+2026-09-12 19:59:10 [warning  ] notifier.smtp_failed           error="Error connecting to 127.0.0.1 on port 2: [Errno 111] Connect call failed ('127.0.0.1', 2)"
+2026-09-12 19:59:10 [info     ] notifier.webhook_fallback_sent status_code=200
+2026-09-12 19:59:10 [info     ] notify.delivered               alert_id=2 channel=webhook_fallback

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 e2e/us02-logout.spec.ts:6:1 › US-02 logout revoca la sesión real, borra cookie y Back no reabre la vista protegida (4.9s)
+
+  1 passed (5.6s)

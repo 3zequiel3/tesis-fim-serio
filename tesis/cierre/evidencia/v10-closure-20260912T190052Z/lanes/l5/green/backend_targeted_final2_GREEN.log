@@ -1,0 +1,543 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 59 items
+
+backend/tests/test_agent_mgmt.py ....E.............EEE                   [ 35%]
+backend/tests/test_command_ack_consumer.py ..........E.....E...          [ 69%]
+backend/tests/test_heartbeat_consumer.py ...EE.............              [100%]
+
+==================================== ERRORS ====================================
+___________ ERROR at setup of test_agent_config_updates_watch_paths ____________
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+
+The above exception was the direct cause of the following exception:
+backend/tests/conftest.py:133: in _db_isolation
+    _seed_admin_impl()
+backend/tests/conftest.py:108: in _seed_admin_impl
+    session.commit()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2035: in commit
+    trans.commit(_to_root=True)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1316: in commit
+    self._prepare_impl()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1290: in _prepare_impl
+    self.session.flush()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+E   [SQL: INSERT INTO users (username, email, password_hash, role, is_active, must_change_password, created_at) VALUES (%(username)s::VARCHAR, %(email)s::VARCHAR, %(password_hash)s::VARCHAR, %(role)s::VARCHAR, %(is_active)s, %(must_change_password)s, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING users.id]
+E   [parameters: {'username': 'admin', 'email': 'admin@fim.local', 'password_hash': '$argon2id$v=19$m=65536,t=3,p=4$bIgSTWqF0bi+5yP/Q6V88A$WIUa7XuA962qUbnc3yGDlRaJ6mGNg5BaIHuGDfGk+uc', 'role': 'admin', 'is_active': True, 'must_change_password': True, 'created_at': datetime.datetime(2026, 9, 12, 20, 26, 40, 616893, tzinfo=datetime.timezone.utc)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+__________________ ERROR at setup of test_audit_log_on_config __________________
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+
+The above exception was the direct cause of the following exception:
+backend/tests/conftest.py:133: in _db_isolation
+    _seed_admin_impl()
+backend/tests/conftest.py:108: in _seed_admin_impl
+    session.commit()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2035: in commit
+    trans.commit(_to_root=True)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1316: in commit
+    self._prepare_impl()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1290: in _prepare_impl
+    self.session.flush()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+E   [SQL: INSERT INTO users (username, email, password_hash, role, is_active, must_change_password, created_at) VALUES (%(username)s::VARCHAR, %(email)s::VARCHAR, %(password_hash)s::VARCHAR, %(role)s::VARCHAR, %(is_active)s, %(must_change_password)s, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING users.id]
+E   [parameters: {'username': 'admin', 'email': 'admin@fim.local', 'password_hash': '$argon2id$v=19$m=65536,t=3,p=4$lAa04kRqWvRaXKJc24lZ+Q$ApbT3vQHWUIeUfixovL8SqBGb6ICW1sHUlGRy+F+5ws', 'role': 'admin', 'is_active': True, 'must_change_password': True, 'created_at': datetime.datetime(2026, 9, 12, 20, 26, 42, 769941, tzinfo=datetime.timezone.utc)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+_ ERROR at setup of test_audit_log_detail_is_valid_json_with_quotes_and_backslashes _
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+
+The above exception was the direct cause of the following exception:
+backend/tests/conftest.py:133: in _db_isolation
+    _seed_admin_impl()
+backend/tests/conftest.py:108: in _seed_admin_impl
+    session.commit()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2035: in commit
+    trans.commit(_to_root=True)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1316: in commit
+    self._prepare_impl()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1290: in _prepare_impl
+    self.session.flush()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+E   [SQL: INSERT INTO users (username, email, password_hash, role, is_active, must_change_password, created_at) VALUES (%(username)s::VARCHAR, %(email)s::VARCHAR, %(password_hash)s::VARCHAR, %(role)s::VARCHAR, %(is_active)s, %(must_change_password)s, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING users.id]
+E   [parameters: {'username': 'admin', 'email': 'admin@fim.local', 'password_hash': '$argon2id$v=19$m=65536,t=3,p=4$gobcAsMWq0UnMenY7FVSPQ$1mp35UhKACsNy247O4ntVWHXYEqRmv5H7vrmhYyEBVg', 'role': 'admin', 'is_active': True, 'must_change_password': True, 'created_at': datetime.datetime(2026, 9, 12, 20, 26, 43, 184176, tzinfo=datetime.timezone.utc)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+__________________ ERROR at setup of test_audit_log_on_rescan __________________
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+
+The above exception was the direct cause of the following exception:
+backend/tests/conftest.py:133: in _db_isolation
+    _seed_admin_impl()
+backend/tests/conftest.py:108: in _seed_admin_impl
+    session.commit()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2035: in commit
+    trans.commit(_to_root=True)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1316: in commit
+    self._prepare_impl()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1290: in _prepare_impl
+    self.session.flush()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+E   [SQL: INSERT INTO users (username, email, password_hash, role, is_active, must_change_password, created_at) VALUES (%(username)s::VARCHAR, %(email)s::VARCHAR, %(password_hash)s::VARCHAR, %(role)s::VARCHAR, %(is_active)s, %(must_change_password)s, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING users.id]
+E   [parameters: {'username': 'admin', 'email': 'admin@fim.local', 'password_hash': '$argon2id$v=19$m=65536,t=3,p=4$Ehv4XIR+Tw7ApTALOEshAw$JL2CINc1IVSMpPE6R21Av9pPXSovqXaIBnXler7JqqU', 'role': 'admin', 'is_active': True, 'must_change_password': True, 'created_at': datetime.datetime(2026, 9, 12, 20, 26, 43, 638772, tzinfo=datetime.timezone.utc)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+________ ERROR at setup of test_sweep_marks_expired_pending_as_timeout _________
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+
+The above exception was the direct cause of the following exception:
+backend/tests/conftest.py:133: in _db_isolation
+    _seed_admin_impl()
+backend/tests/conftest.py:108: in _seed_admin_impl
+    session.commit()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2035: in commit
+    trans.commit(_to_root=True)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1316: in commit
+    self._prepare_impl()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1290: in _prepare_impl
+    self.session.flush()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+E   [SQL: INSERT INTO users (username, email, password_hash, role, is_active, must_change_password, created_at) VALUES (%(username)s::VARCHAR, %(email)s::VARCHAR, %(password_hash)s::VARCHAR, %(role)s::VARCHAR, %(is_active)s, %(must_change_password)s, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING users.id]
+E   [parameters: {'username': 'admin', 'email': 'admin@fim.local', 'password_hash': '$argon2id$v=19$m=65536,t=3,p=4$/2NOMSFE1c3QPRhAz7rZRg$xGxRln+vV1MsrYnUu2LYNKvJkLU11r6DipaIGzf7qMk', 'role': 'admin', 'is_active': True, 'must_change_password': True, 'created_at': datetime.datetime(2026, 9, 12, 20, 26, 45, 227857, tzinfo=datetime.timezone.utc)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+________ ERROR at setup of test_ack_reconciles_row_event_id_not_payload ________
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+
+The above exception was the direct cause of the following exception:
+backend/tests/conftest.py:133: in _db_isolation
+    _seed_admin_impl()
+backend/tests/conftest.py:108: in _seed_admin_impl
+    session.commit()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2035: in commit
+    trans.commit(_to_root=True)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1316: in commit
+    self._prepare_impl()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1290: in _prepare_impl
+    self.session.flush()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+E   [SQL: INSERT INTO users (username, email, password_hash, role, is_active, must_change_password, created_at) VALUES (%(username)s::VARCHAR, %(email)s::VARCHAR, %(password_hash)s::VARCHAR, %(role)s::VARCHAR, %(is_active)s, %(must_change_password)s, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING users.id]
+E   [parameters: {'username': 'admin', 'email': 'admin@fim.local', 'password_hash': '$argon2id$v=19$m=65536,t=3,p=4$prJ4c+Td9bw12bUBUI4JKg$Dr3sYMVWAs3F+JwlhfBksGigt8U7pqltWsVRMoCamvo', 'role': 'admin', 'is_active': True, 'must_change_password': True, 'created_at': datetime.datetime(2026, 9, 12, 20, 26, 46, 231800, tzinfo=datetime.timezone.utc)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+_____ ERROR at setup of test_sweep_marks_draining_agent_offline_after_30s ______
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+
+The above exception was the direct cause of the following exception:
+backend/tests/conftest.py:133: in _db_isolation
+    _seed_admin_impl()
+backend/tests/conftest.py:108: in _seed_admin_impl
+    session.commit()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2035: in commit
+    trans.commit(_to_root=True)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1316: in commit
+    self._prepare_impl()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1290: in _prepare_impl
+    self.session.flush()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+E   [SQL: INSERT INTO users (username, email, password_hash, role, is_active, must_change_password, created_at) VALUES (%(username)s::VARCHAR, %(email)s::VARCHAR, %(password_hash)s::VARCHAR, %(role)s::VARCHAR, %(is_active)s, %(must_change_password)s, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING users.id]
+E   [parameters: {'username': 'admin', 'email': 'admin@fim.local', 'password_hash': '$argon2id$v=19$m=65536,t=3,p=4$I4R3ZRlW3bk+4tuCSQpWHA$XBF4ruQPo7RAlYYwmRSuLU7Mr93UrILv4umiNyGxJIs', 'role': 'admin', 'is_active': True, 'must_change_password': True, 'created_at': datetime.datetime(2026, 9, 12, 20, 26, 47, 319333, tzinfo=datetime.timezone.utc)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+___ ERROR at setup of test_sweep_keeps_draining_agent_if_heartbeat_is_recent ___
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+
+The above exception was the direct cause of the following exception:
+backend/tests/conftest.py:133: in _db_isolation
+    _seed_admin_impl()
+backend/tests/conftest.py:108: in _seed_admin_impl
+    session.commit()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2035: in commit
+    trans.commit(_to_root=True)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1316: in commit
+    self._prepare_impl()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1290: in _prepare_impl
+    self.session.flush()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/psycopg/cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "ix_users_username"
+E   DETAIL:  Key (username)=(admin) already exists.
+E   [SQL: INSERT INTO users (username, email, password_hash, role, is_active, must_change_password, created_at) VALUES (%(username)s::VARCHAR, %(email)s::VARCHAR, %(password_hash)s::VARCHAR, %(role)s::VARCHAR, %(is_active)s, %(must_change_password)s, %(created_at)s::TIMESTAMP WITH TIME ZONE) RETURNING users.id]
+E   [parameters: {'username': 'admin', 'email': 'admin@fim.local', 'password_hash': '$argon2id$v=19$m=65536,t=3,p=4$Y0SsmpEBE7EV75bIc9iSkA$Co1uDvD8nbh+ZzCBU85SqgjfDQ+MVIn5bMTUatsWI4s', 'role': 'admin', 'is_active': True, 'must_change_password': True, 'created_at': datetime.datetime(2026, 9, 12, 20, 26, 47, 769434, tzinfo=datetime.timezone.utc)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+- generated xml file: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/.v10-evidence/l5/junit/backend_targeted_final2.xml -
+=========================== short test summary info ============================
+ERROR backend/tests/test_agent_mgmt.py::test_agent_config_updates_watch_paths
+ERROR backend/tests/test_agent_mgmt.py::test_audit_log_on_config - sqlalchemy...
+ERROR backend/tests/test_agent_mgmt.py::test_audit_log_detail_is_valid_json_with_quotes_and_backslashes
+ERROR backend/tests/test_agent_mgmt.py::test_audit_log_on_rescan - sqlalchemy...
+ERROR backend/tests/test_command_ack_consumer.py::test_sweep_marks_expired_pending_as_timeout
+ERROR backend/tests/test_command_ack_consumer.py::test_ack_reconciles_row_event_id_not_payload
+ERROR backend/tests/test_heartbeat_consumer.py::test_sweep_marks_draining_agent_offline_after_30s
+ERROR backend/tests/test_heartbeat_consumer.py::test_sweep_keeps_draining_agent_if_heartbeat_is_recent
+======================== 51 passed, 8 errors in 10.21s =========================

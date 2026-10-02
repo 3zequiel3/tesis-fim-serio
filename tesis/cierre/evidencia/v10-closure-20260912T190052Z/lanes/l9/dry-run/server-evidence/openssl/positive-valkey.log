@@ -1,0 +1,123 @@
+Connecting to 127.0.0.1
+Can't use SSL_get_servername
+depth=1 CN=FIM Platform CA, O=FIM Platform
+verify return:1
+depth=0 CN=valkey
+verify return:1
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:CN=valkey
+   i:CN=FIM Platform CA, O=FIM Platform
+   a:PKEY: ED25519, 256 (bit); sigalg: ED25519
+   v:NotBefore: Sep 12 20:25:39 2026 GMT; NotAfter: Dec 11 20:30:39 2026 GMT
+ 1 s:CN=FIM Platform CA, O=FIM Platform
+   i:CN=FIM Platform CA, O=FIM Platform
+   a:PKEY: ED25519, 256 (bit); sigalg: ED25519
+   v:NotBefore: Sep 12 20:29:07 2026 GMT; NotAfter: Sep  9 20:29:07 2036 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIIBeDCCASqgAwIBAgIUMOpYnRqKElQ/2qhzAWpVkxJPyN8wBQYDK2VwMDExGDAW
+BgNVBAMMD0ZJTSBQbGF0Zm9ybSBDQTEVMBMGA1UECgwMRklNIFBsYXRmb3JtMB4X
+DTI2MDkxMjIwMjUzOVoXDTI2MTIxMTIwMzAzOVowETEPMA0GA1UEAwwGdmFsa2V5
+MCowBQYDK2VwAyEABizX0HqHQuJY5Yu2jAtAX78dfREVefBJEKPrfSqrWumjdDBy
+MCIGA1UdEQQbMBmCBnZhbGtleYIJbG9jYWxob3N0hwR/AAABMAwGA1UdEwEB/wQC
+MAAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMB8GA1UdIwQYMBaAFN51
+M6+Dqa1cG3rmiPYcpdPCGHaRMAUGAytlcANBANJsyWqDIBQ1yfG0fQV2FaiXWnUT
+jeRgr5+pkw5vz0B3TxqeIrSTcfMBAByD5kXZTGjmQ6M0NRXNAMtx53v5cQU=
+-----END CERTIFICATE-----
+subject=CN=valkey
+issuer=CN=FIM Platform CA, O=FIM Platform
+---
+No client certificate CA names sent
+Requested Signature Algorithms: id-ml-dsa-65:id-ml-dsa-87:id-ml-dsa-44:ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:ed25519:ed448:ecdsa_brainpoolP256r1_sha256:ecdsa_brainpoolP384r1_sha384:ecdsa_brainpoolP512r1_sha512:rsa_pss_pss_sha256:rsa_pss_pss_sha384:rsa_pss_pss_sha512:RSA-PSS+SHA256:RSA-PSS+SHA384:RSA-PSS+SHA512:RSA+SHA256:RSA+SHA384:RSA+SHA512
+Shared Requested Signature Algorithms: id-ml-dsa-65:id-ml-dsa-87:id-ml-dsa-44:ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:ed25519:ed448:ecdsa_brainpoolP256r1_sha256:ecdsa_brainpoolP384r1_sha384:ecdsa_brainpoolP512r1_sha512:rsa_pss_pss_sha256:rsa_pss_pss_sha384:rsa_pss_pss_sha512:RSA-PSS+SHA256:RSA-PSS+SHA384:RSA-PSS+SHA512:RSA+SHA256:RSA+SHA384:RSA+SHA512
+Peer signature type: ed25519
+Negotiated TLS1.3 group: X25519MLKEM768
+---
+SSL handshake has read 2283 bytes and written 2483 bytes
+Verification: OK
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Protocol: TLSv1.3
+Server public key is 256 bit
+This TLS version forbids renegotiation.
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+Early data was not sent
+Verify return code: 0 (ok)
+---
+---
+Post-Handshake New Session Ticket arrived:
+SSL-Session:
+    Protocol  : TLSv1.3
+    Cipher    : TLS_AES_256_GCM_SHA384
+    Session-ID: 6333523D8AF2008DBC440FA025C574131D041E5EAE811432B8786DC0FF44C2F0
+    Session-ID-ctx: 
+    Resumption PSK: 118D095B6274C4ADE6BF7B36D8170BCC0682F30B3032F018DE4E908276DE8BCC2910EC1982C186100789150BED7D4997
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 300 (seconds)
+    TLS session ticket:
+    0000 - 0e 2d 13 aa 2a e4 28 2f-b4 21 33 b4 f2 4f 98 bc   .-..*.(/.!3..O..
+    0010 - 9b 8f 96 b6 c0 78 f3 bd-c2 ac 7f 3a 52 d4 b8 b8   .....x.....:R...
+    0020 - 93 11 2c 05 e0 b4 2e d7-21 fc d7 d7 28 c6 82 d8   ..,.....!...(...
+    0030 - 1d 95 06 19 b3 8e 74 b2-1e 1f 78 d6 67 51 8c 39   ......t...x.gQ.9
+    0040 - 61 60 90 67 bb cc c9 ee-7c 31 8a ea d7 02 17 54   a`.g....|1.....T
+    0050 - 81 1e 76 fc a1 92 cb c8-46 ad 60 9b a8 e6 80 b6   ..v.....F.`.....
+    0060 - 4c e6 c0 69 b2 d1 a0 2a-4a 4f 9a a7 89 7e 71 d1   L..i...*JO...~q.
+    0070 - 59 53 9d 8f bf ef fc 69-21 83 83 1a d5 2d 32 04   YS.....i!....-2.
+    0080 - 07 f3 2a b3 d3 2e 47 b0-b2 e5 e5 cc 4c 84 2b 22   ..*...G.....L.+"
+    0090 - b5 65 17 f5 09 69 f6 b4-db ce 0b 9a f4 84 75 e0   .e...i........u.
+    00a0 - 85 d4 4b a4 1c cd eb e3-32 05 78 28 63 97 42 b2   ..K.....2.x(c.B.
+    00b0 - da f8 1b c8 fd ce 54 9d-66 1b 3a 6b 48 96 42 5a   ......T.f.:kH.BZ
+    00c0 - 13 2c 3a f9 9c 8e 25 72-c5 e8 b2 56 ab b3 07 64   .,:...%r...V...d
+    00d0 - 4f 1a ab 72 89 dd 68 22-09 da 22 aa ea 5e fc 55   O..r..h".."..^.U
+    00e0 - 9b 61 b5 43 6d d6 67 21-00 fe b1 f4 ec 80 78 97   .a.Cm.g!......x.
+    00f0 - d5 81 15 7e 95 f6 23 65-02 cc c0 48 f1 7e b8 a6   ...~..#e...H.~..
+    0100 - 94 22 f4 10 8f 3c 47 42-5f ea 3c d0 cd 0c 42 a5   ."...<GB_.<...B.
+    0110 - 2a cf ee b0 2c 5b 7f 20-c8 63 5d a9 d0 17 63 5f   *...,[. .c]...c_
+    0120 - 9d 7a d2 7d 36 9b b2 4c-46 f9 63 59 78 11 d3 d9   .z.}6..LF.cYx...
+    0130 - bf 53 68 ed 23 33 14 ed-40 4d b3 51 7b af 8e 08   .Sh.#3..@M.Q{...
+    0140 - 20 b1 5c 46 35 13 2d ce-7a 6e 50 87 e9 6e f6 78    .\F5.-.znP..n.x
+    0150 - 3c de 4e 0c 5b 2c ee be-26 d9 78 5e 7f 56 3a d3   <.N.[,..&.x^.V:.
+    0160 - 51 13 3f a8 a3 5e aa 79-77 d0 22 07 b6 67 45 c0   Q.?..^.yw."..gE.
+    0170 - b2 75 e6 95 d6 50 4b 2a-40 e4 cd 32 02 24 d6 6f   .u...PK*@..2.$.o
+    0180 - a7 03 96 32 3c 36 09 82-20 cc a3 58 b6 e0 80 93   ...2<6.. ..X....
+    0190 - 05 62 da 0d 7c 36 32 0e-e9 09 5d 17 21 4f c7 32   .b..|62...].!O.2
+    01a0 - a5 47 42 d5 e0 4f a2 f3-2f 2e fc de 0e 5b 54 14   .GB..O../....[T.
+    01b0 - ef 9d 25 39 64 5c 71 7b-32 ef 65 bd 33 f6 48 82   ..%9d\q{2.e.3.H.
+    01c0 - ea d0 1b 05 bf af d4 00-47 4f dd 1c 59 f9 6a 6c   ........GO..Y.jl
+    01d0 - f0 6d b0 77 07 b7 13 e0-ce 6f c4 83 b1 b9 d0 9f   .m.w.....o......
+    01e0 - b8 c0 1a e0 c2 cd 2f 67-b5 1a d2 55 aa 5c 52 44   ....../g...U.\RD
+    01f0 - 2d 09 1d 70 ae ca b9 11-4f dd fe a9 30 98 a8 8d   -..p....O...0...
+    0200 - 93 5b 62 ae c1 47 dd 05-88 57 5a aa b7 0a 42 eb   .[b..G...WZ...B.
+    0210 - bb d8 59 ee 28 f9 b8 4b-e6 e1 5c 5a 6d 7f bb 91   ..Y.(..K..\Zm...
+    0220 - e3 56 15 f0 24 3a e5 c9-2a ca 50 0c 51 c1 d4 1f   .V..$:..*.P.Q...
+    0230 - f7 ac 27 c7 1b 08 4a 3a-1a bf 7d fa a6 b0 87 d9   ..'...J:..}.....
+    0240 - f7 a0 44 d4 bb c2 b0 2b-31 45 93 9b 58 6e a1 08   ..D....+1E..Xn..
+
+    Start Time: 1789245888
+    Timeout   : 7200 (sec)
+    Verify return code: 0 (ok)
+    Extended master secret: no
+    Max Early Data: 0
+---
+read R BLOCK
+---
+Post-Handshake New Session Ticket arrived:
+SSL-Session:
+    Protocol  : TLSv1.3
+    Cipher    : TLS_AES_256_GCM_SHA384
+    Session-ID: 74D2D263BF59B492E377327C782A21E8DD4D791C3F628960F3C4E0D03B970BFD
+    Session-ID-ctx: 
+    Resumption PSK: BE43E11A463AD08F5D4ED3480B3FFCF7BF0D9C862CABA047508443C43EC0273117CA40A5A7AFF26D42467147E09416BF
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 300 (seconds)
+    TLS session ticket:
+    0000 - 0e 2d 13 aa 2a e4 28 2f-b4 21 33 b4 f2 4f 98 bc   .-..*.(/.+PONG

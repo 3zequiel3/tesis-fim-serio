@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l3-alerts/frontend
+
+ ✓ src/pages/Alerts.test.tsx (3 tests) 342ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  16:53:33
+   Duration  2.11s (transform 148ms, setup 239ms, collect 250ms, tests 342ms, environment 823ms, prepare 139ms)
+

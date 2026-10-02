@@ -1,0 +1,10 @@
+{
+  "old_access_after_rotation": 200,
+  "old_refresh_after_rotation": 200,
+  "foreign_key_token": 401,
+  "new_login_after_rotation": 200,
+  "new_access_protected_endpoint": 200,
+  "old_current_moved_to_previous": true,
+  "new_current_active": true,
+  "cookie_contract": "[REDACTED]"
+}

@@ -1,0 +1,529 @@
+backend-1  | {"event": "Started server process [1]", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-09-12T20:04:03.621962Z"}
+backend-1  | {"event": "Waiting for application startup.", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-09-12T20:04:03.622247Z"}
+backend-1  | {"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T20:04:03.623700Z"}
+backend-1  | {"cert_path": "/certs/ca.pem", "event": "pki.ca.initialized", "level": "info", "timestamp": "2026-09-12T20:04:03.642502Z"}
+backend-1  | {"cert_path": "/certs/backend.pem", "event": "pki.backend_cert.generated", "level": "info", "timestamp": "2026-09-12T20:04:03.650839Z"}
+backend-1  | {"username": "l7-us24-admin", "event": "seed_admin.created", "level": "info", "timestamp": "2026-09-12T20:04:04.061887Z"}
+backend-1  | {"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-12T20:04:04.107771Z"}
+backend-1  | {"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T20:04:04.127341Z"}
+backend-1  | {"group": "fim-command-ack", "event": "command_ack_consumer.group_created", "level": "info", "timestamp": "2026-09-12T20:04:04.134790Z"}
+backend-1  | {"group": "fim-backend", "event": "consumer.group_created", "level": "info", "timestamp": "2026-09-12T20:04:04.135587Z"}
+backend-1  | {"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T20:04:04.138184Z"}
+backend-1  | {"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T20:04:04.138852Z"}
+backend-1  | INFO:     172.25.0.1:44506 - "GET /health HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:44520 - "GET /health HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:44530 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:44544 - "POST /users/change-password HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:44546 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.25.0.1:44554 - "POST /agents/register HTTP/1.1" 201 Created
+backend-1  | INFO:     172.25.0.5:60194 - "POST /agents/bootstrap HTTP/1.1" 200 OK
+backend-1  | {"event_id": "d3ce2769-8388-4cca-98c6-040c21f2c2e2", "agent_id": "l7-us24-agent", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-12T20:06:06.966425Z"}
+agent-1    | [2m2026-09-12T20:05:39.465311Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1993898768[0m [36mtotal_drops[0m=[35m1188[0m
+agent-1    | [2m2026-09-12T20:05:39.466724Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1993898768[0m [36mtotal_drops[0m=[35m1189[0m
+agent-1    | [2m2026-09-12T20:05:39.492537Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3028367941[0m [36mtotal_drops[0m=[35m1190[0m
+agent-1    | [2m2026-09-12T20:05:39.533520Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1993898768[0m [36mtotal_drops[0m=[35m1191[0m
+agent-1    | [2m2026-09-12T20:05:39.545771Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/claude-5edf-cwd[0m [36mtotal_drops[0m=[35m1192[0m
+agent-1    | [2m2026-09-12T20:05:39.546243Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/claude-5edf-cwd[0m [36mtotal_drops[0m=[35m1193[0m
+agent-1    | [2m2026-09-12T20:05:39.546552Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bocvskxjg.output[0m [36mtotal_drops[0m=[35m1194[0m
+agent-1    | [2m2026-09-12T20:05:39.552503Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/claude-5edf-cwd[0m [36mtotal_drops[0m=[35m1195[0m
+agent-1    | [2m2026-09-12T20:05:39.553426Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bocvskxjg.output[0m [36mtotal_drops[0m=[35m1196[0m
+agent-1    | [2m2026-09-12T20:05:40.535370Z[0m [[32m[1mdebug    [0m] [1mheartbeat.published           [0m [36magent_id[0m=[35ml7-us24-agent[0m [36mshutdown[0m=[35mFalse[0m
+agent-1    | [2m2026-09-12T20:05:40.648325Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3515015685[0m [36mtotal_drops[0m=[35m1197[0m
+agent-1    | [2m2026-09-12T20:05:40.648859Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3515015685[0m [36mtotal_drops[0m=[35m1198[0m
+agent-1    | [2m2026-09-12T20:05:40.720453Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3515015685[0m [36mtotal_drops[0m=[35m1199[0m
+agent-1    | [2m2026-09-12T20:05:40.748506Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process459985102[0m [36mtotal_drops[0m=[35m1200[0m
+agent-1    | [2m2026-09-12T20:05:40.810476Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process459985102[0m [36mtotal_drops[0m=[35m1201[0m
+agent-1    | [2m2026-09-12T20:05:41.449321Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1206518777[0m [36mtotal_drops[0m=[35m1202[0m
+agent-1    | [2m2026-09-12T20:05:41.449639Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1206518777[0m [36mtotal_drops[0m=[35m1203[0m
+agent-1    | [2m2026-09-12T20:05:41.504662Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1206518777[0m [36mtotal_drops[0m=[35m1204[0m
+agent-1    | [2m2026-09-12T20:05:41.520573Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1490455460[0m [36mtotal_drops[0m=[35m1205[0m
+agent-1    | [2m2026-09-12T20:05:41.583509Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1490455460[0m [36mtotal_drops[0m=[35m1206[0m
+agent-1    | [2m2026-09-12T20:05:41.644693Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2751914453[0m [36mtotal_drops[0m=[35m1207[0m
+agent-1    | [2m2026-09-12T20:05:41.717013Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2751914453[0m [36mtotal_drops[0m=[35m1208[0m
+agent-1    | [2m2026-09-12T20:05:42.038165Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process289537647[0m [36mtotal_drops[0m=[35m1209[0m
+agent-1    | [2m2026-09-12T20:05:42.038984Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process289537647[0m [36mtotal_drops[0m=[35m1210[0m
+agent-1    | [2m2026-09-12T20:05:42.096964Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process289537647[0m [36mtotal_drops[0m=[35m1211[0m
+agent-1    | [2m2026-09-12T20:05:42.144916Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4278897651[0m [36mtotal_drops[0m=[35m1212[0m
+agent-1    | [2m2026-09-12T20:05:42.145465Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4278897651[0m [36mtotal_drops[0m=[35m1213[0m
+agent-1    | [2m2026-09-12T20:05:42.221204Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4278897651[0m [36mtotal_drops[0m=[35m1214[0m
+agent-1    | [2m2026-09-12T20:05:42.742193Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3511023398[0m [36mtotal_drops[0m=[35m1215[0m
+agent-1    | [2m2026-09-12T20:05:42.810851Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3511023398[0m [36mtotal_drops[0m=[35m1216[0m
+agent-1    | [2m2026-09-12T20:05:42.979104Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3902043830[0m [36mtotal_drops[0m=[35m1217[0m
+agent-1    | [2m2026-09-12T20:05:43.039413Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3902043830[0m [36mtotal_drops[0m=[35m1218[0m
+agent-1    | [2m2026-09-12T20:05:43.293143Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1705422092[0m [36mtotal_drops[0m=[35m1219[0m
+agent-1    | [2m2026-09-12T20:05:43.320368Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2391989816[0m [36mtotal_drops[0m=[35m1220[0m
+agent-1    | [2m2026-09-12T20:05:43.320792Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2391989816[0m [36mtotal_drops[0m=[35m1221[0m
+agent-1    | [2m2026-09-12T20:05:43.348453Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1705422092[0m [36mtotal_drops[0m=[35m1222[0m
+agent-1    | [2m2026-09-12T20:05:43.388698Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2391989816[0m [36mtotal_drops[0m=[35m1223[0m
+agent-1    | [2m2026-09-12T20:05:43.438951Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1679835151[0m [36mtotal_drops[0m=[35m1224[0m
+agent-1    | [2m2026-09-12T20:05:43.439738Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1679835151[0m [36mtotal_drops[0m=[35m1225[0m
+agent-1    | [2m2026-09-12T20:05:43.505202Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1679835151[0m [36mtotal_drops[0m=[35m1226[0m
+agent-1    | [2m2026-09-12T20:05:43.664499Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3092087236[0m [36mtotal_drops[0m=[35m1227[0m
+agent-1    | [2m2026-09-12T20:05:43.725690Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3092087236[0m [36mtotal_drops[0m=[35m1228[0m
+agent-1    | [2m2026-09-12T20:05:44.512682Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_real_mtls_handshake_and_pcurrent[0m [36mtotal_drops[0m=[35m1229[0m
+agent-1    | [2m2026-09-12T20:05:44.515921Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1230[0m
+agent-1    | [2m2026-09-12T20:05:44.516525Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1231[0m
+agent-1    | [2m2026-09-12T20:05:44.517663Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1232[0m
+agent-1    | [2m2026-09-12T20:05:44.518184Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1233[0m
+agent-1    | [2m2026-09-12T20:05:44.519098Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/localhost-cert.pem[0m [36mtotal_drops[0m=[35m1234[0m
+agent-1    | [2m2026-09-12T20:05:44.519509Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/localhost-cert.pem[0m [36mtotal_drops[0m=[35m1235[0m
+agent-1    | [2m2026-09-12T20:05:44.519787Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/localhost-key.pem[0m [36mtotal_drops[0m=[35m1236[0m
+agent-1    | [2m2026-09-12T20:05:44.524500Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/agent-harness-cert.pem[0m [36mtotal_drops[0m=[35m1237[0m
+agent-1    | [2m2026-09-12T20:05:44.525401Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/agent-harness-cert.pem[0m [36mtotal_drops[0m=[35m1238[0m
+agent-1    | [2m2026-09-12T20:05:44.525952Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/agent-harness-key.pem[0m [36mtotal_drops[0m=[35m1239[0m
+agent-1    | [2m2026-09-12T20:05:44.526838Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1240[0m
+agent-1    | [2m2026-09-12T20:05:44.527893Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1241[0m
+agent-1    | [2m2026-09-12T20:05:44.528374Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1242[0m
+agent-1    | [2m2026-09-12T20:05:44.533187Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/localhost-cert.pem[0m [36mtotal_drops[0m=[35m1243[0m
+agent-1    | [2m2026-09-12T20:05:44.533428Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/localhost-key.pem[0m [36mtotal_drops[0m=[35m1244[0m
+agent-1    | [2m2026-09-12T20:05:44.533517Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/agent-harness-cert.pem[0m [36mtotal_drops[0m=[35m1245[0m
+agent-1    | [2m2026-09-12T20:05:44.533616Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/agent-harness-key.pem[0m [36mtotal_drops[0m=[35m1246[0m
+agent-1    | [2m2026-09-12T20:05:44.534992Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1247[0m
+agent-1    | [2m2026-09-12T20:05:44.535990Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1248[0m
+agent-1    | [2m2026-09-12T20:05:44.536949Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1249[0m
+agent-1    | [2m2026-09-12T20:05:44.537902Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/localhost-cert.pem[0m [36mtotal_drops[0m=[35m1250[0m
+agent-1    | [2m2026-09-12T20:05:44.538202Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/localhost-key.pem[0m [36mtotal_drops[0m=[35m1251[0m
+agent-1    | [2m2026-09-12T20:05:44.538901Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/localhost-key.pem[0m [36mtotal_drops[0m=[35m1252[0m
+agent-1    | [2m2026-09-12T20:05:44.540338Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/agent-harness-cert.pem[0m [36mtotal_drops[0m=[35m1253[0m
+agent-1    | [2m2026-09-12T20:05:44.540810Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/agent-harness-cert.pem[0m [36mtotal_drops[0m=[35m1254[0m
+agent-1    | [2m2026-09-12T20:05:44.540931Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/agent-harness-key.pem[0m [36mtotal_drops[0m=[35m1255[0m
+agent-1    | [2m2026-09-12T20:05:44.549388Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1197402369[0m [36mtotal_drops[0m=[35m1256[0m
+agent-1    | [2m2026-09-12T20:05:44.549805Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1197402369[0m [36mtotal_drops[0m=[35m1257[0m
+agent-1    | [2m2026-09-12T20:05:44.601033Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1197402369[0m [36mtotal_drops[0m=[35m1258[0m
+agent-1    | [2m2026-09-12T20:05:44.618219Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4289373773[0m [36mtotal_drops[0m=[35m1259[0m
+agent-1    | [2m2026-09-12T20:05:44.619047Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4289373773[0m [36mtotal_drops[0m=[35m1260[0m
+agent-1    | [2m2026-09-12T20:05:44.677113Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4289373773[0m [36mtotal_drops[0m=[35m1261[0m
+agent-1    | [2m2026-09-12T20:05:44.826241Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2956935293[0m [36mtotal_drops[0m=[35m1262[0m
+agent-1    | [2m2026-09-12T20:05:44.883993Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2956935293[0m [36mtotal_drops[0m=[35m1263[0m
+agent-1    | [2m2026-09-12T20:05:45.785866Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process153152903[0m [36mtotal_drops[0m=[35m1264[0m
+agent-1    | [2m2026-09-12T20:05:45.786474Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process153152903[0m [36mtotal_drops[0m=[35m1265[0m
+agent-1    | [2m2026-09-12T20:05:45.849968Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process153152903[0m [36mtotal_drops[0m=[35m1266[0m
+agent-1    | [2m2026-09-12T20:05:45.952025Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1087533166[0m [36mtotal_drops[0m=[35m1267[0m
+agent-1    | [2m2026-09-12T20:05:46.018180Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1087533166[0m [36mtotal_drops[0m=[35m1268[0m
+agent-1    | [2m2026-09-12T20:05:46.530125Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3971620845[0m [36mtotal_drops[0m=[35m1269[0m
+agent-1    | [2m2026-09-12T20:05:46.530702Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3971620845[0m [36mtotal_drops[0m=[35m1270[0m
+agent-1    | [2m2026-09-12T20:05:46.604220Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3971620845[0m [36mtotal_drops[0m=[35m1271[0m
+agent-1    | [2m2026-09-12T20:05:46.728213Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_auto_restore_success_current[0m [36mtotal_drops[0m=[35m1272[0m
+agent-1    | [2m2026-09-12T20:05:46.730501Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/row1_target.txt[0m [36mtotal_drops[0m=[35m1273[0m
+agent-1    | [2m2026-09-12T20:05:46.731255Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/row1_target.txt[0m [36mtotal_drops[0m=[35m1274[0m
+agent-1    | [2m2026-09-12T20:05:46.735704Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row1.json.tmp[0m [36mtotal_drops[0m=[35m1275[0m
+agent-1    | [2m2026-09-12T20:05:46.736099Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row1.json.tmp[0m [36mtotal_drops[0m=[35m1276[0m
+agent-1    | [2m2026-09-12T20:05:46.736222Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row1.json[0m [36mtotal_drops[0m=[35m1277[0m
+agent-1    | [2m2026-09-12T20:05:46.743572Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process131456190[0m [36mtotal_drops[0m=[35m1278[0m
+agent-1    | [2m2026-09-12T20:05:46.744483Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/row1_target.txt.fim_restore_tmp[0m [36mtotal_drops[0m=[35m1279[0m
+agent-1    | [2m2026-09-12T20:05:46.748450Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/row1_target.txt.fim_restore_tmp[0m [36mtotal_drops[0m=[35m1280[0m
+agent-1    | [2m2026-09-12T20:05:46.748764Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/row1_target.txt[0m [36mtotal_drops[0m=[35m1281[0m
+agent-1    | [2m2026-09-12T20:05:46.805330Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process131456190[0m [36mtotal_drops[0m=[35m1282[0m
+agent-1    | [2m2026-09-12T20:05:46.904071Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2734473124[0m [36mtotal_drops[0m=[35m1283[0m
+agent-1    | [2m2026-09-12T20:05:46.904540Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2734473124[0m [36mtotal_drops[0m=[35m1284[0m
+agent-1    | [2m2026-09-12T20:05:46.967794Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2734473124[0m [36mtotal_drops[0m=[35m1285[0m
+agent-1    | [2m2026-09-12T20:05:47.029436Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_quarantine_success_yicurrent[0m [36mtotal_drops[0m=[35m1286[0m
+agent-1    | [2m2026-09-12T20:05:47.030218Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/row2_target.txt[0m [36mtotal_drops[0m=[35m1287[0m
+agent-1    | [2m2026-09-12T20:05:47.030502Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/row2_target.txt[0m [36mtotal_drops[0m=[35m1288[0m
+agent-1    | [2m2026-09-12T20:05:47.033201Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row2.json.tmp[0m [36mtotal_drops[0m=[35m1289[0m
+agent-1    | [2m2026-09-12T20:05:47.033756Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row2.json.tmp[0m [36mtotal_drops[0m=[35m1290[0m
+agent-1    | [2m2026-09-12T20:05:47.033947Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row2.json[0m [36mtotal_drops[0m=[35m1291[0m
+agent-1    | [2m2026-09-12T20:05:47.034216Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.[REDACTED-OPAQUE].fimq.64d9584cca2247e281ca91188fc1f37d.tmp[0m [36mtotal_drops[0m=[35m1292[0m
+agent-1    | [2m2026-09-12T20:05:47.034325Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/[REDACTED-OPAQUE].fimq[0m [36mtotal_drops[0m=[35m1293[0m
+agent-1    | [2m2026-09-12T20:05:47.034984Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/row2_target.txt[0m [36mtotal_drops[0m=[35m1294[0m
+agent-1    | [2m2026-09-12T20:05:47.255029Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1211524987[0m [36mtotal_drops[0m=[35m1295[0m
+agent-1    | [2m2026-09-12T20:05:47.255690Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1211524987[0m [36mtotal_drops[0m=[35m1296[0m
+agent-1    | [2m2026-09-12T20:05:47.270116Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process99433481[0m [36mtotal_drops[0m=[35m1297[0m
+agent-1    | [2m2026-09-12T20:05:47.315269Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1211524987[0m [36mtotal_drops[0m=[35m1298[0m
+agent-1    | [2m2026-09-12T20:05:47.337625Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process99433481[0m [36mtotal_drops[0m=[35m1299[0m
+agent-1    | [2m2026-09-12T20:05:47.935392Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1481646580[0m [36mtotal_drops[0m=[35m1300[0m
+agent-1    | [2m2026-09-12T20:05:47.936469Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1481646580[0m [36mtotal_drops[0m=[35m1301[0m
+agent-1    | [2m2026-09-12T20:05:47.992907Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1481646580[0m [36mtotal_drops[0m=[35m1302[0m
+agent-1    | [2m2026-09-12T20:05:48.113174Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1236664946[0m [36mtotal_drops[0m=[35m1303[0m
+agent-1    | [2m2026-09-12T20:05:48.179805Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1236664946[0m [36mtotal_drops[0m=[35m1304[0m
+agent-1    | [2m2026-09-12T20:05:48.244163Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_manual_review_yields_current[0m [36mtotal_drops[0m=[35m1305[0m
+agent-1    | [2m2026-09-12T20:05:48.247162Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row4.json.tmp[0m [36mtotal_drops[0m=[35m1306[0m
+agent-1    | [2m2026-09-12T20:05:48.247389Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row4.json[0m [36mtotal_drops[0m=[35m1307[0m
+agent-1    | [2m2026-09-12T20:05:48.428273Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1899270249[0m [36mtotal_drops[0m=[35m1308[0m
+agent-1    | [2m2026-09-12T20:05:48.491787Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1899270249[0m [36mtotal_drops[0m=[35m1309[0m
+agent-1    | [2m2026-09-12T20:05:48.553443Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1913215603[0m [36mtotal_drops[0m=[35m1310[0m
+agent-1    | [2m2026-09-12T20:05:48.554527Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1913215603[0m [36mtotal_drops[0m=[35m1311[0m
+agent-1    | [2m2026-09-12T20:05:48.562160Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3879598810[0m [36mtotal_drops[0m=[35m1312[0m
+agent-1    | [2m2026-09-12T20:05:48.625295Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3879598810[0m [36mtotal_drops[0m=[35m1313[0m
+agent-1    | [2m2026-09-12T20:05:48.625511Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1913215603[0m [36mtotal_drops[0m=[35m1314[0m
+agent-1    | [2m2026-09-12T20:05:48.988583Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1792198858[0m [36mtotal_drops[0m=[35m1315[0m
+agent-1    | [2m2026-09-12T20:05:49.043384Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1792198858[0m [36mtotal_drops[0m=[35m1316[0m
+agent-1    | [2m2026-09-12T20:05:49.494474Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_quarantine_genuine_facurrent[0m [36mtotal_drops[0m=[35m1317[0m
+agent-1    | [2m2026-09-12T20:05:49.498293Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row6.json.tmp[0m [36mtotal_drops[0m=[35m1318[0m
+agent-1    | [2m2026-09-12T20:05:49.498624Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-row6.json[0m [36mtotal_drops[0m=[35m1319[0m
+agent-1    | [2m2026-09-12T20:05:49.617457Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2768000369[0m [36mtotal_drops[0m=[35m1320[0m
+agent-1    | [2m2026-09-12T20:05:49.687547Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2768000369[0m [36mtotal_drops[0m=[35m1321[0m
+agent-1    | [2m2026-09-12T20:05:49.857814Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2564900958[0m [36mtotal_drops[0m=[35m1322[0m
+agent-1    | [2m2026-09-12T20:05:49.926195Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2564900958[0m [36mtotal_drops[0m=[35m1323[0m
+agent-1    | [2m2026-09-12T20:05:50.067433Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3709232096[0m [36mtotal_drops[0m=[35m1324[0m
+agent-1    | [2m2026-09-12T20:05:50.067978Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3709232096[0m [36mtotal_drops[0m=[35m1325[0m
+agent-1    | [2m2026-09-12T20:05:50.128961Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3709232096[0m [36mtotal_drops[0m=[35m1326[0m
+agent-1    | [2m2026-09-12T20:05:50.451016Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.o0inJh[0m [36mtotal_drops[0m=[35m1327[0m
+agent-1    | [2m2026-09-12T20:05:50.539268Z[0m [[32m[1mdebug    [0m] [1mheartbeat.published           [0m [36magent_id[0m=[35ml7-us24-agent[0m [36mshutdown[0m=[35mFalse[0m
+agent-1    | [2m2026-09-12T20:05:51.060691Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2703267393[0m [36mtotal_drops[0m=[35m1328[0m
+agent-1    | [2m2026-09-12T20:05:51.127972Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2703267393[0m [36mtotal_drops[0m=[35m1329[0m
+agent-1    | [2m2026-09-12T20:05:51.182140Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2117666314[0m [36mtotal_drops[0m=[35m1330[0m
+agent-1    | [2m2026-09-12T20:05:51.183442Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2117666314[0m [36mtotal_drops[0m=[35m1331[0m
+agent-1    | [2m2026-09-12T20:05:51.238397Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2117666314[0m [36mtotal_drops[0m=[35m1332[0m
+agent-1    | [2m2026-09-12T20:05:51.635227Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1932828355[0m [36mtotal_drops[0m=[35m1333[0m
+agent-1    | [2m2026-09-12T20:05:51.700825Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1932828355[0m [36mtotal_drops[0m=[35m1334[0m
+agent-1    | [2m2026-09-12T20:05:51.716379Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_incoming_terminal_event_scurrent[0m [36mtotal_drops[0m=[35m1335[0m
+agent-1    | [2m2026-09-12T20:05:51.718133Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/supersede_target.txt[0m [36mtotal_drops[0m=[35m1336[0m
+agent-1    | [2m2026-09-12T20:05:51.728383Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-supersede.json.tmp[0m [36mtotal_drops[0m=[35m1337[0m
+agent-1    | [2m2026-09-12T20:05:51.728754Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-supersede.json.tmp[0m [36mtotal_drops[0m=[35m1338[0m
+agent-1    | [2m2026-09-12T20:05:51.728873Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-supersede.json[0m [36mtotal_drops[0m=[35m1339[0m
+agent-1    | [2m2026-09-12T20:05:51.728949Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.[REDACTED-OPAQUE].fimq.bb7c37a3746f4e5cba41f23cc8c945d8.tmp[0m [36mtotal_drops[0m=[35m1340[0m
+agent-1    | [2m2026-09-12T20:05:51.729123Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.[REDACTED-OPAQUE].fimq.bb7c37a3746f4e5cba41f23cc8c945d8.tmp[0m [36mtotal_drops[0m=[35m1341[0m
+agent-1    | [2m2026-09-12T20:05:51.729231Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/[REDACTED-OPAQUE].fimq[0m [36mtotal_drops[0m=[35m1342[0m
+agent-1    | [2m2026-09-12T20:05:51.729470Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/supersede_target.txt[0m [36mtotal_drops[0m=[35m1343[0m
+agent-1    | [2m2026-09-12T20:05:51.835075Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process286132489[0m [36mtotal_drops[0m=[35m1344[0m
+agent-1    | [2m2026-09-12T20:05:51.835537Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process286132489[0m [36mtotal_drops[0m=[35m1345[0m
+agent-1    | [2m2026-09-12T20:05:51.897057Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process286132489[0m [36mtotal_drops[0m=[35m1346[0m
+agent-1    | [2m2026-09-12T20:05:52.171173Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_rehydrate_auto_restore_yicurrent[0m [36mtotal_drops[0m=[35m1347[0m
+agent-1    | [2m2026-09-12T20:05:52.173270Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/rehydrate_target.txt[0m [36mtotal_drops[0m=[35m1348[0m
+agent-1    | [2m2026-09-12T20:05:52.174865Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/rehydrate_target.txt[0m [36mtotal_drops[0m=[35m1349[0m
+agent-1    | [2m2026-09-12T20:05:52.175925Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-rehy-status.json.tmp[0m [36mtotal_drops[0m=[35m1350[0m
+agent-1    | [2m2026-09-12T20:05:52.176380Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-rehy-status.json.tmp[0m [36mtotal_drops[0m=[35m1351[0m
+agent-1    | [2m2026-09-12T20:05:52.176506Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-rehy-status.json[0m [36mtotal_drops[0m=[35m1352[0m
+agent-1    | [2m2026-09-12T20:05:52.177312Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/rehydrate_target.txt.fim_restore_tmp[0m [36mtotal_drops[0m=[35m1353[0m
+agent-1    | [2m2026-09-12T20:05:52.177747Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/rehydrate_target.txt.fim_restore_tmp[0m [36mtotal_drops[0m=[35m1354[0m
+agent-1    | [2m2026-09-12T20:05:52.177859Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/rehydrate_target.txt[0m [36mtotal_drops[0m=[35m1355[0m
+agent-1    | [2m2026-09-12T20:05:52.178529Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-rehy-status.json.tmp[0m [36mtotal_drops[0m=[35m1356[0m
+agent-1    | [2m2026-09-12T20:05:52.179896Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-rehy-status.json.tmp[0m [36mtotal_drops[0m=[35m1357[0m
+agent-1    | [2m2026-09-12T20:05:52.180396Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/evt-rehy-status.json[0m [36mtotal_drops[0m=[35m1358[0m
+agent-1    | [2m2026-09-12T20:05:52.197784Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process5246454[0m [36mtotal_drops[0m=[35m1359[0m
+agent-1    | [2m2026-09-12T20:05:52.254653Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process5246454[0m [36mtotal_drops[0m=[35m1360[0m
+agent-1    | [2m2026-09-12T20:05:52.337527Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2439796459[0m [36mtotal_drops[0m=[35m1361[0m
+agent-1    | [2m2026-09-12T20:05:52.339469Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2439796459[0m [36mtotal_drops[0m=[35m1362[0m
+agent-1    | [2m2026-09-12T20:05:52.391173Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2439796459[0m [36mtotal_drops[0m=[35m1363[0m
+agent-1    | [2m2026-09-12T20:05:52.464723Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1568395789[0m [36mtotal_drops[0m=[35m1364[0m
+agent-1    | [2m2026-09-12T20:05:52.465216Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1568395789[0m [36mtotal_drops[0m=[35m1365[0m
+agent-1    | [2m2026-09-12T20:05:52.536237Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1568395789[0m [36mtotal_drops[0m=[35m1366[0m
+agent-1    | [2m2026-09-12T20:05:53.148137Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process901139653[0m [36mtotal_drops[0m=[35m1367[0m
+agent-1    | [2m2026-09-12T20:05:53.148588Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process901139653[0m [36mtotal_drops[0m=[35m1368[0m
+agent-1    | [2m2026-09-12T20:05:53.216312Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process901139653[0m [36mtotal_drops[0m=[35m1369[0m
+agent-1    | [2m2026-09-12T20:05:53.253873Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1947678809[0m [36mtotal_drops[0m=[35m1370[0m
+agent-1    | [2m2026-09-12T20:05:53.254520Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1947678809[0m [36mtotal_drops[0m=[35m1371[0m
+backend-1  | {"agent_id": "l7-us24-agent", "watch_paths": ["/watch/a", "/watch/b"], "ruleset_version": 1, "command_id": "d3c6a6cd-de3a-4816-a373-bb78bd771c96", "event": "streams.agents.update_config_enqueued", "trace_id": "ed409f6f-cac4-4ea6-8be1-236b845692e4", "level": "info", "timestamp": "2026-09-12T20:06:07.995819Z"}
+backend-1  | {"published": 1, "event": "service.rules.publish_pending_commands.done", "trace_id": "ed409f6f-cac4-4ea6-8be1-236b845692e4", "level": "info", "timestamp": "2026-09-12T20:06:08.026080Z"}
+backend-1  | INFO:     172.25.0.1:57754 - "POST /agents/l7-us24-agent/config HTTP/1.1" 200 OK
+backend-1  | {"command_id": "d3c6a6cd-de3a-4816-a373-bb78bd771c96", "command_type": "update_config", "status": "ok", "event": "command_ack_consumer.processed", "level": "info", "timestamp": "2026-09-12T20:06:08.059871Z"}
+backend-1  | {"event_id": "f5409d82-e658-4853-bffd-172fa139c097", "agent_id": "l7-us24-agent", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-12T20:06:10.250735Z"}
+backend-1  | {"agent_id": "l7-us24-agent", "watch_paths": ["/watch/b"], "ruleset_version": 2, "command_id": "8b3cd185-8744-4d54-81ba-b5f9b258a722", "event": "streams.agents.update_config_enqueued", "trace_id": "efbe4ce3-1fd9-4377-91fc-67749e5845a8", "level": "info", "timestamp": "2026-09-12T20:06:10.926170Z"}
+backend-1  | {"published": 1, "event": "service.rules.publish_pending_commands.done", "trace_id": "efbe4ce3-1fd9-4377-91fc-67749e5845a8", "level": "info", "timestamp": "2026-09-12T20:06:10.948067Z"}
+backend-1  | INFO:     172.25.0.1:57764 - "POST /agents/l7-us24-agent/config HTTP/1.1" 200 OK
+backend-1  | {"command_id": "8b3cd185-8744-4d54-81ba-b5f9b258a722", "command_type": "update_config", "status": "ok", "event": "command_ack_consumer.processed", "level": "info", "timestamp": "2026-09-12T20:06:10.981372Z"}
+agent-1    | [2m2026-09-12T20:05:53.323879Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1947678809[0m [36mtotal_drops[0m=[35m1372[0m
+agent-1    | [2m2026-09-12T20:05:53.560558Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3289961831[0m [36mtotal_drops[0m=[35m1373[0m
+agent-1    | [2m2026-09-12T20:05:53.561567Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3289961831[0m [36mtotal_drops[0m=[35m1374[0m
+agent-1    | [2m2026-09-12T20:05:53.618127Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3289961831[0m [36mtotal_drops[0m=[35m1375[0m
+agent-1    | [2m2026-09-12T20:05:53.712208Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process210747097[0m [36mtotal_drops[0m=[35m1376[0m
+agent-1    | [2m2026-09-12T20:05:53.772517Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process210747097[0m [36mtotal_drops[0m=[35m1377[0m
+agent-1    | [2m2026-09-12T20:05:53.791381Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process865031843[0m [36mtotal_drops[0m=[35m1378[0m
+agent-1    | [2m2026-09-12T20:05:53.791589Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process865031843[0m [36mtotal_drops[0m=[35m1379[0m
+agent-1    | [2m2026-09-12T20:05:53.845533Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process865031843[0m [36mtotal_drops[0m=[35m1380[0m
+agent-1    | [2m2026-09-12T20:05:54.329422Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process47054687[0m [36mtotal_drops[0m=[35m1381[0m
+agent-1    | [2m2026-09-12T20:05:54.397739Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process47054687[0m [36mtotal_drops[0m=[35m1382[0m
+agent-1    | [2m2026-09-12T20:05:54.707175Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3379580997[0m [36mtotal_drops[0m=[35m1383[0m
+agent-1    | [2m2026-09-12T20:05:54.773230Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3379580997[0m [36mtotal_drops[0m=[35m1384[0m
+agent-1    | [2m2026-09-12T20:05:55.057438Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3943337894[0m [36mtotal_drops[0m=[35m1385[0m
+agent-1    | [2m2026-09-12T20:05:55.057919Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3943337894[0m [36mtotal_drops[0m=[35m1386[0m
+agent-1    | [2m2026-09-12T20:05:55.121207Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3943337894[0m [36mtotal_drops[0m=[35m1387[0m
+agent-1    | [2m2026-09-12T20:05:55.237225Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process316010847[0m [36mtotal_drops[0m=[35m1388[0m
+agent-1    | [2m2026-09-12T20:05:55.237415Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process316010847[0m [36mtotal_drops[0m=[35m1389[0m
+agent-1    | [2m2026-09-12T20:05:55.276197Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process316010847[0m [36mtotal_drops[0m=[35m1390[0m
+agent-1    | [2m2026-09-12T20:05:56.275384Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/#2253314[0m [36mtotal_drops[0m=[35m1391[0m
+agent-1    | [2m2026-09-12T20:05:56.275689Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/#2253315[0m [36mtotal_drops[0m=[35m1392[0m
+agent-1    | [2m2026-09-12T20:05:56.276375Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.lock[0m [36mtotal_drops[0m=[35m1393[0m
+agent-1    | [2m2026-09-12T20:05:56.276667Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_confirmed_rename_applies_current[0m [36mtotal_drops[0m=[35m1394[0m
+agent-1    | [2m2026-09-12T20:05:56.276835Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_guard_detects_a_deleted_rcurrent[0m [36mtotal_drops[0m=[35m1395[0m
+agent-1    | [2m2026-09-12T20:05:56.278057Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_real_mtls_handshake_and_pcurrent[0m [36mtotal_drops[0m=[35m1396[0m
+agent-1    | [2m2026-09-12T20:05:56.278198Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_rehydrate_failed_entry_yicurrent[0m [36mtotal_drops[0m=[35m1397[0m
+agent-1    | [2m2026-09-12T20:05:56.278279Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_rehydrate_auto_restore_yicurrent[0m [36mtotal_drops[0m=[35m1398[0m
+agent-1    | [2m2026-09-12T20:05:56.279141Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_incoming_terminal_event_scurrent[0m [36mtotal_drops[0m=[35m1399[0m
+agent-1    | [2m2026-09-12T20:05:56.279305Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_quarantine_genuine_facurrent[0m [36mtotal_drops[0m=[35m1400[0m
+agent-1    | [2m2026-09-12T20:05:56.279387Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_auto_restore_genuine_current[0m [36mtotal_drops[0m=[35m1401[0m
+agent-1    | [2m2026-09-12T20:05:56.279465Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_manual_review_yields_current[0m [36mtotal_drops[0m=[35m1402[0m
+agent-1    | [2m2026-09-12T20:05:56.279544Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_alert_only_yields_alecurrent[0m [36mtotal_drops[0m=[35m1403[0m
+agent-1    | [2m2026-09-12T20:05:56.279649Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_quarantine_success_yicurrent[0m [36mtotal_drops[0m=[35m1404[0m
+agent-1    | [2m2026-09-12T20:05:56.279730Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_row_auto_restore_success_current[0m [36mtotal_drops[0m=[35m1405[0m
+agent-1    | [2m2026-09-12T20:05:56.279814Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_start_mtls_server_retornacurrent[0m [36mtotal_drops[0m=[35m1406[0m
+agent-1    | [2m2026-09-12T20:05:56.279896Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_start_mtls_server_no_spawcurrent[0m [36mtotal_drops[0m=[35m1407[0m
+agent-1    | [2m2026-09-12T20:05:56.279977Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_ensure_ca_rejects_legacy_current[0m [36mtotal_drops[0m=[35m1408[0m
+agent-1    | [2m2026-09-12T20:05:56.280061Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_ensure_ca_creates_strict_current[0m [36mtotal_drops[0m=[35m1409[0m
+agent-1    | [2m2026-09-12T20:05:56.280144Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_certificate_outside_pre_ecurrent[0m [36mtotal_drops[0m=[35m1410[0m
+agent-1    | [2m2026-09-12T20:05:56.280227Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_identity_and_revocation_fcurrent[0m [36mtotal_drops[0m=[35m1411[0m
+agent-1    | [2m2026-09-12T20:05:56.280312Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_valid_certificate_renews_current[0m [36mtotal_drops[0m=[35m1412[0m
+agent-1    | [2m2026-09-12T20:05:56.280364Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280398Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280430Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280461Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280490Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280521Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280549Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280576Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280719Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280808Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280879Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.280951Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281025Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281121Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281210Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281305Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281403Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281506Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281587Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281669Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281739Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281808Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281876Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.281947Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.282548Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.282726Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.282800Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.282872Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.282941Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283006Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283079Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283145Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283228Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283297Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283366Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283438Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283508Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283583Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283672Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283743Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283809Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283881Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.283947Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284000Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284109Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284199Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284254Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284310Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284361Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284415Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284476Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284546Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284630Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284701Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-12T20:05:56.284882Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.lock[0m [36mtotal_drops[0m=[35m1413[0m
+agent-1    | [2m2026-09-12T20:05:56.299003Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2385457409[0m [36mtotal_drops[0m=[35m1414[0m
+agent-1    | [2m2026-09-12T20:05:56.299262Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2385457409[0m [36mtotal_drops[0m=[35m1415[0m
+agent-1    | [2m2026-09-12T20:05:56.362716Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2385457409[0m [36mtotal_drops[0m=[35m1416[0m
+agent-1    | [2m2026-09-12T20:05:56.489223Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2517211725[0m [36mtotal_drops[0m=[35m1417[0m
+agent-1    | [2m2026-09-12T20:05:56.489598Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2517211725[0m [36mtotal_drops[0m=[35m1418[0m
+agent-1    | [2m2026-09-12T20:05:56.550438Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2517211725[0m [36mtotal_drops[0m=[35m1419[0m
+agent-1    | [2m2026-09-12T20:05:56.727678Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3034517563[0m [36mtotal_drops[0m=[35m1420[0m
+agent-1    | [2m2026-09-12T20:05:56.728866Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3034517563[0m [36mtotal_drops[0m=[35m1421[0m
+agent-1    | [2m2026-09-12T20:05:56.793558Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3034517563[0m [36mtotal_drops[0m=[35m1422[0m
+agent-1    | [2m2026-09-12T20:05:56.930022Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3338170373[0m [36mtotal_drops[0m=[35m1423[0m
+agent-1    | [2m2026-09-12T20:05:56.986765Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3338170373[0m [36mtotal_drops[0m=[35m1424[0m
+agent-1    | [2m2026-09-12T20:05:57.289126Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1541586970[0m [36mtotal_drops[0m=[35m1425[0m
+agent-1    | [2m2026-09-12T20:05:57.289726Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1541586970[0m [36mtotal_drops[0m=[35m1426[0m
+agent-1    | [2m2026-09-12T20:05:57.348156Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1541586970[0m [36mtotal_drops[0m=[35m1427[0m
+agent-1    | [2m2026-09-12T20:05:57.413779Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3783247454[0m [36mtotal_drops[0m=[35m1428[0m
+agent-1    | [2m2026-09-12T20:05:57.416022Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3783247454[0m [36mtotal_drops[0m=[35m1429[0m
+agent-1    | [2m2026-09-12T20:05:57.469664Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3783247454[0m [36mtotal_drops[0m=[35m1430[0m
+agent-1    | [2m2026-09-12T20:05:57.563458Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2963179463[0m [36mtotal_drops[0m=[35m1431[0m
+agent-1    | [2m2026-09-12T20:05:57.563909Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2963179463[0m [36mtotal_drops[0m=[35m1432[0m
+agent-1    | [2m2026-09-12T20:05:57.624740Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2963179463[0m [36mtotal_drops[0m=[35m1433[0m
+agent-1    | [2m2026-09-12T20:05:58.398940Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1219140987[0m [36mtotal_drops[0m=[35m1434[0m
+agent-1    | [2m2026-09-12T20:05:58.399212Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1219140987[0m [36mtotal_drops[0m=[35m1435[0m
+agent-1    | [2m2026-09-12T20:05:58.459371Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1219140987[0m [36mtotal_drops[0m=[35m1436[0m
+agent-1    | [2m2026-09-12T20:05:58.479981Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/claude-2629-cwd[0m [36mtotal_drops[0m=[35m1437[0m
+agent-1    | [2m2026-09-12T20:05:58.480266Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/claude-2629-cwd[0m [36mtotal_drops[0m=[35m1438[0m
+agent-1    | [2m2026-09-12T20:05:58.480565Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bs1fex9xy.output[0m [36mtotal_drops[0m=[35m1439[0m
+agent-1    | [2m2026-09-12T20:05:58.490040Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/claude-2629-cwd[0m [36mtotal_drops[0m=[35m1440[0m
+agent-1    | [2m2026-09-12T20:05:58.516428Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bs1fex9xy.output[0m [36mtotal_drops[0m=[35m1441[0m
+agent-1    | [2m2026-09-12T20:05:58.612994Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1433470380[0m [36mtotal_drops[0m=[35m1442[0m
+agent-1    | [2m2026-09-12T20:05:58.613334Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1433470380[0m [36mtotal_drops[0m=[35m1443[0m
+agent-1    | [2m2026-09-12T20:05:58.650559Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1433470380[0m [36mtotal_drops[0m=[35m1444[0m
+agent-1    | [2m2026-09-12T20:05:58.693226Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process862996059[0m [36mtotal_drops[0m=[35m1445[0m
+agent-1    | [2m2026-09-12T20:05:58.748647Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process862996059[0m [36mtotal_drops[0m=[35m1446[0m
+agent-1    | [2m2026-09-12T20:05:58.794702Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1228220862[0m [36mtotal_drops[0m=[35m1447[0m
+agent-1    | [2m2026-09-12T20:05:58.796101Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1228220862[0m [36mtotal_drops[0m=[35m1448[0m
+agent-1    | [2m2026-09-12T20:05:58.838144Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2356183660[0m [36mtotal_drops[0m=[35m1449[0m
+agent-1    | [2m2026-09-12T20:05:58.840005Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2356183660[0m [36mtotal_drops[0m=[35m1450[0m
+agent-1    | [2m2026-09-12T20:05:58.857530Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1228220862[0m [36mtotal_drops[0m=[35m1451[0m
+agent-1    | [2m2026-09-12T20:05:58.903741Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2356183660[0m [36mtotal_drops[0m=[35m1452[0m
+agent-1    | [2m2026-09-12T20:05:59.218360Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_guard_detects_a_deleted_rcurrent[0m [36mtotal_drops[0m=[35m1453[0m
+agent-1    | [2m2026-09-12T20:05:59.358553Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3874104146[0m [36mtotal_drops[0m=[35m1454[0m
+agent-1    | [2m2026-09-12T20:05:59.358950Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3874104146[0m [36mtotal_drops[0m=[35m1455[0m
+agent-1    | [2m2026-09-12T20:05:59.405225Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3874104146[0m [36mtotal_drops[0m=[35m1456[0m
+agent-1    | [2m2026-09-12T20:05:59.477734Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_confirmed_rename_applies_current[0m [36mtotal_drops[0m=[35m1457[0m
+agent-1    | [2m2026-09-12T20:05:59.479009Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/spec.md[0m [36mtotal_drops[0m=[35m1458[0m
+agent-1    | [2m2026-09-12T20:05:59.479368Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/spec.md[0m [36mtotal_drops[0m=[35m1459[0m
+agent-1    | [2m2026-09-12T20:05:59.656921Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_guard_detects_a_deleted_rcurrent[0m [36mtotal_drops[0m=[35m1460[0m
+agent-1    | [2m2026-09-12T20:05:59.791333Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1177467971[0m [36mtotal_drops[0m=[35m1461[0m
+agent-1    | [2m2026-09-12T20:05:59.791628Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1177467971[0m [36mtotal_drops[0m=[35m1462[0m
+agent-1    | [2m2026-09-12T20:05:59.836036Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1177467971[0m [36mtotal_drops[0m=[35m1463[0m
+agent-1    | [2m2026-09-12T20:05:59.973122Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_confirmed_rename_applies_current[0m [36mtotal_drops[0m=[35m1464[0m
+agent-1    | [2m2026-09-12T20:05:59.974351Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/spec.md[0m [36mtotal_drops[0m=[35m1465[0m
+agent-1    | [2m2026-09-12T20:05:59.974683Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/spec.md[0m [36mtotal_drops[0m=[35m1466[0m
+agent-1    | [2m2026-09-12T20:06:00.087233Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process348237605[0m [36mtotal_drops[0m=[35m1467[0m
+agent-1    | [2m2026-09-12T20:06:00.152268Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process348237605[0m [36mtotal_drops[0m=[35m1468[0m
+agent-1    | [2m2026-09-12T20:06:00.164508Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/pytest-current[0m [36mtotal_drops[0m=[35m1469[0m
+agent-1    | [2m2026-09-12T20:06:00.164779Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.lock[0m [36mtotal_drops[0m=[35m1470[0m
+agent-1    | [2m2026-09-12T20:06:00.165008Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.lock[0m [36mtotal_drops[0m=[35m1471[0m
+agent-1    | [2m2026-09-12T20:06:00.165095Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_valid_certificate_renews_current[0m [36mtotal_drops[0m=[35m1472[0m
+agent-1    | [2m2026-09-12T20:06:00.167444Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1473[0m
+agent-1    | [2m2026-09-12T20:06:00.167813Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1474[0m
+agent-1    | [2m2026-09-12T20:06:00.168502Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1475[0m
+agent-1    | [2m2026-09-12T20:06:00.168842Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1476[0m
+agent-1    | [2m2026-09-12T20:06:00.378906Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_identity_and_revocation_fcurrent[0m [36mtotal_drops[0m=[35m1477[0m
+agent-1    | [2m2026-09-12T20:06:00.380165Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1478[0m
+agent-1    | [2m2026-09-12T20:06:00.380587Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1479[0m
+agent-1    | [2m2026-09-12T20:06:00.380834Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1480[0m
+agent-1    | [2m2026-09-12T20:06:00.380949Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1481[0m
+agent-1    | [2m2026-09-12T20:06:00.542205Z[0m [[32m[1mdebug    [0m] [1mheartbeat.published           [0m [36magent_id[0m=[35ml7-us24-agent[0m [36mshutdown[0m=[35mFalse[0m
+agent-1    | [2m2026-09-12T20:06:00.603219Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_identity_and_revocation_fcurrent[0m [36mtotal_drops[0m=[35m1482[0m
+agent-1    | [2m2026-09-12T20:06:00.603772Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1483[0m
+agent-1    | [2m2026-09-12T20:06:00.604866Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1484[0m
+agent-1    | [2m2026-09-12T20:06:00.605277Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1485[0m
+agent-1    | [2m2026-09-12T20:06:00.717445Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2032251867[0m [36mtotal_drops[0m=[35m1486[0m
+agent-1    | [2m2026-09-12T20:06:00.718517Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2032251867[0m [36mtotal_drops[0m=[35m1487[0m
+agent-1    | [2m2026-09-12T20:06:00.775193Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2032251867[0m [36mtotal_drops[0m=[35m1488[0m
+agent-1    | [2m2026-09-12T20:06:00.794274Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_identity_and_revocation_fcurrent[0m [36mtotal_drops[0m=[35m1489[0m
+agent-1    | [2m2026-09-12T20:06:00.794983Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1490[0m
+agent-1    | [2m2026-09-12T20:06:00.795959Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1491[0m
+agent-1    | [2m2026-09-12T20:06:00.796384Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1492[0m
+agent-1    | [2m2026-09-12T20:06:00.977160Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/test_certificate_outside_pre_ecurrent[0m [36mtotal_drops[0m=[35m1493[0m
+agent-1    | [2m2026-09-12T20:06:00.977744Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1494[0m
+agent-1    | [2m2026-09-12T20:06:00.978034Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca-key.pem[0m [36mtotal_drops[0m=[35m1495[0m
+agent-1    | [2m2026-09-12T20:06:00.978898Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1496[0m
+agent-1    | [2m2026-09-12T20:06:00.979269Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/ca.pem[0m [36mtotal_drops[0m=[35m1497[0m
+agent-1    | [2m2026-09-12T20:06:01.210181Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/claude-a618-cwd[0m [36mtotal_drops[0m=[35m1498[0m
+agent-1    | [2m2026-09-12T20:06:01.210398Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bfcj2s1zb.output[0m [36mtotal_drops[0m=[35m1499[0m
+agent-1    | [2m2026-09-12T20:06:01.215159Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/claude-a618-cwd[0m [36mtotal_drops[0m=[35m1500[0m
+agent-1    | [2m2026-09-12T20:06:01.216720Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bfcj2s1zb.output[0m [36mtotal_drops[0m=[35m1501[0m
+agent-1    | [2m2026-09-12T20:06:01.369737Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1789074273[0m [36mtotal_drops[0m=[35m1502[0m
+agent-1    | [2m2026-09-12T20:06:01.370409Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1789074273[0m [36mtotal_drops[0m=[35m1503[0m
+agent-1    | [2m2026-09-12T20:06:01.424406Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4224111438[0m [36mtotal_drops[0m=[35m1504[0m
+agent-1    | [2m2026-09-12T20:06:01.442145Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1789074273[0m [36mtotal_drops[0m=[35m1505[0m
+agent-1    | [2m2026-09-12T20:06:01.480145Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4224111438[0m [36mtotal_drops[0m=[35m1506[0m
+agent-1    | [2m2026-09-12T20:06:01.814114Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3433184133[0m [36mtotal_drops[0m=[35m1507[0m
+agent-1    | [2m2026-09-12T20:06:01.859557Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3433184133[0m [36mtotal_drops[0m=[35m1508[0m
+agent-1    | [2m2026-09-12T20:06:02.010476Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2680772255[0m [36mtotal_drops[0m=[35m1509[0m
+agent-1    | [2m2026-09-12T20:06:02.010829Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2680772255[0m [36mtotal_drops[0m=[35m1510[0m
+agent-1    | [2m2026-09-12T20:06:02.054570Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2680772255[0m [36mtotal_drops[0m=[35m1511[0m
+agent-1    | [2m2026-09-12T20:06:02.501172Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3088027824[0m [36mtotal_drops[0m=[35m1512[0m
+agent-1    | [2m2026-09-12T20:06:02.501534Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3088027824[0m [36mtotal_drops[0m=[35m1513[0m
+agent-1    | [2m2026-09-12T20:06:02.553410Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3088027824[0m [36mtotal_drops[0m=[35m1514[0m
+agent-1    | [2m2026-09-12T20:06:02.620026Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2925919788[0m [36mtotal_drops[0m=[35m1515[0m
+agent-1    | [2m2026-09-12T20:06:02.685443Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2925919788[0m [36mtotal_drops[0m=[35m1516[0m
+agent-1    | [2m2026-09-12T20:06:02.840866Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process475833577[0m [36mtotal_drops[0m=[35m1517[0m
+agent-1    | [2m2026-09-12T20:06:02.841138Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process475833577[0m [36mtotal_drops[0m=[35m1518[0m
+agent-1    | [2m2026-09-12T20:06:02.899388Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process475833577[0m [36mtotal_drops[0m=[35m1519[0m
+agent-1    | [2m2026-09-12T20:06:03.503178Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process261588643[0m [36mtotal_drops[0m=[35m1520[0m
+agent-1    | [2m2026-09-12T20:06:03.515730Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3193122289[0m [36mtotal_drops[0m=[35m1521[0m
+agent-1    | [2m2026-09-12T20:06:03.516147Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3193122289[0m [36mtotal_drops[0m=[35m1522[0m
+agent-1    | [2m2026-09-12T20:06:03.564280Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process261588643[0m [36mtotal_drops[0m=[35m1523[0m
+agent-1    | [2m2026-09-12T20:06:03.571470Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3193122289[0m [36mtotal_drops[0m=[35m1524[0m
+agent-1    | [2m2026-09-12T20:06:03.818545Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1181301912[0m [36mtotal_drops[0m=[35m1525[0m
+agent-1    | [2m2026-09-12T20:06:03.820233Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1181301912[0m [36mtotal_drops[0m=[35m1526[0m
+agent-1    | [2m2026-09-12T20:06:03.872057Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1181301912[0m [36mtotal_drops[0m=[35m1527[0m
+agent-1    | [2m2026-09-12T20:06:03.893480Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process251115367[0m [36mtotal_drops[0m=[35m1528[0m
+agent-1    | [2m2026-09-12T20:06:03.962181Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process251115367[0m [36mtotal_drops[0m=[35m1529[0m
+agent-1    | [2m2026-09-12T20:06:03.970162Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2868509611[0m [36mtotal_drops[0m=[35m1530[0m
+agent-1    | [2m2026-09-12T20:06:04.035581Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2868509611[0m [36mtotal_drops[0m=[35m1531[0m
+agent-1    | [2m2026-09-12T20:06:04.855967Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process515814087[0m [36mtotal_drops[0m=[35m1532[0m
+agent-1    | [2m2026-09-12T20:06:04.856416Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process515814087[0m [36mtotal_drops[0m=[35m1533[0m
+agent-1    | [2m2026-09-12T20:06:04.913022Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process515814087[0m [36mtotal_drops[0m=[35m1534[0m
+agent-1    | [2m2026-09-12T20:06:04.984120Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process626822375[0m [36mtotal_drops[0m=[35m1535[0m
+agent-1    | [2m2026-09-12T20:06:04.984640Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process626822375[0m [36mtotal_drops[0m=[35m1536[0m
+agent-1    | [2m2026-09-12T20:06:05.049692Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process626822375[0m [36mtotal_drops[0m=[35m1537[0m
+agent-1    | [2m2026-09-12T20:06:05.204420Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process975279938[0m [36mtotal_drops[0m=[35m1538[0m
+agent-1    | [2m2026-09-12T20:06:05.204773Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process975279938[0m [36mtotal_drops[0m=[35m1539[0m
+agent-1    | [2m2026-09-12T20:06:05.263265Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process975279938[0m [36mtotal_drops[0m=[35m1540[0m
+agent-1    | [2m2026-09-12T20:06:05.581377Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1544664866[0m [36mtotal_drops[0m=[35m1541[0m
+agent-1    | [2m2026-09-12T20:06:05.581654Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1544664866[0m [36mtotal_drops[0m=[35m1542[0m
+agent-1    | [2m2026-09-12T20:06:05.639228Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1544664866[0m [36mtotal_drops[0m=[35m1543[0m
+agent-1    | [2m2026-09-12T20:06:06.507060Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3989877808[0m [36mtotal_drops[0m=[35m1544[0m
+agent-1    | [2m2026-09-12T20:06:06.574007Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3989877808[0m [36mtotal_drops[0m=[35m1545[0m
+agent-1    | [2m2026-09-12T20:06:06.821625Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process95364220[0m [36mtotal_drops[0m=[35m1546[0m
+agent-1    | [2m2026-09-12T20:06:06.822233Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process95364220[0m [36mtotal_drops[0m=[35m1547[0m
+agent-1    | [2m2026-09-12T20:06:06.879422Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1392747707[0m [36mtotal_drops[0m=[35m1548[0m
+agent-1    | [2m2026-09-12T20:06:06.880782Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1392747707[0m [36mtotal_drops[0m=[35m1549[0m
+agent-1    | [2m2026-09-12T20:06:06.890053Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process95364220[0m [36mtotal_drops[0m=[35m1550[0m
+agent-1    | [2m2026-09-12T20:06:06.925783Z[0m [[32m[1minfo     [0m] [1mdecision.evaluated            [0m [36maction[0m=[35malert_only[0m [36maction_failed[0m=[35mFalse[0m [36mevent_id[0m=[35md3ce2769-8388-4cca-98c6-040c21f2c2e2[0m [36mpath[0m=[35m/watch/a/seed.txt[0m
+agent-1    | [2m2026-09-12T20:06:06.931072Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1392747707[0m [36mtotal_drops[0m=[35m1551[0m
+agent-1    | [2m2026-09-12T20:06:06.934629Z[0m [[32m[1minfo     [0m] [1mpublisher.event_published     [0m [36mevent_id[0m=[35md3ce2769-8388-4cca-98c6-040c21f2c2e2[0m
+agent-1    | [2m2026-09-12T20:06:06.940196Z[0m [[32m[1minfo     [0m] [1mdetector.change_detected      [0m [36mevent_id[0m=[35md3ce2769-8388-4cca-98c6-040c21f2c2e2[0m [36mevent_type[0m=[35mfile_modified[0m [36mpath[0m=[35m/watch/a/seed.txt[0m
+agent-1    | [2m2026-09-12T20:06:06.966771Z[0m [[32m[1minfo     [0m] [1mpublisher.event_acked         [0m [36mevent_id[0m=[35md3ce2769-8388-4cca-98c6-040c21f2c2e2[0m
+agent-1    | [2m2026-09-12T20:06:07.084408Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1264023410[0m [36mtotal_drops[0m=[35m1552[0m
+agent-1    | [2m2026-09-12T20:06:07.085161Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1264023410[0m [36mtotal_drops[0m=[35m1553[0m
+agent-1    | [2m2026-09-12T20:06:07.135015Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3328600545[0m [36mtotal_drops[0m=[35m1554[0m
+agent-1    | [2m2026-09-12T20:06:07.148089Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1264023410[0m [36mtotal_drops[0m=[35m1555[0m
+agent-1    | [2m2026-09-12T20:06:07.156920Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process22281768[0m [36mtotal_drops[0m=[35m1556[0m
+agent-1    | [2m2026-09-12T20:06:07.188229Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3328600545[0m [36mtotal_drops[0m=[35m1557[0m
+agent-1    | [2m2026-09-12T20:06:07.216988Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process22281768[0m [36mtotal_drops[0m=[35m1558[0m
+agent-1    | [2m2026-09-12T20:06:07.521235Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4154977361[0m [36mtotal_drops[0m=[35m1559[0m
+agent-1    | [2m2026-09-12T20:06:07.521502Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4154977361[0m [36mtotal_drops[0m=[35m1560[0m
+agent-1    | [2m2026-09-12T20:06:07.566831Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process4154977361[0m [36mtotal_drops[0m=[35m1561[0m
+agent-1    | [2m2026-09-12T20:06:07.570421Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process323197731[0m [36mtotal_drops[0m=[35m1562[0m
+agent-1    | [2m2026-09-12T20:06:07.570655Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process323197731[0m [36mtotal_drops[0m=[35m1563[0m
+agent-1    | [2m2026-09-12T20:06:07.625018Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process323197731[0m [36mtotal_drops[0m=[35m1564[0m
+agent-1    | [2m2026-09-12T20:06:07.658530Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2823935328[0m [36mtotal_drops[0m=[35m1565[0m
+agent-1    | [2m2026-09-12T20:06:07.658848Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2823935328[0m [36mtotal_drops[0m=[35m1566[0m
+agent-1    | [2m2026-09-12T20:06:07.708210Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2823935328[0m [36mtotal_drops[0m=[35m1567[0m
+agent-1    | [2m2026-09-12T20:06:07.770393Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process865702164[0m [36mtotal_drops[0m=[35m1568[0m
+agent-1    | [2m2026-09-12T20:06:07.771721Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process865702164[0m [36mtotal_drops[0m=[35m1569[0m
+agent-1    | [2m2026-09-12T20:06:07.826109Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process865702164[0m [36mtotal_drops[0m=[35m1570[0m
+agent-1    | [2m2026-09-12T20:06:08.027622Z[0m [[32m[1minfo     [0m] [1mcommands.update_config.paths_delta[0m [36madded[0m=[35m['/watch/b'][0m [36mremoved[0m=[35m[][0m
+agent-1    | [2m2026-09-12T20:06:08.027923Z[0m [[32m[1minfo     [0m] [1mdetector.reload_watch_paths.done[0m [36madded[0m=[35m['/watch/b'][0m [36mremoved[0m=[35m[][0m [36mwatch_paths[0m=[35m['/watch/a', '/watch/b'][0m
+agent-1    | [2m2026-09-12T20:06:08.032400Z[0m [[31m[1merror    [0m] [1mcommands.update_config.config_yaml_write_failed[0m [36merror[0m=[35m"[Errno 16] Device or resource busy: '/etc/fim-agent/config.yaml.tmp' -> '/etc/fim-agent/config.yaml'"[0m
+agent-1    | [2m2026-09-12T20:06:08.039031Z[0m [[32m[1minfo     [0m] [1mcommands.update_config.done   [0m [36mnew_paths[0m=[35m['/watch/a', '/watch/b'][0m [36mruleset_version[0m=[35m1[0m
+agent-1    | [2m2026-09-12T20:06:08.040574Z[0m [[32m[1mdebug    [0m] [1mcommands.ack_published        [0m [36mcommand_id[0m=[35md3c6a6cd-de3a-4816-a373-bb78bd771c96[0m [36mstatus[0m=[35mok[0m
+agent-1    | [2m2026-09-12T20:06:08.282343Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3630316188[0m [36mtotal_drops[0m=[35m1571[0m
+agent-1    | [2m2026-09-12T20:06:08.282818Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3630316188[0m [36mtotal_drops[0m=[35m1572[0m
+agent-1    | [2m2026-09-12T20:06:08.345406Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3630316188[0m [36mtotal_drops[0m=[35m1573[0m
+agent-1    | [2m2026-09-12T20:06:08.641576Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1733271022[0m [36mtotal_drops[0m=[35m1574[0m
+agent-1    | [2m2026-09-12T20:06:08.657761Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process131699173[0m [36mtotal_drops[0m=[35m1575[0m
+agent-1    | [2m2026-09-12T20:06:08.658133Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process131699173[0m [36mtotal_drops[0m=[35m1576[0m
+agent-1    | [2m2026-09-12T20:06:08.702772Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1733271022[0m [36mtotal_drops[0m=[35m1577[0m
+agent-1    | [2m2026-09-12T20:06:08.730966Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process131699173[0m [36mtotal_drops[0m=[35m1578[0m
+agent-1    | [2m2026-09-12T20:06:08.931220Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2395365212[0m [36mtotal_drops[0m=[35m1579[0m
+agent-1    | [2m2026-09-12T20:06:08.994215Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2395365212[0m [36mtotal_drops[0m=[35m1580[0m
+agent-1    | [2m2026-09-12T20:06:09.018327Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3008765402[0m [36mtotal_drops[0m=[35m1581[0m
+agent-1    | [2m2026-09-12T20:06:09.067224Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3008765402[0m [36mtotal_drops[0m=[35m1582[0m
+agent-1    | [2m2026-09-12T20:06:09.099687Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process414169123[0m [36mtotal_drops[0m=[35m1583[0m
+agent-1    | [2m2026-09-12T20:06:09.107213Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process414169123[0m [36mtotal_drops[0m=[35m1584[0m
+agent-1    | [2m2026-09-12T20:06:09.153074Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process414169123[0m [36mtotal_drops[0m=[35m1585[0m
+agent-1    | [2m2026-09-12T20:06:09.264702Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3278559651[0m [36mtotal_drops[0m=[35m1586[0m
+agent-1    | [2m2026-09-12T20:06:09.264959Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3278559651[0m [36mtotal_drops[0m=[35m1587[0m
+agent-1    | [2m2026-09-12T20:06:09.301490Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1451949096[0m [36mtotal_drops[0m=[35m1588[0m
+agent-1    | [2m2026-09-12T20:06:09.301812Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1451949096[0m [36mtotal_drops[0m=[35m1589[0m
+agent-1    | [2m2026-09-12T20:06:09.313268Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3278559651[0m [36mtotal_drops[0m=[35m1590[0m
+agent-1    | [2m2026-09-12T20:06:09.351813Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1451949096[0m [36mtotal_drops[0m=[35m1591[0m
+agent-1    | [2m2026-09-12T20:06:09.419504Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bmt8tm14g.output[0m [36mtotal_drops[0m=[35m1592[0m
+agent-1    | [2m2026-09-12T20:06:09.463492Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bmt8tm14g.output[0m [36mtotal_drops[0m=[35m1593[0m
+agent-1    | [2m2026-09-12T20:06:09.487957Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/bmt8tm14g.output[0m [36mtotal_drops[0m=[35m1594[0m
+agent-1    | [2m2026-09-12T20:06:09.616479Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process961070611[0m [36mtotal_drops[0m=[35m1595[0m
+agent-1    | [2m2026-09-12T20:06:09.676903Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process961070611[0m [36mtotal_drops[0m=[35m1596[0m
+agent-1    | [2m2026-09-12T20:06:09.724063Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3248261565[0m [36mtotal_drops[0m=[35m1597[0m
+agent-1    | [2m2026-09-12T20:06:09.724455Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3248261565[0m [36mtotal_drops[0m=[35m1598[0m
+agent-1    | [2m2026-09-12T20:06:09.775978Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3248261565[0m [36mtotal_drops[0m=[35m1599[0m
+agent-1    | [2m2026-09-12T20:06:09.924777Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process231965637[0m [36mtotal_drops[0m=[35m1600[0m
+agent-1    | [2m2026-09-12T20:06:09.978263Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process231965637[0m [36mtotal_drops[0m=[35m1601[0m
+agent-1    | [2m2026-09-12T20:06:10.128711Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process316329485[0m [36mtotal_drops[0m=[35m1602[0m
+agent-1    | [2m2026-09-12T20:06:10.129042Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process316329485[0m [36mtotal_drops[0m=[35m1603[0m
+agent-1    | [2m2026-09-12T20:06:10.177445Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process316329485[0m [36mtotal_drops[0m=[35m1604[0m
+agent-1    | [2m2026-09-12T20:06:10.215341Z[0m [[32m[1minfo     [0m] [1mdecision.evaluated            [0m [36maction[0m=[35malert_only[0m [36maction_failed[0m=[35mFalse[0m [36mevent_id[0m=[35mf5409d82-e658-4853-bffd-172fa139c097[0m [36mpath[0m=[35m/watch/b/new.txt[0m
+agent-1    | [2m2026-09-12T20:06:10.224232Z[0m [[32m[1minfo     [0m] [1mpublisher.event_published     [0m [36mevent_id[0m=[35mf5409d82-e658-4853-bffd-172fa139c097[0m
+agent-1    | [2m2026-09-12T20:06:10.226406Z[0m [[32m[1minfo     [0m] [1mdetector.change_detected      [0m [36mevent_id[0m=[35mf5409d82-e658-4853-bffd-172fa139c097[0m [36mevent_type[0m=[35mfile_modified[0m [36mpath[0m=[35m/watch/b/new.txt[0m
+agent-1    | [2m2026-09-12T20:06:10.251270Z[0m [[32m[1minfo     [0m] [1mpublisher.event_acked         [0m [36mevent_id[0m=[35mf5409d82-e658-4853-bffd-172fa139c097[0m
+agent-1    | [2m2026-09-12T20:06:10.386205Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1139471210[0m [36mtotal_drops[0m=[35m1605[0m
+agent-1    | [2m2026-09-12T20:06:10.386672Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1139471210[0m [36mtotal_drops[0m=[35m1606[0m
+agent-1    | [2m2026-09-12T20:06:10.444982Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1139471210[0m [36mtotal_drops[0m=[35m1607[0m
+agent-1    | [2m2026-09-12T20:06:10.546363Z[0m [[32m[1mdebug    [0m] [1mheartbeat.published           [0m [36magent_id[0m=[35ml7-us24-agent[0m [36mshutdown[0m=[35mFalse[0m
+agent-1    | [2m2026-09-12T20:06:10.767040Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2315554762[0m [36mtotal_drops[0m=[35m1608[0m
+agent-1    | [2m2026-09-12T20:06:10.815847Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2315554762[0m [36mtotal_drops[0m=[35m1609[0m
+agent-1    | [2m2026-09-12T20:06:10.946290Z[0m [[32m[1minfo     [0m] [1mcommands.update_config.paths_delta[0m [36madded[0m=[35m[][0m [36mremoved[0m=[35m['/watch/a'][0m
+agent-1    | [2m2026-09-12T20:06:10.946825Z[0m [[32m[1minfo     [0m] [1mdetector.reload_watch_paths.done[0m [36madded[0m=[35m[][0m [36mremoved[0m=[35m['/watch/a'][0m [36mwatch_paths[0m=[35m['/watch/b'][0m
+agent-1    | [2m2026-09-12T20:06:10.950799Z[0m [[31m[1merror    [0m] [1mcommands.update_config.config_yaml_write_failed[0m [36merror[0m=[35m"[Errno 16] Device or resource busy: '/etc/fim-agent/config.yaml.tmp' -> '/etc/fim-agent/config.yaml'"[0m
+agent-1    | [2m2026-09-12T20:06:10.961010Z[0m [[32m[1minfo     [0m] [1mcommands.update_config.done   [0m [36mnew_paths[0m=[35m['/watch/b'][0m [36mruleset_version[0m=[35m2[0m
+agent-1    | [2m2026-09-12T20:06:10.963912Z[0m [[32m[1mdebug    [0m] [1mcommands.ack_published        [0m [36mcommand_id[0m=[35m8b3cd185-8744-4d54-81ba-b5f9b258a722[0m [36mstatus[0m=[35mok[0m
+agent-1    | [2m2026-09-12T20:06:20.550715Z[0m [[32m[1mdebug    [0m] [1mheartbeat.published           [0m [36magent_id[0m=[35ml7-us24-agent[0m [36mshutdown[0m=[35mFalse[0m
+agent-1    | [2m2026-09-12T20:06:30.553427Z[0m [[32m[1mdebug    [0m] [1mheartbeat.published           [0m [36magent_id[0m=[35ml7-us24-agent[0m [36mshutdown[0m=[35mFalse[0m

@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l2-frontend-ui/frontend
+
+ ✓ src/components/layout/SystemBanner.test.tsx (8 tests) 767ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  16:45:16
+   Duration  4.59s (transform 325ms, setup 548ms, collect 467ms, tests 767ms, environment 1.80s, prepare 278ms)
+

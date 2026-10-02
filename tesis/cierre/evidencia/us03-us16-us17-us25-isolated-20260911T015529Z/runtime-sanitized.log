@@ -1,0 +1,500 @@
+backend-1  | INFO:     172.26.0.5:36206 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36222 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36218 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36232 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36242 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36260 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36252 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36244 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36268 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36270 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36276 - "POST /auth/logout HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36290 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36302 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+backend-1  | INFO:     172.26.0.5:36310 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+backend-1  | INFO:     172.26.0.5:36312 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36334 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36324 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36350 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36374 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36360 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36432 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36446 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36466 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36462 - "GET /rules HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:36450 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | {"version": 1, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:40.929251Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:40.941878Z"}
+backend-1  | INFO:     172.26.0.5:36472 - "POST /rules HTTP/1.1" 201 Created
+backend-1  | INFO:     172.26.0.5:36480 - "GET /rules HTTP/1.1" 200 OK
+backend-1  | {"version": 2, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:42.425760Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:42.437322Z"}
+backend-1  | INFO:     172.26.0.5:49566 - "PUT /rules/1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:49576 - "GET /rules HTTP/1.1" 200 OK
+backend-1  | {"version": 3, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:45.938119Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:45.954901Z"}
+backend-1  | INFO:     172.26.0.5:49592 - "DELETE /rules/1 HTTP/1.1" 204 No Content
+backend-1  | INFO:     172.26.0.5:49606 - "GET /rules HTTP/1.1" 200 OK
+backend-1  | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T01:57:49.199195Z"}
+backend-1  | INFO:     172.26.0.5:49618 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56148 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56168 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56154 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56176 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56186 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56192 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56206 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56216 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56222 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56238 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56244 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | {"version": 4, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:54.974808Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:54.991378Z"}
+backend-1  | INFO:     172.26.0.5:56260 - "POST /rules HTTP/1.1" 201 Created
+backend-1  | INFO:     172.26.0.5:56266 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56272 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56284 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1  | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T01:57:56.550593Z"}
+backend-1  | {"alert_id": 1, "event_id": "[REDACTED-OPAQUE]", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-09-11T01:57:56.556547Z"}
+backend-1  | {"severity": "high", "event_id": "[REDACTED-OPAQUE]", "path": "/watch/[REDACTED-LAB-FILE]", "alert_id": 1, "event": "notifier.log_only", "level": "critical", "timestamp": "2026-09-11T01:57:56.562389Z"}
+backend-1  | {"alert_id": 1, "channel": "log_only", "event": "notify.delivered", "level": "info", "timestamp": "2026-09-11T01:57:56.566495Z"}
+backend-1  | INFO:     172.26.0.5:56298 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56296 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56286 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56306 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56314 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56318 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56328 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56342 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56344 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56358 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56372 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56380 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56390 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56402 - "GET /events?status=pending&path_prefix=/watch/[REDACTED-LAB-FILE]&page_size=50 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56388 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56416 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | {"event_id": 2, "agent_id": "[REDACTED-OPAQUE]", "ruleset_version": 5, "command_id": "[REDACTED-OPAQUE]", "event": "streams.actions.[REDACTED-OPAQUE]", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:59.360690Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:59.369618Z"}
+backend-1  | {"event_id": 2, "user_id": 1, "event": "service.actions.approve", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:57:59.369745Z"}
+backend-1  | INFO:     172.26.0.5:56422 - "POST /actions/bulk-approve HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:56428 - "GET /events?status=pending&path_prefix=/watch/[REDACTED-LAB-FILE]&page_size=50 HTTP/1.1" 200 OK
+backend-1  | {"command_id": "[REDACTED-OPAQUE]", "command_type": "baseline_update", "status": "ok", "event": "command_ack_consumer.processed", "level": "info", "timestamp": "2026-09-11T01:57:59.401605Z"}
+backend-1  | INFO:     172.26.0.5:48124 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48154 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48140 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48162 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48172 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48186 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48202 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48214 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48230 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48234 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48206 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48250 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48266 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48262 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48282 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48294 - "POST /auth/logout HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48308 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+backend-1  | INFO:     172.26.0.5:48312 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+backend-1  | INFO:     172.26.0.5:48328 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48346 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48332 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48356 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48392 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48408 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48418 - "GET /rules HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48404 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:48420 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | {"version": 6, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:07.410354Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:07.422779Z"}
+agent-1    | [2m2026-09-11T01:58:47.174719Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.H5Jz7a[0m [36mtotal_drops[0m=[35m9364[0m
+agent-1    | [2m2026-09-11T01:58:47.174856Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.Ccm5uQ[0m [36mtotal_drops[0m=[35m9365[0m
+agent-1    | [2m2026-09-11T01:58:47.174994Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.CJjAFS[0m [36mtotal_drops[0m=[35m9366[0m
+agent-1    | [2m2026-09-11T01:58:47.175325Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.GdoaDi[0m [36mtotal_drops[0m=[35m9367[0m
+backend-1  | INFO:     172.26.0.5:48436 - "POST /rules HTTP/1.1" 201 Created
+agent-1    | [2m2026-09-11T01:58:47.175464Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.IeXI3M[0m [36mtotal_drops[0m=[35m9368[0m
+agent-1    | [2m2026-09-11T01:58:47.175976Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.IeXI3M[0m [36mtotal_drops[0m=[35m9369[0m
+backend-1  | INFO:     172.26.0.5:48450 - "GET /rules HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:47.176464Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.IeXI3M[0m [36mtotal_drops[0m=[35m9370[0m
+agent-1    | [2m2026-09-11T01:58:47.206333Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.XUGb1h[0m [36mtotal_drops[0m=[35m9371[0m
+agent-1    | [2m2026-09-11T01:58:47.206648Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.XUGb1h[0m [36mtotal_drops[0m=[35m9372[0m
+agent-1    | [2m2026-09-11T01:58:47.207003Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.NJkAQo[0m [36mtotal_drops[0m=[35m9373[0m
+agent-1    | [2m2026-09-11T01:58:47.207411Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.NJkAQo[0m [36mtotal_drops[0m=[35m9374[0m
+backend-1  | {"version": 7, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:08.825499Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:08.834624Z"}
+backend-1  | INFO:     172.26.0.5:48466 - "PUT /rules/3 HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:47.207632Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.j6a7RB[0m [36mtotal_drops[0m=[35m9375[0m
+backend-1  | INFO:     172.26.0.5:48474 - "GET /rules HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:47.208086Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ghSKHw[0m [36mtotal_drops[0m=[35m9376[0m
+agent-1    | [2m2026-09-11T01:58:47.208308Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.nX5NKh[0m [36mtotal_drops[0m=[35m9377[0m
+agent-1    | [2m2026-09-11T01:58:47.208495Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.apXcGB[0m [36mtotal_drops[0m=[35m9378[0m
+agent-1    | [2m2026-09-11T01:58:47.208881Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.apXcGB[0m [36mtotal_drops[0m=[35m9379[0m
+agent-1    | [2m2026-09-11T01:58:47.209052Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.msWFaI[0m [36mtotal_drops[0m=[35m9380[0m
+agent-1    | [2m2026-09-11T01:58:47.209190Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.OVX6HC[0m [36mtotal_drops[0m=[35m9381[0m
+agent-1    | [2m2026-09-11T01:58:47.209362Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.nPnGsD[0m [36mtotal_drops[0m=[35m9382[0m
+agent-1    | [2m2026-09-11T01:58:47.209805Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.nPnGsD[0m [36mtotal_drops[0m=[35m9383[0m
+agent-1    | [2m2026-09-11T01:58:47.210040Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.x9UdO7[0m [36mtotal_drops[0m=[35m9384[0m
+agent-1    | [2m2026-09-11T01:58:47.210257Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ghVULG[0m [36mtotal_drops[0m=[35m9385[0m
+agent-1    | [2m2026-09-11T01:58:47.210710Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ghVULG[0m [36mtotal_drops[0m=[35m9386[0m
+agent-1    | [2m2026-09-11T01:58:47.210956Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.W8T4JC[0m [36mtotal_drops[0m=[35m9387[0m
+agent-1    | [2m2026-09-11T01:58:47.222599Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3797362446[0m [36mtotal_drops[0m=[35m9388[0m
+agent-1    | [2m2026-09-11T01:58:47.233826Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.CHJFHl[0m [36mtotal_drops[0m=[35m9389[0m
+agent-1    | [2m2026-09-11T01:58:47.234964Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.CHJFHl[0m [36mtotal_drops[0m=[35m9390[0m
+agent-1    | [2m2026-09-11T01:58:47.235488Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.CHJFHl[0m [36mtotal_drops[0m=[35m9391[0m
+agent-1    | [2m2026-09-11T01:58:47.236249Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.PC7kD0[0m [36mtotal_drops[0m=[35m9392[0m
+agent-1    | [2m2026-09-11T01:58:47.237589Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.PC7kD0[0m [36mtotal_drops[0m=[35m9393[0m
+backend-1  | {"version": 8, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:12.240549Z"}
+agent-1    | [2m2026-09-11T01:58:47.237916Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.Q76tMC[0m [36mtotal_drops[0m=[35m9394[0m
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:12.258133Z"}
+agent-1    | [2m2026-09-11T01:58:47.239266Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.Q76tMC[0m [36mtotal_drops[0m=[35m9395[0m
+agent-1    | [2m2026-09-11T01:58:47.239481Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.PC7kD0[0m [36mtotal_drops[0m=[35m9396[0m
+agent-1    | [2m2026-09-11T01:58:47.241360Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.SZKSWN[0m [36mtotal_drops[0m=[35m9397[0m
+agent-1    | [2m2026-09-11T01:58:47.242347Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.SZKSWN[0m [36mtotal_drops[0m=[35m9398[0m
+agent-1    | [2m2026-09-11T01:58:47.243999Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.qcO6PH[0m [36mtotal_drops[0m=[35m9399[0m
+agent-1    | [2m2026-09-11T01:58:47.244178Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.Q76tMC[0m [36mtotal_drops[0m=[35m9400[0m
+agent-1    | [2m2026-09-11T01:58:47.244259Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.qcO6PH[0m [36mtotal_drops[0m=[35m9401[0m
+agent-1    | [2m2026-09-11T01:58:47.244328Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.0aoYTN[0m [36mtotal_drops[0m=[35m9402[0m
+agent-1    | [2m2026-09-11T01:58:47.244471Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.0aoYTN[0m [36mtotal_drops[0m=[35m9403[0m
+agent-1    | [2m2026-09-11T01:58:47.244546Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.A8MDzJ[0m [36mtotal_drops[0m=[35m9404[0m
+agent-1    | [2m2026-09-11T01:58:47.244671Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.5hctah[0m [36mtotal_drops[0m=[35m9405[0m
+agent-1    | [2m2026-09-11T01:58:47.244743Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.1Fpm6u[0m [36mtotal_drops[0m=[35m9406[0m
+agent-1    | [2m2026-09-11T01:58:47.244867Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.1Fpm6u[0m [36mtotal_drops[0m=[35m9407[0m
+backend-1  | INFO:     172.26.0.5:34182 - "DELETE /rules/3 HTTP/1.1" 204 No Content
+backend-1  | INFO:     172.26.0.5:34198 - "GET /rules HTTP/1.1" 200 OK
+backend-1  | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T01:58:15.454395Z"}
+backend-1  | INFO:     172.26.0.5:34208 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34210 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34218 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34214 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34228 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34240 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | {"version": 9, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:19.456188Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:19.461297Z"}
+backend-1  | INFO:     172.26.0.5:34266 - "POST /rules HTTP/1.1" 201 Created
+backend-1  | INFO:     172.26.0.5:34252 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34278 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34284 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34296 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34310 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34306 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:47.244942Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.VOQBEF[0m [36mtotal_drops[0m=[35m9408[0m
+agent-1    | [2m2026-09-11T01:58:47.245101Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.VOQBEF[0m [36mtotal_drops[0m=[35m9409[0m
+agent-1    | [2m2026-09-11T01:58:47.245180Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.LbDkHF[0m [36mtotal_drops[0m=[35m9410[0m
+agent-1    | [2m2026-09-11T01:58:47.245339Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.LbDkHF[0m [36mtotal_drops[0m=[35m9411[0m
+agent-1    | [2m2026-09-11T01:58:47.245426Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.iLMv0n[0m [36mtotal_drops[0m=[35m9412[0m
+agent-1    | [2m2026-09-11T01:58:47.245558Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.iLMv0n[0m [36mtotal_drops[0m=[35m9413[0m
+agent-1    | [2m2026-09-11T01:58:47.245631Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.zCATP2[0m [36mtotal_drops[0m=[35m9414[0m
+agent-1    | [2m2026-09-11T01:58:47.245762Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.zCATP2[0m [36mtotal_drops[0m=[35m9415[0m
+agent-1    | [2m2026-09-11T01:58:47.245835Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.GBt8nT[0m [36mtotal_drops[0m=[35m9416[0m
+agent-1    | [2m2026-09-11T01:58:47.245985Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.GBt8nT[0m [36mtotal_drops[0m=[35m9417[0m
+agent-1    | [2m2026-09-11T01:58:47.250624Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.mzJ4Ci[0m [36mtotal_drops[0m=[35m9418[0m
+agent-1    | [2m2026-09-11T01:58:47.250836Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.mzJ4Ci[0m [36mtotal_drops[0m=[35m9419[0m
+agent-1    | [2m2026-09-11T01:58:47.250907Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.HI0IWq[0m [36mtotal_drops[0m=[35m9420[0m
+agent-1    | [2m2026-09-11T01:58:47.251004Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.IpEZBt[0m [36mtotal_drops[0m=[35m9421[0m
+agent-1    | [2m2026-09-11T01:58:47.251105Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.KBdWjK[0m [36mtotal_drops[0m=[35m9422[0m
+agent-1    | [2m2026-09-11T01:58:47.251239Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.KBdWjK[0m [36mtotal_drops[0m=[35m9423[0m
+agent-1    | [2m2026-09-11T01:58:47.251310Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.rQb2zN[0m [36mtotal_drops[0m=[35m9424[0m
+agent-1    | [2m2026-09-11T01:58:47.251426Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.rQb2zN[0m [36mtotal_drops[0m=[35m9425[0m
+agent-1    | [2m2026-09-11T01:58:47.251494Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.hOFkKI[0m [36mtotal_drops[0m=[35m9426[0m
+agent-1    | [2m2026-09-11T01:58:47.251597Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.hOFkKI[0m [36mtotal_drops[0m=[35m9427[0m
+agent-1    | [2m2026-09-11T01:58:47.254991Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3797362446[0m [36mtotal_drops[0m=[35m9428[0m
+agent-1    | [2m2026-09-11T01:58:47.350713Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.dU4P1v[0m [36mtotal_drops[0m=[35m9429[0m
+agent-1    | [2m2026-09-11T01:58:47.351252Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.dU4P1v[0m [36mtotal_drops[0m=[35m9430[0m
+agent-1    | [2m2026-09-11T01:58:47.351516Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.gKcVU7[0m [36mtotal_drops[0m=[35m9431[0m
+agent-1    | [2m2026-09-11T01:58:47.351933Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.gKcVU7[0m [36mtotal_drops[0m=[35m9432[0m
+agent-1    | [2m2026-09-11T01:58:47.352165Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.8k17yz[0m [36mtotal_drops[0m=[35m9433[0m
+agent-1    | [2m2026-09-11T01:58:47.352535Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.8k17yz[0m [36mtotal_drops[0m=[35m9434[0m
+agent-1    | [2m2026-09-11T01:58:47.398915Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2291733128[0m [36mtotal_drops[0m=[35m9435[0m
+agent-1    | [2m2026-09-11T01:58:47.399343Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2291733128[0m [36mtotal_drops[0m=[35m9436[0m
+agent-1    | [2m2026-09-11T01:58:47.400064Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.C5Yypb[0m [36mtotal_drops[0m=[35m9437[0m
+agent-1    | [2m2026-09-11T01:58:47.400412Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.C5Yypb[0m [36mtotal_drops[0m=[35m9438[0m
+agent-1    | [2m2026-09-11T01:58:47.400531Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.GowkDe[0m [36mtotal_drops[0m=[35m9439[0m
+agent-1    | [2m2026-09-11T01:58:47.400696Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.GowkDe[0m [36mtotal_drops[0m=[35m9440[0m
+agent-1    | [2m2026-09-11T01:58:47.417355Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.Hov81n[0m [36mtotal_drops[0m=[35m9441[0m
+agent-1    | [2m2026-09-11T01:58:47.417582Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.Hov81n[0m [36mtotal_drops[0m=[35m9442[0m
+agent-1    | [2m2026-09-11T01:58:47.426931Z[0m [[32m[1minfo     [0m] [1mbaseline.update_from_command  [0m [36mhash[0m=[35m[REDACTED-OPAQUE][0m [36mpath[0m=[35m/watch/[REDACTED-LAB-FILE][0m [36mstatus[0m=[35mpresent[0m
+agent-1    | [2m2026-09-11T01:58:47.428062Z[0m [[32m[1minfo     [0m] [1mcommands.baseline_update.done [0m [36mpath[0m=[35m/watch/[REDACTED-LAB-FILE][0m [36mruleset_version[0m=[35m15[0m
+agent-1    | [2m2026-09-11T01:58:47.428830Z[0m [[32m[1mdebug    [0m] [1mcommands.ack_published        [0m [36mcommand_id[0m=[[REDACTED-OPAQUE][0m [36mstatus[0m=[35mok[0m
+backend-1  | INFO:     172.26.0.5:34312 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:47.429288Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.O0TN8V[0m [36mtotal_drops[0m=[35m9443[0m
+backend-1  | INFO:     172.26.0.5:34314 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34324 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1  | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T01:58:20.995745Z"}
+backend-1  | {"alert_id": 2, "event_id": "[REDACTED-OPAQUE]", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-09-11T01:58:21.001622Z"}
+backend-1  | {"severity": "high", "event_id": "[REDACTED-OPAQUE]", "path": "/watch/[REDACTED-LAB-FILE]", "alert_id": 2, "event": "notifier.log_only", "level": "critical", "timestamp": "2026-09-11T01:58:21.005479Z"}
+backend-1  | {"alert_id": 2, "channel": "log_only", "event": "notify.delivered", "level": "info", "timestamp": "2026-09-11T01:58:21.009060Z"}
+backend-1  | INFO:     172.26.0.5:34356 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34338 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34336 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34370 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34386 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34398 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34416 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34400 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34428 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34430 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:34446 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39620 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39654 - "GET /events?status=pending&path_prefix=/watch/[REDACTED-LAB-FILE]&page_size=50 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39642 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39630 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39662 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | {"event_id": 4, "agent_id": "[REDACTED-OPAQUE]", "ruleset_version": 10, "command_id": "[REDACTED-OPAQUE]", "event": "streams.actions.[REDACTED-OPAQUE]", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:23.614711Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:23.624365Z"}
+backend-1  | {"event_id": 4, "user_id": 1, "event": "service.actions.approve", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:23.624520Z"}
+agent-1    | [2m2026-09-11T01:58:47.429938Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process2291733128[0m [36mtotal_drops[0m=[35m9444[0m
+agent-1    | [2m2026-09-11T01:58:47.430332Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.O0TN8V[0m [36mtotal_drops[0m=[35m9445[0m
+agent-1    | [2m2026-09-11T01:58:47.431136Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.O0TN8V[0m [36mtotal_drops[0m=[35m9446[0m
+agent-1    | [2m2026-09-11T01:58:47.444047Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.QsRTcb[0m [36mtotal_drops[0m=[35m9447[0m
+agent-1    | [2m2026-09-11T01:58:47.445109Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.QsRTcb[0m [36mtotal_drops[0m=[35m9448[0m
+agent-1    | [2m2026-09-11T01:58:47.445622Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.QsRTcb[0m [36mtotal_drops[0m=[35m9449[0m
+agent-1    | [2m2026-09-11T01:58:47.450444Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.iemFHg[0m [36mtotal_drops[0m=[35m9450[0m
+agent-1    | [2m2026-09-11T01:58:47.450966Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.iemFHg[0m [36mtotal_drops[0m=[35m9451[0m
+agent-1    | [2m2026-09-11T01:58:47.503530Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3525107293[0m [36mtotal_drops[0m=[35m9452[0m
+agent-1    | [2m2026-09-11T01:58:47.503791Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3525107293[0m [36mtotal_drops[0m=[35m9453[0m
+agent-1    | [2m2026-09-11T01:58:47.533089Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3525107293[0m [36mtotal_drops[0m=[35m9454[0m
+agent-1    | [2m2026-09-11T01:58:47.713424Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3076292500[0m [36mtotal_drops[0m=[35m9455[0m
+agent-1    | [2m2026-09-11T01:58:47.713741Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3076292500[0m [36mtotal_drops[0m=[35m9456[0m
+agent-1    | [2m2026-09-11T01:58:47.743797Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3076292500[0m [36mtotal_drops[0m=[35m9457[0m
+agent-1    | [2m2026-09-11T01:58:47.867256Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ZipTL0[0m [36mtotal_drops[0m=[35m9458[0m
+agent-1    | [2m2026-09-11T01:58:47.867570Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ZipTL0[0m [36mtotal_drops[0m=[35m9459[0m
+agent-1    | [2m2026-09-11T01:58:48.020044Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3012050231[0m [36mtotal_drops[0m=[35m9460[0m
+agent-1    | [2m2026-09-11T01:58:48.020345Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3012050231[0m [36mtotal_drops[0m=[35m9461[0m
+agent-1    | [2m2026-09-11T01:58:48.048846Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3084919132[0m [36mtotal_drops[0m=[35m9462[0m
+agent-1    | [2m2026-09-11T01:58:48.049044Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3084919132[0m [36mtotal_drops[0m=[35m9463[0m
+agent-1    | [2m2026-09-11T01:58:48.050074Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3012050231[0m [36mtotal_drops[0m=[35m9464[0m
+agent-1    | [2m2026-09-11T01:58:48.050404Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1690107246[0m [36mtotal_drops[0m=[35m9465[0m
+agent-1    | [2m2026-09-11T01:58:48.050550Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1690107246[0m [36mtotal_drops[0m=[35m9466[0m
+agent-1    | [2m2026-09-11T01:58:48.080084Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3084919132[0m [36mtotal_drops[0m=[35m9467[0m
+agent-1    | [2m2026-09-11T01:58:48.081765Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1690107246[0m [36mtotal_drops[0m=[35m9468[0m
+agent-1    | [2m2026-09-11T01:58:48.663749Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1532176930[0m [36mtotal_drops[0m=[35m9469[0m
+agent-1    | [2m2026-09-11T01:58:48.663901Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1532176930[0m [36mtotal_drops[0m=[35m9470[0m
+agent-1    | [2m2026-09-11T01:58:48.693983Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1532176930[0m [36mtotal_drops[0m=[35m9471[0m
+backend-1  | INFO:     172.26.0.5:39668 - "POST /actions/bulk-approve HTTP/1.1" 200 OK
+backend-1  | {"command_id": "[REDACTED-OPAQUE]", "command_type": "baseline_update", "status": "ok", "event": "command_ack_consumer.processed", "level": "info", "timestamp": "2026-09-11T01:58:23.640867Z"}
+backend-1  | INFO:     172.26.0.5:39684 - "GET /events?status=pending&path_prefix=/watch/[REDACTED-LAB-FILE]&page_size=50 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39690 - "POST /auth/login HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:49.093863Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process770316019[0m [36mtotal_drops[0m=[35m9472[0m
+agent-1    | [2m2026-09-11T01:58:49.094152Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process770316019[0m [36mtotal_drops[0m=[35m9473[0m
+agent-1    | [2m2026-09-11T01:58:49.124339Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process770316019[0m [36mtotal_drops[0m=[35m9474[0m
+agent-1    | [2m2026-09-11T01:58:49.126876Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.4di0TJ[0m [36mtotal_drops[0m=[35m9475[0m
+agent-1    | [2m2026-09-11T01:58:49.127329Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.e6fmD0[0m [36mtotal_drops[0m=[35m9476[0m
+agent-1    | [2m2026-09-11T01:58:49.127432Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.PoPOZt[0m [36mtotal_drops[0m=[35m9477[0m
+agent-1    | [2m2026-09-11T01:58:49.127492Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.SuT32A[0m [36mtotal_drops[0m=[35m9478[0m
+agent-1    | [2m2026-09-11T01:58:49.127559Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.JT0BIo[0m [36mtotal_drops[0m=[35m9479[0m
+agent-1    | [2m2026-09-11T01:58:49.127622Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.dGnUJD[0m [36mtotal_drops[0m=[35m9480[0m
+agent-1    | [2m2026-09-11T01:58:49.127815Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.GYMxnr[0m [36mtotal_drops[0m=[35m9481[0m
+agent-1    | [2m2026-09-11T01:58:49.127873Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.7RV2kd[0m [36mtotal_drops[0m=[35m9482[0m
+agent-1    | [2m2026-09-11T01:58:49.127938Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.k84aRO[0m [36mtotal_drops[0m=[35m9483[0m
+agent-1    | [2m2026-09-11T01:58:49.128017Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.4DxWQV[0m [36mtotal_drops[0m=[35m9484[0m
+agent-1    | [2m2026-09-11T01:58:49.128084Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.oZN1aR[0m [36mtotal_drops[0m=[35m9485[0m
+agent-1    | [2m2026-09-11T01:58:49.128137Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.x8Gun0[0m [36mtotal_drops[0m=[35m9486[0m
+agent-1    | [2m2026-09-11T01:58:49.128194Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.MYDgiS[0m [36mtotal_drops[0m=[35m9487[0m
+backend-1  | INFO:     172.26.0.5:39708 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39704 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39722 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39724 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39752 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39738 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39756 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39772 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39776 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:49.128396Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.6MAM3U[0m [36mtotal_drops[0m=[35m9488[0m
+backend-1  | INFO:     172.26.0.5:39778 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39780 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39782 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39790 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39792 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:49.128460Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.olm88l[0m [36mtotal_drops[0m=[35m9489[0m
+agent-1    | [2m2026-09-11T01:58:49.128515Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.yJSODr[0m [36mtotal_drops[0m=[35m9490[0m
+agent-1    | [2m2026-09-11T01:58:49.128569Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.FEPWi9[0m [36mtotal_drops[0m=[35m9491[0m
+agent-1    | [2m2026-09-11T01:58:49.154568Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1634780904[0m [36mtotal_drops[0m=[35m9492[0m
+agent-1    | [2m2026-09-11T01:58:49.154722Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3035559629[0m [36mtotal_drops[0m=[35m9493[0m
+agent-1    | [2m2026-09-11T01:58:49.154930Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1634780904[0m [36mtotal_drops[0m=[35m9494[0m
+agent-1    | [2m2026-09-11T01:58:49.155027Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3035559629[0m [36mtotal_drops[0m=[35m9495[0m
+backend-1  | INFO:     172.26.0.5:39800 - "POST /auth/logout HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39816 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+backend-1  | INFO:     172.26.0.5:39818 - "POST /auth/refresh HTTP/1.1" 401 Unauthorized
+backend-1  | INFO:     172.26.0.5:39828 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39846 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39842 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39854 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:39890 - "POST /auth/refresh HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:49.157466Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process813894532[0m [36mtotal_drops[0m=[35m9496[0m
+backend-1  | INFO:     172.26.0.5:39918 - "GET /rules HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:49.157670Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process813894532[0m [36mtotal_drops[0m=[35m9497[0m
+agent-1    | [2m2026-09-11T01:58:49.184919Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3035559629[0m [36mtotal_drops[0m=[35m9498[0m
+agent-1    | [2m2026-09-11T01:58:49.190488Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1634780904[0m [36mtotal_drops[0m=[35m9499[0m
+agent-1    | [2m2026-09-11T01:58:49.191809Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process813894532[0m [36mtotal_drops[0m=[35m9500[0m
+agent-1    | [2m2026-09-11T01:58:49.263489Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1857120524[0m [36mtotal_drops[0m=[35m9501[0m
+agent-1    | [2m2026-09-11T01:58:49.263730Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1857120524[0m [36mtotal_drops[0m=[35m9502[0m
+agent-1    | [2m2026-09-11T01:58:49.297294Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1857120524[0m [36mtotal_drops[0m=[35m9503[0m
+agent-1    | [2m2026-09-11T01:58:49.467107Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3226206620[0m [36mtotal_drops[0m=[35m9504[0m
+agent-1    | [2m2026-09-11T01:58:49.467351Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3226206620[0m [36mtotal_drops[0m=[35m9505[0m
+agent-1    | [2m2026-09-11T01:58:49.497625Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3226206620[0m [36mtotal_drops[0m=[35m9506[0m
+agent-1    | [2m2026-09-11T01:58:49.780483Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process237111984[0m [36mtotal_drops[0m=[35m9507[0m
+agent-1    | [2m2026-09-11T01:58:49.780702Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process237111984[0m [36mtotal_drops[0m=[35m9508[0m
+backend-1  | INFO:     172.26.0.5:39932 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:49.802000Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1668955715[0m [36mtotal_drops[0m=[35m9509[0m
+backend-1  | INFO:     172.26.0.5:39902 - "GET /health/components HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:49.810467Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process237111984[0m [36mtotal_drops[0m=[35m9510[0m
+backend-1  | INFO:     172.26.0.5:39936 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:49.833824Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process1668955715[0m [36mtotal_drops[0m=[35m9511[0m
+backend-1  | {"version": 11, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:31.493051Z"}
+agent-1    | [2m2026-09-11T01:58:50.121399Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.5Ap3tw[0m [36mtotal_drops[0m=[35m9512[0m
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:31.513669Z"}
+agent-1    | [2m2026-09-11T01:58:50.123677Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.MdzHlL[0m [36mtotal_drops[0m=[35m9513[0m
+agent-1    | [2m2026-09-11T01:58:50.131131Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.SZKSWN[0m [36mtotal_drops[0m=[35m9514[0m
+agent-1    | [2m2026-09-11T01:58:50.132204Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.Ie1tVX[0m [36mtotal_drops[0m=[35m9515[0m
+backend-1  | INFO:     172.26.0.5:39942 - "POST /rules HTTP/1.1" 201 Created
+agent-1    | [2m2026-09-11T01:58:50.132451Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.tPEazP[0m [36mtotal_drops[0m=[35m9516[0m
+agent-1    | [2m2026-09-11T01:58:50.132634Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.gPqddx[0m [36mtotal_drops[0m=[35m9517[0m
+agent-1    | [2m2026-09-11T01:58:50.132802Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.0KO9jr[0m [36mtotal_drops[0m=[35m9518[0m
+agent-1    | [2m2026-09-11T01:58:50.133387Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.rEDy5m[0m [36mtotal_drops[0m=[35m9519[0m
+agent-1    | [2m2026-09-11T01:58:50.133587Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.NJkAQo[0m [36mtotal_drops[0m=[35m9520[0m
+agent-1    | [2m2026-09-11T01:58:50.133759Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ikHaoV[0m [36mtotal_drops[0m=[35m9521[0m
+agent-1    | [2m2026-09-11T01:58:50.133904Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.0aoYTN[0m [36mtotal_drops[0m=[35m9522[0m
+agent-1    | [2m2026-09-11T01:58:50.134064Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.iLMv0n[0m [36mtotal_drops[0m=[35m9523[0m
+agent-1    | [2m2026-09-11T01:58:50.134247Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.HI0IWq[0m [36mtotal_drops[0m=[35m9524[0m
+agent-1    | [2m2026-09-11T01:58:50.134382Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.dU4P1v[0m [36mtotal_drops[0m=[35m9525[0m
+agent-1    | [2m2026-09-11T01:58:50.135079Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.gKcVU7[0m [36mtotal_drops[0m=[35m9526[0m
+agent-1    | [2m2026-09-11T01:58:50.135286Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.A8MDzJ[0m [36mtotal_drops[0m=[35m9527[0m
+agent-1    | [2m2026-09-11T01:58:50.135380Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.LbDkHF[0m [36mtotal_drops[0m=[35m9528[0m
+agent-1    | [2m2026-09-11T01:58:50.135446Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.kPY93l[0m [36mtotal_drops[0m=[35m9529[0m
+backend-1  | INFO:     172.26.0.5:39948 - "GET /rules HTTP/1.1" 200 OK
+agent-1    | [2m2026-09-11T01:58:50.135514Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.Hov81n[0m [36mtotal_drops[0m=[35m9530[0m
+backend-1  | {"version": 12, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:32.901087Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:32.915566Z"}
+agent-1    | [2m2026-09-11T01:58:50.135582Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.iemFHg[0m [36mtotal_drops[0m=[35m9531[0m
+agent-1    | [2m2026-09-11T01:58:50.135645Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.x9UdO7[0m [36mtotal_drops[0m=[35m9532[0m
+agent-1    | [2m2026-09-11T01:58:50.135713Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ZipTL0[0m [36mtotal_drops[0m=[35m9533[0m
+agent-1    | [2m2026-09-11T01:58:50.135777Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.msWFaI[0m [36mtotal_drops[0m=[35m9534[0m
+agent-1    | [2m2026-09-11T01:58:50.135840Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.IpEZBt[0m [36mtotal_drops[0m=[35m9535[0m
+agent-1    | [2m2026-09-11T01:58:50.135903Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.GowkDe[0m [36mtotal_drops[0m=[35m9536[0m
+backend-1  | INFO:     172.26.0.5:35274 - "PUT /rules/5 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:35282 - "GET /rules HTTP/1.1" 200 OK
+backend-1  | {"version": 13, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:36.194669Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:36.212874Z"}
+backend-1  | INFO:     172.26.0.5:35294 - "DELETE /rules/5 HTTP/1.1" 204 No Content
+backend-1  | INFO:     172.26.0.5:35302 - "GET /rules HTTP/1.1" 200 OK
+backend-1  | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T01:58:39.284805Z"}
+backend-1  | INFO:     172.26.0.5:35318 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42294 - "POST /auth/login HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42306 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42300 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42322 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42330 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | {"version": 14, "agents": 1, "event": "service.rules.enqueue_rule_sync.done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:43.254020Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:43.260056Z"}
+backend-1  | INFO:     172.26.0.5:42336 - "POST /rules HTTP/1.1" 201 Created
+agent-1    | [2m2026-09-11T01:58:50.135973Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.hOFkKI[0m [36mtotal_drops[0m=[35m9537[0m
+agent-1    | [2m2026-09-11T01:58:50.136038Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.nkblnB[0m [36mtotal_drops[0m=[35m9538[0m
+agent-1    | [2m2026-09-11T01:58:50.136109Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.nX5NKh[0m [36mtotal_drops[0m=[35m9539[0m
+agent-1    | [2m2026-09-11T01:58:50.136176Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.nPnGsD[0m [36mtotal_drops[0m=[35m9540[0m
+agent-1    | [2m2026-09-11T01:58:50.136262Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.GBt8nT[0m [36mtotal_drops[0m=[35m9541[0m
+backend-1  | INFO:     172.26.0.5:42352 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42362 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42364 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42384 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42382 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42396 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42402 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42406 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42410 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1  | {"event_id": "[REDACTED-OPAQUE]", "agent_id": "[REDACTED-OPAQUE]", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-09-11T01:58:44.798870Z"}
+agent-1    | [2m2026-09-11T01:58:50.136689Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.apXcGB[0m [36mtotal_drops[0m=[35m9542[0m
+agent-1    | [2m2026-09-11T01:58:50.136760Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.zCATP2[0m [36mtotal_drops[0m=[35m9543[0m
+agent-1    | [2m2026-09-11T01:58:50.136834Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.mzJ4Ci[0m [36mtotal_drops[0m=[35m9544[0m
+agent-1    | [2m2026-09-11T01:58:50.136904Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.1Fpm6u[0m [36mtotal_drops[0m=[35m9545[0m
+agent-1    | [2m2026-09-11T01:58:50.136976Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.KBdWjK[0m [36mtotal_drops[0m=[35m9546[0m
+agent-1    | [2m2026-09-11T01:58:50.137038Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.XUGb1h[0m [36mtotal_drops[0m=[35m9547[0m
+agent-1    | [2m2026-09-11T01:58:50.137096Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ghSKHw[0m [36mtotal_drops[0m=[35m9548[0m
+agent-1    | [2m2026-09-11T01:58:50.137162Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.rQb2zN[0m [36mtotal_drops[0m=[35m9549[0m
+agent-1    | [2m2026-09-11T01:58:50.137240Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.VOQBEF[0m [36mtotal_drops[0m=[35m9550[0m
+agent-1    | [2m2026-09-11T01:58:50.137316Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.1lvm49[0m [36mtotal_drops[0m=[35m9551[0m
+agent-1    | [2m2026-09-11T01:58:50.137389Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.W8T4JC[0m [36mtotal_drops[0m=[35m9552[0m
+agent-1    | [2m2026-09-11T01:58:50.137461Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.qcO6PH[0m [36mtotal_drops[0m=[35m9553[0m
+agent-1    | [2m2026-09-11T01:58:50.137531Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.5hctah[0m [36mtotal_drops[0m=[35m9554[0m
+agent-1    | [2m2026-09-11T01:58:50.137602Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.8k17yz[0m [36mtotal_drops[0m=[35m9555[0m
+agent-1    | [2m2026-09-11T01:58:50.137671Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.OVX6HC[0m [36mtotal_drops[0m=[35m9556[0m
+agent-1    | [2m2026-09-11T01:58:50.137738Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.C5Yypb[0m [36mtotal_drops[0m=[35m9557[0m
+agent-1    | [2m2026-09-11T01:58:50.137812Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.j6a7RB[0m [36mtotal_drops[0m=[35m9558[0m
+agent-1    | [2m2026-09-11T01:58:50.137882Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.ghVULG[0m [36mtotal_drops[0m=[35m9559[0m
+agent-1    | [2m2026-09-11T01:58:50.137954Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.wXkUcR[0m [36mtotal_drops[0m=[35m9560[0m
+agent-1    | [2m2026-09-11T01:58:50.156303Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/[REDACTED-OPAQUE].db-journal[0m [36mtotal_drops[0m=[35m9561[0m
+agent-1    | [2m2026-09-11T01:58:50.157227Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/[REDACTED-OPAQUE].db[0m [36mtotal_drops[0m=[35m9562[0m
+agent-1    | [2m2026-09-11T01:58:50.157371Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOCK[0m [36mtotal_drops[0m=[35m9563[0m
+agent-1    | [2m2026-09-11T01:58:50.157453Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/MANIFEST-000001[0m [36mtotal_drops[0m=[35m9564[0m
+agent-1    | [2m2026-09-11T01:58:50.157531Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/000003.log[0m [36mtotal_drops[0m=[35m9565[0m
+agent-1    | [2m2026-09-11T01:58:50.157605Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOG[0m [36mtotal_drops[0m=[35m9566[0m
+agent-1    | [2m2026-09-11T01:58:50.157667Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOCK[0m [36mtotal_drops[0m=[35m9567[0m
+agent-1    | [2m2026-09-11T01:58:50.157741Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/MANIFEST-000001[0m [36mtotal_drops[0m=[35m9568[0m
+agent-1    | [2m2026-09-11T01:58:50.157811Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/000003.log[0m [36mtotal_drops[0m=[35m9569[0m
+agent-1    | [2m2026-09-11T01:58:50.157872Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOG[0m [36mtotal_drops[0m=[35m9570[0m
+agent-1    | [2m2026-09-11T01:58:50.157933Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOCK[0m [36mtotal_drops[0m=[35m9571[0m
+agent-1    | [2m2026-09-11T01:58:50.157999Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/MANIFEST-000001[0m [36mtotal_drops[0m=[35m9572[0m
+backend-1  | {"alert_id": 3, "event_id": "[REDACTED-OPAQUE]", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-09-11T01:58:44.803783Z"}
+backend-1  | {"severity": "high", "event_id": "[REDACTED-OPAQUE]", "path": "/watch/[REDACTED-LAB-FILE]", "alert_id": 3, "event": "notifier.log_only", "level": "critical", "timestamp": "2026-09-11T01:58:44.806516Z"}
+backend-1  | {"alert_id": 3, "channel": "log_only", "event": "notify.delivered", "level": "info", "timestamp": "2026-09-11T01:58:44.809182Z"}
+backend-1  | INFO:     172.26.0.5:42430 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42412 - "GET /agents HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42414 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42442 - "GET /events?status=approved&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42440 - "GET /events?status=pending&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42460 - "GET /events?status=auto_restored&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42446 - "GET /events?status=rejected&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42470 - "GET /events?status=quarantined&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42484 - "GET /events?status=alert_only&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42490 - "GET /events?status=superseded&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42506 - "GET /events?status=pending&severity=critical&severity=high&page_size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42518 - "POST /auth/refresh HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42528 - "GET /events?status=pending&path_prefix=/watch/[REDACTED-LAB-FILE]&page_size=50 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42544 - "GET /alerts?status=failed&size=1 HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42520 - "GET /health/components HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42548 - "GET /alerts/stream?token=[REDACTED-JWT] HTTP/1.1" 200 OK
+backend-1  | {"event_id": 6, "agent_id": "[REDACTED-OPAQUE]", "ruleset_version": 15, "command_id": "[REDACTED-OPAQUE]", "event": "streams.actions.[REDACTED-OPAQUE]", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:47.411209Z"}
+backend-1  | {"published": 1, "event": "service.rules.[REDACTED-OPAQUE].done", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:47.427333Z"}
+backend-1  | {"event_id": 6, "user_id": 1, "event": "service.actions.approve", "trace_id": "[REDACTED-OPAQUE]", "level": "info", "timestamp": "2026-09-11T01:58:47.427432Z"}
+backend-1  | INFO:     172.26.0.5:42564 - "POST /actions/bulk-approve HTTP/1.1" 200 OK
+backend-1  | INFO:     172.26.0.5:42572 - "GET /events?status=pending&path_prefix=/watch/[REDACTED-LAB-FILE]&page_size=50 HTTP/1.1" 200 OK
+backend-1  | {"command_id": "[REDACTED-OPAQUE]", "command_type": "baseline_update", "status": "ok", "event": "command_ack_consumer.processed", "level": "info", "timestamp": "2026-09-11T01:58:47.444147Z"}
+agent-1    | [2m2026-09-11T01:58:50.158063Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/000003.log[0m [36mtotal_drops[0m=[35m9573[0m
+agent-1    | [2m2026-09-11T01:58:50.158129Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOG[0m [36mtotal_drops[0m=[35m9574[0m
+agent-1    | [2m2026-09-11T01:58:50.158196Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/db[0m [36mtotal_drops[0m=[35m9575[0m
+agent-1    | [2m2026-09-11T01:58:50.167093Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.bxS6Ug[0m [36mtotal_drops[0m=[35m9576[0m
+agent-1    | [2m2026-09-11T01:58:50.174304Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.6NgeDU[0m [36mtotal_drops[0m=[35m9577[0m
+agent-1    | [2m2026-09-11T01:58:50.174497Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.7USckx[0m [36mtotal_drops[0m=[35m9578[0m
+agent-1    | [2m2026-09-11T01:58:50.177308Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.p3CJy7[0m [36mtotal_drops[0m=[35m9579[0m
+agent-1    | [2m2026-09-11T01:58:50.177488Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/.org.chromium.Chromium.j5x4uh[0m [36mtotal_drops[0m=[35m9580[0m
+agent-1    | [2m2026-09-11T01:58:50.181799Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/[REDACTED-OPAQUE].db[0m [36mtotal_drops[0m=[35m9581[0m
+agent-1    | [2m2026-09-11T01:58:50.181922Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/[REDACTED-OPAQUE].db-journal[0m [36mtotal_drops[0m=[35m9582[0m
+agent-1    | [2m2026-09-11T01:58:50.182225Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOCK[0m [36mtotal_drops[0m=[35m9583[0m
+agent-1    | [2m2026-09-11T01:58:50.182287Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.182369Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/db-journal[0m [36mtotal_drops[0m=[35m9584[0m
+agent-1    | [2m2026-09-11T01:58:50.182442Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/000003.log[0m [36mtotal_drops[0m=[35m9585[0m
+agent-1    | [2m2026-09-11T01:58:50.182510Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/db[0m [36mtotal_drops[0m=[35m9586[0m
+agent-1    | [2m2026-09-11T01:58:50.182579Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/CURRENT[0m [36mtotal_drops[0m=[35m9587[0m
+agent-1    | [2m2026-09-11T01:58:50.182651Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOG[0m [36mtotal_drops[0m=[35m9588[0m
+agent-1    | [2m2026-09-11T01:58:50.182714Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/MANIFEST-000001[0m [36mtotal_drops[0m=[35m9589[0m
+agent-1    | [2m2026-09-11T01:58:50.182778Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/LOCK[0m [36mtotal_drops[0m=[35m9590[0m
+agent-1    | [2m2026-09-11T01:58:50.182974Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183008Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183037Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183059Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183079Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183101Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183126Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183149Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183179Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183207Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183256Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183286Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183312Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183338Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183367Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.183392Z[0m [[33m[1mwarning  [0m] [1mdetector.event_null_path      [0m [36mpid[0m=[35m0[0m
+agent-1    | [2m2026-09-11T01:58:50.300739Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3746158086[0m [36mtotal_drops[0m=[35m9591[0m
+agent-1    | [2m2026-09-11T01:58:50.300913Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3746158086[0m [36mtotal_drops[0m=[35m9592[0m
+agent-1    | [2m2026-09-11T01:58:50.332257Z[0m [[33m[1mwarning  [0m] [1mdetector.out_of_scope_drop    [0m [36mpath[0m=[35m/runc-process3746158086[0m [36mtotal_drops[0m=[35m9593[0m

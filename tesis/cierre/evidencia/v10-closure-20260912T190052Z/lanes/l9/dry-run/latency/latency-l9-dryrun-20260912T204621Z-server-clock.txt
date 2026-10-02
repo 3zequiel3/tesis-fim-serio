@@ -1,0 +1,21 @@
+               Local time: sáb 2026-09-12 17:46:51 -03
+           Universal time: sáb 2026-09-12 20:46:51 UTC
+                 RTC time: sáb 2026-09-12 20:46:51
+                Time zone: America/Argentina/Mendoza (-03, -0300)
+System clock synchronized: yes
+              NTP service: active
+          RTC in local TZ: no
+--
+Reference ID    : 5BBD5B70 (ntp-nts-2.ps6.canonical.com)
+Stratum         : 3
+Ref time (UTC)  : Sat Sep 12 20:45:09 2026
+System time     : 0.001073098 seconds fast of NTP time
+Last offset     : +0.000304764 seconds
+RMS offset      : 0.023595667 seconds
+Frequency       : 3.963 ppm fast
+Residual freq   : +0.020 ppm
+Skew            : 1.065 ppm
+Root delay      : 0.204514071 seconds
+Root dispersion : 0.004116906 seconds
+Update interval : 257.2 seconds
+Leap status     : Normal

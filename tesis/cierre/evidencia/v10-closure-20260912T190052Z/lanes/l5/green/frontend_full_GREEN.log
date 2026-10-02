@@ -1,0 +1,53 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/frontend
+
+ ✓ src/utils/timeDisplay.test.ts (11 tests) 111ms
+ ✓ src/api/events.test.ts (4 tests) 31ms
+ ✓ src/stores/auth.store.test.ts (4 tests) 29ms
+ ✓ src/utils/eventFilters.test.ts (13 tests) 23ms
+ ✓ src/hooks/useAlertsSSE.test.tsx (2 tests) 52ms
+ ✓ src/components/ui/EventsTable.test.tsx (11 tests) 1209ms
+   ✓ EventsTable — US-25 selección en lote > permite seleccionar una fila individual sin seleccionar las demás 521ms
+ ✓ src/pages/EventDetail.test.tsx (5 tests) 526ms
+ ✓ src/components/ui/AgentCard.test.tsx (14 tests) 1434ms
+   ✓ AgentCard — indicador de drenaje graceful (US-30) > el botón de rescan tiene el tooltip canónico exacto durante el drenaje 419ms
+ ✓ src/components/ui/BulkActionBar.test.tsx (4 tests) 2091ms
+   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > rechazar 3 eventos emite event_ids y una única action, sin items legacy 1056ms
+   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > aplica el resultado sobre la selección actual sin perder cambios hechos durante la petición 517ms
+ ✓ src/pages/Dashboard.test.tsx (11 tests) 3064ms
+   ✓ Dashboard — US-04: metricas generales > carga las metricas al entrar al dashboard, sin interaccion del usuario 807ms
+   ✓ Dashboard — US-05: estado general del sistema > no destaca la tarjeta de pending critical/high cuando no hay ninguno 334ms
+ ✓ src/pages/Events.test.tsx (4 tests) 2244ms
+   ✓ Events — filtro por severidad (8.6) > activar un checkbox de severidad lo deja marcado y dispara una petición con esa severidad 995ms
+   ✓ Events — filtro por severidad (8.6) > desactivar el último nivel seleccionado lo saca del checkbox y de la petición 384ms
+   ✓ Events — US-31 toggle superseded > está desmarcado por defecto y al activarlo persiste en la URL lógica y llega a la petición 523ms
+   ✓ Events — US-31 toggle superseded > restaura el toggle desde include_superseded=true de la URL 332ms
+ ✓ src/components/layout/Navbar.test.tsx (2 tests) 686ms
+   ✓ Navbar — US-02 logout del cliente > muestra el botón y al usarlo limpia el token y el usuario, solicita logout y navega a /login con replace 599ms
+ ✓ src/api/events.contract.test.ts (1 test) 11ms
+ ✓ src/components/layout/SystemBanner.test.tsx (4 tests) 410ms
+ ✓ src/api/auth.test.ts (3 tests) 12ms
+ ✓ src/components/layout/AlertsBanner.test.tsx (5 tests) 694ms
+   ✓ AlertsBanner — US-05: banner amarillo de notificaciones fallidas > muestra un banner amarillo con la cantidad de alertas fallidas en la DLQ 398ms
+ ✓ src/pages/Rules.test.tsx (2 tests) 1179ms
+   ✓ Rules — US-16 edición y US-17 eliminación > abre el formulario de edición precargado con patrón, severidad y acción de la regla elegida 842ms
+   ✓ Rules — US-16 edición y US-17 eliminación > no elimina al mostrar la confirmación y llama al endpoint sólo después de confirmar 336ms
+ ✓ src/utils/discardedEvents.test.ts (7 tests) 50ms
+ ✓ src/api/client.test.ts (1 test) 23ms
+ ✓ src/utils/severity.test.ts (5 tests) 16ms
+ ✓ src/utils/actionError.test.ts (5 tests) 11ms
+ ✓ src/components/layout/ProtectedRoute.test.tsx (1 test) 54ms
+ ✓ src/api/actions.test.ts (3 tests) 14ms
+ ✓ src/config/viteProxy.test.ts (1 test) 9ms
+ ✓ src/utils/watchPathStatus.test.ts (6 tests) 15ms
+ ✓ src/components/ui/RuleForm.test.tsx (2 tests) 488ms
+   ✓ RuleForm accessibility labels > connects the required error to the pattern input 376ms
+ ✓ src/components/ui/DiffViewer.test.ts (2 tests) 341ms
+ ✓ src/utils/actionFailed.test.ts (2 tests) 5ms
+ ✓ src/utils/ackStatus.test.ts (3 tests) 9ms
+
+ Test Files  29 passed (29)
+      Tests  138 passed (138)
+   Start at  16:58:34
+   Duration  13.68s (transform 3.78s, setup 15.53s, collect 13.59s, tests 14.84s, environment 65.99s, prepare 6.86s)
+

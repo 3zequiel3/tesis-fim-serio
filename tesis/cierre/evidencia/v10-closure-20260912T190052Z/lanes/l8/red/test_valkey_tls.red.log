@@ -1,0 +1,126 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0 -- [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/python3
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 16 items
+
+backend/tests/test_valkey_tls.py::test_plaintext_schemes_get_no_tls_kwargs[valkey] FAILED [  6%]
+backend/tests/test_valkey_tls.py::test_plaintext_schemes_get_no_tls_kwargs[redis] FAILED [ 12%]
+backend/tests/test_valkey_tls.py::test_tls_schemes_get_ssl_kwargs_from_settings[valkeys] FAILED [ 18%]
+backend/tests/test_valkey_tls.py::test_tls_schemes_get_ssl_kwargs_from_settings[rediss] FAILED [ 25%]
+backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[ca_cert_path-valkeys] FAILED [ 31%]
+backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[ca_cert_path-rediss] FAILED [ 37%]
+backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[backend_cert_path-valkeys] FAILED [ 43%]
+backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[backend_cert_path-rediss] FAILED [ 50%]
+backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[backend_key_path-valkeys] FAILED [ 56%]
+backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[backend_key_path-rediss] FAILED [ 62%]
+backend/tests/test_valkey_tls.py::test_tls_scheme_missing_all_certs_raises_with_all_names FAILED [ 68%]
+backend/tests/test_valkey_tls.py::test_init_valkey_passes_tls_kwargs_to_from_url FAILED [ 75%]
+backend/tests/test_valkey_tls.py::test_init_valkey_plaintext_unchanged PASSED [ 81%]
+backend/tests/test_valkey_tls.py::test_init_async_valkey_passes_tls_kwargs_to_from_url FAILED [ 87%]
+backend/tests/test_valkey_tls.py::test_build_async_valkey_client_used_by_main_dedicated_consumer_client FAILED [ 93%]
+backend/tests/test_valkey_tls.py::test_init_valkey_missing_certs_raises_and_never_calls_from_url FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________ test_plaintext_schemes_get_no_tls_kwargs[valkey] _______________
+backend/tests/test_valkey_tls.py:48: in test_plaintext_schemes_get_no_tls_kwargs
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+_______________ test_plaintext_schemes_get_no_tls_kwargs[redis] ________________
+backend/tests/test_valkey_tls.py:48: in test_plaintext_schemes_get_no_tls_kwargs
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+____________ test_tls_schemes_get_ssl_kwargs_from_settings[valkeys] ____________
+backend/tests/test_valkey_tls.py:55: in test_tls_schemes_get_ssl_kwargs_from_settings
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+____________ test_tls_schemes_get_ssl_kwargs_from_settings[rediss] _____________
+backend/tests/test_valkey_tls.py:55: in test_tls_schemes_get_ssl_kwargs_from_settings
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+____ test_tls_scheme_missing_any_cert_setting_raises[ca_cert_path-valkeys] _____
+backend/tests/test_valkey_tls.py:74: in test_tls_scheme_missing_any_cert_setting_raises
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+_____ test_tls_scheme_missing_any_cert_setting_raises[ca_cert_path-rediss] _____
+backend/tests/test_valkey_tls.py:74: in test_tls_scheme_missing_any_cert_setting_raises
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+__ test_tls_scheme_missing_any_cert_setting_raises[backend_cert_path-valkeys] __
+backend/tests/test_valkey_tls.py:74: in test_tls_scheme_missing_any_cert_setting_raises
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+__ test_tls_scheme_missing_any_cert_setting_raises[backend_cert_path-rediss] ___
+backend/tests/test_valkey_tls.py:74: in test_tls_scheme_missing_any_cert_setting_raises
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+__ test_tls_scheme_missing_any_cert_setting_raises[backend_key_path-valkeys] ___
+backend/tests/test_valkey_tls.py:74: in test_tls_scheme_missing_any_cert_setting_raises
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+___ test_tls_scheme_missing_any_cert_setting_raises[backend_key_path-rediss] ___
+backend/tests/test_valkey_tls.py:74: in test_tls_scheme_missing_any_cert_setting_raises
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+___________ test_tls_scheme_missing_all_certs_raises_with_all_names ____________
+backend/tests/test_valkey_tls.py:84: in test_tls_scheme_missing_all_certs_raises_with_all_names
+    from app.core.valkey import _tls_kwargs
+E   ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+________________ test_init_valkey_passes_tls_kwargs_to_from_url ________________
+backend/tests/test_valkey_tls.py:109: in test_init_valkey_passes_tls_kwargs_to_from_url
+    mock_from_url.assert_called_once_with(
+../../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:991: in assert_called_once_with
+    return self.assert_called_with(*args, **kwargs)
+../../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:979: in assert_called_with
+    raise AssertionError(_error_message()) from cause
+E   AssertionError: expected call not found.
+E   Expected: from_url('valkeys://valkey:6380', decode_responses=True, ssl_certfile='/certs/backend.pem', ssl_keyfile='/certs/backend-key.pem', ssl_ca_certs='/certs/ca.pem', ssl_check_hostname=True)
+E     Actual: from_url('valkeys://valkey:6380', decode_responses=True)
+_____________ test_init_async_valkey_passes_tls_kwargs_to_from_url _____________
+backend/tests/test_valkey_tls.py:138: in test_init_async_valkey_passes_tls_kwargs_to_from_url
+    mock_from_url.assert_called_once_with(
+../../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:991: in assert_called_once_with
+    return self.assert_called_with(*args, **kwargs)
+../../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:979: in assert_called_with
+    raise AssertionError(_error_message()) from cause
+E   AssertionError: expected call not found.
+E   Expected: from_url('rediss://valkey:6380', decode_responses=True, ssl_certfile='/certs/backend.pem', ssl_keyfile='/certs/backend-key.pem', ssl_ca_certs='/certs/ca.pem', ssl_check_hostname=True)
+E     Actual: from_url('rediss://valkey:6380', decode_responses=True)
+____ test_build_async_valkey_client_used_by_main_dedicated_consumer_client _____
+backend/tests/test_valkey_tls.py:156: in test_build_async_valkey_client_used_by_main_dedicated_consumer_client
+    client = valkey_mod.build_async_valkey_client("valkeys://valkey:6380")
+E   AttributeError: module 'app.core.valkey' has no attribute 'build_async_valkey_client'. Did you mean: 'get_async_valkey_client'?
+________ test_init_valkey_missing_certs_raises_and_never_calls_from_url ________
+backend/tests/test_valkey_tls.py:176: in test_init_valkey_missing_certs_raises_and_never_calls_from_url
+    with pytest.raises(RuntimeError, match="backend_cert_path"):
+E   Failed: DID NOT RAISE <class 'RuntimeError'>
+=========================== short test summary info ============================
+FAILED backend/tests/test_valkey_tls.py::test_plaintext_schemes_get_no_tls_kwargs[valkey] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_plaintext_schemes_get_no_tls_kwargs[redis] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_schemes_get_ssl_kwargs_from_settings[valkeys] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_schemes_get_ssl_kwargs_from_settings[rediss] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[ca_cert_path-valkeys] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[ca_cert_path-rediss] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[backend_cert_path-valkeys] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[backend_cert_path-rediss] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[backend_key_path-valkeys] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_scheme_missing_any_cert_setting_raises[backend_key_path-rediss] - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_tls_scheme_missing_all_certs_raises_with_all_names - ImportError: cannot import name '_tls_kwargs' from 'app.core.valkey' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l8-valkey-tls/backend/app/core/valkey.py)
+FAILED backend/tests/test_valkey_tls.py::test_init_valkey_passes_tls_kwargs_to_from_url - AssertionError: expected call not found.
+Expected: from_url('valkeys://valkey:6380', decode_responses=True, ssl_certfile='/certs/backend.pem', ssl_keyfile='/certs/backend-key.pem', ssl_ca_certs='/certs/ca.pem', ssl_check_hostname=True)
+  Actual: from_url('valkeys://valkey:6380', decode_responses=True)
+FAILED backend/tests/test_valkey_tls.py::test_init_async_valkey_passes_tls_kwargs_to_from_url - AssertionError: expected call not found.
+Expected: from_url('rediss://valkey:6380', decode_responses=True, ssl_certfile='/certs/backend.pem', ssl_keyfile='/certs/backend-key.pem', ssl_ca_certs='/certs/ca.pem', ssl_check_hostname=True)
+  Actual: from_url('rediss://valkey:6380', decode_responses=True)
+FAILED backend/tests/test_valkey_tls.py::test_build_async_valkey_client_used_by_main_dedicated_consumer_client - AttributeError: module 'app.core.valkey' has no attribute 'build_async_valkey_client'. Did you mean: 'get_async_valkey_client'?
+FAILED backend/tests/test_valkey_tls.py::test_init_valkey_missing_certs_raises_and_never_calls_from_url - Failed: DID NOT RAISE <class 'RuntimeError'>
+========================= 15 failed, 1 passed in 7.53s =========================

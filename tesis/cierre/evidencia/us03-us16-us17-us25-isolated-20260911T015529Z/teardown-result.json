@@ -1,0 +1,9 @@
+{
+  "lab_containers_remaining": 0,
+  "lab_volumes_remaining": 0,
+  "lab_networks_remaining": 0,
+  "temporary_root_removed": true,
+  "main_stack_unchanged": true,
+  "main_backend_healthy": true,
+  "main_frontend_healthy": true
+}

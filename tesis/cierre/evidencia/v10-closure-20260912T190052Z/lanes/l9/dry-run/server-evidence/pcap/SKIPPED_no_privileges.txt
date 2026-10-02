@@ -1,0 +1,3 @@
+tcpdump requiere sudo -n (no interactivo) — no disponible en este entorno.
+En el ensayo real (RUNBOOK_PHASES_3_7.md Fase 6) correr este script
+como usuario con sudo configurado, o con setcap cap_net_raw+ep en tcpdump.

@@ -1,0 +1,8 @@
+<testsuites id="" name="" tests="2" failures="0" skipped="0" errors="0" time="13.896398999999999">
+<testsuite name="us31-superseded-toggle.spec.ts" timestamp="2026-09-11T02:21:44.014Z" hostname="" tests="2" failures="0" skipped="0" time="13.08" errors="0">
+<testcase name="US-31 oculta superseded por defecto, togglea, persiste URL y consulta backend real" classname="us31-superseded-toggle.spec.ts" time="7.043">
+</testcase>
+<testcase name="US-31 muestra vínculo e identificador parent_event_id de forma visible" classname="us31-superseded-toggle.spec.ts" time="6.037">
+</testcase>
+</testsuite>
+</testsuites>

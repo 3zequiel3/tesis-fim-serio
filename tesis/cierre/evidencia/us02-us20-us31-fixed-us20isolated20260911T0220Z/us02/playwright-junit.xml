@@ -1,0 +1,6 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="6.914623000000001">
+<testsuite name="us02-logout.spec.ts" timestamp="2026-09-11T02:21:36.054Z" hostname="" tests="1" failures="0" skipped="0" time="6.051" errors="0">
+<testcase name="US-02 logout revoca la sesión real, borra cookie y Back no reabre la vista protegida" classname="us02-logout.spec.ts" time="6.051">
+</testcase>
+</testsuite>
+</testsuites>

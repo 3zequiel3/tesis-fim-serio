@@ -1,0 +1,35 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l1-rules/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 93 items
+
+backend/tests/test_rules_service.py .................................... [ 38%]
+......                                                                   [ 45%]
+backend/tests/test_rules_router.py ....................                  [ 66%]
+backend/tests/test_published_command_ack_tracking.py ......              [ 73%]
+backend/tests/test_command_ack_consumer.py ...................           [ 93%]
+backend/tests/test_ruleset_version_atomic.py ..                          [ 95%]
+backend/tests/test_rule_sync_outbox.py ....                              [100%]
+
+=============================== warnings summary ===============================
+tests/test_rules_router.py: 12 warnings
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+tests/test_rules_router.py::test_post_rules_duplicate_pattern_returns_422
+tests/test_rules_router.py::test_post_rules_empty_pattern_returns_422
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py:328: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    return await dependant.call(**values)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 93 passed, 14 warnings in 11.49s =======================

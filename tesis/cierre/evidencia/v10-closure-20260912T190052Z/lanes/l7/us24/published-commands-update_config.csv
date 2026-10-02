@@ -1,0 +1,2 @@
+id,command_type,ruleset_version,status,ack_status,payload_prefix
+1,update_config,1,published,acked,"{""command_id"":""d3c6a6cd-de3a-4816-a373-bb78bd771c96"",""issued_at"":""2026-09-12T20:06:07.994460+00:00"",""ruleset_version"":1,""schema_version"":1,""signature"":""51c6bbba7afcc00da90333d293ffc50a63e0b32c6c7c1cf2733633e1a2abf8e9"",""target_agent_id"":""l7-us24-agent"",""type"":""update_config"",""watch_paths"":[""/watch/a"",""/watch/b""]}"

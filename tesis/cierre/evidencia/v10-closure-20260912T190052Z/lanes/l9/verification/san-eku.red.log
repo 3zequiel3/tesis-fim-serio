@@ -1,0 +1,128 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l9-multihost/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 19 items
+
+backend/tests/test_pki_extra_sans.py FFFFFF.FFF                          [ 52%]
+backend FFFFFFFF.                                                        [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_parse_extra_sans_vacio __________________________
+backend/tests/test_pki_extra_sans.py:38: in test_parse_extra_sans_vacio
+    from app.core.pki import parse_extra_sans
+E   ImportError: cannot import name 'parse_extra_sans' from 'app.core.pki' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l9-multihost/backend/app/core/pki.py)
+________________________ test_parse_extra_sans_ip_y_dns ________________________
+backend/tests/test_pki_extra_sans.py:45: in test_parse_extra_sans_ip_y_dns
+    from app.core.pki import parse_extra_sans
+E   ImportError: cannot import name 'parse_extra_sans' from 'app.core.pki' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l9-multihost/backend/app/core/pki.py)
+____________________ test_parse_extra_sans_prefijo_invalido ____________________
+backend/tests/test_pki_extra_sans.py:55: in test_parse_extra_sans_prefijo_invalido
+    from app.core.pki import parse_extra_sans
+E   ImportError: cannot import name 'parse_extra_sans' from 'app.core.pki' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l9-multihost/backend/app/core/pki.py)
+_____________________ test_parse_extra_sans_ip_malformada ______________________
+backend/tests/test_pki_extra_sans.py:62: in test_parse_extra_sans_ip_malformada
+    from app.core.pki import parse_extra_sans
+E   ImportError: cannot import name 'parse_extra_sans' from 'app.core.pki' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l9-multihost/backend/app/core/pki.py)
+_______________________ test_parse_extra_sans_sin_valor ________________________
+backend/tests/test_pki_extra_sans.py:69: in test_parse_extra_sans_sin_valor
+    from app.core.pki import parse_extra_sans
+E   ImportError: cannot import name 'parse_extra_sans' from 'app.core.pki' ([HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l9-multihost/backend/app/core/pki.py)
+_____________ test_backend_cert_incluye_sans_fijos_mas_extra_sans ______________
+backend/tests/test_pki_extra_sans.py:86: in test_backend_cert_incluye_sans_fijos_mas_extra_sans
+    ensure_ca(
+E   TypeError: ensure_ca() got an unexpected keyword argument 'extra_sans'
+___________ test_backend_cert_eku_incluye_server_auth_y_client_auth ____________
+backend/tests/test_pki_extra_sans.py:138: in test_backend_cert_eku_incluye_server_auth_y_client_auth
+    assert eku == {ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH}
+E   assert {<ObjectIdent...=serverAuth)>} == {<ObjectIdent...=clientAuth)>}
+E     
+E     Extra items in the right set:
+E     <ObjectIdentifier(oid=1.3.6.1.5.5.7.3.2, name=clientAuth)>
+E     Use -v to get more diff
+----------------------------- Captured stdout call -----------------------------
+{"cert_path": "/tmp/pytest-of-ezequiel/pytest-198/test_backend_cert_eku_incluye_0/ca.pem", "event": "pki.ca.initialized", "level": "info", "timestamp": "2026-09-12T20:53:06.019549Z"}
+{"cert_path": "/tmp/pytest-of-ezequiel/pytest-198/test_backend_cert_eku_incluye_0/backend.pem", "event": "pki.backend_cert.generated", "level": "info", "timestamp": "2026-09-12T20:53:06.021235Z"}
+______ test_backend_cert_no_se_regenera_si_ya_tiene_los_mismos_extra_sans ______
+backend/tests/test_pki_extra_sans.py:149: in test_backend_cert_no_se_regenera_si_ya_tiene_los_mismos_extra_sans
+    ensure_ca(
+E   TypeError: ensure_ca() got an unexpected keyword argument 'extra_sans'
+______________ test_backend_cert_se_regenera_si_extra_sans_cambia ______________
+backend/tests/test_pki_extra_sans.py:173: in test_backend_cert_se_regenera_si_extra_sans_cambia
+    ensure_ca(
+E   TypeError: ensure_ca() got an unexpected keyword argument 'extra_sans'
+----------------------------- Captured stdout call -----------------------------
+{"cert_path": "/tmp/pytest-of-ezequiel/pytest-198/test_backend_cert_se_regenera_0/ca.pem", "event": "pki.ca.initialized", "level": "info", "timestamp": "2026-09-12T20:53:06.258145Z"}
+{"cert_path": "/tmp/pytest-of-ezequiel/pytest-198/test_backend_cert_se_regenera_0/backend.pem", "event": "pki.backend_cert.generated", "level": "info", "timestamp": "2026-09-12T20:53:06.259738Z"}
+_______________ test_parse_extra_sans_vacio_retorna_lista_vacia ________________
+scripts/tests/test_emitir_cert_valkey.py:34: in test_parse_extra_sans_vacio_retorna_lista_vacia
+    assert emitir.parse_extra_sans("") == []
+E   AttributeError: module 'emitir_cert_valkey' has no attribute 'parse_extra_sans'
+____________________ test_parse_extra_sans_ip_y_dns_mixtos _____________________
+scripts/tests/test_emitir_cert_valkey.py:39: in test_parse_extra_sans_ip_y_dns_mixtos
+    result = emitir.parse_extra_sans("IP:192.168.1.43,DNS:fim-server.lan")
+E   AttributeError: module 'emitir_cert_valkey' has no attribute 'parse_extra_sans'
+___________ test_parse_extra_sans_ignora_espacios_y_entradas_vacias ____________
+scripts/tests/test_emitir_cert_valkey.py:47: in test_parse_extra_sans_ignora_espacios_y_entradas_vacias
+    result = emitir.parse_extra_sans(" DNS:fim-server.lan , , IP:10.0.0.5 ")
+E   AttributeError: module 'emitir_cert_valkey' has no attribute 'parse_extra_sans'
+_________________ test_parse_extra_sans_prefijo_invalido_falla _________________
+scripts/tests/test_emitir_cert_valkey.py:56: in test_parse_extra_sans_prefijo_invalido_falla
+    emitir.parse_extra_sans("FOO:bar")
+E   AttributeError: module 'emitir_cert_valkey' has no attribute 'parse_extra_sans'
+___________________ test_parse_extra_sans_ip_invalida_falla ____________________
+scripts/tests/test_emitir_cert_valkey.py:61: in test_parse_extra_sans_ip_invalida_falla
+    emitir.parse_extra_sans("IP:not-an-ip")
+E   AttributeError: module 'emitir_cert_valkey' has no attribute 'parse_extra_sans'
+___________________ test_parse_extra_sans_valor_vacio_falla ____________________
+scripts/tests/test_emitir_cert_valkey.py:66: in test_parse_extra_sans_valor_vacio_falla
+    emitir.parse_extra_sans("DNS:")
+E   AttributeError: module 'emitir_cert_valkey' has no attribute 'parse_extra_sans'
+______________ test_main_emite_cert_con_extra_sans_y_eku_completo ______________
+scripts/tests/test_emitir_cert_valkey.py:109: in test_main_emite_cert_con_extra_sans_y_eku_completo
+    assert x509.DNSName("fim-server.lan") in general_names
+E   AssertionError: assert <DNSName(value='fim-server.lan')> in [<DNSName(value='valkey')>, <DNSName(value='localhost')>]
+E    +  where <DNSName(value='fim-server.lan')> = <class 'cryptography.x509.general_name.DNSName'>('fim-server.lan')
+E    +    where <class 'cryptography.x509.general_name.DNSName'> = x509.DNSName
+----------------------------- Captured stdout call -----------------------------
+CA   : CN=test-ca  (clave Ed25519PrivateKey)
+cert : CN=valkey  SAN=valkey,localhost  vence 2026-12-11
+salida: /tmp/pytest-of-ezequiel/pytest-198/test_main_emite_cert_con_extra0/valkey.pem + /tmp/pytest-of-ezequiel/pytest-198/test_main_emite_cert_con_extra0/valkey-key.pem
+__________________ test_main_incluye_authority_key_identifier __________________
+scripts/tests/test_emitir_cert_valkey.py:130: in test_main_incluye_authority_key_identifier
+    cert.extensions.get_extension_for_class(x509.AuthorityKeyIdentifier)
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/cryptography/x509/extensions.py:140: in get_extension_for_class
+    raise ExtensionNotFound(
+E   cryptography.x509.extensions.ExtensionNotFound: No <class 'cryptography.x509.extensions.AuthorityKeyIdentifier'> extension was found
+----------------------------- Captured stdout call -----------------------------
+CA   : CN=test-ca  (clave Ed25519PrivateKey)
+cert : CN=valkey  SAN=valkey,localhost  vence 2026-12-11
+salida: /tmp/pytest-of-ezequiel/pytest-198/test_main_incluye_authority_ke0/valkey.pem + /tmp/pytest-of-ezequiel/pytest-198/test_main_incluye_authority_ke0/valkey-key.pem
+=========================== short test summary info ============================
+FAILED backend/tests/test_pki_extra_sans.py::test_parse_extra_sans_vacio - Im...
+FAILED backend/tests/test_pki_extra_sans.py::test_parse_extra_sans_ip_y_dns
+FAILED backend/tests/test_pki_extra_sans.py::test_parse_extra_sans_prefijo_invalido
+FAILED backend/tests/test_pki_extra_sans.py::test_parse_extra_sans_ip_malformada
+FAILED backend/tests/test_pki_extra_sans.py::test_parse_extra_sans_sin_valor
+FAILED backend/tests/test_pki_extra_sans.py::test_backend_cert_incluye_sans_fijos_mas_extra_sans
+FAILED backend/tests/test_pki_extra_sans.py::test_backend_cert_eku_incluye_server_auth_y_client_auth
+FAILED backend/tests/test_pki_extra_sans.py::test_backend_cert_no_se_regenera_si_ya_tiene_los_mismos_extra_sans
+FAILED backend/tests/test_pki_extra_sans.py::test_backend_cert_se_regenera_si_extra_sans_cambia
+FAILED backend::test_parse_extra_sans_vacio_retorna_lista_vacia - AttributeEr...
+FAILED backend::test_parse_extra_sans_ip_y_dns_mixtos - AttributeError: modul...
+FAILED backend::test_parse_extra_sans_ignora_espacios_y_entradas_vacias - Att...
+FAILED backend::test_parse_extra_sans_prefijo_invalido_falla - AttributeError...
+FAILED backend::test_parse_extra_sans_ip_invalida_falla - AttributeError: mod...
+FAILED backend::test_parse_extra_sans_valor_vacio_falla - AttributeError: mod...
+FAILED backend::test_main_emite_cert_con_extra_sans_y_eku_completo - Assertio...
+FAILED backend::test_main_incluye_authority_key_identifier - cryptography.x50...
+========================= 17 failed, 2 passed in 1.84s =========================

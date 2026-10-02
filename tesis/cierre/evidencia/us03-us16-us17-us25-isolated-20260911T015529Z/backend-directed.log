@@ -1,0 +1,36 @@
+[REDACTED-ABSOLUTE-PATH] [REDACTED-OPAQUE]: The configuration option "[REDACTED-OPAQUE]" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn([REDACTED-OPAQUE]([REDACTED-OPAQUE]))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [REDACTED-ABSOLUTE-PATH]
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, [REDACTED-OPAQUE]=None
+collected 66 items
+
+backend/tests/test_auth.py ..........................                    [ 39%]
+backend/tests/test_actions.py ...............                            [ 62%]
+backend/tests/test_actions_router.py .........................           [100%]
+
+=============================== warnings summary ===============================
+tests/test_auth.py: 14 warnings
+  [REDACTED-ABSOLUTE-PATH] DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return await self.request(
+
+tests/test_auth.py: 36 warnings
+tests/test_actions_router.py: 22 warnings
+  [REDACTED-ABSOLUTE-PATH] DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+tests/test_auth.py::[REDACTED-OPAQUE]
+tests/test_actions_router.py::[REDACTED-OPAQUE]
+  [REDACTED-ABSOLUTE-PATH] [REDACTED-OPAQUE]: '[REDACTED-OPAQUE]' is deprecated. Use '[REDACTED-OPAQUE]' instead.
+    return await dependant.call(**values)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 66 passed, 74 warnings in 9.95s ========================

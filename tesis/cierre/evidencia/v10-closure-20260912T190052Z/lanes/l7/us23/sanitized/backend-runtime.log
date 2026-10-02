@@ -1,0 +1,9 @@
+backend-1  | {"event": "Started server process [1]", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-09-12T19:56:31.636790Z"}
+backend-1  | {"event": "Waiting for application startup.", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-09-12T19:56:31.637046Z"}
+backend-1  | {"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-09-12T19:56:31.637482Z"}
+backend-1  | {"cert_path": "/certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-09-12T19:56:31.638755Z"}
+backend-1  | {"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-09-12T19:56:31.819012Z"}
+backend-1  | {"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-09-12T19:56:31.834072Z"}
+backend-1  | {"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-09-12T19:56:31.839399Z"}
+backend-1  | {"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-09-12T19:56:31.840264Z"}
+backend-1  | INFO:     172.25.0.1:50858 - "GET /health HTTP/1.1" 200 OK

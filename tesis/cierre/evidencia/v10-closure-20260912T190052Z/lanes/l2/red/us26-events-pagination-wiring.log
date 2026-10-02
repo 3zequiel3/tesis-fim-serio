@@ -1,0 +1,3261 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l2-frontend-ui/frontend
+
+ ❯ src/pages/Events.test.tsx (7 tests | 3 failed) 4053ms
+   ✓ Events — filtro por severidad (8.6) > activar un checkbox de severidad lo deja marcado y dispara una petición con esa severidad 420ms
+   × Events — US-26 paginación > muestra navegación numerada ademas de anterior/siguiente cuando hay varias páginas 1023ms
+     → Unable to find role="button" and name "1"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × Events — US-26 paginación > clickear un número de página respeta el filtro de estado activo 1012ms
+     → Unable to find role="button" and name "3"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × Events — US-26 paginación > el input "ir a página" navega y conserva los filtros activos 1019ms
+     → Unable to find a label with the text of: /ir a página/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/Events.test.tsx > Events — US-26 paginación > muestra navegación numerada ademas de anterior/siguiente cuando hay varias páginas
+TestingLibraryElementError: Unable to find role="button" and name "1"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/Events.test.tsx:109:25
+    107| 
+    108|     // 250 eventos / 50 por página = 5 páginas.
+    109|     expect(await screen.findByRole('button', { name: '1' })).toBeInThe…
+       |                         ^
+    110|     expect(screen.getByRole('button', { name: '5' })).toBeInTheDocumen…
+    111|     expect(screen.getByRole('button', { name: /primera/i })).toBeInThe…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/pages/Events.test.tsx > Events — US-26 paginación > clickear un número de página respeta el filtro de estado activo
+TestingLibraryElementError: Unable to find role="button" and name "3"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/Events.test.tsx:121:35
+    119|     await waitFor(() => expect(apiGet).toHaveBeenCalled())
+    120| 
+    121|     await user.click(await screen.findByRole('button', { name: '3' }))
+       |                                   ^
+    122| 
+    123|     await waitFor(() => expect(lastEventsRequestParams()?.page).toBe(3…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/pages/Events.test.tsx > Events — US-26 paginación > el input "ir a página" navega y conserva los filtros activos
+TestingLibraryElementError: Unable to find a label with the text of: /ir a página/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mEventos[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 space-y-3"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mapproved[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mrejected[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mauto_restored[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mquarantined[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0malert_only[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-gray-400 mb-1.5"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-wrap gap-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mhigh[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mmedium[0m
+              [36m</span>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer"[39m
+            [36m>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"rounded"[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-mono text-xs"[39m
+              [36m>[39m
+                [0mlow[0m
+              [36m</span>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"grid grid-cols-1 md:grid-cols-3 gap-3"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mPrefijo de path[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"[39m
+              [33mplaceholder[39m=[32m"/etc/..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mDesde[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+            [36m>[39m
+              [0mHasta[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33mclass[39m=[32m"w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+              [33mtype[39m=[32m"datetime-local"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm text-gray-300 cursor-pointer"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mclass[39m=[32m"rounded"[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mMostrar eventos superseded[0m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"text-center py-12 text-gray-500"[39m
+      [36m>[39m
+        [0mNo hay eventos que coincidan con los filtros actuales.[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mMostrando [0m
+          [0m1[0m
+          [0m–[0m
+          [0m50[0m
+          [0m de [0m
+          [0m250[0m
+          [0m eventos[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m5[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/Events.test.tsx:133:32
+    131|     await waitFor(() => expect(apiGet).toHaveBeenCalled())
+    132| 
+    133|     const input = await screen.findByLabelText(/ir a página/i)
+       |                                ^
+    134|     await user.type(input, '4')
+    135|     await user.click(screen.getByRole('button', { name: /^ir$/i }))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 4 passed (7)
+   Start at  16:47:46
+   Duration  6.35s (transform 216ms, setup 215ms, collect 572ms, tests 4.05s, environment 961ms, prepare 107ms)
+

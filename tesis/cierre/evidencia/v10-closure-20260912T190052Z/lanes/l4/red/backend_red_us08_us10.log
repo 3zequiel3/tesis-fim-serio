@@ -1,0 +1,128 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0 -- [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/python3
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l4-events-chain/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 30 items / 20 deselected / 10 selected
+
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_auto_restored FAILED [ 10%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_quarantined FAILED [ 20%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_alert_only FAILED [ 30%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_pending_is_manual_review FAILED [ 40%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_terminal_admin_decisions FAILED [ 50%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_returns_events_for_same_path_chronologically FAILED [ 60%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_marks_superseded_events FAILED [ 70%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_unknown_id_returns_404 PASSED [ 80%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_pathless_event_returns_only_itself FAILED [ 90%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_does_not_require_admin_role FAILED [100%]
+
+=================================== FAILURES ===================================
+______________ test_get_event_by_id_action_type_for_auto_restored ______________
+backend/tests/test_event_listing_contract.py:542: in test_get_event_by_id_action_type_for_auto_restored
+    assert resp.json()["action_type"] == "auto_restore"
+E   KeyError: 'action_type'
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/1 \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:48.994496Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/1 "HTTP/1.1 200 OK"
+_______________ test_get_event_by_id_action_type_for_quarantined _______________
+backend/tests/test_event_listing_contract.py:552: in test_get_event_by_id_action_type_for_quarantined
+    assert resp.json()["action_type"] == "quarantine"
+E   KeyError: 'action_type'
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/1 \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:49.170936Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/1 "HTTP/1.1 200 OK"
+_______________ test_get_event_by_id_action_type_for_alert_only ________________
+backend/tests/test_event_listing_contract.py:562: in test_get_event_by_id_action_type_for_alert_only
+    assert resp.json()["action_type"] == "alert_only"
+E   KeyError: 'action_type'
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/1 \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:49.301725Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/1 "HTTP/1.1 200 OK"
+________ test_get_event_by_id_action_type_for_pending_is_manual_review _________
+backend/tests/test_event_listing_contract.py:574: in test_get_event_by_id_action_type_for_pending_is_manual_review
+    assert resp.json()["action_type"] == "manual_review"
+E   KeyError: 'action_type'
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/1 \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:49.428856Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/1 "HTTP/1.1 200 OK"
+________ test_get_event_by_id_action_type_for_terminal_admin_decisions _________
+backend/tests/test_event_listing_contract.py:590: in test_get_event_by_id_action_type_for_terminal_admin_decisions
+    assert resp.json()["action_type"] == "manual_review"
+E   KeyError: 'action_type'
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/1 \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:49.574179Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/1 "HTTP/1.1 200 OK"
+______ test_get_event_chain_returns_events_for_same_path_chronologically _______
+backend/tests/test_event_listing_contract.py:622: in test_get_event_chain_returns_events_for_same_path_chronologically
+    assert resp.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/3/chain \"HTTP/1.1 404 Not Found\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:49.722382Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/3/chain "HTTP/1.1 404 Not Found"
+_________________ test_get_event_chain_marks_superseded_events _________________
+backend/tests/test_event_listing_contract.py:641: in test_get_event_chain_marks_superseded_events
+    assert resp.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/1/chain \"HTTP/1.1 404 Not Found\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:49.867121Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/1/chain "HTTP/1.1 404 Not Found"
+___________ test_get_event_chain_pathless_event_returns_only_itself ____________
+backend/tests/test_event_listing_contract.py:666: in test_get_event_chain_pathless_event_returns_only_itself
+    assert resp.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/1/chain \"HTTP/1.1 404 Not Found\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:50.135209Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/1/chain "HTTP/1.1 404 Not Found"
+_______________ test_get_event_chain_does_not_require_admin_role _______________
+backend/tests/test_event_listing_contract.py:701: in test_get_event_chain_does_not_require_admin_role
+    assert resp.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: GET http://testserver/events/1/chain \"HTTP/1.1 404 Not Found\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:46:50.402943Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: GET http://testserver/events/1/chain "HTTP/1.1 404 Not Found"
+=============================== warnings summary ===============================
+tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_auto_restored
+tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_quarantined
+tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_alert_only
+tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_pending_is_manual_review
+tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_terminal_admin_decisions
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_auto_restored - KeyError: 'action_type'
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_quarantined - KeyError: 'action_type'
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_alert_only - KeyError: 'action_type'
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_pending_is_manual_review - KeyError: 'action_type'
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_terminal_admin_decisions - KeyError: 'action_type'
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_chain_returns_events_for_same_path_chronologically - assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_chain_marks_superseded_events - assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_chain_pathless_event_returns_only_itself - assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+FAILED backend/tests/test_event_listing_contract.py::test_get_event_chain_does_not_require_admin_role - assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code
+============ 9 failed, 1 passed, 20 deselected, 5 warnings in 2.57s ============

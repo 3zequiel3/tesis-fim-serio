@@ -1,0 +1,120 @@
+ Image fim-acceptance-backend:local Building 
+ Image fim-acceptance-agent:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.14kB done
+#1 DONE 0.0s
+
+#2 [agent internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.86kB 0.0s done
+#2 DONE 0.0s
+
+#3 [backend internal] load build definition from Dockerfile
+#3 transferring dockerfile: 3.49kB 0.0s done
+#3 DONE 0.0s
+
+#4 [agent internal] load metadata for docker.io/library/python:3.13-slim
+#4 DONE 0.0s
+
+#5 [agent internal] load .dockerignore
+#5 transferring context: 228B done
+#5 DONE 0.0s
+
+#6 [backend internal] load .dockerignore
+#6 transferring context: 162B done
+#6 DONE 0.0s
+
+#7 [backend builder 1/5] FROM docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+#7 resolve docker.io/library/python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285 0.0s done
+#7 DONE 0.0s
+
+#8 [agent internal] load build context
+#8 transferring context: 815B done
+#8 DONE 0.0s
+
+#9 [backend internal] load build context
+#9 transferring context: 350.31kB 0.1s done
+#9 DONE 0.1s
+
+#10 [agent builder 4/5] COPY requirements.txt .
+#10 CACHED
+
+#11 [agent builder 5/5] RUN pip install --no-cache-dir --upgrade pip  && pip install --no-cache-dir -r requirements.txt
+#11 CACHED
+
+#12 [agent builder 2/5] RUN python -m venv /opt/venv
+#12 CACHED
+
+#13 [agent builder 3/5] WORKDIR /build
+#13 CACHED
+
+#14 [agent runtime 2/5] COPY --from=builder /opt/venv /opt/venv
+#14 CACHED
+
+#15 [agent runtime 3/5] WORKDIR /app
+#15 CACHED
+
+#16 [agent runtime 4/5] COPY . /app/agent/
+#16 CACHED
+
+#17 [agent runtime 5/5] RUN mkdir -p /var/lib/fim-agent /watch
+#17 CACHED
+
+#18 [backend runtime 2/6] RUN useradd --create-home --uid 10001 app
+#18 CACHED
+
+#12 [backend builder 2/5] RUN python -m venv /opt/venv
+#12 CACHED
+
+#13 [backend builder 3/5] WORKDIR /build
+#13 CACHED
+
+#19 [backend runtime 4/6] WORKDIR /app
+#19 CACHED
+
+#20 [backend runtime 3/6] COPY --from=builder /opt/venv /opt/venv
+#20 CACHED
+
+#21 [backend builder 4/5] COPY requirements.txt .
+#21 CACHED
+
+#22 [backend builder 5/5] RUN pip install --no-cache-dir --upgrade pip  && pip install --no-cache-dir -r requirements.txt
+#22 CACHED
+
+#23 [backend runtime 5/6] RUN mkdir /certs && chown app:app /certs
+#23 CACHED
+
+#24 [agent] exporting to image
+#24 exporting layers 0.0s done
+#24 exporting manifest sha256:d6ff74547f1361c4a7d5c36123bdb25f69b46960f467338d954a84e41c897471 0.0s done
+#24 exporting config sha256:4de0059ec00c648de8839abcb3149deac4630754b27c204e16d973c8960714e7 0.0s done
+#24 exporting attestation manifest sha256:242f71a84a77781f37efbb789968829b8455dbfdea4368be95080838daee8971 0.0s done
+#24 exporting manifest list sha256:cc3b3cb621374e13a346cb29a1ee93041522b828a797f361dceb8ced4b9f2b50 0.0s done
+#24 naming to docker.io/library/fim-acceptance-agent:local
+#24 naming to docker.io/library/fim-acceptance-agent:local done
+#24 unpacking to docker.io/library/fim-acceptance-agent:local 0.0s done
+#24 DONE 0.2s
+
+#25 [backend runtime 6/6] COPY --chown=app:app app/ /app/app/
+#25 DONE 0.1s
+
+#26 [backend] exporting to image
+#26 exporting layers 0.2s done
+#26 exporting manifest sha256:2e87fe7ccf3ad8486aa753e07882467e3049b485f6873162b612b2104375095a 0.0s done
+#26 exporting config sha256:f14eaa02c7a6a8f4e6b460c8a7f867fa76847d4d05ce082fc17b23e111ffd628 0.0s done
+#26 exporting attestation manifest sha256:896a4153056b0576fc2065c2751fb5dd0910345348636325fef1884ba846bef4
+#26 ...
+
+#27 [agent] resolving provenance for metadata file
+#27 DONE 0.0s
+
+#26 [backend] exporting to image
+#26 exporting attestation manifest sha256:896a4153056b0576fc2065c2751fb5dd0910345348636325fef1884ba846bef4 0.0s done
+#26 exporting manifest list sha256:7fdb683a06f8a0dfab0b7057c94be5fa8c9f474d1c5dbad744a05bfdf6279c7b 0.0s done
+#26 naming to docker.io/library/fim-acceptance-backend:local done
+#26 unpacking to docker.io/library/fim-acceptance-backend:local 0.1s done
+#26 DONE 0.4s
+
+#28 [backend] resolving provenance for metadata file
+#28 DONE 0.0s
+ Image fim-acceptance-backend:local Built 
+ Image fim-acceptance-agent:local Built 

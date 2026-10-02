@@ -1,0 +1,112 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l2-frontend-ui/frontend
+
+ ❯ src/components/layout/SystemBanner.test.tsx (8 tests | 2 failed) 1397ms
+   × SystemBanner — US-28: banner de degradacion del sistema > muestra el timestamp del ultimo check saludable del componente afectado 47ms
+     → expect(element).toHaveTextContent()
+
+Expected element to have text content:
+  2026-08-19T00:00:00Z
+Received:
+  Sistema degradado — valkey no disponible
+   × SystemBanner — US-28: banner de degradacion del sistema > es cerrable manualmente y reaparece en el siguiente poll si la condicion persiste 1049ms
+     → Unable to find role="button" and name `/cerrar/i`
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-red-600 text-white text-center text-sm font-medium py-2 px-4"[39m
+      [33mrole[39m=[32m"alert"[39m
+    [36m>[39m
+      [0mSistema degradado —[0m
+      [0m [0m
+      [0mvalkey[0m
+      [0m no disponible[0m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-red-600 text-white text-center text-sm font-medium py-2 px-4"[39m
+      [33mrole[39m=[32m"alert"[39m
+    [36m>[39m
+      [0mSistema degradado —[0m
+      [0m [0m
+      [0mvalkey[0m
+      [0m no disponible[0m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/layout/SystemBanner.test.tsx > SystemBanner — US-28: banner de degradacion del sistema > muestra el timestamp del ultimo check saludable del componente afectado
+Error: expect(element).toHaveTextContent()
+
+Expected element to have text content:
+  2026-08-19T00:00:00Z
+Received:
+  Sistema degradado — valkey no disponible
+ ❯ src/components/layout/SystemBanner.test.tsx:155:20
+    153|     // El timestamp mostrado es el del ultimo poll SANO (00:00:00), no…
+    154|     // del poll degradado actual (00:00:10).
+    155|     expect(banner).toHaveTextContent('2026-08-19T00:00:00Z')
+       |                    ^
+    156|   })
+    157| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/layout/SystemBanner.test.tsx > SystemBanner — US-28: banner de degradacion del sistema > es cerrable manualmente y reaparece en el siguiente poll si la condicion persiste
+TestingLibraryElementError: Unable to find role="button" and name `/cerrar/i`
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-red-600 text-white text-center text-sm font-medium py-2 px-4"[39m
+      [33mrole[39m=[32m"alert"[39m
+    [36m>[39m
+      [0mSistema degradado —[0m
+      [0m [0m
+      [0mvalkey[0m
+      [0m no disponible[0m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-red-600 text-white text-center text-sm font-medium py-2 px-4"[39m
+      [33mrole[39m=[32m"alert"[39m
+    [36m>[39m
+      [0mSistema degradado —[0m
+      [0m [0m
+      [0mvalkey[0m
+      [0m no disponible[0m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/layout/SystemBanner.test.tsx:168:38
+    166| 
+    167|     const banner = await screen.findByRole('alert')
+    168|     const closeButton = await screen.findByRole('button', { name: /cer…
+       |                                      ^
+    169| 
+    170|     await user.click(closeButton)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+   Start at  16:44:40
+   Duration  3.20s (transform 99ms, setup 200ms, collect 186ms, tests 1.40s, environment 875ms, prepare 134ms)
+

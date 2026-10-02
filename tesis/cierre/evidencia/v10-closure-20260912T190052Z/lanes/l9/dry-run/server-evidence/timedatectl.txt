@@ -1,0 +1,7 @@
+               Local time: sáb 2026-09-12 17:44:47 -03
+           Universal time: sáb 2026-09-12 20:44:47 UTC
+                 RTC time: sáb 2026-09-12 20:44:47
+                Time zone: America/Argentina/Mendoza (-03, -0300)
+System clock synchronized: yes
+              NTP service: active
+          RTC in local TZ: no

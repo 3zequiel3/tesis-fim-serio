@@ -1,0 +1,32 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l2-frontend-ui/frontend
+
+ ❯ src/components/ui/Pagination.test.tsx (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ui/Pagination.test.tsx [ src/components/ui/Pagination.test.tsx ]
+Error: Failed to resolve import "./Pagination" from "src/components/ui/Pagination.test.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l2-frontend-ui/frontend/src/components/ui/Pagination.test.tsx:4:27
+  3  |  import { render, screen } from "@testing-library/react";
+  4  |  import userEvent from "@testing-library/user-event";
+  5  |  import { Pagination } from "./Pagination";
+     |                              ^
+  6  |  describe("Pagination — US-26 navegación numerada", () => {
+  7  |    it("muestra primera, anterior, siguiente y última", () => {
+ ❯ TransformPluginContext._formatError node_modules/.pnpm/vite@5.4.21_@types+node@22.20.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41
+ ❯ TransformPluginContext.error node_modules/.pnpm/vite@5.4.21_@types+node@22.20.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16
+ ❯ normalizeUrl node_modules/.pnpm/vite@5.4.21_@types+node@22.20.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23
+ ❯ node_modules/.pnpm/vite@5.4.21_@types+node@22.20.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+ ❯ TransformPluginContext.transform node_modules/.pnpm/vite@5.4.21_@types+node@22.20.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7
+ ❯ PluginContainer.transform node_modules/.pnpm/vite@5.4.21_@types+node@22.20.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18
+ ❯ loadAndTransform node_modules/.pnpm/vite@5.4.21_@types+node@22.20.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  16:45:58
+   Duration  1.56s (transform 51ms, setup 205ms, collect 0ms, tests 0ms, environment 838ms, prepare 159ms)
+

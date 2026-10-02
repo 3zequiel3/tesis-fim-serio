@@ -1,0 +1,2 @@
+event_id,severity,channel,delivered_at,failed_at,retry_count,attempt_count
+85ba7407-9793-47ef-9348-c7de5840a164,critical,smtp_fallback,2026-09-12 19:56:17.294048+00,,3,4

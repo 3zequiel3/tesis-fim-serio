@@ -1,0 +1,35 @@
+/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 29 items / 28 deselected / 1 selected
+
+backend/tests/test_auth.py F                                             [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_access_15min_refresh_7d _________________________
+backend/tests/test_auth.py:171: in test_access_15min_refresh_7d
+    assert access_payload["exp"] - access_payload["iat"] == 999
+E   assert (1789242653 - 1789241753) == 999
+----------------------------- Captured stdout call -----------------------------
+{"event": "HTTP Request: POST https://testserver/auth/login \"HTTP/1.1 200 OK\"", "level": "info", "logger": "httpx", "timestamp": "2026-09-12T19:35:53.349234Z"}
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1740 HTTP Request: POST https://testserver/auth/login "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+tests/test_auth.py::test_access_15min_refresh_7d
+  /home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_auth.py::test_access_15min_refresh_7d - assert (178...
+================= 1 failed, 28 deselected, 1 warning in 0.99s ==================

@@ -1,0 +1,6 @@
+705b3249da02:tesis-fim-serio-n8n-1:n8nio/n8n:2.16.1
+9639d049e84c:tesis-fim-serio-valkey-1:valkey/valkey:9.0.3
+babaacff17e2:tesis-fim-serio-db-1:postgres:18.3
+e21d4255727b:tesis-fim-serio-frontend-1:fim-frontend:dev
+eb20a2a7ffc6:tesis-fim-serio-agent-1:fim-agent:dev
+eedbec1ec1fe:tesis-fim-serio-backend-1:fim-backend:dev

@@ -1,0 +1,13 @@
+
+> fim-frontend@0.0.1 build [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l2-frontend-ui/frontend
+> tsc -b && vite build
+
+vite v6.4.3 building for production...
+transforming...
+✓ 206 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-DrVHAzj1.css   26.94 kB │ gzip:   5.99 kB
+dist/assets/index-Du8vdgfV.js   439.47 kB │ gzip: 133.62 kB
+✓ built in 1.94s

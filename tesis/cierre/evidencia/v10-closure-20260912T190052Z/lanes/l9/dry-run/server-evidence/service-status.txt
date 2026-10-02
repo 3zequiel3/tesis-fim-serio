@@ -1,0 +1,50 @@
+● docker.service - Docker Application Container Engine
+     Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-09-07 12:18:12 -03; 5 days ago
+ Invocation: 29569ffe0def4d3c927ff2cc86020ebc
+TriggeredBy: ● docker.socket
+       Docs: https://docs.docker.com
+   Main PID: 7115 (dockerd)
+      Tasks: 284
+     Memory: 274.4M (peak: 654.7M, swap: 28.6M, swap peak: 35M)
+        CPU: 2h 10min 51.242s
+     CGroup: /system.slice/docker.service
+             ├─   7115 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+             ├─   8146 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5435 -container-ip 172.22.0.2 -container-port 5432 -use-listen-fd
+             ├─   8156 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5435 -container-ip 172.22.0.2 -container-port 5432 -use-listen-fd
+             ├─   8180 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5433 -container-ip 172.21.0.2 -container-port 5432 -use-listen-fd
+             ├─   8187 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5433 -container-ip 172.21.0.2 -container-port 5432 -use-listen-fd
+             ├─   8275 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 22090 -container-ip 172.18.0.2 -container-port 8090 -use-listen-fd
+             ├─   8289 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 22090 -container-ip 172.18.0.2 -container-port 8090 -use-listen-fd
+             ├─   8361 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5434 -container-ip 172.22.0.3 -container-port 5432 -use-listen-fd
+             ├─   8369 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5434 -container-ip 172.22.0.3 -container-port 5432 -use-listen-fd
+             ├─   8397 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 5432 -container-ip 172.21.0.3 -container-port 5432 -use-listen-fd
+             ├─   8405 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 5432 -container-ip 172.21.0.3 -container-port 5432 -use-listen-fd
+             ├─ 670696 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 55432 -container-ip 172.23.0.2 -container-port 5432 -use-listen-fd
+             ├─ 670704 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 55432 -container-ip 172.23.0.2 -container-port 5432 -use-listen-fd
+             ├─ 671147 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 54330 -container-ip 172.23.0.3 -container-port 80 -use-listen-fd
+             ├─ 671153 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 54330 -container-ip 172.23.0.3 -container-port 80 -use-listen-fd
+             ├─ 911571 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 55469 -container-ip 172.17.0.4 -container-port 5432 -use-listen-fd
+             ├─ 911819 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 56369 -container-ip 172.17.0.5 -container-port 6379 -use-listen-fd
+             ├─1022196 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 8000 -container-ip 172.19.0.5 -container-port 8000 -use-listen-fd
+             ├─1022203 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 8000 -container-ip 172.19.0.5 -container-port 8000 -use-listen-fd
+             ├─1022216 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 8443 -container-ip 172.19.0.5 -container-port 8443 -use-listen-fd
+             ├─1022224 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 8443 -container-ip 172.19.0.5 -container-port 8443 -use-listen-fd
+             ├─1110346 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 16380 -container-ip 172.25.0.3 -container-port 6380 -use-listen-fd
+             ├─1110472 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18000 -container-ip 172.25.0.4 -container-port 8000 -use-listen-fd
+             ├─1110488 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18443 -container-ip 172.25.0.4 -container-port 8443 -use-listen-fd
+             ├─1110939 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 55465 -container-ip 172.17.0.2 -container-port 5432 -use-listen-fd
+             ├─1111060 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 56365 -container-ip 172.17.0.3 -container-port 6379 -use-listen-fd
+             ├─1346221 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 80 -container-ip 172.19.0.3 -container-port 80 -use-listen-fd
+             └─1346228 /usr/bin/docker-proxy -proto tcp -host-ip :: -host-port 80 -container-ip 172.19.0.3 -container-port 80 -use-listen-fd
+
+sep 12 17:41:29 Eze-Linux dockerd[7115]: time="2026-09-12T17:41:29.451556003-03:00" level=info msg="restarting container" container=beb91100725ec554a9e15dd601cecf5d18d079c0367a4b4903b9469f1f61c273 exitCode=1 exitedAt="2026-09-12 20:41:29.343941293 +0000 UTC" manualRestart=false restartCount=7504 restartPolicy="{unless-stopped 0}"
+sep 12 17:42:29 Eze-Linux dockerd[7115]: time="2026-09-12T17:42:29.492368074-03:00" level=info msg="sbJoin: gwep4 ''->'dbe669c9edb3', gwep6 ''->''" eid=dbe669c9edb3 ep=argmining_comar_worker_dev net=argminingcomareze_argmining_comar_network_dev nid=deaf7ae922ba
+sep 12 17:42:29 Eze-Linux dockerd[7115]: time="2026-09-12T17:42:29.631329025-03:00" level=info msg="received task-delete event from containerd" container=beb91100725ec554a9e15dd601cecf5d18d079c0367a4b4903b9469f1f61c273 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+sep 12 17:42:29 Eze-Linux dockerd[7115]: time="2026-09-12T17:42:29.724082112-03:00" level=info msg="restarting container" container=beb91100725ec554a9e15dd601cecf5d18d079c0367a4b4903b9469f1f61c273 exitCode=1 exitedAt="2026-09-12 20:42:29.613175736 +0000 UTC" manualRestart=false restartCount=7505 restartPolicy="{unless-stopped 0}"
+sep 12 17:43:29 Eze-Linux dockerd[7115]: time="2026-09-12T17:43:29.774542213-03:00" level=info msg="sbJoin: gwep4 ''->'3917df75e27f', gwep6 ''->''" eid=3917df75e27f ep=argmining_comar_worker_dev net=argminingcomareze_argmining_comar_network_dev nid=deaf7ae922ba
+sep 12 17:43:29 Eze-Linux dockerd[7115]: time="2026-09-12T17:43:29.909122161-03:00" level=info msg="received task-delete event from containerd" container=beb91100725ec554a9e15dd601cecf5d18d079c0367a4b4903b9469f1f61c273 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+sep 12 17:43:29 Eze-Linux dockerd[7115]: time="2026-09-12T17:43:29.991272420-03:00" level=info msg="restarting container" container=beb91100725ec554a9e15dd601cecf5d18d079c0367a4b4903b9469f1f61c273 exitCode=1 exitedAt="2026-09-12 20:43:29.894562502 +0000 UTC" manualRestart=false restartCount=7506 restartPolicy="{unless-stopped 0}"
+sep 12 17:44:30 Eze-Linux dockerd[7115]: time="2026-09-12T17:44:30.042299716-03:00" level=info msg="sbJoin: gwep4 ''->'a1b7ca19bf43', gwep6 ''->''" eid=a1b7ca19bf43 ep=argmining_comar_worker_dev net=argminingcomareze_argmining_comar_network_dev nid=deaf7ae922ba
+sep 12 17:44:30 Eze-Linux dockerd[7115]: time="2026-09-12T17:44:30.317484689-03:00" level=info msg="received task-delete event from containerd" container=beb91100725ec554a9e15dd601cecf5d18d079c0367a4b4903b9469f1f61c273 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+sep 12 17:44:30 Eze-Linux dockerd[7115]: time="2026-09-12T17:44:30.397090209-03:00" level=info msg="restarting container" container=beb91100725ec554a9e15dd601cecf5d18d079c0367a4b4903b9469f1f61c273 exitCode=1 exitedAt="2026-09-12 20:44:30.304385202 +0000 UTC" manualRestart=false restartCount=7507 restartPolicy="{unless-stopped 0}"

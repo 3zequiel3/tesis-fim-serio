@@ -1,0 +1,13 @@
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"N8N_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"N8N_HEALTH_URL\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"SMTP_PASSWORD\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"JWT_SECRET_PREVIOUS\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"SMTP_TO\" variable is not set. Defaulting to a blank string."
+time="2026-09-12T17:44:46-03:00" level=warning msg="The \"WEBHOOK_FALLBACK_URL\" variable is not set. Defaulting to a blank string."
+NAME                     IMAGE                 COMMAND                  SERVICE   CREATED          STATUS                    PORTS
+l9-multihost-backend-1   fim-backend:dev       "uvicorn app.main:ap…"   backend   15 minutes ago   Up 14 minutes             127.0.0.1:18000->8000/tcp, 127.0.0.1:18443->8443/tcp
+l9-multihost-db-1        postgres:18.3         "docker-entrypoint.s…"   db        16 minutes ago   Up 16 minutes (healthy)   5432/tcp
+l9-multihost-valkey-1    valkey/valkey:9.0.3   "docker-entrypoint.s…"   valkey    15 minutes ago   Up 14 minutes (healthy)   6379/tcp, 127.0.0.1:16380->6380/tcp

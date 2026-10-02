@@ -1,0 +1,1 @@
+tcpdump requiere sudo -n (no interactivo) — no disponible en este entorno.

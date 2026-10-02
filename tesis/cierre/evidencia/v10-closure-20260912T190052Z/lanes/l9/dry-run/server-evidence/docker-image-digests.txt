@@ -1,0 +1,12 @@
+== fim-backend:dev ==
+Id: sha256:6b397f4169ff86b71cf62b13b17cd2de849e301834b6bd12669ec8a307bec7c5\nRepoDigests: [fim-backend@sha256:6b397f4169ff86b71cf62b13b17cd2de849e301834b6bd12669ec8a307bec7c5]\nCreated: 2026-09-12T17:26:03.006659377-03:00
+
+== fim-agent:dev ==
+Id: sha256:8e419feaf1d2780ef122d30582dffa726d5c092fb82a7a29b862f03f1b0d2d3e\nRepoDigests: [fim-agent@sha256:8e419feaf1d2780ef122d30582dffa726d5c092fb82a7a29b862f03f1b0d2d3e]\nCreated: 2026-09-10T02:21:00.262111307-03:00
+
+== valkey/valkey:9.0.3 ==
+Id: sha256:3b55fbaa0cd93cf0d9d961f405e4dfcc70efe325e2d84da207a0a8e6d8fde4f9\nRepoDigests: [valkey/valkey@sha256:3b55fbaa0cd93cf0d9d961f405e4dfcc70efe325e2d84da207a0a8e6d8fde4f9]\nCreated: 2026-04-02T20:25:46.820371404Z
+
+== postgres:18.3 ==
+Id: sha256:7e32e9833a6fb1c92c32552794cb6ed569d51b445a54907d35fc112ef39684db\nRepoDigests: [postgres@sha256:7e32e9833a6fb1c92c32552794cb6ed569d51b445a54907d35fc112ef39684db]\nCreated: 2026-05-08T19:33:00.122558993Z
+

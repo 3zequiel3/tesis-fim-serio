@@ -1,0 +1,123 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 59 items
+
+backend/tests/test_agent_mgmt.py ..F.......FFFFFF.....                   [ 35%]
+backend/tests/test_heartbeat_consumer.py ..........FFFFFFFF              [ 66%]
+backend/tests/test_command_ack_consumer.py ...F................          [100%]
+
+=================================== FAILURES ===================================
+___________________ test_get_agent_detail_exposes_queue_size ___________________
+backend/tests/test_agent_mgmt.py:172: in test_get_agent_detail_exposes_queue_size
+    assert result.queue_size is None
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pydantic/main.py:1042: in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E   AttributeError: 'AgentResponse' object has no attribute 'queue_size'
+____________________ test_rescan_increments_ruleset_version ____________________
+backend/tests/test_agent_mgmt.py:379: in test_rescan_increments_ruleset_version
+    assert payload["ruleset_version"] == before_version + 1
+E   KeyError: 'ruleset_version'
+----------------------------- Captured stdout call -----------------------------
+{"agent_id": "agent-mgmt-001", "command_id": "a612422c-9113-4d07-80d3-b45829c6909a", "event": "streams.agents.rescan_baseline_enqueued", "level": "info", "timestamp": "2026-09-12T20:01:17.147730Z"}
+{"published": 1, "event": "service.rules.publish_pending_commands.done", "level": "info", "timestamp": "2026-09-12T20:01:17.153553Z"}
+_________________ test_rescan_with_paths_scopes_pending_count __________________
+backend/tests/test_agent_mgmt.py:396: in test_rescan_with_paths_scopes_pending_count
+    rescan_agent(
+E   TypeError: rescan_agent() got an unexpected keyword argument 'paths'
+____________ test_rescan_with_paths_supersedes_only_selected_paths _____________
+backend/tests/test_agent_mgmt.py:417: in test_rescan_with_paths_supersedes_only_selected_paths
+    rescan_agent(
+E   TypeError: rescan_agent() got an unexpected keyword argument 'paths'
+______________ test_rescan_with_paths_publishes_paths_in_command _______________
+backend/tests/test_agent_mgmt.py:442: in test_rescan_with_paths_publishes_paths_in_command
+    rescan_agent(
+E   TypeError: rescan_agent() got an unexpected keyword argument 'paths'
+________________ test_rescan_without_paths_publishes_empty_list ________________
+backend/tests/test_agent_mgmt.py:470: in test_rescan_without_paths_publishes_empty_list
+    assert payload["paths"] == []
+E   KeyError: 'paths'
+----------------------------- Captured stdout call -----------------------------
+{"agent_id": "agent-mgmt-001", "command_id": "e60acb5a-eb2e-4465-9ec3-b032bb68b923", "event": "streams.agents.rescan_baseline_enqueued", "level": "info", "timestamp": "2026-09-12T20:01:17.866375Z"}
+{"published": 1, "event": "service.rules.publish_pending_commands.done", "level": "info", "timestamp": "2026-09-12T20:01:17.877771Z"}
+___________________ test_audit_log_on_rescan_includes_paths ____________________
+backend/tests/test_agent_mgmt.py:478: in test_audit_log_on_rescan_includes_paths
+    rescan_agent(
+E   TypeError: rescan_agent() got an unexpected keyword argument 'paths'
+__________________________ test_queue_size_persisted ___________________________
+backend/tests/test_heartbeat_consumer.py:245: in test_queue_size_persisted
+    assert a.queue_size == 7
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pydantic/main.py:1042: in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E   AttributeError: 'Agent' object has no attribute 'queue_size'
+____________________ test_queue_size_absent_does_not_reset _____________________
+backend/tests/test_heartbeat_consumer.py:257: in test_queue_size_absent_does_not_reset
+    assert a.queue_size == 7
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pydantic/main.py:1042: in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E   AttributeError: 'Agent' object has no attribute 'queue_size'
+_____________________ test_queue_size_non_numeric_ignored ______________________
+backend/tests/test_heartbeat_consumer.py:269: in test_queue_size_non_numeric_ignored
+    assert a.queue_size is None
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pydantic/main.py:1042: in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E   AttributeError: 'Agent' object has no attribute 'queue_size'
+_________________ test_queue_size_never_reported_reads_as_null _________________
+backend/tests/test_heartbeat_consumer.py:276: in test_queue_size_never_reported_reads_as_null
+    assert a.queue_size is None
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pydantic/main.py:1042: in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E   AttributeError: 'Agent' object has no attribute 'queue_size'
+_______________ test_sweep_offline_returns_newly_dead_agent_ids ________________
+backend/tests/test_heartbeat_consumer.py:296: in test_sweep_offline_returns_newly_dead_agent_ids
+    assert newly_dead == ["hb-agent"]
+E   AssertionError: assert None == ['hb-agent']
+----------------------------- Captured stdout call -----------------------------
+{"count": 1, "event": "heartbeat_consumer.sweep_dead", "level": "info", "timestamp": "2026-09-12T20:01:21.945950Z"}
+____________ test_sweep_offline_does_not_report_agent_already_dead _____________
+backend/tests/test_heartbeat_consumer.py:315: in test_sweep_offline_does_not_report_agent_already_dead
+    assert newly_dead == []
+E   assert None == []
+_______________ test_notify_agent_dead_skips_without_webhook_url _______________
+backend/tests/test_heartbeat_consumer.py:326: in test_notify_agent_dead_skips_without_webhook_url
+    hc._notify_agent_dead("hb-agent")
+E   AttributeError: module 'app.modules.agents.heartbeat_consumer' has no attribute '_notify_agent_dead'
+___________________ test_notify_agent_dead_sends_n8n_payload ___________________
+backend/tests/test_heartbeat_consumer.py:339: in test_notify_agent_dead_sends_n8n_payload
+    hc._notify_agent_dead("hb-agent")
+E   AttributeError: module 'app.modules.agents.heartbeat_consumer' has no attribute '_notify_agent_dead'
+_________ test_ack_ok_rescan_baseline_advances_ruleset_version_applied _________
+backend/tests/test_command_ack_consumer.py:234: in test_ack_ok_rescan_baseline_advances_ruleset_version_applied
+    assert agent.ruleset_version_applied == 11
+E   AssertionError: assert 5 == 11
+E    +  where 5 = Agent(agent_id='agent-ack-001', ruleset_version_applied=5, bootstrap_secret_hash=None, watch_paths=[], discarded_event...ure=None, shared_secret_hex='dd5e5ee7fe46684bb7d21e68fca0e6e77caa79e32f641e62068ba1ef6fb18654', watch_path_status=None).ruleset_version_applied
+----------------------------- Captured stdout call -----------------------------
+{"command_id": "cmd-ack-rescan-001", "command_type": "rescan_baseline", "status": "ok", "event": "command_ack_consumer.processed", "level": "info", "timestamp": "2026-09-12T20:01:23.277053Z"}
+=========================== short test summary info ============================
+FAILED backend/tests/test_agent_mgmt.py::test_get_agent_detail_exposes_queue_size
+FAILED backend/tests/test_agent_mgmt.py::test_rescan_increments_ruleset_version
+FAILED backend/tests/test_agent_mgmt.py::test_rescan_with_paths_scopes_pending_count
+FAILED backend/tests/test_agent_mgmt.py::test_rescan_with_paths_supersedes_only_selected_paths
+FAILED backend/tests/test_agent_mgmt.py::test_rescan_with_paths_publishes_paths_in_command
+FAILED backend/tests/test_agent_mgmt.py::test_rescan_without_paths_publishes_empty_list
+FAILED backend/tests/test_agent_mgmt.py::test_audit_log_on_rescan_includes_paths
+FAILED backend/tests/test_heartbeat_consumer.py::test_queue_size_persisted - ...
+FAILED backend/tests/test_heartbeat_consumer.py::test_queue_size_absent_does_not_reset
+FAILED backend/tests/test_heartbeat_consumer.py::test_queue_size_non_numeric_ignored
+FAILED backend/tests/test_heartbeat_consumer.py::test_queue_size_never_reported_reads_as_null
+FAILED backend/tests/test_heartbeat_consumer.py::test_sweep_offline_returns_newly_dead_agent_ids
+FAILED backend/tests/test_heartbeat_consumer.py::test_sweep_offline_does_not_report_agent_already_dead
+FAILED backend/tests/test_heartbeat_consumer.py::test_notify_agent_dead_skips_without_webhook_url
+FAILED backend/tests/test_heartbeat_consumer.py::test_notify_agent_dead_sends_n8n_payload
+FAILED backend/tests/test_command_ack_consumer.py::test_ack_ok_rescan_baseline_advances_ruleset_version_applied
+======================== 16 failed, 43 passed in 11.69s ========================

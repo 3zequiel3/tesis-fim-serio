@@ -1,0 +1,53 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0 -- [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/bin/python3
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l4-events-chain/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 30 items
+
+backend/tests/test_event_listing_contract.py::test_list_events_excludes_superseded_by_default PASSED [  3%]
+backend/tests/test_event_listing_contract.py::test_list_events_includes_superseded_when_flag_is_true PASSED [  6%]
+backend/tests/test_event_listing_contract.py::test_superseded_filter_applies_to_total_not_only_to_the_page PASSED [ 10%]
+backend/tests/test_event_listing_contract.py::test_list_events_orders_by_created_at_desc PASSED [ 13%]
+backend/tests/test_event_listing_contract.py::test_list_events_default_page_size_is_50 PASSED [ 16%]
+backend/tests/test_event_listing_contract.py::test_pagination_total_respects_status_filter PASSED [ 20%]
+backend/tests/test_event_listing_contract.py::test_status_filter_accepts_multiple_values PASSED [ 23%]
+backend/tests/test_event_listing_contract.py::test_pagination_total_respects_path_prefix_filter PASSED [ 26%]
+backend/tests/test_event_listing_contract.py::test_list_events_includes_event_type_field PASSED [ 30%]
+backend/tests/test_event_listing_contract.py::test_pathless_event_appears_without_path_prefix_filter PASSED [ 33%]
+backend/tests/test_event_listing_contract.py::test_pathless_event_excluded_by_path_prefix_filter PASSED [ 36%]
+backend/tests/test_event_listing_contract.py::test_pathless_event_matches_severity_and_status_filters PASSED [ 40%]
+backend/tests/test_event_listing_contract.py::test_pathless_event_matches_date_range_filter PASSED [ 43%]
+backend/tests/test_event_listing_contract.py::test_pagination_total_respects_date_range_filter PASSED [ 46%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_returns_full_detail PASSED [ 50%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_unknown_returns_404 PASSED [ 53%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_returns_textual_diff_metadata PASSED [ 56%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_requires_admin_role PASSED [ 60%]
+backend/tests/test_event_listing_contract.py::test_list_events_does_not_expose_textual_diff PASSED [ 63%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_pathless_event_returns_null_path PASSED [ 66%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_auto_restored PASSED [ 70%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_quarantined PASSED [ 73%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_alert_only PASSED [ 76%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_pending_is_manual_review PASSED [ 80%]
+backend/tests/test_event_listing_contract.py::test_get_event_by_id_action_type_for_terminal_admin_decisions PASSED [ 83%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_returns_events_for_same_path_chronologically PASSED [ 86%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_marks_superseded_events PASSED [ 90%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_unknown_id_returns_404 PASSED [ 93%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_pathless_event_returns_only_itself PASSED [ 96%]
+backend/tests/test_event_listing_contract.py::test_get_event_chain_does_not_require_admin_role PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_event_listing_contract.py: 34 warnings
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 30 passed, 34 warnings in 5.39s ========================

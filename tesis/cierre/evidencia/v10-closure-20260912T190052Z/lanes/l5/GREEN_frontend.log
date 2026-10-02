@@ -1,0 +1,48 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/frontend
+
+ ✓ src/stores/auth.store.test.ts (4 tests) 12ms
+ ✓ src/utils/eventFilters.test.ts (13 tests) 15ms
+ ✓ src/api/events.test.ts (4 tests) 8ms
+ ✓ src/utils/timeDisplay.test.ts (11 tests) 36ms
+ ✓ src/hooks/useAlertsSSE.test.tsx (2 tests) 57ms
+ ✓ src/pages/EventDetail.test.tsx (5 tests) 353ms
+ ✓ src/components/ui/EventsTable.test.tsx (11 tests) 760ms
+   ✓ EventsTable — US-25 selección en lote > permite seleccionar una fila individual sin seleccionar las demás 357ms
+ ✓ src/components/ui/AgentCard.test.tsx (14 tests) 832ms
+ ✓ src/pages/Dashboard.test.tsx (11 tests) 1351ms
+   ✓ Dashboard — US-04: metricas generales > carga las metricas al entrar al dashboard, sin interaccion del usuario 514ms
+ ✓ src/components/ui/BulkActionBar.test.tsx (4 tests) 1398ms
+   ✓ BulkActionBar — bulk reject con acción por ítem (8.7) > rechazar 3 eventos emite event_ids y una única action, sin items legacy 682ms
+ ✓ src/pages/Events.test.tsx (4 tests) 1486ms
+   ✓ Events — filtro por severidad (8.6) > activar un checkbox de severidad lo deja marcado y dispara una petición con esa severidad 646ms
+   ✓ Events — US-31 toggle superseded > está desmarcado por defecto y al activarlo persiste en la URL lógica y llega a la petición 387ms
+ ✓ src/api/events.contract.test.ts (1 test) 9ms
+ ✓ src/components/layout/SystemBanner.test.tsx (4 tests) 390ms
+ ✓ src/components/layout/Navbar.test.tsx (2 tests) 472ms
+   ✓ Navbar — US-02 logout del cliente > muestra el botón y al usarlo limpia el token y el usuario, solicita logout y navega a /login con replace 403ms
+ ✓ src/api/auth.test.ts (3 tests) 10ms
+ ✓ src/api/client.test.ts (1 test) 8ms
+ ✓ src/utils/severity.test.ts (5 tests) 16ms
+ ✓ src/components/layout/AlertsBanner.test.tsx (5 tests) 485ms
+ ✓ src/pages/Rules.test.tsx (2 tests) 674ms
+   ✓ Rules — US-16 edición y US-17 eliminación > abre el formulario de edición precargado con patrón, severidad y acción de la regla elegida 505ms
+ ✓ src/utils/discardedEvents.test.ts (7 tests) 9ms
+ ✓ src/api/actions.test.ts (3 tests) 13ms
+ ✓ src/config/viteProxy.test.ts (1 test) 6ms
+ ✓ src/components/ui/RescanConfirmModal.test.tsx (3 tests) 393ms
+   ✓ RescanConfirmModal — paths seleccionados (US-22) > confirmar dispara onConfirm 306ms
+ ✓ src/components/layout/ProtectedRoute.test.tsx (1 test) 55ms
+ ✓ src/utils/actionError.test.ts (5 tests) 10ms
+ ✓ src/utils/watchPathStatus.test.ts (6 tests) 5ms
+ ✓ src/utils/ackStatus.test.ts (3 tests) 3ms
+ ✓ src/utils/actionFailed.test.ts (2 tests) 4ms
+ ✓ src/components/ui/DiffViewer.test.ts (2 tests) 126ms
+ ✓ src/components/ui/RuleForm.test.tsx (2 tests) 199ms
+
+ Test Files  30 passed (30)
+      Tests  141 passed (141)
+   Start at  17:32:49
+   Duration  7.76s (transform 1.95s, setup 9.45s, collect 7.01s, tests 9.20s, environment 39.26s, prepare 3.62s)
+
+JUNIT report written to [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/.v10-evidence/l5/junit_frontend.xml

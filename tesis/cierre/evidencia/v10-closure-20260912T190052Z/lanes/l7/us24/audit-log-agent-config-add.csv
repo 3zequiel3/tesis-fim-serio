@@ -1,0 +1,2 @@
+id,user_id,action,target_type,detail,created_at
+4,1,agent_config,agent,"{""agent_id"": ""l7-us24-agent"", ""watch_paths"": [""/watch/a"", ""/watch/b""]}",2026-09-12 20:06:07.994205+00

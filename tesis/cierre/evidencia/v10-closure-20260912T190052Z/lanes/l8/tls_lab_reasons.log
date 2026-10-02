@@ -1,0 +1,15 @@
+=== container: fim-l8-valkey-tls-lab-696ec7b8 ===
+
+-- (a) happy path: good client cert, correct hostname --
+[a-happy-path] ACCEPTED — ping=True
+
+-- (b) no client cert --
+[b-no-client-cert] REJECTED — Error while reading from localhost:56380 : (1, '[SSL: TLSV13_ALERT_CERTIFICATE_REQUIRED] tlsv13 alert certificate required (_ssl.c:2660)')
+
+-- (c) client cert signed by untrusted CA --
+[c-untrusted-ca] REJECTED — Error while reading from localhost:56380 : (1, '[SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca (_ssl.c:2660)')
+
+-- (d) hostname mismatch (valid CA+cert, wrong host) --
+[d-hostname-mismatch] REJECTED — Error 1 connecting to 127.0.0.1:56380. [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: IP address mismatch, certificate is not valid for '127.0.0.1'. (_ssl.c:1032).
+
+=== container fim-l8-valkey-tls-lab-696ec7b8 removed ===

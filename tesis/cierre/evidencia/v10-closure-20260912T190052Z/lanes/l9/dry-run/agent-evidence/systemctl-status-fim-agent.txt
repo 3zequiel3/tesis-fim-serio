@@ -1,0 +1,1 @@
+/tmp/collect-agent-evidence.sh: line 82: systemctl: command not found

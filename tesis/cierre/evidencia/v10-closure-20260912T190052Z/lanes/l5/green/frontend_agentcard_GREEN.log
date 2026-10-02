@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/frontend
+
+ ✓ src/components/ui/AgentCard.test.tsx (14 tests) 899ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  16:57:51
+   Duration  5.25s (transform 339ms, setup 673ms, collect 659ms, tests 899ms, environment 2.16s, prepare 199ms)
+

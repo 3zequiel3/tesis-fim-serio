@@ -1,0 +1,13 @@
+
+> fim-frontend@0.0.1 build [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l4-events-chain/frontend
+> tsc -b && vite build
+
+vite v6.4.3 building for production...
+transforming...
+✓ 207 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.30 kB
+dist/assets/index-C5jR6jFM.css   26.92 kB │ gzip:   5.99 kB
+dist/assets/index-DLLExpdu.js   441.30 kB │ gzip: 133.68 kB
+✓ built in 11.33s

@@ -1,0 +1,2 @@
+== resumen de la captura ==
+sin pcap (ver SKIPPED_no_privileges.txt)

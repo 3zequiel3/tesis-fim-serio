@@ -1,0 +1,2 @@
+event_id,severity,channel,delivered_at,failed_at,retry_count,attempt_count,last_error
+b69325e7-39d2-4415-bc15-c848bff87e5d,critical,,,2026-09-12 20:02:01.247183+00,3,4,All configured notification channels failed

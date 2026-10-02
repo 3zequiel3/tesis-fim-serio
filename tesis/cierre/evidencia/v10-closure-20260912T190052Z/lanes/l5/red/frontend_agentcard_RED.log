@@ -1,0 +1,1302 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/frontend
+
+ ❯ src/components/ui/AgentCard.test.tsx (14 tests | 7 failed) 958ms
+   × AgentCard — queue_size local (US-21) > muestra el queue_size reportado por el agente 38ms
+     → Unable to find an element with the text: /12/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+          [36m>[39m
+            [0magent-tz-test[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"px-2 py-0.5 rounded text-xs font-medium bg-green-700 text-green-200"[39m
+        [36m>[39m
+          [0monline[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mQueue pressure[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-gray-300 tabular-nums"[39m
+            [36m>[39m
+              [0m10[0m
+              [0m%[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap bg-gray-800 text-gray-500 border border-gray-700"[39m
+              [33mtitle[39m=[32m"El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)"[39m
+            [36m>[39m
+              [0mDescartes: [0m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-1.5 bg-gray-700 rounded-full overflow-hidden"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full rounded-full transition-all bg-green-500"[39m
+            [33mstyle[39m=[32m"width: 10%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-xs text-gray-500"[39m
+        [33mtitle[39m=[32m"nunca"[39m
+      [36m>[39m
+        [0mVisto [0m
+        [0mnunca[0m
+        [36m<span[39m
+          [33mclass[39m=[32m"ml-2"[39m
+        [36m>[39m
+          [0m· ruleset v[0m
+          [0m3[0m
+        [36m</span>[39m
+      [36m</p>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mWatch paths[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mEditar[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"space-y-0.5"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/etc[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-2 pt-1"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+        [36m>[39m
+          [0mRescan[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × AgentCard — indicador de drenaje graceful (US-30) > un agente draining muestra "Drenando N eventos" con el queue_size actual 18ms
+     → Unable to find an element with the text: /Drenando 5 eventos/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+          [36m>[39m
+            [0magent-tz-test[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"px-2 py-0.5 rounded text-xs font-medium bg-yellow-700 text-yellow-200"[39m
+        [36m>[39m
+          [0mdraining[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mQueue pressure[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-gray-300 tabular-nums"[39m
+            [36m>[39m
+              [0m10[0m
+              [0m%[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap bg-gray-800 text-gray-500 border border-gray-700"[39m
+              [33mtitle[39m=[32m"El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)"[39m
+            [36m>[39m
+              [0mDescartes: [0m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-1.5 bg-gray-700 rounded-full overflow-hidden"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full rounded-full transition-all bg-green-500"[39m
+            [33mstyle[39m=[32m"width: 10%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-xs text-gray-500"[39m
+        [33mtitle[39m=[32m"nunca"[39m
+      [36m>[39m
+        [0mVisto [0m
+        [0mnunca[0m
+        [36m<span[39m
+          [33mclass[39m=[32m"ml-2"[39m
+        [36m>[39m
+          [0m· ruleset v[0m
+          [0m3[0m
+        [36m</span>[39m
+      [36m</p>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mWatch paths[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtitle[39m=[32m"El agente está en modo draining"[39m
+          [36m>[39m
+            [0mEditar[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"space-y-0.5"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/etc[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-2 pt-1"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtitle[39m=[32m"El agente está en modo draining"[39m
+        [36m>[39m
+          [0mRescan[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × AgentCard — indicador de drenaje graceful (US-30) > el botón de rescan tiene el tooltip canónico exacto durante el drenaje 242ms
+     → expect(element).toHaveAttribute("title", "No disponible durante shutdown graceful") // element.getAttribute("title") === "No disponible durante shutdown graceful"
+
+Expected the element to have attribute:
+  title="No disponible durante shutdown graceful"
+Received:
+  title="El agente está en modo draining"
+   × AgentCard — indicador de drenaje graceful (US-30) > el botón de editar paths (update config) tiene el mismo tooltip canónico durante el drenaje 35ms
+     → expect(element).toHaveAttribute("title", "No disponible durante shutdown graceful") // element.getAttribute("title") === "No disponible durante shutdown graceful"
+
+Expected the element to have attribute:
+  title="No disponible durante shutdown graceful"
+Received:
+  title="El agente está en modo draining"
+   × AgentCard — banner de presión de cola alta (US-21/W3) > queue_pressure > 80% muestra un banner de alerta específico del agente 131ms
+     → Unable to find an accessible element with the role "alert"
+
+Here are the accessible roles:
+
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+  [36m/>[39m
+
+  Name "nunca":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-xs text-gray-500"[39m
+    [33mtitle[39m=[32m"nunca"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Editar":
+  [36m<button[39m
+    [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+  [36m/>[39m
+
+  Name "Rescan":
+  [36m<button[39m
+    [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ul[39m
+    [33mclass[39m=[32m"space-y-0.5"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+          [36m>[39m
+            [0magent-tz-test[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"px-2 py-0.5 rounded text-xs font-medium bg-green-700 text-green-200"[39m
+        [36m>[39m
+          [0monline[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mQueue pressure[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-gray-300 tabular-nums"[39m
+            [36m>[39m
+              [0m85[0m
+              [0m%[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap bg-gray-800 text-gray-500 border border-gray-700"[39m
+              [33mtitle[39m=[32m"El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)"[39m
+            [36m>[39m
+              [0mDescartes: [0m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-1.5 bg-gray-700 rounded-full overflow-hidden"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full rounded-full transition-all bg-red-500"[39m
+            [33mstyle[39m=[32m"width: 85%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-xs text-gray-500"[39m
+        [33mtitle[39m=[32m"nunca"[39m
+      [36m>[39m
+        [0mVisto [0m
+        [0mnunca[0m
+        [36m<span[39m
+          [33mclass[39m=[32m"ml-2"[39m
+        [36m>[39m
+          [0m· ruleset v[0m
+          [0m3[0m
+        [36m</span>[39m
+      [36m</p>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mWatch paths[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mEditar[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"space-y-0.5"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/etc[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-2 pt-1"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+        [36m>[39m
+          [0mRescan[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × AgentCard — selección de paths para rescan (US-22) > con múltiples watch_paths, permite deseleccionar uno y sólo pasa los seleccionados a onRescan 118ms
+     → Unable to find an accessible element with the role "checkbox" and name `/\/var\/lib\/fim/`
+
+Here are the accessible roles:
+
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+  [36m/>[39m
+
+  Name "nunca":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-xs text-gray-500"[39m
+    [33mtitle[39m=[32m"nunca"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Editar":
+  [36m<button[39m
+    [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+  [36m/>[39m
+
+  Name "Rescan":
+  [36m<button[39m
+    [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ul[39m
+    [33mclass[39m=[32m"space-y-0.5"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+          [36m>[39m
+            [0magent-tz-test[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"px-2 py-0.5 rounded text-xs font-medium bg-green-700 text-green-200"[39m
+        [36m>[39m
+          [0monline[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mQueue pressure[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-gray-300 tabular-nums"[39m
+            [36m>[39m
+              [0m10[0m
+              [0m%[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap bg-gray-800 text-gray-500 border border-gray-700"[39m
+              [33mtitle[39m=[32m"El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)"[39m
+            [36m>[39m
+              [0mDescartes: [0m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-1.5 bg-gray-700 rounded-full overflow-hidden"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full rounded-full transition-all bg-green-500"[39m
+            [33mstyle[39m=[32m"width: 10%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-xs text-gray-500"[39m
+        [33mtitle[39m=[32m"nunca"[39m
+      [36m>[39m
+        [0mVisto [0m
+        [0mnunca[0m
+        [36m<span[39m
+          [33mclass[39m=[32m"ml-2"[39m
+        [36m>[39m
+          [0m· ruleset v[0m
+          [0m3[0m
+        [36m</span>[39m
+      [36m</p>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mWatch paths[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mEditar[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"space-y-0.5"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/etc[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/var/lib/fim[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-2 pt-1"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+        [36m>[39m
+          [0mRescan[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × AgentCard — selección de paths para rescan (US-22) > sin deseleccionar nada, pasa todos los watch_paths 67ms
+     → expected "spy" to be called with arguments: [ 'agent-tz-test', …(1) ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    "agent-tz-test",
+-   Array [
+-     "/etc",
+-     "/var/lib/fim",
+-   ],
+  ]
+
+
+Number of calls: 1
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ui/AgentCard.test.tsx > AgentCard — queue_size local (US-21) > muestra el queue_size reportado por el agente
+TestingLibraryElementError: Unable to find an element with the text: /12/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+          [36m>[39m
+            [0magent-tz-test[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"px-2 py-0.5 rounded text-xs font-medium bg-green-700 text-green-200"[39m
+        [36m>[39m
+          [0monline[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mQueue pressure[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-gray-300 tabular-nums"[39m
+            [36m>[39m
+              [0m10[0m
+              [0m%[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap bg-gray-800 text-gray-500 border border-gray-700"[39m
+              [33mtitle[39m=[32m"El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)"[39m
+            [36m>[39m
+              [0mDescartes: [0m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-1.5 bg-gray-700 rounded-full overflow-hidden"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full rounded-full transition-all bg-green-500"[39m
+            [33mstyle[39m=[32m"width: 10%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-xs text-gray-500"[39m
+        [33mtitle[39m=[32m"nunca"[39m
+      [36m>[39m
+        [0mVisto [0m
+        [0mnunca[0m
+        [36m<span[39m
+          [33mclass[39m=[32m"ml-2"[39m
+        [36m>[39m
+          [0m· ruleset v[0m
+          [0m3[0m
+        [36m</span>[39m
+      [36m</p>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mWatch paths[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mEditar[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"space-y-0.5"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/etc[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-2 pt-1"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+        [36m>[39m
+          [0mRescan[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/ui/AgentCard.test.tsx:112:19
+    110|       <AgentCard agent={makeAgent({ queue_size: 12 })} onConfigSave={n…
+    111|     )
+    112|     expect(screen.getByText(/12/)).toBeInTheDocument()
+       |                   ^
+    113|   })
+    114| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  src/components/ui/AgentCard.test.tsx > AgentCard — indicador de drenaje graceful (US-30) > un agente draining muestra "Drenando N eventos" con el queue_size actual
+TestingLibraryElementError: Unable to find an element with the text: /Drenando 5 eventos/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+          [36m>[39m
+            [0magent-tz-test[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"px-2 py-0.5 rounded text-xs font-medium bg-yellow-700 text-yellow-200"[39m
+        [36m>[39m
+          [0mdraining[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mQueue pressure[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-gray-300 tabular-nums"[39m
+            [36m>[39m
+              [0m10[0m
+              [0m%[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap bg-gray-800 text-gray-500 border border-gray-700"[39m
+              [33mtitle[39m=[32m"El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)"[39m
+            [36m>[39m
+              [0mDescartes: [0m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-1.5 bg-gray-700 rounded-full overflow-hidden"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full rounded-full transition-all bg-green-500"[39m
+            [33mstyle[39m=[32m"width: 10%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-xs text-gray-500"[39m
+        [33mtitle[39m=[32m"nunca"[39m
+      [36m>[39m
+        [0mVisto [0m
+        [0mnunca[0m
+        [36m<span[39m
+          [33mclass[39m=[32m"ml-2"[39m
+        [36m>[39m
+          [0m· ruleset v[0m
+          [0m3[0m
+        [36m</span>[39m
+      [36m</p>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mWatch paths[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtitle[39m=[32m"El agente está en modo draining"[39m
+          [36m>[39m
+            [0mEditar[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"space-y-0.5"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/etc[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-2 pt-1"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtitle[39m=[32m"El agente está en modo draining"[39m
+        [36m>[39m
+          [0mRescan[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/ui/AgentCard.test.tsx:136:19
+    134|       />
+    135|     )
+    136|     expect(screen.getByText(/Drenando 5 eventos/)).toBeInTheDocument()
+       |                   ^
+    137|   })
+    138| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  src/components/ui/AgentCard.test.tsx > AgentCard — indicador de drenaje graceful (US-30) > el botón de rescan tiene el tooltip canónico exacto durante el drenaje
+Error: expect(element).toHaveAttribute("title", "No disponible durante shutdown graceful") // element.getAttribute("title") === "No disponible durante shutdown graceful"
+
+Expected the element to have attribute:
+  title="No disponible durante shutdown graceful"
+Received:
+  title="El agente está en modo draining"
+ ❯ src/components/ui/AgentCard.test.tsx:152:26
+    150|     const rescanButton = screen.getByRole('button', { name: /rescan/i …
+    151|     expect(rescanButton).toBeDisabled()
+    152|     expect(rescanButton).toHaveAttribute('title', 'No disponible duran…
+       |                          ^
+    153|   })
+    154| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  src/components/ui/AgentCard.test.tsx > AgentCard — indicador de drenaje graceful (US-30) > el botón de editar paths (update config) tiene el mismo tooltip canónico durante el drenaje
+Error: expect(element).toHaveAttribute("title", "No disponible durante shutdown graceful") // element.getAttribute("title") === "No disponible durante shutdown graceful"
+
+Expected the element to have attribute:
+  title="No disponible durante shutdown graceful"
+Received:
+  title="El agente está en modo draining"
+ ❯ src/components/ui/AgentCard.test.tsx:161:24
+    159|     const editButton = screen.getByRole('button', { name: /editar/i })
+    160|     expect(editButton).toBeDisabled()
+    161|     expect(editButton).toHaveAttribute('title', 'No disponible durante…
+       |                        ^
+    162|   })
+    163| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  src/components/ui/AgentCard.test.tsx > AgentCard — banner de presión de cola alta (US-21/W3) > queue_pressure > 80% muestra un banner de alerta específico del agente
+TestingLibraryElementError: Unable to find an accessible element with the role "alert"
+
+Here are the accessible roles:
+
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+  [36m/>[39m
+
+  Name "nunca":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-xs text-gray-500"[39m
+    [33mtitle[39m=[32m"nunca"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Editar":
+  [36m<button[39m
+    [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+  [36m/>[39m
+
+  Name "Rescan":
+  [36m<button[39m
+    [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ul[39m
+    [33mclass[39m=[32m"space-y-0.5"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+          [36m>[39m
+            [0magent-tz-test[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"px-2 py-0.5 rounded text-xs font-medium bg-green-700 text-green-200"[39m
+        [36m>[39m
+          [0monline[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mQueue pressure[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-gray-300 tabular-nums"[39m
+            [36m>[39m
+              [0m85[0m
+              [0m%[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap bg-gray-800 text-gray-500 border border-gray-700"[39m
+              [33mtitle[39m=[32m"El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)"[39m
+            [36m>[39m
+              [0mDescartes: [0m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-1.5 bg-gray-700 rounded-full overflow-hidden"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full rounded-full transition-all bg-red-500"[39m
+            [33mstyle[39m=[32m"width: 85%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-xs text-gray-500"[39m
+        [33mtitle[39m=[32m"nunca"[39m
+      [36m>[39m
+        [0mVisto [0m
+        [0mnunca[0m
+        [36m<span[39m
+          [33mclass[39m=[32m"ml-2"[39m
+        [36m>[39m
+          [0m· ruleset v[0m
+          [0m3[0m
+        [36m</span>[39m
+      [36m</p>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mWatch paths[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mEditar[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"space-y-0.5"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/etc[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-2 pt-1"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+        [36m>[39m
+          [0mRescan[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/ui/AgentCard.test.tsx:172:19
+    170|       <AgentCard agent={makeAgent({ queue_pressure: 0.85 })} onConfigS…
+    171|     )
+    172|     expect(screen.getByRole('alert')).toBeInTheDocument()
+       |                   ^
+    173|   })
+    174| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  src/components/ui/AgentCard.test.tsx > AgentCard — selección de paths para rescan (US-22) > con múltiples watch_paths, permite deseleccionar uno y sólo pasa los seleccionados a onRescan
+TestingLibraryElementError: Unable to find an accessible element with the role "checkbox" and name `/\/var\/lib\/fim/`
+
+Here are the accessible roles:
+
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+  [36m/>[39m
+
+  Name "nunca":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-xs text-gray-500"[39m
+    [33mtitle[39m=[32m"nunca"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Editar":
+  [36m<button[39m
+    [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+  [36m/>[39m
+
+  Name "Rescan":
+  [36m<button[39m
+    [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ul[39m
+    [33mclass[39m=[32m"space-y-0.5"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm font-semibold text-white font-mono"[39m
+          [36m>[39m
+            [0magent-tz-test[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"px-2 py-0.5 rounded text-xs font-medium bg-green-700 text-green-200"[39m
+        [36m>[39m
+          [0monline[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mQueue pressure[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-gray-300 tabular-nums"[39m
+            [36m>[39m
+              [0m10[0m
+              [0m%[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap bg-gray-800 text-gray-500 border border-gray-700"[39m
+              [33mtitle[39m=[32m"El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)"[39m
+            [36m>[39m
+              [0mDescartes: [0m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"h-1.5 bg-gray-700 rounded-full overflow-hidden"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full rounded-full transition-all bg-green-500"[39m
+            [33mstyle[39m=[32m"width: 10%;"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-xs text-gray-500"[39m
+        [33mtitle[39m=[32m"nunca"[39m
+      [36m>[39m
+        [0mVisto [0m
+        [0mnunca[0m
+        [36m<span[39m
+          [33mclass[39m=[32m"ml-2"[39m
+        [36m>[39m
+          [0m· ruleset v[0m
+          [0m3[0m
+        [36m</span>[39m
+      [36m</p>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between mb-1"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-xs text-gray-400"[39m
+          [36m>[39m
+            [0mWatch paths[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+          [36m>[39m
+            [0mEditar[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"space-y-0.5"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/etc[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2 min-w-0"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex-1 text-xs font-mono text-gray-400 truncate"[39m
+            [36m>[39m
+              [0m/var/lib/fim[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-2 pt-1"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+        [36m>[39m
+          [0mRescan[0m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/ui/AgentCard.test.tsx:198:32
+    196| 
+    197|     // Ambos paths están seleccionados por defecto.
+    198|     const varCheckbox = screen.getByRole('checkbox', { name: /\/var\/l…
+       |                                ^
+    199|     await user.click(varCheckbox)
+    200| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  src/components/ui/AgentCard.test.tsx > AgentCard — selección de paths para rescan (US-22) > sin deseleccionar nada, pasa todos los watch_paths
+AssertionError: expected "spy" to be called with arguments: [ 'agent-tz-test', …(1) ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    "agent-tz-test",
+-   Array [
+-     "/etc",
+-     "/var/lib/fim",
+-   ],
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/components/ui/AgentCard.test.tsx:219:22
+    217|     await user.click(screen.getByRole('button', { name: /rescan/i }))
+    218| 
+    219|     expect(onRescan).toHaveBeenCalledWith('agent-tz-test', ['/etc', '/…
+       |                      ^
+    220|   })
+    221| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 7 passed (14)
+   Start at  16:56:08
+   Duration  4.28s (transform 250ms, setup 390ms, collect 432ms, tests 958ms, environment 1.75s, prepare 177ms)
+

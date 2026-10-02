@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l2-frontend-ui/frontend
+
+ ✓ src/pages/Events.test.tsx (7 tests) 1071ms
+   ✓ Events — filtro por severidad (8.6) > activar un checkbox de severidad lo deja marcado y dispara una petición con esa severidad 302ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  16:48:19
+   Duration  3.04s (transform 215ms, setup 174ms, collect 481ms, tests 1.07s, environment 837ms, prepare 91ms)
+

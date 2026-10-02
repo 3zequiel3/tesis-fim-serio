@@ -1,0 +1,17 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l1-rules/frontend
+
+ ✓ src/components/ui/RuleForm.test.tsx > RuleForm accessibility labels > associates every control with a visible label
+ ✓ src/components/ui/RuleForm.test.tsx > RuleForm accessibility labels > connects the required error to the pattern input 445ms
+ ✓ src/pages/Rules.test.tsx > Rules — US-16 edición y US-17 eliminación > abre el formulario de edición precargado con patrón, severidad y acción de la regla elegida 657ms
+ ✓ src/pages/Rules.test.tsx > Rules — US-16 edición y US-17 eliminación > no elimina al mostrar la confirmación y llama al endpoint sólo después de confirmar
+ ✓ src/pages/Rules.test.tsx > Rules — US-14 listado > criterio 2: cada fila muestra patrón, severidad y acción
+ ✓ src/pages/Rules.test.tsx > Rules — US-14 listado > criterio 3: indica que la acción por defecto sin regla que matchee es alert_only
+ ✓ src/pages/Rules.test.tsx > Rules — US-14 listado > criterio 4: muestra el ruleset_version actual del sistema
+ ✓ src/pages/Rules.test.tsx > Rules — US-15 creación > criterio 1: existe un formulario para crear una regla con pattern (glob+negación), severidad y acción 640ms
+
+ Test Files  2 passed (2)
+      Tests  8 passed (8)
+   Start at  16:55:22
+   Duration  6.00s (transform 523ms, setup 956ms, collect 1.35s, tests 2.25s, environment 3.64s, prepare 679ms)
+

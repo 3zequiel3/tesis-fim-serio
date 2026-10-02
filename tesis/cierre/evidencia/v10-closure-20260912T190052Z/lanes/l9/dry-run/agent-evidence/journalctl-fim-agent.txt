@@ -1,0 +1,1 @@
+/tmp/collect-agent-evidence.sh: line 83: journalctl: command not found

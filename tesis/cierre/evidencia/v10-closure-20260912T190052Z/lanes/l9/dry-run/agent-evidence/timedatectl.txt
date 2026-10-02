@@ -1,0 +1,1 @@
+/tmp/collect-agent-evidence.sh: line 80: timedatectl: command not found

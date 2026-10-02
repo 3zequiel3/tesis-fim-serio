@@ -1,0 +1,13 @@
+event_id=b69325e7-39d2-4415-bc15-c848bff87e5d db_id=3
+2026-09-12 19:59:25 [info     ] notify.alert_created           alert_id=3 event_id=b69325e7-39d2-4415-bc15-c848bff87e5d severity=critical
+2026-09-12 19:59:26 [warning  ] notifier.n8n_failed            error='All connection attempts failed'
+2026-09-12 19:59:26 [info     ] notify.retry_wait              alert_id=3 attempt=1 delay_s=5.0
+2026-09-12 19:59:31 [warning  ] notifier.n8n_failed            error='All connection attempts failed'
+2026-09-12 19:59:31 [info     ] notify.retry_wait              alert_id=3 attempt=2 delay_s=30.0
+2026-09-12 20:00:01 [warning  ] notifier.n8n_failed            error='All connection attempts failed'
+2026-09-12 20:00:01 [info     ] notify.retry_wait              alert_id=3 attempt=3 delay_s=120.0
+2026-09-12 20:02:01 [warning  ] notifier.n8n_failed            error='All connection attempts failed'
+2026-09-12 20:02:01 [warning  ] notifier.smtp_failed           error="Error connecting to 127.0.0.1 on port 2: [Errno 111] Connect call failed ('127.0.0.1', 2)"
+2026-09-12 20:02:01 [warning  ] notifier.webhook_fallback_failed error='[Errno -3] Temporary failure in name resolution'
+2026-09-12 20:02:01 [critical ] notifier.log_only              alert_id=3 event_id=b69325e7-39d2-4415-bc15-c848bff87e5d path=/watch/us23-scenario3.txt severity=critical
+2026-09-12 20:02:01 [error    ] notify.all_attempts_failed     alert_id=3

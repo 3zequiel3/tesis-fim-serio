@@ -1,0 +1,192 @@
+ Image fim-acceptance-agent:local Building 
+ Image fim-acceptance-backend:local Building 
+ Image fim-acceptance-frontend:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.62kB done
+#1 DONE 0.0s
+
+#2 [backend internal] load build definition from Dockerfile
+#2 transferring dockerfile: 3.49kB done
+#2 DONE 0.0s
+
+#3 [frontend internal] load build definition from Dockerfile
+#3 transferring dockerfile: 783B done
+#3 DONE 0.0s
+
+#4 [agent internal] load build definition from Dockerfile
+#4 transferring dockerfile: 2.86kB done
+#4 DONE 0.0s
+
+#5 [agent internal] load metadata for docker.io/library/python:3.13-slim
+#5 ...
+
+#6 [frontend internal] load metadata for docker.io/library/node:22-alpine
+#6 DONE 0.2s
+
+#7 [frontend build 1/7] FROM docker.io/library/node:22-alpine@sha256:[REDACTED-OPAQUE]
+#7 resolve docker.io/library/node:22-alpine@sha256:[REDACTED-OPAQUE] 0.0s done
+#7 DONE 0.0s
+
+#8 [frontend serve 1/3] FROM docker.io/library/nginx:alpine@sha256:[REDACTED-OPAQUE]
+#8 resolve docker.io/library/nginx:alpine@sha256:[REDACTED-OPAQUE] 0.0s done
+#8 DONE 0.0s
+
+#5 [backend internal] load metadata for docker.io/library/python:3.13-slim
+#5 DONE 0.2s
+
+#9 [frontend internal] load metadata for docker.io/library/nginx:alpine
+#9 DONE 0.2s
+
+#10 [agent internal] load .dockerignore
+#10 transferring context: 228B done
+#10 DONE 0.0s
+
+#11 [frontend internal] load .dockerignore
+#11 transferring context: 58B done
+#11 DONE 0.0s
+
+#12 [backend internal] load .dockerignore
+#12 transferring context: 162B done
+#12 DONE 0.0s
+
+#13 [frontend internal] load build context
+#13 transferring context: 29.05kB 0.0s done
+#13 DONE 0.0s
+
+#14 [frontend build 2/7] RUN corepack enable
+#14 CACHED
+
+#15 [frontend build 4/7] COPY package.json pnpm-lock.yaml ./
+#15 CACHED
+
+#16 [frontend build 3/7] WORKDIR /app
+#16 CACHED
+
+#17 [frontend build 5/7] RUN pnpm install --frozen-lockfile
+#17 CACHED
+
+#18 [backend builder 1/5] FROM docker.io/library/python:3.13-slim@sha256:[REDACTED-OPAQUE]
+#18 resolve docker.io/library/python:3.13-slim@sha256:[REDACTED-OPAQUE] 0.0s done
+#18 DONE 0.0s
+
+#19 [backend internal] load build context
+#19 transferring context: 1.02MB 0.0s done
+#19 DONE 0.0s
+
+#20 [agent internal] load build context
+#20 transferring context: 1.21kB done
+#20 DONE 0.0s
+
+#21 [backend builder 5/5] RUN pip install --no-cache-dir --upgrade pip  && pip install --no-cache-dir -r requirements.txt
+#21 CACHED
+
+#22 [backend runtime 3/6] COPY --from=builder /opt/venv /opt/venv
+#22 CACHED
+
+#23 [backend runtime 4/6] WORKDIR /app
+#23 CACHED
+
+#24 [backend builder 4/5] COPY requirements.txt .
+#24 CACHED
+
+#25 [backend runtime 2/6] RUN useradd --create-home --uid 10001 app
+#25 CACHED
+
+#26 [backend runtime 5/6] RUN mkdir /certs && chown app:app /certs
+#26 CACHED
+
+#27 [agent builder 4/5] COPY requirements.txt .
+#27 CACHED
+
+#28 [agent runtime 3/5] WORKDIR /app
+#28 CACHED
+
+#29 [agent runtime 2/5] COPY --from=builder /opt/venv /opt/venv
+#29 CACHED
+
+#30 [agent builder 5/5] RUN pip install --no-cache-dir --upgrade pip  && pip install --no-cache-dir -r requirements.txt
+#30 CACHED
+
+#31 [agent builder 2/5] RUN python -m venv /opt/venv
+#31 CACHED
+
+#32 [agent runtime 4/5] COPY . /app/agent/
+#32 CACHED
+
+#33 [agent builder 3/5] WORKDIR /build
+#33 CACHED
+
+#34 [agent runtime 5/5] RUN mkdir -p /var/lib/fim-agent /watch
+#34 CACHED
+
+#35 [frontend build 6/7] COPY . .
+#35 DONE 0.0s
+
+#36 [agent] exporting to image
+#36 exporting layers done
+#36 exporting manifest sha256:[REDACTED-OPAQUE] 0.0s done
+#36 exporting config sha256:[REDACTED-OPAQUE]
+#36 exporting config sha256:[REDACTED-OPAQUE] done
+#36 exporting attestation manifest sha256:[REDACTED-OPAQUE] 0.0s done
+#36 exporting manifest list sha256:[REDACTED-OPAQUE] 0.0s done
+#36 naming to docker.io/library/fim-acceptance-agent:local done
+#36 unpacking to docker.io/library/fim-acceptance-agent:local 0.0s done
+#36 DONE 0.1s
+
+#37 [backend runtime 6/6] COPY --chown=app:app app/ /app/app/
+#37 DONE 0.1s
+
+#38 [backend] exporting to image
+#38 exporting layers 0.1s done
+#38 exporting manifest sha256:[REDACTED-OPAQUE] 0.0s done
+#38 exporting config sha256:[REDACTED-OPAQUE] 0.0s done
+#38 exporting attestation manifest sha256:[REDACTED-OPAQUE] done
+#38 exporting manifest list sha256:[REDACTED-OPAQUE]
+#38 exporting manifest list sha256:[REDACTED-OPAQUE] done
+#38 naming to docker.io/library/fim-acceptance-backend:local done
+#38 unpacking to docker.io/library/fim-acceptance-backend:local 0.0s done
+#38 DONE 0.3s
+
+#39 [agent] resolving provenance for metadata file
+#39 DONE 0.0s
+
+#40 [backend] resolving provenance for metadata file
+#40 DONE 0.0s
+
+#41 [frontend build 7/7] RUN pnpm build
+#41 0.634 
+#41 0.634 > fim-frontend@0.0.1 build /app
+#41 0.634 > tsc -b && vite build
+#41 0.634 
+#41 5.076 vite v6.4.3 building for production...
+#41 5.164 transforming...
+#41 7.084 ✓ 205 modules transformed.
+#41 7.370 rendering chunks...
+#41 7.380 computing gzip size...
+#41 7.396 dist/index.html                   0.46 kB │ gzip:   0.29 kB
+#41 7.396 dist/assets/index-CeyHc7eJ.css   26.76 kB │ gzip:   5.96 kB
+#41 7.396 dist/assets/index-Czo-lVvT.js   437.57 kB │ gzip: 133.09 kB
+#41 7.397 ✓ built in 2.29s
+#41 DONE 7.5s
+
+#42 [frontend serve 2/3] COPY --from=build /app/dist /usr/share/nginx/html
+#42 CACHED
+
+#43 [frontend serve 3/3] COPY nginx.conf /etc/nginx/conf.d/default.conf
+#43 CACHED
+
+#44 [frontend] exporting to image
+#44 exporting layers done
+#44 exporting manifest sha256:[REDACTED-OPAQUE] done
+#44 exporting config sha256:[REDACTED-OPAQUE] done
+#44 exporting attestation manifest sha256:[REDACTED-OPAQUE] done
+#44 exporting manifest list sha256:[REDACTED-OPAQUE] done
+#44 naming to docker.io/library/fim-acceptance-frontend:local done
+#44 unpacking to docker.io/library/fim-acceptance-frontend:local 0.0s done
+#44 DONE 0.1s
+
+#45 [frontend] resolving provenance for metadata file
+#45 DONE 0.0s
+ Image fim-acceptance-backend:local Built 
+ Image fim-acceptance-frontend:local Built 
+ Image fim-acceptance-agent:local Built 

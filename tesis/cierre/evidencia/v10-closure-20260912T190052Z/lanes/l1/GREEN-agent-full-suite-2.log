@@ -1,0 +1,61 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l1-rules/agent
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None
+collected 516 items
+
+agent/tests/test_agent_config.py ...........                             [  2%]
+agent/tests/test_audit_fixes.py ....................                     [  6%]
+agent/tests/test_baseline.py .........................                   [ 10%]
+agent/tests/test_baseline_restore.py ...........                         [ 12%]
+agent/tests/test_bootstrap.py ....                                       [ 13%]
+agent/tests/test_cert_renewal.py ...........                             [ 15%]
+agent/tests/test_commands.py .............................               [ 21%]
+agent/tests/test_decision.py ........................                    [ 26%]
+agent/tests/test_deployment_dropin.py ................                   [ 29%]
+agent/tests/test_detection_gap.py ......                                 [ 30%]
+agent/tests/test_detector_ack.py ........                                [ 31%]
+agent/tests/test_detector_context.py ......                              [ 33%]
+agent/tests/test_detector_dedup.py ....                                  [ 33%]
+agent/tests/test_detector_diff.py ..........                             [ 35%]
+agent/tests/test_detector_discard.py .                                   [ 36%]
+agent/tests/test_detector_hash.py .........                              [ 37%]
+agent/tests/test_detector_multi_event.py s........                       [ 39%]
+agent/tests/test_detector_reload.py .....                                [ 40%]
+agent/tests/test_event_payload_contract.py ....                          [ 41%]
+agent/tests/test_experiment_trace.py ...                                 [ 41%]
+agent/tests/test_experiment_trace_publisher.py ...                       [ 42%]
+agent/tests/test_journal.py ...........                                  [ 44%]
+agent/tests/test_logging.py ..                                           [ 44%]
+agent/tests/test_preflight.py ..........                                 [ 46%]
+agent/tests/test_preflight_startup.py ...                                [ 47%]
+agent/tests/test_publisher.py ............                               [ 49%]
+agent/tests/test_publisher_dispatch_integration.py .....                 [ 50%]
+agent/tests/test_quarantine.py ....................                      [ 54%]
+agent/tests/test_quarantine_maintenance.py ...................           [ 58%]
+agent/tests/test_queue.py .......................                        [ 62%]
+agent/tests/test_reconnect_order.py .........                            [ 64%]
+agent/tests/test_resilience_fixes.py ....................                [ 68%]
+agent/tests/test_restore_feedback_loop.py ................               [ 71%]
+agent/tests/test_restore_metadata.py ........                            [ 73%]
+agent/tests/test_rules.py ........                                       [ 74%]
+agent/tests/test_scope_filter.py ...................                     [ 78%]
+agent/tests/test_shutdown_heartbeat.py ..........                        [ 80%]
+agent/tests/test_stability_fixes.py ...............                      [ 83%]
+agent/tests/test_stream_ack_durability.py .............................. [ 88%]
+.........                                                                [ 90%]
+agent/tests/test_streams.py .............                                [ 93%]
+agent/tests/test_symlink_hardening.py .......................            [ 97%]
+agent/tests/test_transport.py ............                               [100%]
+
+- generated xml file: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l1-rules/.v10-evidence/l1/agent-full-junit.xml -
+======================= 515 passed, 1 skipped in 28.58s ========================

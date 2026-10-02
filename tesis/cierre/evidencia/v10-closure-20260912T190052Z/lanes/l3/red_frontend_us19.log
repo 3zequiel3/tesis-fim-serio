@@ -1,0 +1,2536 @@
+
+ RUN  v2.1.9 [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l3-alerts/frontend
+
+ ❯ src/pages/Alerts.test.tsx (3 tests | 3 failed) 3143ms
+   × Alerts — US-19 listado de alertas > muestra el path del archivo y el tipo de acción de cada alerta 1093ms
+     → Unable to find an element with the text: /etc/shadow. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-green-400"[39m
+              [36m>[39m
+                [0mdelivered[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m>[39m
+                [0mn8n[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-green-400"[39m
+              [36m>[39m
+                [0mdelivered[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m>[39m
+                [0mn8n[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × Alerts — US-19 listado de alertas > muestra un guion cuando la alerta todavía no tiene acción tomada 1029ms
+     → Unable to find an element with the text: /etc/shadow. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-yellow-400"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m/>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-yellow-400"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m/>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × Alerts — US-19 listado de alertas > cada alerta es navegable hacia el detalle del evento asociado 1018ms
+     → Unable to find role="link" and name `/etc\/shadow/`
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-green-400"[39m
+              [36m>[39m
+                [0mdelivered[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m>[39m
+                [0mn8n[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-green-400"[39m
+              [36m>[39m
+                [0mdelivered[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m>[39m
+                [0mn8n[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/Alerts.test.tsx > Alerts — US-19 listado de alertas > muestra el path del archivo y el tipo de acción de cada alerta
+TestingLibraryElementError: Unable to find an element with the text: /etc/shadow. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-green-400"[39m
+              [36m>[39m
+                [0mdelivered[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m>[39m
+                [0mn8n[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-green-400"[39m
+              [36m>[39m
+                [0mdelivered[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m>[39m
+                [0mn8n[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/Alerts.test.tsx:47:25
+     45| 
+     46|     await waitFor(() => expect(apiGet).toHaveBeenCalled())
+     47|     expect(await screen.findByText('/etc/shadow')).toBeInTheDocument()
+       |                         ^
+     48|     expect(screen.getByText('quarantine')).toBeInTheDocument()
+     49|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/pages/Alerts.test.tsx > Alerts — US-19 listado de alertas > muestra un guion cuando la alerta todavía no tiene acción tomada
+TestingLibraryElementError: Unable to find an element with the text: /etc/shadow. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-yellow-400"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m/>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-yellow-400"[39m
+              [36m>[39m
+                [0mpending[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m/>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/Alerts.test.tsx:64:18
+     62| 
+     63|     await waitFor(() => expect(apiGet).toHaveBeenCalled())
+     64|     await screen.findByText('/etc/shadow')
+       |                  ^
+     65|     expect(screen.getByText('—')).toBeInTheDocument()
+     66|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/pages/Alerts.test.tsx > Alerts — US-19 listado de alertas > cada alerta es navegable hacia el detalle del evento asociado
+TestingLibraryElementError: Unable to find role="link" and name `/etc\/shadow/`
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-green-400"[39m
+              [36m>[39m
+                [0mdelivered[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m>[39m
+                [0mn8n[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-semibold text-white"[39m
+        [36m>[39m
+          [0mAlertas[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mEstado[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodos[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"pending"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"delivered"[39m
+            [36m>[39m
+              [0mdelivered[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"failed"[39m
+            [36m>[39m
+              [0mfailed[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"block text-xs text-gray-400 mb-1"[39m
+          [36m>[39m
+            [0mSeveridad[0m
+          [36m</label>[39m
+          [36m<select[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mTodas[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"critical"[39m
+            [36m>[39m
+              [0mcritical[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"high"[39m
+            [36m>[39m
+              [0mhigh[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"medium"[39m
+            [36m>[39m
+              [0mmedium[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"low"[39m
+            [36m>[39m
+              [0mlow[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"bg-gray-800 border border-gray-700 rounded overflow-hidden"[39m
+      [36m>[39m
+        [36m<table[39m
+          [33mclass[39m=[32m"w-full text-sm"[39m
+        [36m>[39m
+          [36m<thead>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"border-b border-gray-700 text-xs text-gray-400"[39m
+            [36m>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mID[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mSeveridad[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEstado[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCanal[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mCreada[0m
+              [36m</th>[39m
+              [36m<th[39m
+                [33mclass[39m=[32m"text-left px-4 py-2.5"[39m
+              [36m>[39m
+                [0mEntregada[0m
+              [36m</th>[39m
+            [36m</tr>[39m
+          [36m</thead>[39m
+          [36m<tbody[39m
+            [33mclass[39m=[32m"divide-y divide-gray-700"[39m
+          [36m>[39m
+            [36m<tr[39m
+              [33mclass[39m=[32m"hover:bg-gray-750"[39m
+            [36m>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 tabular-nums"[39m
+              [36m>[39m
+                [0m1[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-red-400"[39m
+              [36m>[39m
+                [0mcritical[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 font-medium text-green-400"[39m
+              [36m>[39m
+                [0mdelivered[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 font-mono text-xs"[39m
+              [36m>[39m
+                [0mn8n[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:00 ART[0m
+              [36m</td>[39m
+              [36m<td[39m
+                [33mclass[39m=[32m"px-4 py-2.5 text-gray-400 text-xs"[39m
+              [36m>[39m
+                [0m20/08/2026, 09:00:05 ART[0m
+              [36m</td>[39m
+            [36m</tr>[39m
+          [36m</tbody>[39m
+        [36m</table>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex items-center justify-between text-sm text-gray-400"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m1[0m
+          [0m–[0m
+          [0m1[0m
+          [0m de [0m
+          [0m1[0m
+        [36m</span>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center gap-2"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mAnterior[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"tabular-nums"[39m
+          [36m>[39m
+            [0mPágina [0m
+            [0m1[0m
+            [0m de [0m
+            [0m1[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mSiguiente[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/Alerts.test.tsx:76:31
+     74| 
+     75|     await waitFor(() => expect(apiGet).toHaveBeenCalled())
+     76|     const link = await screen.findByRole('link', { name: /etc\/shadow/…
+       |                               ^
+     77|     expect(link).toHaveAttribute('href', '/events/99')
+     78|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  16:52:44
+   Duration  6.46s (transform 260ms, setup 419ms, collect 367ms, tests 3.14s, environment 1.87s, prepare 188ms)
+

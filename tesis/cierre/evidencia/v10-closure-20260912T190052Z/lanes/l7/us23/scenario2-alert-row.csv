@@ -1,0 +1,2 @@
+event_id,severity,channel,delivered_at,failed_at,retry_count,attempt_count
+182aa4c5-dc8f-4ee2-b556-61678b387bde,critical,webhook_fallback,2026-09-12 19:59:10.654932+00,,3,4

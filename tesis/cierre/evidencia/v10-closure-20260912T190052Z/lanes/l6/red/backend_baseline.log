@@ -1,0 +1,120 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l6-diff/backend
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collected 602 items
+
+backend/tests/core/test_notification_settings.py ....                    [  0%]
+backend/tests/core/test_rate_limit_load.py .........                     [  2%]
+backend/tests/core/test_rate_limit_semantics.py ..                       [  2%]
+backend/tests/modules/events/test_retention.py ......                    [  3%]
+backend/tests/modules/users/test_user_management.py .........            [  4%]
+backend/tests/test_actions.py ...............                            [  7%]
+backend/tests/test_actions_router.py .........................           [ 11%]
+backend/tests/test_agent_cert_renewal.py .......                         [ 12%]
+backend/tests/test_agent_mgmt.py ..............                          [ 15%]
+backend/tests/test_agent_watch_path_status.py .........                  [ 16%]
+backend/tests/test_auth.py ..........................                    [ 20%]
+backend/tests/test_c22_auth.py ......                                    [ 21%]
+backend/tests/test_c22_consumer.py .....                                 [ 22%]
+backend/tests/test_c22_fk_chain.py ...                                   [ 23%]
+backend/tests/test_c22_pki.py ......                                     [ 24%]
+backend/tests/test_c22_scope_gate.py .....                               [ 25%]
+backend/tests/test_c31_backend_event_correctness.py ..............       [ 27%]
+backend/tests/test_c32_sse_security_fixes.py .............               [ 29%]
+backend/tests/test_command_ack_consumer.py ...................           [ 32%]
+backend/tests/test_consumer.py .......                                   [ 33%]
+backend/tests/test_domain_models.py ..................                   [ 36%]
+backend/tests/test_drain_backend_unit1.py ......                         [ 37%]
+backend/tests/test_event_ack_status_field.py ...                         [ 38%]
+backend/tests/test_event_action_error.py .........                       [ 39%]
+backend/tests/test_event_consumer_c11.py .........                       [ 41%]
+backend/tests/test_event_listing_contract.py ....................        [ 44%]
+backend/tests/test_event_router.py ....                                  [ 45%]
+backend/tests/test_event_service.py ...............................      [ 50%]
+backend/tests/test_event_severity.py .........                           [ 51%]
+backend/tests/test_event_status_derivation.py .......................... [ 56%]
+..                                                                       [ 56%]
+backend/tests/test_event_symlink_metadata.py ......                      [ 57%]
+backend/tests/test_health.py ...                                         [ 58%]
+backend/tests/test_health_n8n_check.py .............                     [ 60%]
+backend/tests/test_heartbeat_consumer.py ..........                      [ 61%]
+backend/tests/test_integration_transport.py ..                           [ 62%]
+backend/tests/test_jwt_key_rotation.py ..                                [ 62%]
+backend/tests/test_logging_sanitize.py .........                         [ 64%]
+backend/tests/test_logging_trace_id.py ....                              [ 64%]
+backend/tests/test_mtls_transport.py .                                   [ 64%]
+backend/tests/test_n8n_workflow_contract.py ..........                   [ 66%]
+backend/tests/test_notification_payload_contract.py ...........          [ 68%]
+backend/tests/test_notifications.py .................................... [ 74%]
+...                                                                      [ 74%]
+backend/tests/test_openspec_artifact_integrity.py .....                  [ 75%]
+backend/tests/test_published_command_ack_tracking.py ......              [ 76%]
+backend/tests/test_retention_task.py ....                                [ 77%]
+backend/tests/test_rule_sync_outbox.py ....                              [ 78%]
+backend/tests/test_rules_router.py .................                     [ 80%]
+backend/tests/test_rules_service.py .................................    [ 86%]
+backend/tests/test_ruleset_version_atomic.py ..                          [ 86%]
+backend/tests/test_smtp_tls_modes.py .......                             [ 87%]
+backend/tests/test_sse_alerts.py ...........................             [ 92%]
+backend/tests/test_stream_ack_durability_consumer.py ................... [ 95%]
+..........                                                               [ 97%]
+backend/tests/test_stream_ack_durability_outbox.py .........             [ 98%]
+backend/tests/test_timestamps_timezone_aware.py ........                 [100%]
+
+=============================== warnings summary ===============================
+../../tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/modules/users/test_user_management.py: 11 warnings
+tests/test_actions_router.py: 22 warnings
+tests/test_auth.py: 36 warnings
+tests/test_c22_auth.py: 5 warnings
+tests/test_c31_backend_event_correctness.py: 2 warnings
+tests/test_event_listing_contract.py: 22 warnings
+tests/test_event_router.py: 2 warnings
+tests/test_event_severity.py: 3 warnings
+tests/test_jwt_key_rotation.py: 2 warnings
+tests/test_rules_router.py: 8 warnings
+tests/test_timestamps_timezone_aware.py: 8 warnings
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+tests/test_actions_router.py::test_approve_absent_file_without_confirmation_returns_422
+tests/test_auth.py::test_change_password_short_retorna_422
+tests/test_rules_router.py::test_post_rules_empty_pattern_returns_422
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py:328: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    return await dependant.call(**values)
+
+tests/test_auth.py: 14 warnings
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/httpx/_client.py:1859: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return await self.request(
+
+tests/test_c22_pki.py::test_start_mtls_server_retorna_server_con_install_signal_handlers_false
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_c22_pki.py::test_start_mtls_server_retorna_server_con_install_signal_handlers_false
+  [HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_notifications.py::test_health_all_ok
+tests/test_notifications.py::test_health_n8n_degraded_when_not_configured
+tests/test_notifications.py::test_health_check_reads_health_url_not_webhook_url
+  [HOME]/.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/asyncio/base_events.py:2045: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    handle = self._ready.popleft()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 602 passed, 144 warnings in 133.92s (0:02:13) =================

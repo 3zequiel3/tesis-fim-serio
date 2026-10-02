@@ -1,0 +1,2 @@
+agent_id,watch_paths,ruleset_version_applied
+l7-us24-agent,"[""/watch/a"", ""/watch/b""]",1

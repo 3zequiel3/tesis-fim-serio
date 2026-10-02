@@ -1,0 +1,109 @@
+[HOME]/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: [HOME]/Facultad/tesis/tesis-fim-serio-worktrees/l5-agents/agent
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None
+collected 15 items / 11 deselected / 4 selected
+
+agent/tests/test_agent_config.py FFFF                                    [100%]
+
+=================================== FAILURES ===================================
+___________ test_rescan_baseline_handler_scans_only_specified_paths ____________
+agent/tests/test_agent_config.py:455: in test_rescan_baseline_handler_scans_only_specified_paths
+    assert run_scan_calls == [["/etc"]]
+E   AssertionError: assert [['/etc', '/var/lib/fim']] == [['/etc']]
+E     
+E     At index 0 diff: ['/etc', '/var/lib/fim'] != ['/etc']
+E     Use -v to get more diff
+----------------------------- Captured stdout call -----------------------------
+2026-09-12 16:50:26 [info     ] commands.rescan_baseline.starting watch_paths=['/etc', '/var/lib/fim']
+2026-09-12 16:50:26 [info     ] commands.rescan_baseline.done  watch_paths=['/etc', '/var/lib/fim']
+2026-09-12 16:50:26 [debug    ] commands.ack_published         command_id=cmd-c14-rescan_baseline status=ok
+________ test_rescan_baseline_handler_rejects_paths_outside_watch_roots ________
+agent/tests/test_agent_config.py:488: in test_rescan_baseline_handler_rejects_paths_outside_watch_roots
+    assert run_scan_calls == [[]]
+E   AssertionError: assert [['/etc']] == [[]]
+E     
+E     At index 0 diff: ['/etc'] != []
+E     Use -v to get more diff
+----------------------------- Captured stdout call -----------------------------
+2026-09-12 16:50:26 [info     ] commands.rescan_baseline.starting watch_paths=['/etc']
+2026-09-12 16:50:26 [info     ] commands.rescan_baseline.done  watch_paths=['/etc']
+2026-09-12 16:50:26 [debug    ] commands.ack_published         command_id=cmd-c14-rescan_baseline status=ok
+______________ test_rescan_baseline_handler_ignores_stale_version ______________
+agent/tests/test_agent_config.py:518: in test_rescan_baseline_handler_ignores_stale_version
+    run_scan.assert_not_called()
+../../../../.local/share/uv/python/cpython-3.13.14-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:940: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(['/etc'])].
+----------------------------- Captured stdout call -----------------------------
+2026-09-12 16:50:26 [info     ] commands.rescan_baseline.starting watch_paths=['/etc']
+2026-09-12 16:50:26 [info     ] commands.rescan_baseline.done  watch_paths=['/etc']
+2026-09-12 16:50:26 [debug    ] commands.ack_published         command_id=cmd-c14-rescan_baseline status=ok
+__________ test_rescan_baseline_handler_updates_state_ruleset_version __________
+agent/tests/test_agent_config.py:542: in test_rescan_baseline_handler_updates_state_ruleset_version
+    assert agent_state.ruleset_version == 7
+E   AssertionError: assert 0 == 7
+E    +  where 0 = AgentState(ruleset_version=0, last_stream_command_id='0-0', rules=[]).ruleset_version
+----------------------------- Captured stdout call -----------------------------
+2026-09-12 16:50:26 [info     ] commands.rescan_baseline.starting watch_paths=['/etc']
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/.pwd.lock'" path=/etc/.pwd.lock
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/shadow'" path=/etc/shadow
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/shadow-'" path=/etc/shadow-
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/gshadow-'" path=/etc/gshadow-
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/brlapi.key'" path=/etc/brlapi.key
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/sudoers'" path=/etc/sudoers
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/gshadow'" path=/etc/gshadow
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/security/opasswd'" path=/etc/security/opasswd
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ssh/ssh_host_rsa_key'" path=/etc/ssh/ssh_host_rsa_key
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ssh/ssh_host_ecdsa_key'" path=/etc/ssh/ssh_host_ecdsa_key
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ssh/ssh_host_ed25519_key'" path=/etc/ssh/ssh_host_ed25519_key
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-e57dc252-a732-40ed-987f-139aa86857e6.yaml'" path=/etc/netplan/90-NM-e57dc252-a732-40ed-987f-139aa86857e6.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-e9ed39d1-423d-4194-8dbb-8aa934eda4c7.yaml'" path=/etc/netplan/90-NM-e9ed39d1-423d-4194-8dbb-8aa934eda4c7.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-1b333ea5-b238-4acc-bf1b-c9a033c09a04.yaml'" path=/etc/netplan/90-NM-1b333ea5-b238-4acc-bf1b-c9a033c09a04.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-d380fdee-00c9-4962-af2a-6ce48edd634e.yaml'" path=/etc/netplan/90-NM-d380fdee-00c9-4962-af2a-6ce48edd634e.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-6481ec9e-dc04-48dd-b4c7-615cd5161c0d.yaml'" path=/etc/netplan/90-NM-6481ec9e-dc04-48dd-b4c7-615cd5161c0d.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-aa3d7177-c871-45a6-9244-00de891aeb48.yaml'" path=/etc/netplan/90-NM-aa3d7177-c871-45a6-9244-00de891aeb48.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/01-network-manager-all.yaml'" path=/etc/netplan/01-network-manager-all.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-dd4f33f4-0604-436f-9b55-58c6a912dcf7.yaml'" path=/etc/netplan/90-NM-dd4f33f4-0604-436f-9b55-58c6a912dcf7.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-73ff7e96-ddb8-4409-9c5f-25b5d90d49be.yaml'" path=/etc/netplan/90-NM-73ff7e96-ddb8-4409-9c5f-25b5d90d49be.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-f48ff8a1-c641-494d-bc94-76a139b86df4.yaml'" path=/etc/netplan/90-NM-f48ff8a1-c641-494d-bc94-76a139b86df4.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-ef6f0779-0c5e-4b78-bf8d-66955063f736.yaml'" path=/etc/netplan/90-NM-ef6f0779-0c5e-4b78-bf8d-66955063f736.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/netplan/90-NM-48092ab0-ba1b-4033-abb4-0d602ee6cf56.yaml'" path=/etc/netplan/90-NM-48092ab0-ba1b-4033-abb4-0d602ee6cf56.yaml
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/fwupd/fwupd.conf'" path=/etc/fwupd/fwupd.conf
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ppp/pap-secrets'" path=/etc/ppp/pap-secrets
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ppp/chap-secrets'" path=/etc/ppp/chap-secrets
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/sudoers.d/README'" path=/etc/sudoers.d/README
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/cups/printers.conf.O'" path=/etc/cups/printers.conf.O
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/cups/subscriptions.conf.O'" path=/etc/cups/subscriptions.conf.O
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/cups/subscriptions.conf'" path=/etc/cups/subscriptions.conf
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/cups/printers.conf'" path=/etc/cups/printers.conf
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ufw/before.rules'" path=/etc/ufw/before.rules
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ufw/after.rules'" path=/etc/ufw/after.rules
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ufw/after6.rules'" path=/etc/ufw/after6.rules
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ufw/user6.rules'" path=/etc/ufw/user6.rules
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ufw/after.init'" path=/etc/ufw/after.init
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ufw/before6.rules'" path=/etc/ufw/before6.rules
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ufw/before.init'" path=/etc/ufw/before.init
+2026-09-12 16:50:26 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/ufw/user.rules'" path=/etc/ufw/user.rules
+2026-09-12 16:50:27 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/chrony/chrony.keys'" path=/etc/chrony/chrony.keys
+2026-09-12 16:50:27 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/apt/auth.conf.d/90ubuntu-advantage'" path=/etc/apt/auth.conf.d/90ubuntu-advantage
+2026-09-12 16:50:28 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/cloud/cloud.cfg.d/00-subiquity-disable-cloudinit-networking.cfg'" path=/etc/cloud/cloud.cfg.d/00-subiquity-disable-cloudinit-networking.cfg
+2026-09-12 16:50:28 [error    ] baseline.run_scan.error        error="[Errno 13] Permission denied: '/etc/cloud/cloud.cfg.d/99-installer.cfg'" path=/etc/cloud/cloud.cfg.d/99-installer.cfg
+2026-09-12 16:50:28 [info     ] commands.rescan_baseline.done  watch_paths=['/etc']
+2026-09-12 16:50:28 [debug    ] commands.ack_published         command_id=cmd-c14-rescan_baseline status=ok
+=========================== short test summary info ============================
+FAILED agent/tests/test_agent_config.py::test_rescan_baseline_handler_scans_only_specified_paths
+FAILED agent/tests/test_agent_config.py::test_rescan_baseline_handler_rejects_paths_outside_watch_roots
+FAILED agent/tests/test_agent_config.py::test_rescan_baseline_handler_ignores_stale_version
+FAILED agent/tests/test_agent_config.py::test_rescan_baseline_handler_updates_state_ruleset_version
+======================= 4 failed, 11 deselected in 2.62s =======================

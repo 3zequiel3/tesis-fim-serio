@@ -1,0 +1,1 @@
+{"agent_id":"l7-us24-agent","status":"online","last_heartbeat":"2026-09-12T20:06:00.546759Z","queue_pressure":0.0,"ruleset_version_applied":0,"watch_paths":["/watch/a","/watch/b"],"watch_path_status":{"/watch/a":"writable"},"discarded_events":0}

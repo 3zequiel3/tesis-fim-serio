@@ -83,3 +83,17 @@ resultados/
 /tesis/cierre/evidencia/us03-us25-playwright-*/
 /tesis/cierre/evidencia/v10-closure-20260912T190052Z/*
 !/tesis/cierre/evidencia/v10-closure-20260912T190052Z/a3-multihost/
+
+# Paquetes que la tesis cita (detectados por scripts/verificar_rutas_tesis.py,
+# guía de laboratorio v29, L-1): entran por el mismo criterio que los de arriba,
+# un paquete citado que no se puede abrir no sustenta nada. Revisados el
+# 2026-10-02: sin secretos (las coincidencias son nombres de tests), 13 MB.
+# tesis/resultados/ sigue excluido a propósito (se archiva con las planillas del
+# Anexo F); la tesis debe citarlo como planilla, no como ruta del repositorio.
+!/tesis/cierre/evidencia/us02-us20-us31-fixed-us20isolated20260911T0220Z/
+!/tesis/cierre/evidencia/us02-us20-us31-fixed-v10m820260912T190809Z/
+!/tesis/cierre/evidencia/us03-us16-us17-us25-isolated-20260911T015529Z/
+!/tesis/cierre/evidencia/v10-closure-20260912T190052Z/backlog/
+!/tesis/cierre/evidencia/v10-closure-20260912T190052Z/lanes/
+!/tesis/cierre/evidencia/v10-closure-20260912T190052Z/m8/
+!/tesis/cierre/evidencia/v10-closure-20260912T190052Z/m9/

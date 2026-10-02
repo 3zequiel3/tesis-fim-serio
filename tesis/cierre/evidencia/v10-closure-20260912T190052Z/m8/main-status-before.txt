@@ -1,0 +1,6 @@
+705b3249da02:tesis-fim-serio-n8n-1:Up 47 hours
+9639d049e84c:tesis-fim-serio-valkey-1:Up 5 days (healthy)
+babaacff17e2:tesis-fim-serio-db-1:Up 5 days (healthy)
+e21d4255727b:tesis-fim-serio-frontend-1:Up 47 hours
+eb20a2a7ffc6:tesis-fim-serio-agent-1:Up 47 hours
+eedbec1ec1fe:tesis-fim-serio-backend-1:Up 20 hours
