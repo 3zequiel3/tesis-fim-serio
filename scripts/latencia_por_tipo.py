@@ -8,6 +8,7 @@ es el más cercano anterior a detected_at. Cada operación se usa una sola vez.
 Uso:
     python3 scripts/latencia_por_tipo.py <paquete>
     p. ej.: python3 scripts/latencia_por_tipo.py tesis/cierre/evidencia/v2-eval-20260923T215624Z
+            python3 scripts/latencia_por_tipo.py <paquete>/latencia/run-01   (una repetición)
 
 Percentiles: interpolación lineal (misma convención que latencia/resumen.txt).
 Sin dependencias externas.
@@ -25,8 +26,11 @@ def ts(s):
     return datetime.fromisoformat(s.replace('+00', '+00:00')).timestamp()
 
 pkg = Path(sys.argv[1])
-ops = [json.loads(l) for l in open(pkg / 'latencia/bateria3_manifiesto.jsonl')]
-evs = list(csv.DictReader(open(pkg / 'latencia/eventos.csv')))
+# A package (latencia/eventos.csv) or one repetition's folder (latencia/run-0N/, where
+# eventos.csv and the manifest sit directly: battery 3 runs three seeded repetitions).
+lat_dir = pkg / 'latencia' if (pkg / 'latencia/eventos.csv').exists() else pkg
+ops = [json.loads(l) for l in open(lat_dir / 'bateria3_manifiesto.jsonl')]
+evs = list(csv.DictReader(open(lat_dir / 'eventos.csv')))
 por_ruta = defaultdict(list)
 for o in ops:
     por_ruta[o['ruta_agente']].append(o)
