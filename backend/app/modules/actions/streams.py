@@ -207,8 +207,13 @@ def enqueue_quarantine_file(
     """
     Encola el comando `quarantine_file` en el outbox, firmado con HMAC-SHA256.
 
-    Payload: type, command_id, event_id, target_agent_id, path, issued_at, signature.
-    No incluye hash ni ruleset_version (según spec).
+    Payload: type, command_id, event_id, agent_event_id, target_agent_id, path,
+    issued_at, schema_version, signature. No incluye hash ni ruleset_version.
+
+    `agent_event_id` (D82/RN-176) es `Event.event_id`, el UUID que el agente emitió
+    para el evento: el agente lo usa como identidad del artefacto de cuarentena y
+    como clave de journal, igual que en la cuarentena automática. `event_id`
+    conserva su significado (el entero del backend). `restore_file` no lo lleva.
 
     MUST llamarse ANTES de `db.commit()` (D37/RN-131) — ver docstring del módulo.
     """
@@ -219,6 +224,7 @@ def enqueue_quarantine_file(
         "type": "quarantine_file",
         "command_id": command_id,
         "event_id": event.id,
+        "agent_event_id": event.event_id,
         "target_agent_id": event.agent_id,
         "path": event.path,
         "issued_at": datetime.now(timezone.utc).isoformat(),

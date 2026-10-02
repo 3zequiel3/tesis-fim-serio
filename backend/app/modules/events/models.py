@@ -22,6 +22,19 @@ class EventStatus(str, Enum):
     superseded = "superseded"
 
 
+class QuarantineState(str, Enum):
+    """Physical outcome of a quarantine, derived on read (D82/RN-176).
+
+    Not an event state and never persisted: `Event.status` keeps RN-72 intact
+    (a rejection with quarantine still ends in `rejected`).
+    """
+
+    none = "none"
+    quarantined = "quarantined"
+    released = "released"
+    discarded = "discarded"
+
+
 class Event(SQLModel, table=True):
     __tablename__ = "events"
 

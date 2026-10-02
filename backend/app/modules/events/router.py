@@ -20,8 +20,13 @@ from app.core.database import get_session
 from app.core.deps import require_admin, require_full_access
 from app.modules.agents.models import BaselineEntry
 from app.modules.auth.models import User
-from app.modules.events.models import Event, EventStatus
-from app.modules.events.service import derive_action_type, get_event_chain
+from app.modules.events.models import Event, EventStatus, QuarantineState
+from app.modules.events.service import (
+    derive_action_type,
+    get_event_chain,
+    get_quarantine_states,
+    quarantine_state_expr,
+)
 from app.modules.rules.models import PublishedCommand, RuleSeverity
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -68,6 +73,10 @@ class EventOut(BaseModel):
     # agente detenido), False = detección en línea, None = agente anterior que no
     # informó el dato. Aditivo, sin filtro nuevo.
     detected_offline: bool | None = None
+    # D82/RN-176: resultado físico de la cuarentena, derivado en cada lectura
+    # (sin columna ni escritura). NO es un estado del evento: un rechazo con
+    # cuarentena sigue siendo `rejected` (RN-72).
+    quarantine_state: QuarantineState = QuarantineState.none
 
     model_config = {"from_attributes": True}
 
@@ -113,6 +122,11 @@ async def list_events(
     status_filter: Annotated[list[EventStatus], Query(alias="status")] = [],
     # D34/RN-128 (C38): filtro repetible por severidad, mismo patrón que status.
     severity_filter: Annotated[list[RuleSeverity], Query(alias="severity")] = [],
+    # D82/RN-176: filtro repetible, resuelto en SQL con la misma expresión que
+    # produce el campo (afecta total y paginación). Valor desconocido -> 422.
+    quarantine_state_filter: Annotated[
+        list[QuarantineState], Query(alias="quarantine_state")
+    ] = [],
     path_prefix: str | None = Query(default=None),
     # D39/RN-133: date_from/date_to se interpretan como INSTANTES, no como hora
     # de pared del servidor. Un valor con desfase (`+00:00`, `-03:00`, `Z`) se
@@ -128,7 +142,8 @@ async def list_events(
     session: Session = Depends(get_session),
     _user: User = Depends(require_full_access),
 ) -> PaginatedEventsOut:
-    q = select(Event)
+    qs_expr = quarantine_state_expr()
+    q = select(Event, qs_expr.label("quarantine_state"))
 
     if not include_superseded:
         q = q.where(Event.status != EventStatus.superseded)
@@ -138,6 +153,9 @@ async def list_events(
 
     if severity_filter:
         q = q.where(Event.severity.in_(severity_filter))
+
+    if quarantine_state_filter:
+        q = q.where(qs_expr.in_([s.value for s in quarantine_state_filter]))
 
     if path_prefix:
         q = q.where(Event.path.startswith(path_prefix))
@@ -153,14 +171,17 @@ async def list_events(
     total = session.exec(count_q).one()
 
     items_q = q.order_by(Event.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
-    items = list(session.exec(items_q).all())
+    rows = list(session.exec(items_q).all())
+    items = [row[0] for row in rows]
 
     ack_map = _get_ack_status_map(session, [e.id for e in items if e.id is not None])
     return PaginatedEventsOut(
         total=total,
         page=page,
         page_size=page_size,
-        items=[_to_event_out(e, ack_map) for e in items],
+        items=[
+            _to_event_out(row[0], ack_map, QuarantineState(row[1])) for row in rows
+        ],
     )
 
 
@@ -178,7 +199,8 @@ async def get_event(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     ack_map = _get_ack_status_map(session, [event.id] if event.id is not None else [])
     baseline_status = _get_baseline_status(session, event)
-    return _to_event_detail_out(event, ack_map, baseline_status)
+    qs_map = get_quarantine_states(session, [event.id] if event.id is not None else [])
+    return _to_event_detail_out(event, ack_map, baseline_status, qs_map.get(event.id))
 
 
 @router.get("/{event_id}/chain", response_model=EventChainOut)
@@ -194,10 +216,12 @@ async def get_event_chain_endpoint(
     if event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     chain = get_event_chain(session, event)
-    ack_map = _get_ack_status_map(session, [e.id for e in chain if e.id is not None])
+    chain_ids = [e.id for e in chain if e.id is not None]
+    ack_map = _get_ack_status_map(session, chain_ids)
+    qs_map = get_quarantine_states(session, chain_ids)
     return EventChainOut(
         path=event.path,
-        items=[_to_event_out(e, ack_map) for e in chain],
+        items=[_to_event_out(e, ack_map, qs_map.get(e.id)) for e in chain],
     )
 
 
@@ -242,19 +266,28 @@ def _get_ack_status_map(session: Session, event_ids: list[int]) -> dict[int, str
     return result
 
 
-def _to_event_out(event: Event, ack_map: dict[int, str]) -> EventOut:
+def _to_event_out(
+    event: Event,
+    ack_map: dict[int, str],
+    quarantine_state: QuarantineState | None = None,
+) -> EventOut:
     out = EventOut.model_validate(event)
     out.ack_status = ack_map.get(event.id) if event.id is not None else None
+    out.quarantine_state = quarantine_state or QuarantineState.none
     return out
 
 
 def _to_event_detail_out(
-    event: Event, ack_map: dict[int, str], baseline_status: str | None = None
+    event: Event,
+    ack_map: dict[int, str],
+    baseline_status: str | None = None,
+    quarantine_state: QuarantineState | None = None,
 ) -> EventDetailOut:
     out = EventDetailOut.model_validate(event)
     out.ack_status = ack_map.get(event.id) if event.id is not None else None
     out.action_type = derive_action_type(event.status)
     out.baseline_status = baseline_status
+    out.quarantine_state = quarantine_state or QuarantineState.none
     return out
 
 

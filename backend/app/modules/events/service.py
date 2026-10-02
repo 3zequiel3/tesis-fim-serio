@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Any, Callable
 
 import structlog
+import sqlalchemy as sa
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import update as sa_update
 from sqlmodel import Session, select
@@ -22,8 +23,8 @@ from sqlmodel import Session, select
 from app.core.config import settings
 from app.core.database import engine
 from app.modules.audit.models import AuditLog
-from app.modules.events.models import Event, EventStatus, RejectedEventAudit
-from app.modules.rules.models import RuleSeverity
+from app.modules.events.models import Event, EventStatus, QuarantineState, RejectedEventAudit
+from app.modules.rules.models import PublishedCommand, RuleSeverity
 from app.modules.rules.service import determine_severity_for_path
 
 log = structlog.get_logger()
@@ -124,6 +125,78 @@ VALID_TRANSITIONS: dict[EventStatus, set[EventStatus]] = {
 
 _MAX_CHAIN = 10
 _RETENTION_DAYS = 30
+
+
+def quarantine_state_expr() -> sa.ColumnElement:
+    """SQL expression for `quarantine_state`, correlated to `events` (D82/RN-176).
+
+    Derived on every read, no column and no write path: the same expression
+    feeds the response field and the `GET /events` filter, so `total` and the
+    pagination reflect the filter (filtering in Python after the LIMIT would
+    return short pages and false totals).
+
+    - base "in quarantine": `status = quarantined`, or `status = rejected` with
+      an `acked` `quarantine_file` (D30/RN-124: `ack_status` is the source of
+      truth for the physical outcome of a rejection);
+    - no base -> `none`;
+    - base + `acked` `release_quarantine` with `mode = discard` -> `discarded`;
+    - base + `acked` `release_quarantine` with a restore mode -> `released`;
+    - otherwise `quarantined`.
+
+    The mode is read from the signed payload (text column holding JSON) with the
+    dialect-neutral `JSON` type (Postgres renders `CAST(... AS JSON) ->> 'mode'`;
+    SQLite-backed tests still compile `GET /events`). The cast sits inside a CASE on `command_type` so it is only evaluated for
+    `release_quarantine` rows (CASE guarantees evaluation order, a WHERE
+    conjunction does not); every other row type may carry an empty payload.
+    `release_quarantine` is created by Change 65; this only reads it.
+    """
+    pc = PublishedCommand
+    base_qf_acked = (
+        sa.select(pc.id)
+        .where(
+            pc.event_id == Event.id,
+            pc.command_type == "quarantine_file",
+            pc.ack_status == "acked",
+        )
+        .exists()
+    )
+    release_mode = sa.case(
+        (pc.command_type == "release_quarantine", sa.cast(pc.payload, sa.JSON)["mode"].as_string()),
+        else_=sa.null(),
+    )
+
+    def _released(modes: list[str]) -> sa.ColumnElement:
+        return (
+            sa.select(pc.id)
+            .where(
+                pc.event_id == Event.id,
+                pc.command_type == "release_quarantine",
+                pc.ack_status == "acked",
+                release_mode.in_(modes),
+            )
+            .exists()
+        )
+
+    in_quarantine = sa.or_(
+        Event.status == EventStatus.quarantined,
+        sa.and_(Event.status == EventStatus.rejected, base_qf_acked),
+    )
+    return sa.case(
+        (sa.not_(in_quarantine), QuarantineState.none.value),
+        (_released(["discard"]), QuarantineState.discarded.value),
+        (_released(["restore_original", "restore_baseline"]), QuarantineState.released.value),
+        else_=QuarantineState.quarantined.value,
+    )
+
+
+def get_quarantine_states(session: Session, event_ids: list[int]) -> dict[int, QuarantineState]:
+    """`quarantine_state` for a set of events, with the same expression as the filter."""
+    if not event_ids:
+        return {}
+    rows = session.exec(
+        sa.select(Event.id, quarantine_state_expr()).where(Event.id.in_(event_ids))  # type: ignore[union-attr]
+    ).all()
+    return {row[0]: QuarantineState(row[1]) for row in rows}
 
 
 class InvalidTransitionError(Exception):

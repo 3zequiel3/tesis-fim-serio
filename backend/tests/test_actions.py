@@ -289,6 +289,7 @@ def test_reject_restore(session, mock_valkey, admin_user, agent_with_secret):
     payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
     assert payload["type"] == "restore_file"
     assert payload["target_agent_id"] == agent.agent_id
+    assert "agent_event_id" not in payload  # only quarantine_file carries it (D82/RN-176)
 
     # baseline_entries NO modificada (no existe)
     entry = session.exec(
@@ -326,6 +327,16 @@ def test_reject_quarantine(session, mock_valkey, admin_user, agent_with_secret):
     mock_valkey.xadd.assert_called_once()
     payload = json.loads(mock_valkey.xadd.call_args[0][1]["data"])
     assert payload["type"] == "quarantine_file"
+    # D82/RN-176: the signed command carries the agent's event UUID, which the
+    # agent uses as the artifact identity and journal key. `event_id` keeps its
+    # meaning (the backend integer).
+    assert payload["agent_event_id"] == event.event_id
+    assert payload["event_id"] == event.id
+    assert verify_payload(secret, payload)
+    # Tampering with the new field breaks the signature (it is covered by it).
+    assert not verify_payload(secret, {**payload, "agent_event_id": "forged"})
+    # Rejecting with quarantine still ends in `rejected` (RN-11, RN-12, RN-72).
+    assert result.status == EventStatus.rejected
 
 
 # ── 12.7 test_reject_absent_baseline_noop ─────────────────────────────────────
