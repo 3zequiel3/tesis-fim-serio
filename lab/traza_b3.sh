@@ -17,7 +17,7 @@ multipass exec fim-host -- sudo sh /tmp/vm_reset.sh
 sleep 20
 say "running the generator (500 changes over 30 min)"
 T0=$(date -u +%s)
-multipass exec fim-host -- sudo sh /tmp/vm_gen_b3.sh >> "$OUT/generador_stdout.log" 2>&1
+multipass exec fim-host -- sudo sh /tmp/vm_gen_b3.sh 20260917 >> "$OUT/generador_stdout.log" 2>&1
 T1=$(date -u +%s)
 say "generator finished; settling"
 sleep 45

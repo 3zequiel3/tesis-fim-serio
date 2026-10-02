@@ -49,11 +49,11 @@ say "--- Batteries 3 and 7 (30-minute window) ---"
 reset_lab
 mkdir -p "$PAQ/bateria3" "$PAQ/control"
 say "starting the control scanner (baseline + 3 diffs every 900 s)"
-nohup multipass exec fim-host -- sudo sh /tmp/vm_control.sh > "$PAQ/control/control.log" 2>&1 &
+nohup multipass exec fim-host -- sudo sh /tmp/vm_control.sh 20260917 0 > "$PAQ/control/control.log" 2>&1 &
 CONTROL_PID=$!
 sleep 30
 say "starting the Battery 3 generator (500 changes over 30 min)"
-multipass exec fim-host -- sudo sh /tmp/vm_gen_b3.sh >> "$PAQ/bateria3/bateria3_generador_stdout.log" 2>&1
+multipass exec fim-host -- sudo sh /tmp/vm_gen_b3.sh 20260917 >> "$PAQ/bateria3/bateria3_generador_stdout.log" 2>&1
 say "generator finished; waiting for the last control scan"
 wait $CONTROL_PID 2>/dev/null
 say "control finished"
