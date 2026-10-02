@@ -1,0 +1,3 @@
+seed=20261002 fase_control_s=164
+[control] estado /srv/evidencia/control_estado.json descartado (--reset)
+[control] scan_id=1 (baseline) ts=2026-10-02T22:43:15.307386+00:00 archivos=0 cambios=0 duracion_scan_s=0.000 csv=/srv/evidencia/bateria7_control.csv

@@ -1,0 +1,3 @@
+preflight=ok
+rate_limit=rate_per_s=1.6666666666666667 burst=3000 variant=none
+valkey_appendonly=yes
