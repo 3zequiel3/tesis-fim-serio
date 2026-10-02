@@ -34,6 +34,7 @@ from sqlmodel import Session, or_, select
 from app.core.database import engine
 from app.core.streams import STREAM_HEARTBEAT, verify_payload
 from app.modules.agents.models import Agent, AgentStatus
+from app.modules.agents.secret_wrap import unwrap_agent_secret
 
 log = structlog.get_logger()
 
@@ -120,9 +121,9 @@ def _handle_heartbeat(msg_data: dict[str, Any]) -> None:
             log.error("heartbeat_consumer.missing_secret", agent_id=agent_id)
             return
         try:
-            secret = bytes.fromhex(agent.shared_secret_hex)
+            secret = unwrap_agent_secret(agent.agent_id, agent.shared_secret_hex)
         except ValueError:
-            log.error("heartbeat_consumer.invalid_secret_hex", agent_id=agent_id)
+            log.error("heartbeat_consumer.invalid_secret", agent_id=agent_id)
             return
         if not verify_payload(secret, payload):
             log.warning("heartbeat_consumer.invalid_signature", agent_id=agent_id)

@@ -18,6 +18,7 @@ from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.pki import issue_certificate
+from app.modules.agents.secret_wrap import wrap_agent_secret
 from app.modules.agents.models import (
     Agent,
     AgentBootstrapRequest,
@@ -76,7 +77,9 @@ def bootstrap_agent(
     shared_secret = secrets.token_bytes(32)
     master_secret = secrets.token_bytes(32)
 
-    agent.shared_secret_hex = shared_secret.hex()
+    # D86/RN-180: persist the secret wrapped (AES-GCM, AAD = agent_id); the response below
+    # still carries the plain hex to the agent over the TLS bootstrap listener.
+    agent.shared_secret_hex = wrap_agent_secret(agent.agent_id, shared_secret)
     agent.bootstrap_secret_hash = None
     session.add(agent)
     session.commit()

@@ -56,6 +56,7 @@ from app.core.config import settings
 from app.core.database import engine
 from app.core.streams import STREAM_EVENT_ACK, verify_payload
 from app.modules.agents.models import Agent
+from app.modules.agents.secret_wrap import unwrap_agent_secret
 from app.modules.events.models import Event
 from app.modules.agents.models import BaselineStatus
 from app.modules.rules.models import PublishedCommand
@@ -272,7 +273,7 @@ def _get_shared_secret(session: Session, agent_id: str) -> bytes | None:
     if agent is None or not agent.shared_secret_hex:
         return None
     try:
-        return bytes.fromhex(agent.shared_secret_hex)
+        return unwrap_agent_secret(agent.agent_id, agent.shared_secret_hex)
     except ValueError:
         return None
 

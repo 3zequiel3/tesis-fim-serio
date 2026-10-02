@@ -17,9 +17,12 @@ Canonical run (bring up ephemeral backing services first, then):
 Default DATABASE_URL: postgresql+psycopg://fim:test@localhost:5432/fim_test
 """
 
+import atexit
 import hashlib
 import os
+import shutil
 import socket
+import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -123,6 +126,19 @@ os.environ["ADMIN_PASSWORD"] = "AdminPassword123!"
 os.environ["ADMIN_EMAIL"] = os.environ.get("ADMIN_EMAIL", "admin@fim.local")
 os.environ["CORS_ALLOWED_ORIGINS"] = "http://localhost:5173"
 
+# D86/RN-180: wrapping key for the agent shared secret. A throwaway 32-byte key file for the
+# session, mode 0600 (the lifespan refuses anything looser), loaded here so the tests that
+# exercise consumers or services without running the lifespan find the key already loaded.
+_WRAP_KEY_DIR = tempfile.mkdtemp(prefix="fim-wrap-key-")
+WRAP_KEY_PATH = os.path.join(_WRAP_KEY_DIR, "agent-secret-wrap.key")
+_fd = os.open(WRAP_KEY_PATH, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+try:
+    os.write(_fd, os.urandom(32))
+finally:
+    os.close(_fd)
+os.environ["AGENT_SECRET_WRAP_KEY_PATH"] = WRAP_KEY_PATH
+atexit.register(shutil.rmtree, _WRAP_KEY_DIR, ignore_errors=True)
+
 
 # ── Puerto efímero para tests con listener mTLS real (D78/RN-172, Caso A) ────
 #
@@ -193,6 +209,15 @@ def _neutralize_lifespan_mtls_listeners(monkeypatch):
 
     monkeypatch.setattr(main_module, "start_mtls_server", lambda *a, **k: None)
     monkeypatch.setattr(main_module, "start_bootstrap_server", lambda *a, **k: None)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _load_agent_secret_wrap_key():
+    """D86/RN-180 (D-8): load the session wrapping key once, before the first test."""
+    from app.modules.agents.secret_wrap import load_wrap_key
+
+    load_wrap_key(WRAP_KEY_PATH)
+    yield
 
 
 # ── Schema — once per session ─────────────────────────────────────────────────

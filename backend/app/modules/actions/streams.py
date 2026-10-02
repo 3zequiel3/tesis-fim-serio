@@ -51,6 +51,7 @@ from sqlmodel import Session
 
 from app.core.streams import SCHEMA_VERSION, sign_payload
 from app.modules.agents.models import Agent
+from app.modules.agents.secret_wrap import unwrap_agent_secret
 from app.modules.events.models import Event
 from app.modules.rules.models import PublishedCommand
 
@@ -105,7 +106,7 @@ def _get_agent_secret(session: Session, agent_id: str) -> bytes:
         raise ValueError(f"Agent not found: {agent_id}")
     if not agent.shared_secret_hex:
         raise ValueError(f"Agent {agent_id} has no shared_secret_hex")
-    return bytes.fromhex(agent.shared_secret_hex)
+    return unwrap_agent_secret(agent.agent_id, agent.shared_secret_hex)
 
 
 def enqueue_baseline_update(

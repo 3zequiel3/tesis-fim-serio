@@ -63,6 +63,7 @@ from app.core.streams import (
     verify_payload,
 )
 from app.modules.agents.models import Agent, AgentStatus
+from app.modules.agents.secret_wrap import unwrap_agent_secret
 from app.modules.alerts.service import notify_if_applicable
 from app.modules.events.models import EventStatus, RejectedEventAudit, RejectionReason
 from app.modules.events.service import (
@@ -564,7 +565,7 @@ def _get_agent_auth(agent_id: str) -> _AgentAuth:
     if not agent.shared_secret_hex:
         return _AgentAuth(None, agent.status == AgentStatus.revoked)
     try:
-        secret = bytes.fromhex(agent.shared_secret_hex)
+        secret = unwrap_agent_secret(agent.agent_id, agent.shared_secret_hex)
     except ValueError:
         secret = None
     return _AgentAuth(secret, agent.status == AgentStatus.revoked)

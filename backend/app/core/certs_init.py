@@ -8,14 +8,19 @@ de Valkey, el certificado de cliente del backend ante Valkey y —sólo con
 `CONSOLE_TLS_MODE=self_signed`— el certificado autofirmado STANDALONE de la
 consola (ECDSA P-256, NO firmado por la CA propia — D62/RN-156; ver
 `pki.ensure_console_cert`). Se loguea su huella SHA-256 al terminar ese paso.
+Al final asegura la clave de envoltura del secreto compartido de los agentes
+(`agent_secret_wrap_key`, D86/RN-180) en el volumen `backend_secrets`: la crea si
+falta y NUNCA la sobrescribe.
 
 Corre como root (`user: "0:0"` en el compose) para poder fijar dueño y modo
 por archivo en los tres volúmenes de material TLS (`backend_certs`,
-`valkey_tls`, `console_tls_generated`): cada volumen queda con el propietario
-final que su consumidor necesita. `valkey_tls` y `console_tls_generated`
+`valkey_tls`, `console_tls_generated`) y en el cuarto volumen, `backend_secrets`
+(sólo la clave de envoltura, que el contenedor de agente de laboratorio no monta):
+cada volumen queda con el propietario final que su consumidor necesita. `valkey_tls` y `console_tls_generated`
 SHALL NOT contener la clave privada de la CA.
 
-Uso: `python -m app.core.certs_init`. Un fallo termina con exit distinto de 0
+Uso: `python -m app.core.certs_init` (o `--wrap-key-only` para generar sólo la clave de
+envoltura, en los compose de laboratorio). Un fallo termina con exit distinto de 0
 y el log nombra la causa (RuntimeError/ValueError propagado desde `pki.py`).
 """
 
@@ -32,6 +37,7 @@ from app.core.pki import (
     ensure_console_cert,
     ensure_valkey_server_cert,
 )
+from app.modules.agents.secret_wrap import ensure_wrap_key_file
 
 # Ownership targets per volume. Determined empirically against the pinned
 # images (2026-09-13, see design.md §Risks):
@@ -66,8 +72,29 @@ def _chown(path: Path, uid: int, gid: int) -> None:
     os.chown(path, uid, gid)
 
 
-def main() -> int:
+def _ensure_agent_secret_wrap_key(path: str) -> None:
+    """D86/RN-180: the only generator of the wrapping key. Creates it if missing, never
+    overwrites it (a regenerated key would make every wrapped secret unreadable)."""
+    log.info("certs_init.step.start", step="agent_secret_wrap_key")
+    ensure_wrap_key_file(path)
+    _chown(Path(path), _BACKEND_UID, _BACKEND_GID)
+    log.info("certs_init.step.done", step="agent_secret_wrap_key")
+
+
+def main(argv: list[str] | None = None) -> int:
     configure_logging()
+
+    # `--wrap-key-only`: used by the laboratory compose files, whose backend runs without
+    # the full certs-init (the backend issues its own CA there) but still needs the key.
+    if argv and "--wrap-key-only" in argv:
+        try:
+            _ensure_agent_secret_wrap_key(
+                os.environ.get("AGENT_SECRET_WRAP_KEY_PATH", "/secrets/agent-secret-wrap.key")
+            )
+        except Exception as exc:  # noqa: BLE001 — process boundary; log and exit non-zero.
+            log.error("certs_init.failed", reason=str(exc))
+            return 1
+        return 0
 
     ca_cert_path = os.environ.get("CA_CERT_PATH", "/certs/ca.pem")
     ca_key_path = os.environ.get("CA_KEY_PATH", "/certs/ca-key.pem")
@@ -83,6 +110,9 @@ def main() -> int:
     console_tls_dir = Path(os.environ.get("CONSOLE_TLS_GENERATED_DIR", "/console-certs"))
     fim_public_hosts = os.environ.get("FIM_PUBLIC_HOSTS", "")
     console_tls_mode = os.environ.get("CONSOLE_TLS_MODE", "off")
+    agent_secret_wrap_key_path = os.environ.get(
+        "AGENT_SECRET_WRAP_KEY_PATH", "/secrets/agent-secret-wrap.key"
+    )
 
     if console_tls_mode not in _VALID_CONSOLE_TLS_MODES:
         log.error("certs_init.invalid_console_tls_mode", value=console_tls_mode)
@@ -153,6 +183,8 @@ def main() -> int:
             log.info(
                 "certs_init.step.skipped", step="console", console_tls_mode=console_tls_mode
             )
+
+        _ensure_agent_secret_wrap_key(agent_secret_wrap_key_path)
     except Exception as exc:  # noqa: BLE001 — this is the process boundary; log and exit non-zero.
         log.error("certs_init.failed", reason=str(exc))
         return 1
@@ -162,4 +194,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

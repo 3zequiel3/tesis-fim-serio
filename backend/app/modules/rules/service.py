@@ -36,6 +36,7 @@ from valkey.exceptions import ValkeyError
 
 from app.core.streams import SCHEMA_VERSION, STREAM_COMMANDS, sign_payload
 from app.modules.agents.models import Agent
+from app.modules.agents.secret_wrap import unwrap_agent_secret
 from app.modules.audit.models import AuditLog
 from app.modules.rules.models import PublishedCommand, Rule, RuleAction, RuleSeverity, RulesetVersion
 
@@ -183,7 +184,7 @@ def enqueue_rule_sync(session: Session, new_version: int) -> int:
 
     count = 0
     for agent in agents:
-        secret_bytes = bytes.fromhex(agent.shared_secret_hex)  # type: ignore[arg-type]
+        secret_bytes = unwrap_agent_secret(agent.agent_id, agent.shared_secret_hex)  # type: ignore[arg-type]
         command_id = str(uuid.uuid4())
         payload: dict[str, Any] = {
             "type": "rule_sync",

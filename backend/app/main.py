@@ -3,8 +3,8 @@ Entry point del backend FIM Platform.
 
 Orden de inicialización:
   1. configure_logging() — ANTES de instanciar FastAPI.
-  2. lifespan — verificación de esquema + init_valkey + create_all + seed_admin en startup
-     (D3, D7, D84/RN-178).
+  2. lifespan — verificación de esquema + clave de envoltura + init_valkey + create_all +
+     seed_admin + envoltura de secretos heredados en startup (D3, D7, D84/RN-178, D86/RN-180).
   3. app = FastAPI(..., lifespan=lifespan)
   4. Middlewares: CORSOriginMiddleware (RN-95), TraceIdMiddleware (D7).
   5. Routers: /auth, /users.
@@ -42,6 +42,7 @@ from app.core.valkey import (
 from app.modules.agents.command_ack_consumer import run_command_ack_consumer
 from app.modules.agents.heartbeat_consumer import run_heartbeat_consumer
 from app.modules.agents.router import bootstrap_router, renew_router, router as agents_router
+from app.modules.agents.secret_wrap import load_wrap_key, wrap_legacy_agent_secrets
 from app.modules.auth.router import router as auth_router
 from app.modules.auth.service import seed_admin
 from app.modules.events.consumer import run_consumer
@@ -106,6 +107,9 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     # D84/RN-178: abort BEFORE any side effect (ensure_ca writes certs, create_all creates
     # tables, seed_admin inserts) when the schema registry is missing or behind.
     check_schema_version(engine)
+    # D86/RN-180: load the agent-secret wrapping key before any other side effect. A missing,
+    # malformed or loosely-permissioned key aborts the startup here, never reaching create_all.
+    load_wrap_key(settings.agent_secret_wrap_key_path)
     init_valkey(settings.valkey_url)
     init_async_valkey(settings.valkey_url)
     ensure_ca(
@@ -117,6 +121,10 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     )
     SQLModel.metadata.create_all(engine)
     seed_admin()
+    # D86/RN-180: idempotent data reconciliation (not a schema migration, outside D84/RN-178):
+    # wrap any legacy plain-hex agent secret before the consumers start reading them.
+    with Session(engine) as session:
+        wrap_legacy_agent_secrets(session)
 
     mtls_server = start_mtls_server(
         mtls_app,

@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     backend_cert_path: str = ""
     backend_key_path: str = ""
 
+    # Wrapping key for the agent shared secret at rest (D86/RN-180, change 68). Deliberately NOT
+    # validated here: `certs-init` imports this module before the key file exists (it is the one
+    # that generates it). The lifespan validates it via `load_wrap_key`.
+    agent_secret_wrap_key_path: str = ""
+
     # Hosts públicos del servidor (D53/RN-147, change 52). Lista separada por
     # comas de IPs y/o nombres DNS por los que los agentes remotos alcanzan
     # este backend. Extiende el SAN del certificado de servidor del backend

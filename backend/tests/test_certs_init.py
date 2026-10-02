@@ -39,6 +39,7 @@ def certs_init_env(tmp_path, monkeypatch):
     monkeypatch.setenv("BACKEND_VALKEY_KEY_PATH", str(backend_certs / "backend-valkey-key.pem"))
     monkeypatch.setenv("VALKEY_TLS_DIR", str(valkey_tls))
     monkeypatch.setenv("CONSOLE_TLS_GENERATED_DIR", str(console_tls))
+    monkeypatch.setenv("AGENT_SECRET_WRAP_KEY_PATH", str(tmp_path / "backend_secrets" / "wrap.key"))
     monkeypatch.delenv("FIM_PUBLIC_HOSTS", raising=False)
     monkeypatch.setenv("CONSOLE_TLS_MODE", "off")
     return {
