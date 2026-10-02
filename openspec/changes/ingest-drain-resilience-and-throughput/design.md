@@ -217,7 +217,13 @@ registra el número y no lo implementa.
 ## Migration Plan
 
 1. Mergear después de archivar las Changes 67 y 68.
-2. `docker compose up -d valkey` recrea el contenedor con AOF; el volumen se conserva.
+2. Activar AOF sobre un volumen que **ya tiene datos** exige un paso previo (verificado en Valkey
+   9.0.3, `mediciones.md` §2): con `--appendonly yes` el servidor no carga `dump.rdb` y crea un AOF
+   vacío, así que un `docker compose up -d valkey` directo pierde el stream y los groups. Con el
+   servidor viejo todavía corriendo (carga el RDB), ejecutar `CONFIG SET appendonly yes`, esperar
+   `aof_rewrite_in_progress:0` y `aof_last_bgrewrite_status:ok` en `INFO persistence`, y recién
+   entonces `docker compose up -d valkey`, que recrea el contenedor con AOF; el volumen se conserva.
+   Un volumen nuevo, sin snapshot previo, no necesita este paso.
 3. Reiniciar el backend para tomar los timeouts y el código nuevo.
 4. Rollback: revertir el commit y recrear `valkey` y `backend`. El AOF es compatible con un
    arranque posterior sin `appendonly` (Valkey vuelve a usar RDB).
