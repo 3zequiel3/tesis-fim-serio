@@ -1400,7 +1400,7 @@ Capacidades:
 
 Reglas: RN-180 (nueva).
 
-**Done**: ningún secreto queda en claro tras la migración; los seis sitios de lectura usan el helper; un valor heredado en hex sigue siendo legible; un AAD distinto falla la verificación; la fila de la tabla STRIDE queda agregada; la suite de backend pasa; `scripts/check_spec_integrity.py` pasa.
+**Done**: ningún secreto queda en claro tras la migración; los seis sitios de lectura usan el helper; un valor heredado en hex sigue siendo legible; un AAD distinto falla la verificación; la fila STRIDE queda entregada al frente de redacción para la Tabla 3 de la tesis (no hay tabla STRIDE en `docs/`); la suite de backend pasa; `scripts/check_spec_integrity.py` pasa.
 
 ---
 
