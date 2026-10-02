@@ -499,3 +499,131 @@ describe('EventDetail — detección offline (D80/RN-174)', () => {
     expect(screen.getByText('Remediación fallida')).toBeInTheDocument()
   })
 })
+
+// D83/RN-177: liberación de cuarentena desde el detalle.
+describe('EventDetail — liberar cuarentena (D83/RN-177)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiPost.mockReset()
+    toastError.mockReset()
+    toastSuccess.mockReset()
+    toastInfo.mockReset()
+  })
+
+  const releaseButton = () => screen.queryByRole('button', { name: 'Liberar cuarentena' })
+
+  it.each([
+    ['quarantined', 'quarantined'],
+    ['rejected', 'quarantined'],
+  ] as const)('un evento %s con quarantine_state %s muestra el botón', async (status, state) => {
+    mockDetailAndChain(makeEvent({ id: 60, status, quarantine_state: state }))
+    renderDetail(60)
+    await screen.findByText('/etc/passwd')
+    expect(releaseButton()).toBeInTheDocument()
+    expect(releaseButton()).toBeEnabled()
+  })
+
+  it.each(['none', 'released', 'discarded'] as const)(
+    'con quarantine_state %s el botón no está',
+    async (state) => {
+      mockDetailAndChain(makeEvent({ id: 61, status: 'quarantined', quarantine_state: state }))
+      renderDetail(61)
+      await screen.findByText('/etc/passwd')
+      expect(releaseButton()).not.toBeInTheDocument()
+    },
+  )
+
+  it('sin quarantine_state (backend anterior) el botón no está', async () => {
+    mockDetailAndChain(makeEvent({ id: 62, status: 'quarantined' }))
+    renderDetail(62)
+    await screen.findByText('/etc/passwd')
+    expect(releaseButton()).not.toBeInTheDocument()
+  })
+
+  it('con un comando pendiente el botón está deshabilitado', async () => {
+    mockDetailAndChain(
+      makeEvent({ id: 63, status: 'quarantined', quarantine_state: 'quarantined', ack_status: 'pending' }),
+    )
+    renderDetail(63)
+    await screen.findByText('/etc/passwd')
+    expect(releaseButton()).toBeDisabled()
+  })
+
+  it('confirmar envía modo y motivo, cierra el modal y avisa que fue solicitada', async () => {
+    mockDetailAndChain(makeEvent({ id: 64, status: 'quarantined', quarantine_state: 'quarantined' }))
+    apiPost.mockResolvedValue({
+      data: { event_id: 64, command_id: 'c', mode: 'discard', ack_status: 'pending' },
+    })
+    const user = userEvent.setup()
+
+    const { queryClient } = renderDetail(64)
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await user.click(await screen.findByRole('button', { name: 'Liberar cuarentena' }))
+    await user.click(screen.getByLabelText(/Descartar el archivo cuarentenado/))
+    await user.type(screen.getByLabelText(/Motivo/), 'falso positivo')
+    await user.click(screen.getByRole('button', { name: 'Confirmar liberación' }))
+
+    await waitFor(() =>
+      expect(apiPost).toHaveBeenCalledWith('/events/64/quarantine/release', {
+        mode: 'discard',
+        reason: 'falso positivo',
+      }),
+    )
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Liberación de cuarentena solicitada'))
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['event', 64] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['events'] })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('409 release_in_progress muestra su mensaje, refresca el evento y deja el modal abierto', async () => {
+    mockDetailAndChain(makeEvent({ id: 65, status: 'quarantined', quarantine_state: 'quarantined' }))
+    apiPost.mockRejectedValue(axiosErrorWithStatus(409, { detail: { code: 'release_in_progress' } }))
+    const user = userEvent.setup()
+
+    const { queryClient } = renderDetail(65)
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await user.click(await screen.findByRole('button', { name: 'Liberar cuarentena' }))
+    await user.click(screen.getByLabelText(/Restaurar la versión aprobada/))
+    await user.type(screen.getByLabelText(/Motivo/), 'x')
+    await user.click(screen.getByRole('button', { name: 'Confirmar liberación' }))
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Ya hay una liberación de cuarentena en curso para este evento.',
+      ),
+    )
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['event', 65] })
+  })
+
+  it('409 quarantine_not_releasable muestra su mensaje', async () => {
+    mockDetailAndChain(makeEvent({ id: 66, status: 'quarantined', quarantine_state: 'quarantined' }))
+    apiPost.mockRejectedValue(axiosErrorWithStatus(409, { detail: { code: 'quarantine_not_releasable' } }))
+    const user = userEvent.setup()
+
+    renderDetail(66)
+
+    await user.click(await screen.findByRole('button', { name: 'Liberar cuarentena' }))
+    await user.click(screen.getByLabelText(/Descartar/))
+    await user.type(screen.getByLabelText(/Motivo/), 'x')
+    await user.click(screen.getByRole('button', { name: 'Confirmar liberación' }))
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('La cuarentena de este evento ya no se puede liberar.'),
+    )
+  })
+
+  it('el modal reabierto empieza vacío', async () => {
+    mockDetailAndChain(makeEvent({ id: 67, status: 'quarantined', quarantine_state: 'quarantined' }))
+    const user = userEvent.setup()
+    renderDetail(67)
+
+    await user.click(await screen.findByRole('button', { name: 'Liberar cuarentena' }))
+    await user.type(screen.getByLabelText(/Motivo/), 'borrador')
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(screen.getByRole('button', { name: 'Liberar cuarentena' }))
+
+    expect(screen.getByLabelText(/Motivo/)).toHaveValue('')
+  })
+})

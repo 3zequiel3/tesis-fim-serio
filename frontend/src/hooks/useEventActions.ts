@@ -7,6 +7,8 @@ import {
   reject,
   bulkApprove,
   bulkReject,
+  releaseQuarantine,
+  type ReleaseQuarantineParams,
   type ApproveParams,
   type RejectParams,
   type RejectAction,
@@ -25,6 +27,19 @@ function bulkActionErrorMessage(err: unknown, verb: string): string | null {
     return `Petición de ${verb} rechazada por el servidor (cuerpo inválido)`
   }
   return `Error al ${verb} en lote`
+}
+
+/**
+ * `code` de un 409 de liberación de cuarentena. El backend lo envía en
+ * `detail.code` (HTTPException); se acepta también `code` plano.
+ */
+function releaseConflictCode(err: unknown): string | undefined {
+  if (!axios.isAxiosError(err)) return undefined
+  const data = err.response?.data as
+    | { code?: string; detail?: { code?: string } | string }
+    | undefined
+  if (data && typeof data.detail === 'object' && data.detail?.code) return data.detail.code
+  return data?.code
 }
 
 interface UseEventActionsOptions {
@@ -88,6 +103,32 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
     },
   })
 
+  // D83/RN-177: liberar una cuarentena. 202 = encolado; el resultado llega por
+  // command_ack, así que el toast habla de "solicitada", no de "liberada".
+  const releaseQuarantineMutation = useMutation({
+    mutationFn: ({ event_id, mode, reason }: ReleaseQuarantineParams) =>
+      releaseQuarantine(event_id, { mode, reason }),
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const code = releaseConflictCode(err)
+        if (code === 'release_in_progress') {
+          toast.error('Ya hay una liberación de cuarentena en curso para este evento.')
+        } else if (code === 'quarantine_not_releasable') {
+          toast.error('La cuarentena de este evento ya no se puede liberar.')
+        } else {
+          toast.error('No se pudo liberar la cuarentena: el evento cambió.')
+        }
+        invalidateEvent()
+        return
+      }
+      toast.error('Error al solicitar la liberación de la cuarentena')
+    },
+    onSuccess: () => {
+      invalidateEvent()
+      toast.success('Liberación de cuarentena solicitada')
+    },
+  })
+
   const bulkApproveMutation = useMutation({
     mutationFn: (eventIds: number[]) => bulkApprove(eventIds),
     onError: (err: unknown) => {
@@ -127,6 +168,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   return {
     approveMutation,
     rejectMutation,
+    releaseQuarantineMutation,
     bulkApproveMutation,
     bulkRejectMutation,
     needsAbsentConfirmation,

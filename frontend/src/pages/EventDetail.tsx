@@ -6,7 +6,8 @@ import { useEventChain } from '@/hooks/useEventChain'
 import { EventTimeline } from '@/components/ui/EventTimeline'
 import { DiffViewer } from '@/components/ui/DiffViewer'
 import { RejectModal } from '@/components/ui/RejectModal'
-import type { RejectAction } from '@/api/actions'
+import { ReleaseQuarantineModal } from '@/components/ui/ReleaseQuarantineModal'
+import type { RejectAction, ReleaseMode } from '@/api/actions'
 import { getAckStatusMeta } from '@/utils/ackStatus'
 import { getQuarantineStateMeta } from '@/utils/quarantineState'
 import { getActionFailedMeta } from '@/utils/actionFailed'
@@ -25,11 +26,13 @@ export function EventDetail() {
   const {
     approveMutation,
     rejectMutation,
+    releaseQuarantineMutation,
     needsAbsentConfirmation,
     clearAbsentConfirmation,
   } = useEventActions({ eventId: eventId ?? undefined })
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [releaseModalOpen, setReleaseModalOpen] = useState(false)
 
   // US-10: la cadena se indexa por path (RN-21/RN-23) — un evento sin path
   // (D51/RN-145) nunca participa del mecanismo, así que ni se consulta.
@@ -82,6 +85,20 @@ export function EventDetail() {
     rejectMutation.mutate(
       { event_id: event.id, version: event.version, action },
       { onSuccess: () => setRejectModalOpen(false) }
+    )
+  }
+
+  // D83/RN-177: la cuarentena es independiente del status (un rechazo con
+  // cuarentena sigue `rejected`), así que el control se condiciona a
+  // quarantine_state y no a status. Se deshabilita mientras un comando está en vuelo.
+  const canRelease = event.quarantine_state === 'quarantined'
+  const releaseInFlight = event.ack_status === 'pending'
+
+  function handleReleaseConfirm(mode: ReleaseMode, reason: string) {
+    if (!event) return
+    releaseQuarantineMutation.mutate(
+      { event_id: event.id, mode, reason },
+      { onSuccess: () => setReleaseModalOpen(false) },
     )
   }
 
@@ -183,6 +200,21 @@ export function EventDetail() {
               </button>
             </>
           )}
+        </div>
+      )}
+
+      {/* Liberación de cuarentena (D83/RN-177): sólo con quarantine_state
+          quarantined; deshabilitada con un comando pendiente. */}
+      {canRelease && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setReleaseModalOpen(true)}
+            disabled={releaseInFlight || releaseQuarantineMutation.isPending}
+            title={releaseInFlight ? 'Hay un comando en curso para este evento' : undefined}
+            className="px-4 py-2 bg-violet-700 hover:bg-violet-600 text-white rounded text-sm font-medium disabled:opacity-50"
+          >
+            Liberar cuarentena
+          </button>
         </div>
       )}
 
@@ -324,6 +356,18 @@ export function EventDetail() {
         onConfirm={handleRejectConfirm}
         isPending={rejectMutation.isPending}
       />
+
+      {/* Modal de liberación de cuarentena */}
+      {releaseModalOpen && (
+        // Montado sólo mientras está abierto: modo y motivo no sobreviven al cierre.
+        <ReleaseQuarantineModal
+          path={event.path}
+          open
+          onClose={() => setReleaseModalOpen(false)}
+          onConfirm={handleReleaseConfirm}
+          isPending={releaseQuarantineMutation.isPending}
+        />
+      )}
     </div>
   )
 }

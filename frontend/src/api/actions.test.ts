@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { bulkApprove, bulkReject, type RejectAction } from './actions'
+import { bulkApprove, bulkReject, releaseQuarantine, type RejectAction } from './actions'
 import { installRequestCapture, type RequestCapture } from '@/test/captureRequest'
 
 const FIXTURE_PATH = path.resolve(process.cwd(), '..', 'contracts', 'actions.bulk-reject.request.json')
@@ -36,5 +36,19 @@ describe('bulk actions — canonical event_ids wire contract', () => {
     expect(body.version).toBeUndefined()
     expect(body.confirm_absent).toBeUndefined()
     expect(body.baseline_absent).toBeUndefined()
+  })
+})
+
+describe('releaseQuarantine — wire contract (D83/RN-177)', () => {
+  it('posts mode and reason to /events/{id}/quarantine/release', async () => {
+    capture = installRequestCapture()
+    await releaseQuarantine(42, { mode: 'restore_baseline', reason: 'falso positivo' })
+    expect(capture.requests).toHaveLength(1)
+    expect(capture.last()!.url).toBe('/events/42/quarantine/release')
+    expect(capture.last()!.method).toBe('post')
+    expect(JSON.parse(capture.last()!.data as string)).toEqual({
+      mode: 'restore_baseline',
+      reason: 'falso positivo',
+    })
   })
 })
