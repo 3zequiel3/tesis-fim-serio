@@ -365,3 +365,38 @@ certificados del backend y de Valkey se reemiten automáticamente por
 días de vigencia (D61/RN-155); no requieren ninguna acción manual siempre que
 el stack se reinicie con cierta regularidad (recomendado: antes del día 75 de
 cada certificado de 90 días).
+
+## 12. Volumen `backend_secrets`: clave de envoltura del secreto de los agentes
+
+El secreto compartido de cada agente (el que firma eventos, heartbeats y
+comandos) se guarda en la base cifrado con AES-256-GCM, con el `agent_id`
+como dato asociado (D86/RN-180). La clave de 32 bytes **no** está en la base:
+vive en el archivo `/secrets/agent-secret-wrap.key` del volumen nombrado
+`backend_secrets`, que montan únicamente `certs-init` (lo genera, en el primer
+`up`) y `backend` (sólo lectura). No requiere ninguna acción manual: en un
+despliegue existente, el primer `up` con la imagen nueva genera la clave y el
+backend envuelve al arrancar los secretos que seguían en claro, sin tocar a
+los agentes.
+
+- **Respaldo.** Respaldar `backend_secrets` **separado** de `pg_data`, en otro
+  destino y con otro control de acceso. Un respaldo conjunto de base y clave
+  anula la protección: quien lo obtiene vuelve a poder firmar como cualquier
+  agente.
+- **Pérdida del volumen.** Sin la clave, ningún secreto envuelto se puede
+  leer y todos los agentes dejan de autenticar. La recuperación es
+  re-bootstrapear **todos** los agentes. `certs-init` nunca sobrescribe una
+  clave existente y, si el archivo existe con un largo distinto de 32 bytes,
+  termina con error en lugar de regenerarlo.
+- **Permisos.** El archivo es `0400` con dueño `10001`. Un archivo más laxo
+  que `0400`/`0600` impide que el backend arranque (log
+  `backend.agent_secret_wrap_key.invalid`, causa `permissive_mode`); si hubo
+  que recrearlo a mano, ajustar el modo con `chmod 0400`.
+- **Sin rotación.** La clave no se rota: no existe re-envoltura con una clave
+  nueva (el prefijo `v1:` queda reservado para una versión futura).
+- **Sin vuelta atrás a una imagen anterior.** Una imagen previa a D86 lee la
+  columna como hex y falla sobre los valores envueltos. No hay ningún comando
+  que reescriba los secretos en claro: volver a una imagen anterior exige
+  re-bootstrapear todos los agentes.
+- **Límite.** La envoltura mitiga la exfiltración de la base (volcados,
+  respaldos, réplicas); no protege contra el compromiso del host ni del
+  proceso del backend.
