@@ -151,5 +151,16 @@ log "--- summary ---"
 log "final: events=$(q_events) queue+discarded=$(q_counts)"
 "${DC[@]}" exec -T db psql -U fim -d fim -c "SELECT count(*) AS events, count(DISTINCT event_id) AS unique_events FROM events;" >> "$LOG" 2>&1
 "${DC[@]}" exec -T db psql -U fim -d fim -c "SELECT reason, count(*) FROM rejected_events_audit GROUP BY 1;" >> "$LOG" 2>&1
+# Consumption window (change ingest-batched-persistence, D87/RN-181): the drain rate as the
+# number of drained events over the span between the first and the last `received_at`, the
+# same quantity the v5.0-tesis diagnosis computed from eventos.csv. It excludes the wait for
+# the Valkey restore and the stability polling above, which `throughput_ev_s` includes.
+read -r CW_EVENTS CW_SECONDS <<<"$("${DC[@]}" exec -T db psql -U fim -d fim -tAF' ' -c "SELECT count(*), COALESCE(EXTRACT(EPOCH FROM (max(received_at) - min(received_at))), 0) FROM events;" 2>/dev/null | tr -d '\r')"
+if [ -n "${CW_SECONDS:-}" ] && [ "$(echo "${CW_SECONDS} > 0" | bc)" = "1" ]; then
+  log "consumption_window_s=$CW_SECONDS"
+  log "consumption_ev_s=$(echo "scale=4; $CW_EVENTS / $CW_SECONDS" | bc)"
+else
+  log "consumption_window_s=n/a (events=${CW_EVENTS:-?} window=${CW_SECONDS:-?})"
+fi
 log "=== end ==="
 [ "$INVALID" = "0" ] || exit 3

@@ -103,3 +103,50 @@ Threshold: 1.5 x 62.0 = **93 ev/s**. Phase A reaches **86.0 ev/s (1.39x): below 
 **Phase B (group 5) is needed** and proceeds in order, starting with 5.0 (delta restored). `real`
 `ingest_ms` is still 11.2 ms against ~5.9 ms in `stub`: the notification lane still costs ~5 ms per
 event on the ingest lane.
+
+
+## 3. After phase B: one transaction per consumer batch (tasks 5.26 and 5.27)
+
+Same host, services, parameters and commands as sections 1 and 2; code = `330a6de` (phase A + phase B).
+Date 2026-10-03. Each drain asserted N distinct rows, an empty PEL and (real) N delivered alerts and
+N rows in the sink.
+
+| Mode | ev/s per run (to last `event_ack`) | median | `ingest_ms` per event (its share of the batch transaction) | batch `ingest_db_ms` | batch `commit_ms` | ack flush / batch | delivery rate (median) |
+|---|---|---|---|---|---|---|---|
+| stub | 780.7 / 770.0 / 778.9 | **778.9** | 0.869 | 53.0 ms (50 candidates) | 0.996 ms | 2.398 ms | n/a |
+| real, `--paths 600` | 184.3 / 176.2 / 179.4 | **179.4** | 2.691 | 150.4 ms (50 candidates) | 1.797 ms | 62.3 ms | **109.4** (112.9 / 109.4 / 109.2) |
+
+Progression of `real --paths 600` (3,000 events, median of 3):
+
+| Step | Code | ev/s (last `event_ack`) | vs baseline | delivery ev/s | `ingest_ms` |
+|---|---|---|---|---|---|
+| Baseline (1.6) | `32d9e5d` | 62.0 | 1.00x | 61.9 | 15.848 |
+| Phase A | `046b716` | 86.0 | 1.39x | 85.9 | 11.202 |
+| Phase A + B | `330a6de` | **179.4** | **2.89x** | **109.4** | 2.691 |
+
+`stub` went from 179.3 (phase A) to 778.9 ev/s: with one COMMIT and ~1 round trip per event the
+ingest lane is no longer the bottleneck of the stub bench. Caveats, so the number is read correctly:
+
+- In `real` mode the ingest lane (179.4 ev/s) now outruns the notification lane: end-to-end the
+  alerts are delivered at 109.4 ev/s, and the drain is only complete when the last alert is delivered.
+  The ingest rate (to the last `event_ack`) is what the Battery 5 consumption window measures; the
+  delivery rate is the real end-to-end limit of the unstubbed chain and is also above the threshold.
+- Per-batch `ack_flush_ms` in `real` mode is 62 ms (2.4 ms in `stub`): the flush competes with the
+  notification coroutines for the event loop while the lane is saturated. It was 3.0 ms with phase A.
+- These are development figures on one host with the user's stack idle alongside; they do not predict the
+  laboratory number (the previous step's 191.5 ev/s in development was 76.6 in the lab).
+
+### Decision of task 5.27 (D-9, `Alert` row inside the batch transaction)
+
+Threshold: >= 93 ev/s (1.5 x 62.0). Phase A + B reach **179.4 ev/s to the last `event_ack` (2.89x)** and
+**109.4 ev/s to the last delivery (1.77x)**; both are above the threshold. **B-6 (tasks 5.28 and 5.29) is
+not applicable** (2026-10-03): the `Alert` row stays in the notification lane, `specs/backend-notifications`
+keeps only the phase A requirement, and D76/RN-170 is not amended.
+
+## 4. Closing checks (task 6.3)
+
+- Baseline (1.6): section 1. Phase A (4.1) and the 4.2 decision: section 2. Phase B (5.26) and the 5.27
+  decision: section 3. B-6 not applied, so there is no 5.29 measurement.
+- The 1.5x threshold (>= 93 ev/s) is met by phase A + B before proposing the `v5.1-tesis` tag.
+- Laboratory confirmation (>= 95 ev/s consumption window) remains DEFERRED (task 6.4): nothing here
+  claims a laboratory improvement.
