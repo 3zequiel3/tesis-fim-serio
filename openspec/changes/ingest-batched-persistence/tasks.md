@@ -19,30 +19,35 @@
 
 ## 2. Fase A — cliente HTTP de larga vida (A-1, A-2, A-3)
 
-- [ ] 2.1 Verificar el `keepAliveTimeout` efectivo del servidor HTTP de n8n 2.17.8 (default de Node, 5 s, salvo que n8n lo cambie): leerlo en el código o la configuración de n8n o medirlo contra el contenedor. Si es menor o igual a 4 s, bajar `keepalive_expiry` por debajo de ese valor y anotarlo acá y en la fila D87.
-- [ ] 2.2 En `backend/app/modules/alerts/notifier.py`, agregar `init_notify_http_client()`, `get_notify_http_client()` (creación perezosa con la misma configuración si no existe) y `close_notify_http_client()` (`aclose()` y descarte). Configuración: verificación TLS por defecto de httpx (nunca `verify=False`), `httpx.Limits(max_connections=settings.notify_max_concurrent_deliveries, max_keepalive_connections=settings.notify_max_concurrent_deliveries, keepalive_expiry=4.0)`.
-- [ ] 2.3 En `send_n8n` y `send_webhook_fallback`, reemplazar `async with httpx.AsyncClient(timeout=timeout)` por `get_notify_http_client().post(url, json=…, timeout=timeout)`, conservando `raise_for_status`, el `try/except` que devuelve `False`, los logs y el sello `backend_dispatched_at`. Comentar citando la ampliación del 2026-10-03 de D87/RN-181 y la medición de `mediciones.md` §1.
-- [ ] 2.4 En `backend/app/main.py`, llamar a `init_notify_http_client()` en el lifespan antes de lanzar los consumers y a `await close_notify_http_client()` en el apagado, después de cancelar las tareas que agendan entregas y antes de `notify_executor.shutdown`.
-- [ ] 2.5 En `backend/tests/conftest.py`, agregar un fixture autouse que cierre y descarte el cliente después de cada test (las conexiones quedan ligadas al loop de cada test).
-- [ ] 2.6 Verificar con `rg -n "httpx.AsyncClient\(" backend/app` que el único sitio por llamada restante es el chequeo de salud de n8n (`core/health.py`), fuera del camino de los eventos, y anotar el resultado acá.
+- [x] 2.1 Verificar el `keepAliveTimeout` efectivo del servidor HTTP de n8n 2.17.8 (default de Node, 5 s, salvo que n8n lo cambie): leerlo en el código o la configuración de n8n o medirlo contra el contenedor. Si es menor o igual a 4 s, bajar `keepalive_expiry` por debajo de ese valor y anotarlo acá y en la fila D87.
+  - Medido sobre la imagen `n8nio/n8n:2.17.8` (contenedor descartable, no el del usuario): `http.createServer().keepAliveTimeout` = 5000 ms (Node v24.14.1) y `rg keepAliveTimeout` no encuentra override en `dist` de n8n. Se mantiene `keepalive_expiry=4,0 s`.
+- [x] 2.2 En `backend/app/modules/alerts/notifier.py`, agregar `init_notify_http_client()`, `get_notify_http_client()` (creación perezosa con la misma configuración si no existe) y `close_notify_http_client()` (`aclose()` y descarte). Configuración: verificación TLS por defecto de httpx (nunca `verify=False`), `httpx.Limits(max_connections=settings.notify_max_concurrent_deliveries, max_keepalive_connections=settings.notify_max_concurrent_deliveries, keepalive_expiry=4.0)`.
+- [x] 2.3 En `send_n8n` y `send_webhook_fallback`, reemplazar `async with httpx.AsyncClient(timeout=timeout)` por `get_notify_http_client().post(url, json=…, timeout=timeout)`, conservando `raise_for_status`, el `try/except` que devuelve `False`, los logs y el sello `backend_dispatched_at`. Comentar citando la ampliación del 2026-10-03 de D87/RN-181 y la medición de `mediciones.md` §1.
+- [x] 2.4 En `backend/app/main.py`, llamar a `init_notify_http_client()` en el lifespan antes de lanzar los consumers y a `await close_notify_http_client()` en el apagado, después de cancelar las tareas que agendan entregas y antes de `notify_executor.shutdown`.
+- [x] 2.5 En `backend/tests/conftest.py`, agregar un fixture autouse que cierre y descarte el cliente después de cada test (las conexiones quedan ligadas al loop de cada test).
+- [x] 2.6 Verificar con `rg -n "httpx.AsyncClient\(" backend/app` que el único sitio por llamada restante es el chequeo de salud de n8n (`core/health.py`), fuera del camino de los eventos, y anotar el resultado acá.
+  - `rg -n "httpx.AsyncClient\(" backend/app`: `core/health.py:107` (chequeo de salud, fuera del camino de eventos) y `alerts/notifier.py:55` (la construcción única del cliente compartido). No quedan clientes por llamada.
 
 ## 3. Fase A — tests
 
-- [ ] 3.1 El cliente se reutiliza: dos llamadas consecutivas a `send_n8n` (y una a `send_webhook_fallback`) contra un servidor HTTP local usan la misma instancia, y `httpx.AsyncClient.__init__` se invoca una sola vez (espía).
-- [ ] 3.2 El cliente se cierra al apagar: ejecutar el lifespan de la app con dependencias dobladas como en los tests de lifespan existentes y verificar que, tras el apagado, el cliente quedó cerrado (`is_closed`) y descartado.
-- [ ] 3.3 La verificación TLS sigue activa: el contexto SSL del transporte del cliente tiene `verify_mode == ssl.CERT_REQUIRED` y `check_hostname` activo, y `rg -n "verify=False" backend/app` no encuentra nada.
-- [ ] 3.4 Recuperación ante reset: un servidor local que cierra la conexión tras responder (o que se detiene y vuelve a levantarse en el mismo puerto entre dos entregas) → la entrega afectada, si falla, devuelve `False` sin lanzar, y la entrega siguiente devuelve `True` sobre una conexión nueva.
-- [ ] 3.5 El timeout por canal se conserva: un servidor que no responde hace fallar `send_n8n` por timeout con el valor pasado por pedido.
-- [ ] 3.6 Correr la suite de notificaciones y la completa de backend; los tests existentes de `send_n8n`/`send_webhook_fallback` que parchean `httpx.AsyncClient` se adaptan al cliente compartido sin cambiar lo que afirman, y cada adaptación se anota acá.
+- [x] 3.1 El cliente se reutiliza: dos llamadas consecutivas a `send_n8n` (y una a `send_webhook_fallback`) contra un servidor HTTP local usan la misma instancia, y `httpx.AsyncClient.__init__` se invoca una sola vez (espía).
+- [x] 3.2 El cliente se cierra al apagar: ejecutar el lifespan de la app con dependencias dobladas como en los tests de lifespan existentes y verificar que, tras el apagado, el cliente quedó cerrado (`is_closed`) y descartado.
+- [x] 3.3 La verificación TLS sigue activa: el contexto SSL del transporte del cliente tiene `verify_mode == ssl.CERT_REQUIRED` y `check_hostname` activo, y `rg -n "verify=False" backend/app` no encuentra nada.
+- [x] 3.4 Recuperación ante reset: un servidor local que cierra la conexión tras responder (o que se detiene y vuelve a levantarse en el mismo puerto entre dos entregas) → la entrega afectada, si falla, devuelve `False` sin lanzar, y la entrega siguiente devuelve `True` sobre una conexión nueva.
+- [x] 3.5 El timeout por canal se conserva: un servidor que no responde hace fallar `send_n8n` por timeout con el valor pasado por pedido.
+- [x] 3.6 Correr la suite de notificaciones y la completa de backend; los tests existentes de `send_n8n`/`send_webhook_fallback` que parchean `httpx.AsyncClient` se adaptan al cliente compartido sin cambiar lo que afirman, y cada adaptación se anota acá.
+  - Adaptaciones: `test_send_n8n_success` y `test_send_n8n_failure` (`backend/tests/test_notifications.py`) parcheaban `httpx.AsyncClient` con un doble de context manager; ahora parchean `app.modules.alerts.notifier.get_notify_http_client` con un doble cuyo `post` devuelve lo mismo. Afirman lo mismo (`True` en 2xx, `False` ante excepción). Resto de la suite sin cambios: 1072 passed / 4 skipped (1063 + 9 nuevos).
 
 ## 4. Fase A — medición y compuerta de la fase B (A-4)
 
-- [ ] 4.1 Medir con la fase A igual que en 1.6 (`--notify stub` y `--notify real --paths 600`, 3.000 eventos, 3 repeticiones más una perfilada) y registrar en `mediciones.md` los ev/s, `ingest_ms`, `commit_ms` y la tasa de entrega.
-- [ ] 4.2 Decidir y anotar en `mediciones.md`: si `real` alcanza al menos 1,5× la línea base `real` de 1.6 (≥93 ev/s sobre 62,0), marcar todo el grupo 5 como no aplicable («Fase B no necesaria», con el número y la fecha) y pasar al grupo 6; si no, seguir con el grupo 5.
+- [x] 4.1 Medir con la fase A igual que en 1.6 (`--notify stub` y `--notify real --paths 600`, 3.000 eventos, 3 repeticiones más una perfilada) y registrar en `mediciones.md` los ev/s, `ingest_ms`, `commit_ms` y la tasa de entrega.
+- [x] 4.2 Decidir y anotar en `mediciones.md`: si `real` alcanza al menos 1,5× la línea base `real` de 1.6 (≥93 ev/s sobre 62,0), marcar todo el grupo 5 como no aplicable («Fase B no necesaria», con el número y la fecha) y pasar al grupo 6; si no, seguir con el grupo 5.
+  - **Fase B necesaria (2026-10-03):** `real --paths 600` con la fase A = 86,0 ev/s (1,39× de 62,0) < 93. Ver `mediciones.md` §2.
 
 ## 5. Fase B — persistencia por lote (condicional a 4.2)
 
-- [ ] 5.0 Sólo si 4.2 no alcanza el umbral: restaurar en `specs/backend-event-consumer/spec.md` el delta de la fase B redactado en `32d9e5d` (ADDED «Los eventos validados de un lote se persisten en una única transacción», MODIFIED de ACK por lote y de perfilado), ajustado al requisito de piso vigente, y correr `openspec validate ingest-batched-persistence --strict` **antes** de escribir código.
+- [x] 5.0 Sólo si 4.2 no alcanza el umbral: restaurar en `specs/backend-event-consumer/spec.md` el delta de la fase B redactado en `32d9e5d` (ADDED «Los eventos validados de un lote se persisten en una única transacción», MODIFIED de ACK por lote y de perfilado), ajustado al requisito de piso vigente, y correr `openspec validate ingest-batched-persistence --strict` **antes** de escribir código.
+  - Delta restaurado de `32d9e5d` (ADDED + MODIFIED de ACK y perfilado) junto al MODIFIED vigente de piso; `openspec validate --strict` OK.
 
 ### B-1 Núcleo de ingesta y severidad puros (D-3)
 

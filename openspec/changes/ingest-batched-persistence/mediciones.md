@@ -79,3 +79,27 @@ notification lane's per-delivery SSL context. The design must be reopened (decis
 orchestrator/user): either keep batching with a revised expectation (the 1.5x threshold of D-9 may be
 unreachable by `COMMIT` reduction alone), or add the notification-lane CPU cost (`send_n8n` client
 reuse, today a Non-Goal) to scope. No ingest code has been changed.
+
+
+## 2. After phase A: one long-lived httpx client (tasks 4.1 and 4.2)
+
+Same host, services, parameters and commands as section 1 (3,000 events, 3 repeats + 1 profiled,
+`batch-ack`); code = `046b716` (shared client in `alerts/notifier.py`). Date 2026-10-03.
+
+| Mode | ev/s per run | median | `ingest_ms` | `commit_ms` | `commit_ms` / `ingest_ms` | delivery rate (median) |
+|---|---|---|---|---|---|---|
+| stub | 184.4 / 179.3 / 164.3 | **179.3** | 5.902 | 0.822 | 13.9 % | n/a |
+| real, `--paths 600` | 86.3 / 86.0 / 84.7 | **86.0** | 11.202 | 1.222 | 10.9 % | 85.9 |
+
+Versus the baseline of section 1 (`real`: 62.0 ev/s, `ingest_ms` 15.848): +38.7 % ev/s (1.39x),
+`ingest_ms` -4.65 ms. Stub is unchanged (177.9 / 169.5 before; 179.3 now), as expected: stub does not
+reach the notification lane. The `verify=False` diagnostic of section 1 (81.4 ev/s) is bettered by the
+real change (86.0) because it also removes the transport construction and the TCP handshake per
+delivery, with TLS verification kept on.
+
+### Decision of task 4.2
+
+Threshold: 1.5 x 62.0 = **93 ev/s**. Phase A reaches **86.0 ev/s (1.39x): below the threshold.**
+**Phase B (group 5) is needed** and proceeds in order, starting with 5.0 (delta restored). `real`
+`ingest_ms` is still 11.2 ms against ~5.9 ms in `stub`: the notification lane still costs ~5 ms per
+event on the ingest lane.
