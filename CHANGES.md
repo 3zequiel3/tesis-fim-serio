@@ -1424,6 +1424,26 @@ Reglas: RN-181 (nueva), D75/RN-169, D76/RN-170, D40/RN-134 y D41/RN-135 (preserv
 
 ---
 
+### Change 70 — `ingest-batched-persistence`
+
+**Capa**: backend + arnés de laboratorio · **Depende de**: 67 (`ingest-token-bucket-rate-limit`), 68 (`agent-secret-wrap-at-rest`) y 69 (`ingest-drain-resilience-and-throughput`, dueña del acumulador de ACK por lote, del perfilado `consumer.timing` y del grupo 7 que esta change reabre), todas archivadas · **Paralelizable con**: ninguna que toque `backend/app/modules/events/consumer.py`, `backend/app/modules/events/service.py`, `backend/app/modules/rules/service.py` o `backend/app/modules/alerts/service.py` · **Origen**: diagnóstico del drenaje sobre `v5.0-tesis` del 2026-10-03, paquete `tesis/cierre/evidencia/diagnostico-drenaje-v5.0-20261003/`; regla de reapertura de `mediciones.md` §5 de la Change 69; candidato nuevo `v5.1-tesis` · **Decisiones**: ampliación del 2026-10-03 de D87/RN-181; enmienda condicional de D76/RN-170
+
+> **Evidencia.** Batería 5 aislada sobre `v5.0-tesis`: 2.995 eventos en 39,1 s de ventana de consumo = **76,6 ev/s**, por debajo del mínimo de 95. `consumer.timing`: `auth_ms` 0,02, `validation_ms` 0,14, `ingest_ms` **12,27 ms** de media (98 % del tiempo; mediana 10,3, mínimo 4,9); flush de ACK 0,4 s en 64 lotes; el lag del grupo sube de 20 a 581 en 8 s. El banco de desarrollo de la Change 69 (191,5 ev/s) reemplazaba la notificación por un no-op y usaba rutas únicas; en el laboratorio cada evento crea además una alerta y una notificación. `_ingest_event_outcome` (`events/service.py`) abre una transacción por evento con ~7 viajes a PostgreSQL y un `COMMIT` durable, que compite con los dos `COMMIT` por alerta del carril de notificación y con la persistencia de n8n en la misma instancia.
+
+Capacidades:
+- **Transacción por lote**: los eventos que superan la validación se persisten en una sola transacción y una sola salida al executor, en el orden del stream; un único `COMMIT` por lote.
+- **Dedup en bloque y dentro del lote**, **`pending` precargado por ruta** con cadena `superseded` entre eventos del mismo lote, **reglas una vez por lote**; la compactación sigue por evento dentro de la misma transacción.
+- **Fallas**: error transitorio → rollback, todo el lote en la PEL, tokens devueltos; `IntegrityError`/`DataError` → re-ejecución evento por evento.
+- **Efectos post-`COMMIT` en orden**: `event_ack`/`XACK`, rechazos `rate_limited`, transición inválida y notificación por evento.
+- **Paso condicional**: fila `Alert` en la transacción del lote sólo si el banco sin stub no alcanza 1,5× su línea base.
+- **Banco sin stub** en `lab/bench_ingest_consumer.py` (reglas `high`, sumidero HTTP que persiste en la misma instancia, rutas repetidas) y **ventana de consumo por `received_at`** en la Batería 5.
+
+Reglas: RN-181 (ampliada), D76/RN-170 (enmienda condicional), D75/RN-169, D40/RN-134, D41/RN-135, D25/RN-121, RN-11, RN-12, RN-72 y RN-98 (preservadas).
+
+**Done**: los dos eventos de la misma ruta en un lote forman cadena; un error transitorio deja todo el lote en la PEL y la re-entrega no duplica; `test_fifo_order_preserved_after_batch_drain` y `test_no_duplicate_after_transient_db_error_and_pel_redelivery` pasan sin modificación; el banco sin stub registra antes y después en `mediciones.md` y alcanza 1,5× su línea base; la suite de backend pasa; `scripts/check_spec_integrity.py` pasa; la confirmación de laboratorio (≥95 ev/s en la Batería 5 sobre `v5.1-tesis`) queda diferida a la corrida unificada de `v5.1-tesis`, **sin declarar mejora anticipada**.
+
+---
+
 ---
 
 ## Decisiones de implementación cerradas — Abril 2026
