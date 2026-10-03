@@ -425,9 +425,9 @@ d = pathlib.Path(sys.argv[1])
 for e in ("secuencial", "conc50", "conc100"):
     f = d / f"{e}.csv"
     if not f.exists() or f.stat().st_size < 20: print(f"{e}: sin muestras"); continue
-    d = pd.read_csv(f)
+    df = pd.read_csv(f)
     for col in ("ms_aceptacion", "ms_entrega"):
-        s = d[col].dropna()
+        s = df[col].dropna()
         print(f"{e:11s} {col:13s} n={len(s):5d} media={s.mean():9.3f} p50={s.quantile(.50):9.3f} p95={s.quantile(.95):9.3f} p99={s.quantile(.99):9.3f} max={s.max():9.3f}")
 PY
 cat "$OUT/notificacion/resumen.txt" | tee -a "$RES"
