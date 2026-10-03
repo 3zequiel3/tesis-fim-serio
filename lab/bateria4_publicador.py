@@ -13,14 +13,19 @@ from sqlmodel import Session, select
 from app.core.config import settings
 from app.core.database import engine
 from app.modules.agents.models import Agent
+from app.modules.agents.secret_wrap import load_wrap_key, unwrap_agent_secret
 
 ESCENARIO = sys.argv[1]
 TOTAL = int(sys.argv[2])
 CONC = int(sys.argv[3])
 AGENT = "fim-vm"
 
+# Since D86/RN-180 the column holds a `v1:` wrapped value (legacy hex still accepted).
+load_wrap_key(settings.agent_secret_wrap_key_path)
 with Session(engine) as s:
-    secret = bytes.fromhex(s.exec(select(Agent).where(Agent.agent_id == AGENT)).first().shared_secret_hex)
+    secret = unwrap_agent_secret(
+        AGENT, s.exec(select(Agent).where(Agent.agent_id == AGENT)).first().shared_secret_hex
+    )
 
 
 def canonical(o):

@@ -36,7 +36,7 @@ Scripts run from `~/fim-lab`: copy `lib_arnes.sh` and every `vm_*.sh` there afte
 (the harness transfers the `vm_*.sh` helpers to the guest on each run).
 
 - **L-11 purge.** `vm_reset.sh` stops the agent, recreates `baseline queue discarded journal
-  quarantine` (`fim-agent:fim-agent`, 0700), removes `state.json` (and `state.tmp`), resets
+  quarantine` (`fim-agent:fim-agent`, 0700), clears `initialized_roots` in `state.json` while keeping the commands cursor (deleting the file replays the whole `commands` stream, RN-109), resets
   `/srv/fim-watch` (+`critico`), removes the trace file named by `FIM_EXPERIMENT_TRACE_FILE`,
   starts the agent, waits up to 60 s for `agent started` and prints
   `baseline_entries_after_reset=N`; it exits non-zero unless N is 0. `secrets/` and `certs/`

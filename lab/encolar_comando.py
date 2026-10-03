@@ -9,12 +9,15 @@ from sqlmodel import Session, select
 from app.core.config import settings
 from app.core.database import engine
 from app.modules.agents.models import Agent
+from app.modules.agents.secret_wrap import load_wrap_key, unwrap_agent_secret
 
 AGENT = "fim-vm"
 
+# Since D86/RN-180 the column holds a `v1:` wrapped value (legacy hex still accepted).
+load_wrap_key(settings.agent_secret_wrap_key_path)
 with Session(engine) as s:
     agent = s.exec(select(Agent).where(Agent.agent_id == AGENT)).first()
-    secret_hex = agent.shared_secret_hex
+    secret = unwrap_agent_secret(AGENT, agent.shared_secret_hex)
 
 sys.path.insert(0, "/app")
 import hashlib  # noqa: E402
@@ -33,7 +36,7 @@ payload = {
     "issued_at": datetime.now(timezone.utc).isoformat(),
 }
 payload["signature"] = hmac.new(
-    bytes.fromhex(secret_hex), canonical(payload).encode(), hashlib.sha256
+    secret, canonical(payload).encode(), hashlib.sha256
 ).hexdigest()
 
 
