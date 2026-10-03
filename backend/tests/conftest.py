@@ -312,6 +312,19 @@ def _install_notify_executors():
     executors_mod.reset_executors_for_tests()
 
 
+# Change `ingest-batched-persistence` (A-1): the notification lane shares one
+# long-lived httpx client. Its connections are bound to the event loop that opened
+# them and pytest-asyncio creates one loop per test, so every test starts and ends
+# without a client (it is lazily recreated on first use).
+@pytest.fixture(autouse=True)
+def _reset_notify_http_client():
+    from app.modules.alerts import notifier
+
+    notifier.reset_notify_http_client_for_tests()
+    yield
+    notifier.reset_notify_http_client_for_tests()
+
+
 # D87/RN-181: the events consumer caches `_get_agent_auth` per agent_id for 5 s.
 # Tests reuse the same agent_id ("agent-test", ...) with a different random secret
 # and a different in-memory engine, so a cache entry leaking across tests would

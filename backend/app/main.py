@@ -49,6 +49,7 @@ from app.modules.events.consumer import run_consumer
 from app.modules.events.router import router as events_router
 from app.modules.events.service import rejected_events_retention_task, retention_task
 from app.modules.actions.router import router as actions_router
+from app.modules.alerts.notifier import close_notify_http_client, init_notify_http_client
 from app.modules.alerts.router import router as alerts_router
 from app.modules.alerts.service import recover_pending_notifications
 from app.modules.rules.router import router as rules_router
@@ -168,6 +169,10 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     install_executors(db_executor, notify_executor)
     asyncio.get_running_loop().set_default_executor(db_executor)
 
+    # Long-lived HTTP client of the notification lane (D87/RN-181 amplification of
+    # 2026-10-03, A-1): created before any consumer can schedule a delivery.
+    init_notify_http_client()
+
     # Consumers asyncio — conexiones Valkey dedicadas (no bloquean el cliente HTTP)
     stop_event = asyncio.Event()
     async_valkey = build_async_valkey_client(settings.valkey_url)
@@ -206,6 +211,9 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
         bootstrap_task.cancel()
         tasks_to_gather.append(bootstrap_task)
     await asyncio.gather(*tasks_to_gather, return_exceptions=True)
+    # A-1: after the tasks that schedule deliveries were cancelled, before the
+    # notification executor goes away.
+    await close_notify_http_client()
     await async_valkey.aclose()
 
     await close_async_valkey()

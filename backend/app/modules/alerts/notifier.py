@@ -17,12 +17,75 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 import structlog
+
+from app.core.config import settings
 
 log = structlog.get_logger()
 
 _N8N_TIMEOUT = 10.0  # segundos (D-C15-04)
 _FALLBACK_TIMEOUT = 10.0
+
+# ── Long-lived HTTP client of the notification lane ──────────────────────────
+#
+# Amplification of 2026-10-03 of D87/RN-181 (change `ingest-batched-persistence`,
+# phase A, A-1..A-3). A new `httpx.AsyncClient` per delivery rebuilt the SSL
+# context (CA bundle load, CPU held in-process) plus the transport and the TCP
+# handshake on every delivery; measured in `mediciones.md` section 1, the same
+# bench with that cost removed went from 62.0 to 81.4 ev/s. One client for the
+# whole process removes the three costs.
+#
+# TLS verification stays at the httpx default (on, default trust store): the
+# SSL context is built once, here, and certificate verification is never
+# switched off in production code. The per-channel timeout is passed per request.
+#
+# `keepalive_expiry` stays under the 5 s `keepAliveTimeout` that Node uses by
+# default (n8n 2.17.8 does not override it, checked in the image, task 2.1), so
+# the client never reuses a connection that n8n is about to close. A connection
+# reset surfaces as an `httpx.TransportError` that the channel functions already
+# turn into `False` (durable retry ladder, D42/RN-136); httpx drops the broken
+# connection from the pool and the next delivery opens a new one (A-3).
+_KEEPALIVE_EXPIRY_S = 4.0
+_notify_http_client: httpx.AsyncClient | None = None
+
+
+def _build_notify_http_client() -> httpx.AsyncClient:
+    limit = settings.notify_max_concurrent_deliveries
+    return httpx.AsyncClient(
+        limits=httpx.Limits(
+            max_connections=limit,
+            max_keepalive_connections=limit,
+            keepalive_expiry=_KEEPALIVE_EXPIRY_S,
+        ),
+    )
+
+
+def init_notify_http_client() -> httpx.AsyncClient:
+    """Create the shared client (lifespan startup). Idempotent."""
+    global _notify_http_client
+    if _notify_http_client is None or _notify_http_client.is_closed:
+        _notify_http_client = _build_notify_http_client()
+    return _notify_http_client
+
+
+def get_notify_http_client() -> httpx.AsyncClient:
+    """The shared client; lazily created with the same configuration (tests, bench, scripts)."""
+    return init_notify_http_client()
+
+
+async def close_notify_http_client() -> None:
+    """Close and drop the shared client (lifespan shutdown)."""
+    global _notify_http_client
+    client, _notify_http_client = _notify_http_client, None
+    if client is not None:
+        await client.aclose()
+
+
+def reset_notify_http_client_for_tests() -> None:
+    """Drop the client without awaiting it. Test-suite use only (connections are bound to one loop)."""
+    global _notify_http_client
+    _notify_http_client = None
 
 
 async def send_n8n(payload: dict[str, Any], url: str, timeout: float = _N8N_TIMEOUT) -> bool:
@@ -36,15 +99,12 @@ async def send_n8n(payload: dict[str, Any], url: str, timeout: float = _N8N_TIME
         log.debug("notifier.n8n_skipped", reason="url_not_configured")
         return False
     try:
-        import httpx
-
         wire_payload = {
             **payload,
             "backend_dispatched_at": datetime.now(timezone.utc).isoformat(),
         }
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, json=wire_payload)
-            response.raise_for_status()
+        response = await get_notify_http_client().post(url, json=wire_payload, timeout=timeout)
+        response.raise_for_status()
         log.info("notifier.n8n_sent", status_code=response.status_code)
         return True
     except Exception as exc:
@@ -137,11 +197,8 @@ async def send_webhook_fallback(
         log.debug("notifier.webhook_fallback_skipped", reason="url_not_configured")
         return False
     try:
-        import httpx
-
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
+        response = await get_notify_http_client().post(url, json=payload, timeout=timeout)
+        response.raise_for_status()
         log.info("notifier.webhook_fallback_sent", status_code=response.status_code)
         return True
     except Exception as exc:

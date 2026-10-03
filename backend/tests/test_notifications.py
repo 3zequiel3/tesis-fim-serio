@@ -191,12 +191,12 @@ async def test_send_n8n_success():
     mock_response.status_code = 200
     mock_response.raise_for_status = MagicMock()
 
+    # Adapted for the shared long-lived client (change `ingest-batched-persistence`):
+    # the code under test no longer constructs an `AsyncClient` per call.
     mock_client = AsyncMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=mock_response)
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
+    with patch("app.modules.alerts.notifier.get_notify_http_client", return_value=mock_client):
         result = await send_n8n({"data": "x"}, url="http://n8n.local/webhook/test")
     assert result is True
 
@@ -205,11 +205,9 @@ async def test_send_n8n_success():
 async def test_send_n8n_failure():
     """send_n8n retorna False si httpx levanta excepción."""
     mock_client = AsyncMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(side_effect=Exception("connection refused"))
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
+    with patch("app.modules.alerts.notifier.get_notify_http_client", return_value=mock_client):
         result = await send_n8n({"data": "x"}, url="http://n8n.local/webhook/test")
     assert result is False
 
