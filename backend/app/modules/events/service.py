@@ -10,23 +10,24 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 import structlog
 import sqlalchemy as sa
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import update as sa_update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.database import engine
 from app.modules.audit.models import AuditLog
 from app.modules.events.models import Event, EventStatus, QuarantineState, RejectedEventAudit
-from app.modules.rules.models import PublishedCommand, RuleSeverity
-from app.modules.rules.service import determine_severity_for_path
+from app.modules.rules.models import PublishedCommand, Rule, RuleSeverity
+from app.modules.rules.service import determine_severity_for_path, severity_from_rules
 
 log = structlog.get_logger()
 
@@ -214,6 +215,8 @@ class IngestDisposition(str, Enum):
     duplicate = "duplicate"
     supersede_race = "supersede_race"
     rate_limited = "rate_limited"
+    # Batch path only: the candidate hit `InvalidTransitionError` before writing anything.
+    invalid_transition = "invalid_transition"
 
 
 @dataclass(frozen=True)
@@ -322,11 +325,12 @@ def mark_superseded(session: Session, event_id: int, version: int) -> bool:
     return result.rowcount == 1
 
 
-def compact_chain(session: Session, path: str) -> None:
+def compact_chain(session: Session, path: str) -> list[int]:
     """
     Si hay >_MAX_CHAIN eventos superseded para el path, elimina los más antiguos
     excluyendo los referenciados en audit_log. Se llama en la misma transacción
-    que ingest_event (RN-98).
+    que ingest_event (RN-98). Devuelve los `id` de las filas eliminadas (el lote de
+    `ingest-batched-persistence` los usa para no notificar eventos ya compactados).
     """
     superseded = session.exec(
         select(Event)
@@ -335,7 +339,7 @@ def compact_chain(session: Session, path: str) -> None:
     ).all()
 
     if len(superseded) <= _MAX_CHAIN:
-        return
+        return []
 
     protected_ids: set[int] = {
         r
@@ -349,28 +353,72 @@ def compact_chain(session: Session, path: str) -> None:
     }
 
     excess = len(superseded) - _MAX_CHAIN
-    deleted = 0
+    deleted_ids: list[int] = []
     for evt in superseded:
-        if deleted >= excess:
+        if len(deleted_ids) >= excess:
             break
         if evt.id not in protected_ids:
             session.delete(evt)
-            deleted += 1
+            deleted_ids.append(evt.id)
+    return deleted_ids
 
 
-def _ingest_event_outcome(
+@dataclass
+class _IngestBatchContext:
+    """
+    State shared by the candidates of one ingest transaction (change
+    `ingest-batched-persistence`, D-3). `preloaded=False` is the one-event context of
+    the per-event path: every lookup goes to the database as before this change.
+    `preloaded=True` is the batch: dedup ids, the latest `pending` per path and the
+    ruleset were read once, and are kept in step in memory after each insertion.
+    """
+
+    preloaded: bool = False
+    known_event_ids: set[str] = field(default_factory=set)
+    # path -> latest `pending` event (None: no pending). Detached objects: only id/version/status are read.
+    pending_by_path: dict[str, Event | None] = field(default_factory=dict)
+    rules: list[Rule] = field(default_factory=list)
+    # `Event.id` of the rows deleted by `compact_chain` during the batch.
+    removed_event_ids: set[int] = field(default_factory=set)
+    # Rate-limit tokens consumed per agent (refunded if the transaction rolls back).
+    tokens_by_agent: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class IngestBatchItem:
+    """One validated candidate of a batch, in stream order."""
+
+    event_data: dict[str, Any]
+    received_at: datetime
+    detected_at: datetime
+    agent_id: str
+
+
+@dataclass
+class IngestBatchResult:
+    outcomes: list[IngestOutcome]  # one per item, same order
+    removed_event_ids: set[int]
+    candidate_ms: list[float]  # time of each candidate inside the transaction
+    ingest_db_ms: float  # the whole transaction without the COMMIT
+    commit_ms: float
+
+
+def _ingest_into_session(
+    session: Session,
+    ctx: _IngestBatchContext,
     event_data: dict[str, Any],
     received_at: datetime,
     detected_at: datetime,
-    *,
-    accept_new: Callable[[], bool] | None = None,
+    accept_new: Callable[[], bool] | None,
 ) -> IngestOutcome:
     """
-    Ingesta un evento válido:
+    Ingest core shared by the per-event path and the batch (D-3): everything that
+    used to run inside the `with Session` of `_ingest_event_outcome` except opening
+    the session and the `COMMIT`.
     1. Busca pending para el mismo path.
-    2. Si existe → mark_superseded (optimistic); si carrera → retorna None.
-    3. Crea el nuevo evento con parent_event_id si hubo superseded.
-    4. Llama compact_chain en la misma transacción.
+    2. Si existe -> mark_superseded (optimistic); si carrera -> supersede_race.
+    3. Crea el nuevo evento con parent_event_id si hubo superseded (flush, sin commit).
+    4. Llama compact_chain en la misma transaccion.
     """
     # D51/RN-145: sin default. El "" que había acá era la clave con la que
     # get_pending_event_for_path buscaba el pending anterior para supersedirlo
@@ -432,7 +480,11 @@ def _ingest_event_outcome(
     hex_dump_before = _bounded_hex_dump(event_data.get("hex_dump_before"))
     hex_dump_after = _bounded_hex_dump(event_data.get("hex_dump_after"))
 
-    with Session(engine) as session:
+    if ctx.preloaded:
+        # Batch: dedup against the block-loaded ids (database + earlier in the batch).
+        if event_data.get("event_id", "") in ctx.known_event_ids:
+            return IngestOutcome(IngestDisposition.duplicate)
+    else:
         duplicate = session.exec(
             select(Event).where(Event.event_id == event_data.get("event_id", ""))
         ).first()
@@ -440,109 +492,231 @@ def _ingest_event_outcome(
             session.expunge(duplicate)
             return IngestOutcome(IngestDisposition.duplicate, duplicate)
 
-        # Reservar capacidad solo después de deduplicar en la transacción.
-        if accept_new is not None and not accept_new():
-            return IngestOutcome(IngestDisposition.rate_limited)
+    # Reservar capacidad solo después de deduplicar en la transacción.
+    if accept_new is not None and not accept_new():
+        return IngestOutcome(IngestDisposition.rate_limited)
 
-        # D51/RN-145 (D-6 del design): un evento sin ruta no participa de la
-        # supersesión por path — get_pending_event_for_path NUNCA se invoca
-        # con path=None, mantiene su firma `path: str`.
-        pending = get_pending_event_for_path(session, path) if path is not None else None
-        parent_event_id: int | None = None
+    # D51/RN-145 (D-6 del design): un evento sin ruta no participa de la
+    # supersesión por path — get_pending_event_for_path NUNCA se invoca
+    # con path=None, mantiene su firma `path: str`.
+    if path is None:
+        pending = None
+    elif ctx.preloaded:
+        pending = ctx.pending_by_path.get(path)
+    else:
+        pending = get_pending_event_for_path(session, path)
+    parent_event_id: int | None = None
 
-        if pending is not None and pending.id is not None:
+    if pending is not None and pending.id is not None:
+        try:
             validate_transition(pending.status, EventStatus.superseded)
-            success = mark_superseded(session, pending.id, pending.version)
-            if not success:
-                log.warning("service.superseded_race", path=path, pending_id=pending.id)
-                # FIX-03 (D25, RN-121): re-consultar si el pending fue aprobado/rechazado
-                # concurrentemente (en ese caso no hay pending activo → insertar independiente)
-                still_pending = get_pending_event_for_path(session, path)
-                if still_pending is not None:
-                    # Todavía hay un pending activo → skip legítimo
-                    log.warning("service.superseded_race.still_pending", path=path)
-                    return IngestOutcome(IngestDisposition.supersede_race)
-                # No hay pending → continuar inserción como evento independiente
-                log.info("service.superseded_race.insert_independent", path=path)
-                # parent_event_id ya es None; el flujo continúa normalmente
-            else:
-                parent_event_id = pending.id
+        except InvalidTransitionError:
+            if not ctx.preloaded:
+                raise  # per-event path: `_handle_message` handles the propagation
+            return IngestOutcome(IngestDisposition.invalid_transition)
+        success = mark_superseded(session, pending.id, pending.version)
+        if not success:
+            log.warning("service.superseded_race", path=path, pending_id=pending.id)
+            # FIX-03 (D25, RN-121): re-consultar si el pending fue aprobado/rechazado
+            # concurrentemente (en ese caso no hay pending activo → insertar independiente)
+            still_pending = get_pending_event_for_path(session, path)
+            if still_pending is not None:
+                # Todavía hay un pending activo → skip legítimo
+                log.warning("service.superseded_race.still_pending", path=path)
+                if ctx.preloaded:
+                    session.expunge(still_pending)
+                    ctx.pending_by_path[path] = still_pending
+                return IngestOutcome(IngestDisposition.supersede_race)
+            # No hay pending → continuar inserción como evento independiente
+            log.info("service.superseded_race.insert_independent", path=path)
+            # parent_event_id ya es None; el flujo continúa normalmente
+        else:
+            parent_event_id = pending.id
 
-        # D35/RN-129 (C40): terminales de origen agente se persisten con
-        # resolved_at = received_at y resolved_by = NULL — identifica una
-        # resolución automática sin operador humano. pending (incluido el
-        # pending por acción fallida) queda abierto: ambos campos en None.
-        is_terminal = status in (
-            EventStatus.auto_restored,
-            EventStatus.quarantined,
-            EventStatus.alert_only,
-        )
+    # D35/RN-129 (C40): terminales de origen agente se persisten con
+    # resolved_at = received_at y resolved_by = NULL — identifica una
+    # resolución automática sin operador humano. pending (incluido el
+    # pending por acción fallida) queda abierto: ambos campos en None.
+    is_terminal = status in (
+        EventStatus.auto_restored,
+        EventStatus.quarantined,
+        EventStatus.alert_only,
+    )
 
-        # D51/RN-145 (D-7 del design): un evento sin ruta recibe severidad
-        # `high` fija, SIN consultar el ruleset — determine_severity_for_path
-        # no matchea ninguna regla sin path y caería en `low` (D-C15-01), que
-        # es lo contrario de lo que significa una pérdida de cobertura. La
-        # excepción se dispara por AUSENCIA DE RUTA, no por
-        # event_type == "detection_gap": un tipo de evento futuro sin ruta
-        # hereda el tratamiento correcto sin tocar este código. `high` y no
-        # `critical`: una brecha de detección es una pérdida de garantía, no
-        # una violación de integridad confirmada (D34/RN-128 sigue siendo la
-        # única autoridad — el valor que el agente proponga se ignora igual).
-        severity = (
-            RuleSeverity.high
-            if path is None
+    # D51/RN-145 (D-7 del design): un evento sin ruta recibe severidad
+    # `high` fija, SIN consultar el ruleset — determine_severity_for_path
+    # no matchea ninguna regla sin path y caería en `low` (D-C15-01), que
+    # es lo contrario de lo que significa una pérdida de cobertura. La
+    # excepción se dispara por AUSENCIA DE RUTA, no por
+    # event_type == "detection_gap": un tipo de evento futuro sin ruta
+    # hereda el tratamiento correcto sin tocar este código. `high` y no
+    # `critical`: una brecha de detección es una pérdida de garantía, no
+    # una violación de integridad confirmada (D34/RN-128 sigue siendo la
+    # única autoridad — el valor que el agente proponga se ignora igual).
+    severity = (
+        RuleSeverity.high
+        if path is None
+        else (
+            severity_from_rules(path, ctx.rules)
+            if ctx.preloaded
             else determine_severity_for_path(path, session)
         )
+    )
 
-        event = Event(
-            event_id=event_data.get("event_id", ""),
-            agent_id=event_data.get("agent_id", ""),
-            event_type=event_type,
-            path=path,
-            hash_detected=event_data.get("hash_detected") or "",
-            hash_expected=hash_expected,
-            diff_text=diff_text,
-            is_binary=is_binary,
-            hex_dump_before=hex_dump_before,
-            hex_dump_after=hex_dump_after,
-            status=status,
-            severity=severity,
-            action_failed=action_failed,
-            action_error=action_error,
-            detected_offline=detected_offline,
-            parent_event_id=parent_event_id,
-            process_pid=event_data.get("process_pid"),
-            process_uid=event_data.get("process_uid"),
-            process_exe=event_data.get("process_exe"),
-            detected_at=detected_at,
-            received_at=received_at,
-            resolved_at=received_at if is_terminal else None,
-            resolved_by=None,
-            # D33/RN-127 (C39): .get() tolerante — un agente viejo sin estas keys
-            # ingiere igual, con defaults false/None.
-            is_symlink=event_data.get("is_symlink", False),
-            symlink_target=event_data.get("symlink_target"),
+    event = Event(
+        event_id=event_data.get("event_id", ""),
+        agent_id=event_data.get("agent_id", ""),
+        event_type=event_type,
+        path=path,
+        hash_detected=event_data.get("hash_detected") or "",
+        hash_expected=hash_expected,
+        diff_text=diff_text,
+        is_binary=is_binary,
+        hex_dump_before=hex_dump_before,
+        hex_dump_after=hex_dump_after,
+        status=status,
+        severity=severity,
+        action_failed=action_failed,
+        action_error=action_error,
+        detected_offline=detected_offline,
+        parent_event_id=parent_event_id,
+        process_pid=event_data.get("process_pid"),
+        process_uid=event_data.get("process_uid"),
+        process_exe=event_data.get("process_exe"),
+        detected_at=detected_at,
+        received_at=received_at,
+        resolved_at=received_at if is_terminal else None,
+        resolved_by=None,
+        # D33/RN-127 (C39): .get() tolerante — un agente viejo sin estas keys
+        # ingiere igual, con defaults false/None.
+        is_symlink=event_data.get("is_symlink", False),
+        symlink_target=event_data.get("symlink_target"),
+    )
+    session.add(event)
+    session.flush()
+
+    # D51/RN-145 (D-6 del design): la condición `parent_event_id is not
+    # None` ya implica `path is not None` por construcción — sólo hay
+    # parent_event_id cuando hubo supersesión, y un evento sin ruta nunca
+    # supersede (ver la guarda de arriba). Se declara la guarda explícita
+    # igual, para que un refactor futuro no la pierda: un compact_chain
+    # sobre ruta nula borraría eventos de brecha de detección al llegar
+    # al umbral de 10.
+    if parent_event_id is not None and path is not None:
+        ctx.removed_event_ids.update(compact_chain(session, path))
+
+    # Separar la fila ya materializada antes del commit evita que el
+    # despacho dispare un SELECT por expiración del objeto.
+    session.expunge(event)
+    if ctx.preloaded:
+        # Keep the in-memory view of the batch in step with what was just written: the
+        # next candidate of the same path supersedes THIS event if it stayed pending, and
+        # a terminal event leaves no pending behind (a terminal is never pending).
+        ctx.known_event_ids.add(event.event_id)
+        if path is not None:
+            ctx.pending_by_path[path] = event if event.status == EventStatus.pending else None
+    return IngestOutcome(IngestDisposition.persisted, event)
+
+
+def _ingest_event_outcome(
+    event_data: dict[str, Any],
+    received_at: datetime,
+    detected_at: datetime,
+    *,
+    accept_new: Callable[[], bool] | None = None,
+) -> IngestOutcome:
+    """
+    Per-event ingest (own `Session`, own transaction, own `COMMIT`): the path used
+    outside a batch and the replay of a batch that hit a deterministic error.
+    Signature and behavior are unchanged; the work lives in `_ingest_into_session`.
+    """
+    with Session(engine) as session:
+        outcome = _ingest_into_session(
+            session, _IngestBatchContext(), event_data, received_at, detected_at, accept_new
         )
-        session.add(event)
-        session.flush()
-
-        # D51/RN-145 (D-6 del design): la condición `parent_event_id is not
-        # None` ya implica `path is not None` por construcción — sólo hay
-        # parent_event_id cuando hubo supersesión, y un evento sin ruta nunca
-        # supersede (ver la guarda de arriba). Se declara la guarda explícita
-        # igual, para que un refactor futuro no la pierda: un compact_chain
-        # sobre ruta nula borraría eventos de brecha de detección al llegar
-        # al umbral de 10.
-        if parent_event_id is not None and path is not None:
-            compact_chain(session, path)
-
-        # Separar la fila ya materializada antes del commit evita que el
-        # despacho dispare un SELECT por expiración del objeto.
-        session.expunge(event)
+        if outcome.disposition != IngestDisposition.persisted:
+            return outcome
         t_commit = time.perf_counter()
         session.commit()
         commit_ms = (time.perf_counter() - t_commit) * 1000
-        return IngestOutcome(IngestDisposition.persisted, event, commit_ms)
+        return IngestOutcome(IngestDisposition.persisted, outcome.event, commit_ms)
+
+
+def _ingest_batch(
+    items: Sequence[IngestBatchItem],
+    accept_new_for: Callable[[str], Callable[[], bool]],
+    refund: Callable[[str, int], None] | None = None,
+) -> IngestBatchResult:
+    """
+    Persist the validated candidates of a consumer batch in ONE transaction (change
+    `ingest-batched-persistence`, amplification of 2026-10-03 of D87/RN-181), in
+    stream order, with one `COMMIT`. One call, one thread of the ingest executor
+    (D75/RN-169): no concurrency between candidates.
+
+    Reads once: the ids already in the database (block dedup), the latest `pending`
+    per path and the ruleset. The per-candidate semantics (dedup, rate limit,
+    `superseded` chain, optimistic UPDATE and race re-query D25/RN-121, compaction
+    RN-98) are those of `_ingest_into_session`. `accept_new_for(agent_id)` returns
+    the rate-limit check of that agent; `refund(agent_id, n)` gives the consumed
+    tokens back if the transaction rolls back (D-6). On `SQLAlchemyError` the
+    transaction is rolled back, the tokens are refunded and the error propagates.
+    """
+    ctx = _IngestBatchContext(preloaded=True)
+    outcomes: list[IngestOutcome] = []
+    candidate_ms: list[float] = []
+    with Session(engine) as session:
+        try:
+            t_start = time.perf_counter()
+            event_ids = [i.event_data.get("event_id", "") for i in items]
+            if event_ids:
+                ctx.known_event_ids.update(
+                    session.exec(select(Event.event_id).where(Event.event_id.in_(event_ids))).all()  # type: ignore[union-attr]
+                )
+            paths = sorted({p for i in items if (p := i.event_data.get("path")) is not None})
+            for path in paths:
+                ctx.pending_by_path[path] = None
+            if paths:
+                # Newest first: the first row per path is the latest pending. Portable to the
+                # SQLite of the tests (no DISTINCT ON).
+                for pending in session.exec(
+                    select(Event)
+                    .where(Event.path.in_(paths), Event.status == EventStatus.pending)  # type: ignore[union-attr]
+                    .order_by(Event.created_at.desc(), Event.id.desc())
+                ).all():
+                    if ctx.pending_by_path[pending.path] is None:
+                        ctx.pending_by_path[pending.path] = pending
+                    # Detached, so later queries of the batch return fresh instances.
+                    session.expunge(pending)
+            ctx.rules = list(session.exec(select(Rule)).all())
+            for rule in ctx.rules:
+                session.expunge(rule)
+
+            for item in items:
+                t_item = time.perf_counter()
+                check = accept_new_for(item.agent_id)
+
+                def counted(check=check, agent_id=item.agent_id) -> bool:
+                    allowed = check()
+                    if allowed:
+                        ctx.tokens_by_agent[agent_id] = ctx.tokens_by_agent.get(agent_id, 0) + 1
+                    return allowed
+
+                outcome = _ingest_into_session(
+                    session, ctx, item.event_data, item.received_at, item.detected_at, counted
+                )
+                outcomes.append(outcome)
+                candidate_ms.append((time.perf_counter() - t_item) * 1000)
+            ingest_db_ms = (time.perf_counter() - t_start) * 1000
+            t_commit = time.perf_counter()
+            session.commit()
+            commit_ms = (time.perf_counter() - t_commit) * 1000
+        except SQLAlchemyError:
+            session.rollback()
+            if refund is not None:
+                for agent_id, tokens in ctx.tokens_by_agent.items():
+                    refund(agent_id, tokens)
+            raise
+    return IngestBatchResult(outcomes, set(ctx.removed_event_ids), candidate_ms, ingest_db_ms, commit_ms)
 
 
 def ingest_event(

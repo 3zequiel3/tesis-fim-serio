@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import structlog
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -173,6 +173,11 @@ async def test_timing_emitted_per_event_and_per_batch_when_flag_active(mem_engin
     assert ev["total_ms"] >= ev["ingest_ms"] >= 0
     batch = by_scope["batch"]
     assert batch["batch_size"] == 1 and "ack_flush_ms" in batch
+    # Amplification of 2026-10-03 of D87/RN-181 (D-8, D-10): keys added by the batch transaction.
+    assert batch["candidates"] == 1
+    assert batch["ingest_db_ms"] >= 0 and batch["commit_ms"] >= 0
+    # The per-event `ingest_ms` is its share of the batch transaction (the COMMIT is in the batch log).
+    assert "commit_ms" not in ev
     # No payload, signature or secret in the profiling logs.
     for rec in records:
         assert "signature" not in json.dumps(rec, default=str)
@@ -418,14 +423,19 @@ async def test_batch_of_valid_events_flushes_one_pipeline(mem_engine, agent, sha
 
 
 async def test_each_ack_is_appended_after_the_commit_of_its_event(mem_engine, agent, shared_secret) -> None:
+    """
+    Rewritten under the amplification of 2026-10-03 of D87/RN-181 (change
+    `ingest-batched-persistence`, D-10): the events of a batch are persisted in one
+    transaction, so every append to the ACK accumulator follows the COMMIT of the batch.
+    """
     order: list[str] = []
-    original_ingest = consumer_mod._ingest
     original_build = consumer_mod._build_event_ack
+    original_commit = Session.commit
 
-    def spy_ingest(payload, received_at, detected_at, agent_id):
-        outcome = original_ingest(payload, received_at, detected_at, agent_id)
-        order.append(f"committed:{payload['path']}")
-        return outcome
+    def spy_commit(self, *args, **kwargs):
+        result = original_commit(self, *args, **kwargs)
+        order.append("commit")
+        return result
 
     def spy_build(event_id, agent_id, secret):
         order.append("appended")
@@ -434,34 +444,36 @@ async def test_each_ack_is_appended_after_the_commit_of_its_event(mem_engine, ag
     messages = [(f"{i}-0", _msg(_payload(shared_secret, path=f"/f{i}", seq=i))) for i in range(3)]
     client, _p, _e = _pipeline_client(messages)
     e1, e2 = _patch_engines(mem_engine)
-    with e1, e2, patch.object(consumer_mod, "_ingest", spy_ingest), \
+    with e1, e2, patch.object(Session, "commit", spy_commit), \
             patch.object(consumer_mod, "_build_event_ack", spy_build):
         await consumer_mod._process_batch(client, ">")
-    assert order == ["committed:/f0", "appended", "committed:/f1", "appended", "committed:/f2", "appended"]
+    assert order == ["commit", "appended", "appended", "appended"]
 
 
 async def test_transient_db_error_in_the_middle_leaves_only_that_event_in_the_pel(
     mem_engine, agent, shared_secret,
 ) -> None:
-    payloads = [_payload(shared_secret, path=f"/f{i}", seq=i) for i in range(3)]
-    messages = [(f"{i}-0", _msg(p)) for i, p in enumerate(payloads)]
-    original_ingest = consumer_mod._ingest
-
-    def flaky(payload, received_at, detected_at, agent_id):
-        if payload["path"] == "/f1":
-            raise SQLAlchemyError("connection refused")
-        return original_ingest(payload, received_at, detected_at, agent_id)
-
-    client, _p, executed = _pipeline_client(messages)
+    """
+    Rewritten under the amplification of 2026-10-03 of D87/RN-181 (D-10): a transient
+    error of the batch transaction leaves ALL its events in the PEL, with no XACK and no
+    reply. The deterministic-error case (only the offending event stays) is covered in
+    `test_ingest_batched_persistence_consumer.py`.
+    """
+    messages = [(f"{i}-0", _msg(_payload(shared_secret, path=f"/f{i}", seq=i))) for i in range(3)]
+    client, pipelines, executed = _pipeline_client(messages)
+    boom = OperationalError("COMMIT", {}, Exception("connection refused"))
     e1, e2 = _patch_engines(mem_engine)
-    with e1, e2, patch.object(consumer_mod, "_ingest", flaky):
+    with e1, e2, patch.object(Session, "commit", side_effect=boom), \
+            structlog.testing.capture_logs() as cap, patch.object(consumer_mod, "log", structlog.get_logger()):
         await consumer_mod._process_batch(client, ">")
 
-    ops = executed[0]
-    assert ops[-1][3] == ("0-0", "2-0")
-    acked_event_ids = {json.loads(op[2]["data"])["event_id"] for op in ops if op[0] == "xadd"}
-    assert acked_event_ids == {payloads[0]["event_id"], payloads[2]["event_id"]}
-    assert "1-0" not in ops[-1][3]
+    assert executed == [] and pipelines == []
+    client.xack.assert_not_called()
+    client.xadd.assert_not_called()
+    with Session(mem_engine) as session:
+        assert session.exec(select(Event)).all() == []
+    errors = [r for r in cap if r["event"] == "consumer.batch_db_error"]
+    assert len(errors) == 1 and errors[0]["candidates"] == 3
 
 
 async def test_pipeline_failure_keeps_rows_without_xack_and_redelivery_does_not_duplicate(

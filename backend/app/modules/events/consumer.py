@@ -48,7 +48,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.core.config import settings
@@ -68,9 +68,11 @@ from app.modules.agents.secret_wrap import unwrap_agent_secret
 from app.modules.alerts.service import notify_if_applicable
 from app.modules.events.models import EventStatus, RejectedEventAudit, RejectionReason
 from app.modules.events.service import (
+    IngestBatchItem,
     IngestDisposition,
     IngestOutcome,
     InvalidTransitionError,
+    _ingest_batch,
     _ingest_event_outcome,
 )
 
@@ -107,6 +109,32 @@ _background_tasks: set[asyncio.Task] = set()
 # task. `None` outside a batch, which keeps the immediate emission.
 _ack_batch_var: contextvars.ContextVar[list[tuple[str, str]] | None] = contextvars.ContextVar(
     "consumer_ack_batch", default=None
+)
+
+
+# Change `ingest-batched-persistence` (amplification of 2026-10-03 of D87/RN-181): the
+# validated candidates of the batch being dispatched by `_process_batch`. Same reason as
+# `_ack_batch_var`: `_handle_message` keeps its three-argument signature (the double of
+# `test_batch_dispatch_is_strictly_sequential`). `None` outside a batch, which keeps the
+# per-event ingest of the direct call.
+@dataclass(slots=True)
+class _IngestCandidate:
+    msg_id: str
+    payload: dict[str, Any]
+    received_at: datetime
+    detected_at: datetime
+    agent_id: str
+    event_id: str
+    shared_secret: bytes
+    payload_dump: str
+    auth_ms: float
+    auth_cache_hit: bool
+    t_start: float  # perf_counter at the start of `_handle_message`
+    validated_at: float  # perf_counter when the candidate cleared validation
+
+
+_ingest_batch_var: contextvars.ContextVar[list[_IngestCandidate] | None] = contextvars.ContextVar(
+    "consumer_ingest_batch", default=None
 )
 
 
@@ -234,6 +262,20 @@ class _RateLimiter:
                 return True
             return False
 
+    def refund(self, key: str, n: int) -> None:
+        """
+        Give back `n` tokens to `key`, never above `burst` (D-6 of
+        `ingest-batched-persistence`): a batch whose transaction rolled back spent
+        tokens on events that were not persisted, and its PEL re-delivery would spend
+        them again. An unknown key has no state to restore and none is created.
+        """
+        with self._lock:
+            bucket = self._buckets.get(key)
+            if bucket is None:
+                return
+            self._refill(bucket, self._clock())
+            bucket.tokens = min(float(self._burst), bucket.tokens + n)
+
     def seconds_until_available(self, key: str) -> float:
         """
         Seconds until `key` has a token again (D37/RN-131, RN-88): used to derive
@@ -344,24 +386,37 @@ async def _process_batch(client: Any, start_id: str) -> None:
     # D87/RN-181: `event_ack` + `XACK` of every event resolved with an
     # `event_ack` are accumulated here and emitted together once the batch is
     # done, in a single transactional pipeline. An entry is appended only after
-    # the `commit` of its ingest returned (see `_handle_message`).
+    # the `COMMIT` that persisted its event returned (see `_persist_batch`).
     acks: list[tuple[str, str]] = []
     batch_token = _ack_batch_var.set(acks)
+    # Amplification of 2026-10-03 of D87/RN-181 (change `ingest-batched-persistence`):
+    # the messages that clear validation are collected here and persisted together,
+    # in one transaction, after the loop. Validation rejections stay immediate.
+    candidates: list[_IngestCandidate] = []
+    candidates_token = _ingest_batch_var.set(candidates)
     batch_size = 0
+    batch_stats: dict[str, Any] = {}
     # Despacho SECUENCIAL por contrato (D-2 del design de
     # `ingest-offload-blocking-db`, D75/RN-169): sin `gather`, sin
     # `TaskGroup`, sin `create_task` por mensaje. En todo momento hay un
     # solo `_handle_message` en vuelo — el orden FIFO (ítem 40) y la
     # ausencia de duplicados (ítem 41) del protocolo dependen de este mismo
     # bucle. La ganancia que D75 busca es de SOLAPAMIENTO: mientras el hilo
-    # del executor resuelve la ingesta del evento N, el loop queda libre
-    # para retomar la cadena de notificación fire-and-forget del evento
-    # N-1 — no de paralelismo entre eventos del lote.
+    # del executor resuelve la ingesta, el loop queda libre para retomar la
+    # cadena de notificación fire-and-forget del lote anterior — no de
+    # paralelismo entre eventos del lote. La persistencia del lote hace UNA
+    # sola salida al executor (D-2 de `ingest-batched-persistence`), después
+    # del bucle.
     try:
-        for _stream, messages in results:
-            for msg_id, msg_data in messages:
-                batch_size += 1
-                await _handle_message(client, msg_id, msg_data)
+        try:
+            for _stream, messages in results:
+                for msg_id, msg_data in messages:
+                    batch_size += 1
+                    await _handle_message(client, msg_id, msg_data)
+        finally:
+            _ingest_batch_var.reset(candidates_token)
+        if candidates:
+            await _persist_batch(client, candidates, acks, batch_stats)
     finally:
         _ack_batch_var.reset(batch_token)
         # Flush even if a later message of the batch raised: the events already
@@ -378,7 +433,68 @@ async def _process_batch(client: Any, start_id: str) -> None:
                 batch_size=batch_size,
                 acks=ack_count,
                 ack_flush_ms=round((time.perf_counter() - flush_started) * 1000, 3),
+                **batch_stats,
             )
+
+
+async def _persist_batch(
+    client: Any,
+    candidates: list[_IngestCandidate],
+    acks: list[tuple[str, str]],
+    batch_stats: dict[str, Any],
+) -> None:
+    """
+    Persist the validated candidates of a batch in ONE transaction and, once the
+    `COMMIT` returned, apply the effects in stream order (D-2, D-4, D-5 of
+    `ingest-batched-persistence`; amplification of 2026-10-03 of D87/RN-181).
+
+    One call to the ingest executor per batch, no concurrency between candidates
+    (D75/RN-169). Every effect that depends on the outcome of the ingest
+    (`event_ack` + `XACK`, the `rate_limited` and `InvalidTransitionError` replies,
+    the scheduling of the notification) runs after the `COMMIT`: before it nothing is
+    known to be durable, and a rolled-back batch must leave every candidate in the PEL.
+    """
+    loop = asyncio.get_running_loop()
+    items = [IngestBatchItem(c.payload, c.received_at, c.detected_at, c.agent_id) for c in candidates]
+    try:
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(
+                _ingest_batch,
+                items,
+                lambda agent_id: functools.partial(_rate_limiter.check, agent_id),
+                _rate_limiter.refund,
+            ),
+        )
+    except (IntegrityError, DataError):
+        # Deterministic error (an event violates a constraint or does not fit a column):
+        # replay one by one through the per-event path so only the offending event stays
+        # in the PEL, as before the batched persistence. The batch already rolled back and
+        # refunded its tokens, which the replay decides again.
+        log.warning("consumer.batch_replayed_per_event", candidates=len(candidates), exc_info=True)
+        for candidate in candidates:
+            await _ingest_one(client, acks, candidate)
+        return
+    except SQLAlchemyError:
+        # Transient error: nothing is acknowledged or answered, the whole batch stays in
+        # the PEL and the agent republishes after 60 s (dedup makes the re-delivery safe).
+        log.error("consumer.batch_db_error", candidates=len(candidates), exc_info=True)
+        return
+
+    batch_stats.update(
+        candidates=len(candidates),
+        ingest_db_ms=round(result.ingest_db_ms, 3),
+        commit_ms=round(result.commit_ms, 3),
+    )
+    for candidate, outcome, candidate_ms in zip(candidates, result.outcomes, result.candidate_ms):
+        if outcome.disposition == IngestDisposition.invalid_transition:
+            # The only transition the ingest can reject is superseding a pending event.
+            await _reject_invalid_transition(
+                client, candidate, EventStatus.pending, EventStatus.superseded
+            )
+        else:
+            _log_event_timing(candidate, candidate_ms, outcome=None)
+            await _apply_outcome(client, acks, candidate, outcome, result.removed_event_ids)
 
 
 async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) -> None:
@@ -396,7 +512,6 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
     t_start = time.perf_counter()
     auth_ms = 0.0
     auth_cache_hit = False
-    ingest_ms = 0.0
     raw = msg_data.get("data", "{}")
     try:
         payload = json.loads(raw)
@@ -534,97 +649,155 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
 
 
     # ── camino feliz ───────────────────────────────────────────────────────────
+    candidate = _IngestCandidate(
+        msg_id=msg_id,
+        payload=payload,
+        received_at=received_at,
+        detected_at=detected_at,
+        agent_id=agent_id,
+        event_id=event_id,
+        shared_secret=shared_secret,
+        payload_dump=payload_dump,
+        auth_ms=auth_ms,
+        auth_cache_hit=auth_cache_hit,
+        t_start=t_start,
+        validated_at=time.perf_counter(),
+    )
+    batch = _ingest_batch_var.get()
+    if batch is not None:
+        # Inside `_process_batch`: collected and persisted with the rest of the batch.
+        batch.append(candidate)
+        return
+    await _ingest_one(client, ack_batch, candidate)
+
+
+async def _ingest_one(client: Any, ack_batch: list[tuple[str, str]] | None, c: _IngestCandidate) -> None:
+    """
+    Per-event ingest of one validated candidate, in its own transaction. Used when
+    `_handle_message` runs outside a batch and to replay, one by one, a batch that
+    failed with a deterministic database error.
+    """
+    loop = asyncio.get_running_loop()
     try:
         # D75/RN-169: `_ingest` abre una `Session` bloqueante (`SELECT` de
         # dedup + `INSERT` + `commit`, medidos en ~1,564 ms el INSERT+commit)
         # y corría síncrona dentro de la corrutina — el mismo cuello de
-        # botella que `_get_agent_auth` arriba. `_ingest` NO cambia de
-        # interfaz (D-1 del design): mismo cuerpo, misma firma, mismas
-        # excepciones. `run_in_executor` re-lanza en el `await`, así que el
-        # `try/except InvalidTransitionError / SQLAlchemyError` de abajo
-        # sigue capturando exactamente lo mismo, en el mismo lugar, con la
-        # misma semántica de XACK / no-XACK que antes del cambio.
+        # botella que `_get_agent_auth`. `_ingest` NO cambia de interfaz
+        # (D-1 del design): mismo cuerpo, misma firma, mismas excepciones.
+        # `run_in_executor` re-lanza en el `await`, así que el `try/except
+        # InvalidTransitionError / SQLAlchemyError` de abajo captura
+        # exactamente lo mismo, en el mismo lugar, con la misma semántica de
+        # XACK / no-XACK que antes del cambio.
         t_ingest = time.perf_counter()
         outcome = await loop.run_in_executor(
-            None, functools.partial(_ingest, payload, received_at, detected_at, agent_id)
+            None, functools.partial(_ingest, c.payload, c.received_at, c.detected_at, c.agent_id)
         )
         ingest_ms = (time.perf_counter() - t_ingest) * 1000
     except InvalidTransitionError as exc:
         # Dato inválido, no reintentable → XACK + audit log + nack terminal
         # (D-3 del design): sin la respuesta, el agente republica para
         # siempre un evento que nunca va a entrar.
-        await client.xack(STREAM_EVENTS, CONSUMER_GROUP, msg_id)
-        log.warning(
-            "consumer.invalid_transition",
-            event_id=event_id,
-            from_status=str(exc.from_status),
-            to_status=str(exc.to_status),
-        )
-        audit = RejectedEventAudit(
-            event_id=event_id,
-            agent_id=agent_id,
-            reason=RejectionReason.invalid_schema,
-            received_at=received_at,
-            detected_at=detected_at,
-            payload_dump=payload_dump,
-        )
-        await loop.run_in_executor(None, _write_rejection_audit, audit)
-        if event_id:
-            await _publish_event_nack(client, event_id, agent_id, shared_secret, RejectionReason.invalid_schema)
+        await _reject_invalid_transition(client, c, exc.from_status, exc.to_status)
         return
     except SQLAlchemyError:
         # Error transitorio de DB → NO XACK, dejar en PEL para reintento
-        log.error("consumer.db_error", event_id=event_id, exc_info=True)
+        log.error("consumer.db_error", event_id=c.event_id, exc_info=True)
         return
 
-    if settings.fim_profile_ingest:
-        total_ms = (time.perf_counter() - t_start) * 1000
-        timing: dict[str, Any] = dict(
-            scope="event",
-            event_id=event_id,
-            agent_id=agent_id,
-            auth_ms=round(auth_ms, 3),
-            auth_cache_hit=auth_cache_hit,
-            validation_ms=round(total_ms - auth_ms - ingest_ms, 3),
-            ingest_ms=round(ingest_ms, 3),
-            total_ms=round(total_ms, 3),
-        )
-        # `ingest-batched-persistence` task 1.4: share of `ingest_ms` spent in the
-        # `COMMIT` of the per-event path (absent when the outcome carries none).
-        if outcome is not None and getattr(outcome, "commit_ms", None) is not None:
-            timing["commit_ms"] = round(outcome.commit_ms, 3)
-        log.info("consumer.timing", **timing)
+    _log_event_timing(c, ingest_ms, outcome=outcome)
 
     # Compatibilidad con dobles de prueba anteriores al resultado tipado.
     if outcome is None:
         outcome = IngestOutcome(IngestDisposition.supersede_race)
+    await _apply_outcome(client, ack_batch, c, outcome, frozenset())
 
+
+def _log_event_timing(c: _IngestCandidate, ingest_ms: float, outcome: IngestOutcome | None) -> None:
+    """
+    `consumer.timing` of one event, only under `fim_profile_ingest`. In the batch the
+    `ingest_ms` is the time of the candidate inside the batch transaction and the log
+    is emitted after the `COMMIT`; on the per-event path it also carries `commit_ms`.
+    """
+    if not settings.fim_profile_ingest:
+        return
+    validation_ms = (c.validated_at - c.t_start) * 1000 - c.auth_ms
+    timing: dict[str, Any] = dict(
+        scope="event",
+        event_id=c.event_id,
+        agent_id=c.agent_id,
+        auth_ms=round(c.auth_ms, 3),
+        auth_cache_hit=c.auth_cache_hit,
+        validation_ms=round(validation_ms, 3),
+        ingest_ms=round(ingest_ms, 3),
+        total_ms=round(c.auth_ms + validation_ms + ingest_ms, 3),
+    )
+    # `ingest-batched-persistence` task 1.4: share of `ingest_ms` spent in the
+    # `COMMIT` of the per-event path (absent when the outcome carries none).
+    if outcome is not None and getattr(outcome, "commit_ms", None) is not None:
+        timing["commit_ms"] = round(outcome.commit_ms, 3)
+    log.info("consumer.timing", **timing)
+
+
+async def _reject_invalid_transition(
+    client: Any, c: _IngestCandidate, from_status: EventStatus, to_status: EventStatus
+) -> None:
+    await client.xack(STREAM_EVENTS, CONSUMER_GROUP, c.msg_id)
+    log.warning(
+        "consumer.invalid_transition",
+        event_id=c.event_id,
+        from_status=str(from_status),
+        to_status=str(to_status),
+    )
+    audit = RejectedEventAudit(
+        event_id=c.event_id,
+        agent_id=c.agent_id,
+        reason=RejectionReason.invalid_schema,
+        received_at=c.received_at,
+        detected_at=c.detected_at,
+        payload_dump=c.payload_dump,
+    )
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _write_rejection_audit, audit)
+    if c.event_id:
+        await _publish_event_nack(client, c.event_id, c.agent_id, c.shared_secret, RejectionReason.invalid_schema)
+
+
+async def _apply_outcome(
+    client: Any,
+    ack_batch: list[tuple[str, str]] | None,
+    c: _IngestCandidate,
+    outcome: IngestOutcome,
+    removed_event_ids: set[int] | frozenset[int],
+) -> None:
+    """Effects of an ingest outcome. Only called once the `COMMIT` that decided it returned."""
     if outcome.disposition == IngestDisposition.rate_limited:
         await _reject(
-            client, msg_id, event_id, agent_id, RejectionReason.rate_limited,
-            received_at, payload, payload_dump, shared_secret=shared_secret,
+            client, c.msg_id, c.event_id, c.agent_id, RejectionReason.rate_limited,
+            c.received_at, c.payload, c.payload_dump, shared_secret=c.shared_secret,
         )
-        log.warning("consumer.rate_limited", agent_id=agent_id)
+        log.warning("consumer.rate_limited", agent_id=c.agent_id)
         return
 
     if outcome.disposition == IngestDisposition.duplicate:
-        # Only reached after `_ingest` returned (i.e. after its commit): safe to ACK.
-        await _ack_or_defer(client, ack_batch, msg_id, event_id, agent_id, shared_secret)
-        log.info("consumer.event_dedup", event_id=event_id)
+        await _ack_or_defer(client, ack_batch, c.msg_id, c.event_id, c.agent_id, c.shared_secret)
+        log.info("consumer.event_dedup", event_id=c.event_id)
         return
 
     if outcome.disposition == IngestDisposition.persisted and outcome.event is not None:
-        # Only reached after `_ingest` returned (i.e. after its commit): safe to ACK.
-        await _ack_or_defer(client, ack_batch, msg_id, event_id, agent_id, shared_secret)
-        log.info("consumer.event_persisted", event_id=event_id, agent_id=agent_id)
+        await _ack_or_defer(client, ack_batch, c.msg_id, c.event_id, c.agent_id, c.shared_secret)
+        log.info("consumer.event_persisted", event_id=c.event_id, agent_id=c.agent_id)
         # The notification depends on the commit, not on the ACK: it is scheduled
-        # right away, never deferred to the end of the batch (D76/RN-170).
-        _fire_and_forget(notify_if_applicable(outcome.event))
+        # right away, never deferred to the end of the batch (D76/RN-170). An event the
+        # compaction of the same batch deleted before the COMMIT has no row to alert on.
+        if outcome.event.id in removed_event_ids:
+            log.info("consumer.notification_skipped_compacted", event_id=c.event_id)
+        else:
+            _fire_and_forget(notify_if_applicable(outcome.event))
     else:
         # Una transición concurrente dejó otro pending como representación
         # activa. Resolver esta entrega con el mismo ACK atómico.
-        log.info("consumer.event_ingest_skipped", event_id=event_id, reason="supersede_race")
-        await _ack_or_defer(client, ack_batch, msg_id, event_id, agent_id, shared_secret)
+        log.info("consumer.event_ingest_skipped", event_id=c.event_id, reason="supersede_race")
+        await _ack_or_defer(client, ack_batch, c.msg_id, c.event_id, c.agent_id, c.shared_secret)
 
 
 # ── helpers de ingesta ────────────────────────────────────────────────────────

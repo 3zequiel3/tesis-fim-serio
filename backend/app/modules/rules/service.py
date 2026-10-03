@@ -25,6 +25,7 @@ import fnmatch
 import json
 import re
 import uuid
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from typing import Any
 
@@ -72,8 +73,17 @@ def determine_severity_for_path(path: str, session: Session) -> RuleSeverity:
     alertas (RN-52/RN-53, alerts/service.py) y la ingesta de eventos
     (D34/RN-128, events/service.py) — no duplicar esta lógica.
     """
-    rules = session.exec(select(Rule)).all()
+    return severity_from_rules(path, session.exec(select(Rule)).all())
 
+
+def severity_from_rules(path: str, rules: Sequence[Rule]) -> RuleSeverity:
+    """
+    Pure severity computation over an already-loaded rule list (body of
+    `determine_severity_for_path`, extracted by change `ingest-batched-persistence`
+    so a batch of events reads the ruleset once, D-3). Same semantics: highest
+    severity among the matching inclusive globs, `low` without a match, exclusive
+    (`!`) rules win.
+    """
     for rule in rules:
         if rule.pattern.startswith("!") and fnmatch.fnmatch(path, rule.pattern[1:]):
             return RuleSeverity.low
