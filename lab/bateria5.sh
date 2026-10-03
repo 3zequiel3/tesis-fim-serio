@@ -53,11 +53,12 @@ BACKEND_ID_BEFORE=$(backend_id)
 log "backend_container_id_before=$BACKEND_ID_BEFORE"
 # L-13: TAG required, HEAD must be the tag's commit, agent/backend/frontend/n8n clean.
 # Writes $OUT/env/procedencia.txt (tag=, commit=).
-# Not inside a pipeline: a pipeline stage runs in a subshell, so COMMIT (set by the
-# guard) would never reach this shell and `set -u` killed the script on the next line
-# without a word in the log. Exit 2 = setup abort, distinct from 3 = invalid cut.
-if ! PROC=$(procedencia_exigir "${TAG:-}" "$OUT/env" 2>&1); then
-  log "ABORTED by provenance: $PROC"; exit 2
+# Called directly, never in a pipeline or $(...): both run it in a subshell, so COMMIT
+# (set by the guard) would never reach this shell and `set -u` killed the script on the
+# next line without a word in the log. Exit 2 = setup abort, distinct from 3 = invalid cut.
+mkdir -p "$OUT/env"
+if ! procedencia_exigir "${TAG:-}" "$OUT/env" > "$OUT/env/procedencia_guard.log" 2>&1; then
+  log "ABORTED by provenance: $(cat "$OUT/env/procedencia_guard.log")"; exit 2
 fi
 log "candidate=$COMMIT tree=$(git rev-parse HEAD^{tree}) tag=$TAG"
 log "initial: events=$(q_events) queue+discarded=$(q_counts) valkey_6380=$(q_valkey)"
