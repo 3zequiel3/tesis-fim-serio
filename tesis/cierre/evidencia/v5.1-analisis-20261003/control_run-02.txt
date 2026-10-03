@@ -1,0 +1,31 @@
+========================================================================
+Batería 7 — grupo de control (cron de hashing) vs. manifiesto del generador
+========================================================================
+  manifiesto              = tesis/cierre/evidencia/v5-eval-20261003T102313Z/latencia/run-02/bateria3_manifiesto.json
+  control                 = tesis/cierre/evidencia/v5-eval-20261003T102313Z/control/run-02/bateria7_control.csv
+  criterio de atribución  = primer_cambio
+  salida                  = tesis/cierre/evidencia/v5.1-analisis-20261003/control_run-02.csv
+  cobertura del control   = 2026-10-03T11:08:38.619383+00:00 .. 2026-10-03T11:41:22.725189+00:00
+------------------------------------------------------------------------
+  cambios reales (manifiesto)      = 500
+  detecciones del control          = 98
+  detecciones atribuidas           = 98
+  cambios fuera de la cobertura    = 0 (no contados como pérdida)
+------------------------------------------------------------------------
+  ÍTEMS DEL CAPÍTULO 5
+  45  mediana latencia control (ms) = 477666.392
+  47  P99 latencia control (ms)     = 896997.378
+      media (ms)                    = 492258.983
+      desvío muestral ddof=1 (ms)   = 287948.026
+      mínimo / máximo (ms)          = 4267.241 / 897070.306
+      n                             = 98
+  49  eventos perdidos por el cron  = 402 de 500 (80.4 %)
+        causa colapsado          = 252
+        causa no_detectado       = 150
+        patrón colapsado         = 70
+        patrón efimero           = 20
+        patrón revertido         = 66
+        patrón simple            = 246
+  50  factor de mejora (mediana)    = 15305.4x (477666.392 ms / 31.209 ms)
+      factor de mejora (P99)        = 22692.1x
+========================================================================
