@@ -15,7 +15,7 @@
 | L-10 | Descartado: se ratifica RN-94 (D88/RN-182) |
 | Arnés (L-11…L-14) | Versionado en `lab/` y actualizado; análisis A-1…A-3 en `scripts/` |
 | Candidato `v5.0-tesis` | **Superado.** Etiquetado (`feea81a`) y medido; el drenaje dio 76,6 ev/s (< 95), lo que reabrió el INSERT agrupado (§2) |
-| Candidato `v5.1-tesis` | Etiquetado (`525679c`) sobre la Change 70; el agente es idéntico al de `v5.0-tesis`. **Es el candidato del Capítulo 5.** Corrida unificada en curso |
+| Candidato `v5.1-tesis` | Etiquetado (`525679c`) sobre la Change 70; el agente es idéntico al de `v5.0-tesis`. **Es el candidato del Capítulo 5.** Corrida unificada completa y sellada (§2bis); faltan las baterías complementarias (B-5b, B-5 caso D, strace de B-1 y barrido de B-3) |
 
 ## 1. Defectos corregidos (para §4 y §7.6)
 
@@ -101,6 +101,17 @@ contenido aprobado pero con otros permisos no se reporta (el detector compara ha
 - **Retención (L-10).** `audit_log` no se depura nunca (RN-94); `rejected_events_audit` sí, a los 90
   días (`backend/app/modules/events/service.py:540`). **Corregir las Tablas 24 y 25 y §4.2**: la Tabla
   24 dice que no se encontró depuración automática de `rejected_events_audit`, y eso es falso.
+
+## 2bis. Resultados de `v5.1-tesis` (corrida unificada `v5-eval-20261003T102313Z`, sellada 112/112)
+
+Estos son los valores que van al Capítulo 5. La procedencia coincide: el árbol del backend en el contenedor es igual al de la etiqueta y el agente es igual al de la etiqueta.
+
+| Batería | Resultado |
+|---|---|
+| Latencia, 3 repeticiones (semillas 20261001/02/03) | P99 de 40,6, 39,5 y 42,2 ms; P50 de 29,4, 31,2 y 33,9 ms; 0 negativos. **P99 combinado 41,7 ms, IC95 [40,5; 42,3]** (A-1, `tesis/cierre/evidencia/v5.1-analisis-20261003/`). El IC95 de run-01 llega a 135 ms por pocas muestras extremas (§3.6). |
+| Eventos esperados | 500, 495 y 499. Los faltantes son reversiones al contenido aprobado, descartadas por diseño (§2). |
+| Notificación, 3 escenarios × 1.000 | 1.000 muestras por escenario; P99 de 29,5 a 29,6 s. Es drenaje de cola: la entrega sostiene unas 28 notif/s, igual que en `v5.0-tesis` (`diagnostico-notificacion-v5.0-vs-v5.1-20261003/`). |
+| Resiliencia, 3 repeticiones (corte de Valkey de 5 min) | Consumo de **117,2, 125,2 y 117,5 ev/s** (≥ 95 ✔). 2.998, 2.998 y 2.997 eventos únicos; 0 duplicados; 0 descartados. **Fuera de orden: 0, 0 y 0** (en `v4.0-tesis` fueron 359). Tramo sin consumo: 0,69, 0,76 y 0,01 s (en L-9a fueron 33 s). El backend no se recreó en ninguna repetición. |
 
 ## 3. Texto nuevo que hace falta
 
