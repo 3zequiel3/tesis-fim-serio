@@ -150,3 +150,16 @@ keeps only the phase A requirement, and D76/RN-170 is not amended.
 - The 1.5x threshold (>= 93 ev/s) is met by phase A + B before proposing the `v5.1-tesis` tag.
 - Laboratory confirmation (>= 95 ev/s consumption window) remains DEFERRED (task 6.4): nothing here
   claims a laboratory improvement.
+
+## 5. Re-measurement after the verification fixes (task 7.7)
+
+Same host, services, parameters and command as section 3 (`--notify real --paths 600`, 3,000 events,
+3 repeats + 1 profiled, `batch-ack`); code = phase A + B + the fixes of group 7. Date 2026-10-03.
+
+| Run | ev/s (last `event_ack`) | median | delivery ev/s (median) | `ingest_ms` | batch `commit_ms` |
+|---|---|---|---|---|---|
+| Section 3 (before the fixes) | 184.3 / 176.2 / 179.4 | 179.4 | 109.4 | 2.691 | 1.797 |
+| Section 5 (after the fixes) | 178.5 / 175.2 / 173.0 | **175.2** | **112.7** | 2.336 | 1.731 |
+
+-2.3 % on the ingest rate, inside the run-to-run spread seen so far (173-184 ev/s); delivery rate +3 %.
+No throughput regression from the guarded effects, the shielded persist section or the type validation.

@@ -40,6 +40,17 @@ uno por el camino de ingesta por evento, de modo que sólo el evento que vuelve 
 PEL. Invocado fuera de un lote, `_handle_message` SHALL conservar el camino de ingesta por evento,
 con su propia transacción.
 
+Los efectos posteriores al `COMMIT` SHALL ser independientes entre candidatos: si el efecto de uno
+falla, el consumer MUST loguear el error y dejar sin `XACK` sólo ese mensaje, sin impedir los
+efectos de los demás. En particular, el agendado de la notificación de un evento persistido MUST
+ocurrir aunque falle cualquier efecto de ese evento o de otro del lote. Si el consumer se cancela
+mientras el lote se persiste (apagado del backend), SHALL completar la persistencia y sus efectos,
+con una espera acotada, antes de propagar la cancelación. Un payload firmado cuyo `path` o
+`event_id` no sea una cadena SHALL rechazarse en la validación con el motivo `invalid_schema`,
+aislado de su lote; y cualquier excepción de la transacción del lote que no sea un `SQLAlchemyError`
+SHALL tratarse como `IntegrityError`: revertir, devolver los tokens y re-ejecutar los candidatos
+uno por uno.
+
 #### Scenario: Un lote de eventos válidos se confirma con un único COMMIT
 - **WHEN** `_process_batch` recibe un lote de N eventos válidos y nuevos de rutas distintas
 - **THEN** los N eventos quedan persistidos mediante una sola transacción con un único `COMMIT`
@@ -79,6 +90,21 @@ con su propia transacción.
 - **WHEN** un lote contiene un evento persistido, un evento `rate_limited` y un evento cuya ingesta lanza `InvalidTransitionError`
 - **THEN** el `event_ack`, el `event_nack` de `rate_limited`, el `XACK` + auditoría + `event_nack` de la transición inválida y el agendado de la notificación ocurren después del retorno del `COMMIT` del lote
 - **AND** se aplican en el orden del stream
+
+#### Scenario: El fallo de un efecto no impide la notificación de los eventos persistidos
+- **WHEN** un lote contiene un evento `rate_limited` cuyo rechazo falla y un evento nuevo persistido después
+- **THEN** el evento nuevo recibe `XACK`, `event_ack` y su notificación se agenda
+- **AND** el evento `rate_limited` permanece en la PEL
+
+#### Scenario: Un path que no es cadena se rechaza sin afectar al lote
+- **WHEN** un lote contiene un evento con firma válida cuyo `path` es un entero o una lista
+- **THEN** ese evento recibe `XACK` y un rechazo `invalid_schema` inmediatos
+- **AND** sus vecinos válidos se persisten
+
+#### Scenario: La cancelación a mitad de un lote no pierde sus efectos
+- **WHEN** el consumer se cancela mientras el executor confirma el lote
+- **THEN** los `event_ack` y `XACK` de los eventos confirmados se emiten
+- **AND** la cancelación se propaga después
 
 #### Scenario: Un rechazo de validación sigue siendo inmediato dentro del lote
 - **WHEN** un lote contiene una entrada con firma HMAC inválida antes de eventos válidos

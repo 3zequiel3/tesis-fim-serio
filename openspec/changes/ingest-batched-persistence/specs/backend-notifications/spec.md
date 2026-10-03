@@ -12,6 +12,8 @@ Las entregas HTTP del carril de notificación (`send_n8n` y `send_webhook_fallba
   los executors.
 - Si una entrega ocurre sin el cliente creado (fuera del ciclo de vida de la aplicación), el cliente
   SHALL crearse con la misma configuración.
+- Una vez cerrado en el apagado, el cliente MUST NOT recrearse: una entrega que sobreviva al cierre
+  SHALL fallar y seguir la escalera de reintentos durable en el próximo arranque.
 
 **TLS.** La verificación de certificados MUST permanecer activa, con el almacén de confianza por
 defecto, y el contexto TLS SHALL construirse una sola vez, al crear el cliente.
@@ -39,6 +41,10 @@ El chequeo de salud de n8n queda fuera de este requisito y conserva su cliente p
 - **WHEN** el backend se apaga
 - **THEN** el cliente HTTP del carril de notificación queda cerrado
 - **AND** no quedan conexiones abiertas a n8n
+
+#### Scenario: Una entrega posterior al cierre no recrea el cliente
+- **WHEN** una entrega pendiente se ejecuta después de que el backend cerró el cliente HTTP
+- **THEN** la entrega falla sin construir un cliente nuevo
 
 #### Scenario: La verificación TLS permanece activa
 - **WHEN** se crea el cliente HTTP del carril de notificación
