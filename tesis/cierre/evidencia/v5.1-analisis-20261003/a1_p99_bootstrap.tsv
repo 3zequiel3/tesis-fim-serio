@@ -1,0 +1,6 @@
+# seed=20261001 bootstrap=10000 IC95 percentil, P99 interpolacion lineal
+serie	n	negativos	p99_ms	ic95_bajo_ms	ic95_alto_ms
+tesis/cierre/evidencia/v5-eval-20261003T102313Z/latencia/run-01/eventos.csv	500	0	40.578	36.843	135.106
+tesis/cierre/evidencia/v5-eval-20261003T102313Z/latencia/run-02/eventos.csv	495	0	39.529	37.159	40.468
+tesis/cierre/evidencia/v5-eval-20261003T102313Z/latencia/run-03/eventos.csv	499	0	42.192	41.488	42.933
+combinado	1494	0	41.732	40.531	42.323

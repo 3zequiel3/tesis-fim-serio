@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "seed": 20261001,
+    "iteraciones": 10000,
+    "ic": "percentil 2.5-97.5",
+    "p99": "interpolacion lineal",
+    "columna": "latencia_ms"
+  },
+  "series": [
+    {
+      "serie": "tesis/cierre/evidencia/v5-eval-20261003T102313Z/latencia/run-01/eventos.csv",
+      "n": 500,
+      "negativos": 0,
+      "p99_ms": 40.578,
+      "ic95_bajo_ms": 36.843,
+      "ic95_alto_ms": 135.106
+    },
+    {
+      "serie": "tesis/cierre/evidencia/v5-eval-20261003T102313Z/latencia/run-02/eventos.csv",
+      "n": 495,
+      "negativos": 0,
+      "p99_ms": 39.529,
+      "ic95_bajo_ms": 37.159,
+      "ic95_alto_ms": 40.468
+    },
+    {
+      "serie": "tesis/cierre/evidencia/v5-eval-20261003T102313Z/latencia/run-03/eventos.csv",
+      "n": 499,
+      "negativos": 0,
+      "p99_ms": 42.192,
+      "ic95_bajo_ms": 41.488,
+      "ic95_alto_ms": 42.933
+    },
+    {
+      "serie": "combinado",
+      "n": 1494,
+      "negativos": 0,
+      "p99_ms": 41.732,
+      "ic95_bajo_ms": 40.531,
+      "ic95_alto_ms": 42.323
+    }
+  ]
+}
