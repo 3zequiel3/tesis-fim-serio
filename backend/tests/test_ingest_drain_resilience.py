@@ -179,6 +179,33 @@ async def test_timing_emitted_per_event_and_per_batch_when_flag_active(mem_engin
         assert "payload" not in rec and "shared_secret" not in rec
 
 
+async def test_per_event_path_reports_commit_ms_inside_ingest_ms(mem_engine, agent, shared_secret) -> None:
+    """Task 1.4 of `ingest-batched-persistence`: the per-event path measures its COMMIT."""
+    msg = _msg(_payload(shared_secret))
+    cfg = settings.model_copy(update={"fim_profile_ingest": True})
+    e1, e2 = _patch_engines(mem_engine)
+    with e1, e2, patch.object(consumer_mod, "settings", cfg), structlog.testing.capture_logs() as cap:
+        with patch.object(consumer_mod, "log", structlog.get_logger()):
+            # Outside a batch: the per-event path (as `_handle_message` direct calls).
+            client, _pipes, _executed = _pipeline_client([])
+            await consumer_mod._handle_message(client, "1-0", msg)
+    ev = next(r for r in cap if r.get("event") == "consumer.timing" and r["scope"] == "event")
+    assert 0 <= ev["commit_ms"] <= ev["ingest_ms"]
+
+
+def test_ingest_outcome_carries_the_commit_time_of_the_per_event_path(mem_engine) -> None:
+    now = datetime.now(timezone.utc)
+    with patch.object(service_mod, "engine", mem_engine):
+        outcome = service_mod._ingest_event_outcome(
+            {"event_id": str(uuid.uuid4()), "agent_id": "a", "path": "/x", "hash_detected": "h"}, now, now
+        )
+        duplicate = service_mod._ingest_event_outcome(
+            {"event_id": outcome.event.event_id, "agent_id": "a", "path": "/x"}, now, now
+        )
+    assert outcome.commit_ms is not None and outcome.commit_ms >= 0
+    assert duplicate.disposition == service_mod.IngestDisposition.duplicate and duplicate.commit_ms is None
+
+
 async def test_timing_not_emitted_when_flag_inactive(mem_engine, agent, shared_secret) -> None:
     assert await _run_one_event_with_logs(mem_engine, shared_secret, profile=False) == []
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -219,6 +220,12 @@ class IngestDisposition(str, Enum):
 class IngestOutcome:
     disposition: IngestDisposition
     event: Event | None = None
+    # Change `ingest-batched-persistence` (task 1.4): wall time of the
+    # `session.commit()` of the per-event path, in milliseconds. `None` where there was
+    # no commit of its own. It is measured with two `perf_counter` reads (negligible),
+    # never logged from the executor thread: the consumer emits it under
+    # `fim_profile_ingest`.
+    commit_ms: float | None = None
 
 
 def validate_transition(from_status: EventStatus, to_status: EventStatus) -> None:
@@ -532,8 +539,10 @@ def _ingest_event_outcome(
         # Separar la fila ya materializada antes del commit evita que el
         # despacho dispare un SELECT por expiración del objeto.
         session.expunge(event)
+        t_commit = time.perf_counter()
         session.commit()
-        return IngestOutcome(IngestDisposition.persisted, event)
+        commit_ms = (time.perf_counter() - t_commit) * 1000
+        return IngestOutcome(IngestDisposition.persisted, event, commit_ms)
 
 
 def ingest_event(

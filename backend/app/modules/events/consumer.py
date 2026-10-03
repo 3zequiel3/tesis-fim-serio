@@ -579,8 +579,7 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
 
     if settings.fim_profile_ingest:
         total_ms = (time.perf_counter() - t_start) * 1000
-        log.info(
-            "consumer.timing",
+        timing: dict[str, Any] = dict(
             scope="event",
             event_id=event_id,
             agent_id=agent_id,
@@ -590,6 +589,11 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
             ingest_ms=round(ingest_ms, 3),
             total_ms=round(total_ms, 3),
         )
+        # `ingest-batched-persistence` task 1.4: share of `ingest_ms` spent in the
+        # `COMMIT` of the per-event path (absent when the outcome carries none).
+        if outcome is not None and getattr(outcome, "commit_ms", None) is not None:
+            timing["commit_ms"] = round(outcome.commit_ms, 3)
+        log.info("consumer.timing", **timing)
 
     # Compatibilidad con dobles de prueba anteriores al resultado tipado.
     if outcome is None:
