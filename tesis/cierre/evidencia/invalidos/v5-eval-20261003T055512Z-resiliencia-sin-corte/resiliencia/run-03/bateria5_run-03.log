@@ -1,0 +1,5 @@
+[2026-10-03T08:05:47.447871625Z] === Battery 5 — label=run-03 ===
+[2026-10-03T08:05:47.455016926Z] compose_files=docker-compose.yml docker-compose.tls.yml /home/ezequiel/fim-lab/docker-compose.mailpit.yml
+[2026-10-03T08:05:47.729995168Z] ingest_rate_limit: rate_per_s=1.6666666666666667 burst=3000
+[2026-10-03T08:05:48.6272169Z] legacy_RATE_LIMIT_INGEST_EVENTS='' legacy_RATE_LIMIT_INGEST_WINDOW_SECONDS=''
+[2026-10-03T08:05:48.110349321Z] backend_container_id_before=1d8eff613211c95687172f472e3895fbe445b5cb2dab717dcfba6a96b285b8d3

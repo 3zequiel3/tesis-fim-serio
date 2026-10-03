@@ -1,0 +1,16 @@
+{
+  "run": "run-02",
+  "tag": "v5.0-tesis",
+  "commit": "52d916534c96009004110ce08f07ffffd6237679",
+  "fuera_de_orden": {
+    "filas": 0,
+    "unicos": 0,
+    "duplicados": 0,
+    "fuera_de_orden": 0,
+    "fuera_de_orden_pct": 0.0,
+    "regresiones_adyacentes": 0
+  },
+  "drenaje": {
+    "error": "ERROR: /home/ezequiel/Facultad/tesis/tesis-fim-serio/tesis/cierre/evidencia/v5-eval-20261003T055512Z/resiliencia/run-02/bateria5_run-02.log: sin l\u00ednea FIN_CORTE ni '(t0)'"
+  }
+}

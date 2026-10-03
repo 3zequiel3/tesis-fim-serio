@@ -1,0 +1,7 @@
+# Recalculado desde los CSV de este directorio con el resumen corregido (commit 4a46d10); el original fallo con TypeError tras el primer escenario.
+secuencial  ms_aceptacion n= 1000 media=13150.180 p50=13728.765 p95=23033.844 p99=23705.051 max=23719.429
+secuencial  ms_entrega    n= 1000 media=13155.026 p50=13732.683 p95=23038.170 p99=23707.302 max=23721.256
+conc50      ms_aceptacion n= 1000 media=12173.317 p50=12414.395 p95=21708.821 p99=22613.480 max=22641.575
+conc50      ms_entrega    n= 1000 media=12177.807 p50=12416.976 p95=21710.731 p99=22615.448 max=22646.744
+conc100     ms_aceptacion n= 1000 media=12329.320 p50=12827.861 p95=21936.900 p99=22683.124 max=22725.196
+conc100     ms_entrega    n= 1000 media=12333.794 p50=12830.310 p95=21941.197 p99=22684.582 max=22727.708

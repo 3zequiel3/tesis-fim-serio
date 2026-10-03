@@ -1,0 +1,8 @@
+n=500
+media_ms=35.727
+p50_ms=37.451
+p95_ms=42.607
+p99_ms=44.514
+min_ms=18.881
+max_ms=80.494
+negativos=0
