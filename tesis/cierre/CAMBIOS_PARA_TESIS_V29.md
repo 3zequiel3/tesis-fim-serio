@@ -10,11 +10,12 @@
 
 | Ítem | Estado |
 |---|---|
-| Changes 61–69 (L-2…L-9) | Aplicadas, verificadas y archivadas el 2026-10-02 en `devel` |
+| Changes 61–70 (L-2…L-9) | 61–69 aplicadas y archivadas el 2026-10-02; la 70 (reapertura del drenaje) el 2026-10-03, en `devel` |
 | Decisiones | D79–D88 / RN-173–RN-182 en los appendices de `docs/arquitectura_stack.md` y `docs/reglas_de_negocio.md` |
 | L-10 | Descartado: se ratifica RN-94 (D88/RN-182) |
 | Arnés (L-11…L-14) | Versionado en `lab/` y actualizado; análisis A-1…A-3 en `scripts/` |
-| Candidato `v5.0-tesis` | Etiquetado (`feea81a`); B-0 hecho (agente reinstalado desde la etiqueta, AOF migrado, registro de esquema en 23); primera corrida abortada por un defecto del arnés (§2) |
+| Candidato `v5.0-tesis` | **Superado.** Etiquetado (`feea81a`) y medido; el drenaje dio 76,6 ev/s (< 95), lo que reabrió el INSERT agrupado (§2) |
+| Candidato `v5.1-tesis` | Etiquetado (`525679c`) sobre la Change 70; el agente es idéntico al de `v5.0-tesis`. **Es el candidato del Capítulo 5.** Corrida unificada en curso |
 
 ## 1. Defectos corregidos (para §4 y §7.6)
 
@@ -28,7 +29,8 @@
 | L-6 | 66 `backend-schema-migrations-registry` | Registro `schema_migrations`, `scripts/migrar.py` y aborto del arranque ante migraciones pendientes. | D84/RN-178 |
 | L-7 | 67 `ingest-token-bucket-rate-limit` | Límite de ingesta como token bucket por agente: 100 ev/min sostenidos, ráfaga de 3.000 (cubre el replay de 2.672 eventos de la batería 5). Las baterías corren con los valores del producto. | D85/RN-179 |
 | L-8 | 68 `agent-secret-wrap-at-rest` | Secretos HMAC por agente cifrados en reposo (AES-GCM, clave fuera de la base). | D86/RN-180 |
-| L-9 | 69 `ingest-drain-resilience-and-throughput` | Timeouts del cliente Valkey, recuperación de `NOGROUP` (eventos y `command_ack`), AOF, caché de autenticación y ACK por lote. INSERT agrupado **no implementado** por decisión (§2). | D87/RN-181 |
+| L-9 | 69 `ingest-drain-resilience-and-throughput` | Timeouts del cliente Valkey, recuperación de `NOGROUP` (eventos y `command_ack`), AOF, caché de autenticación y ACK por lote. | D87/RN-181 |
+| L-9 | 70 `ingest-batched-persistence` | Reapertura del drenaje medido en `v5.0-tesis`. (A) Un único cliente HTTP de larga vida para las entregas a n8n: se dejó de crear un cliente y un contexto TLS por entrega. (B) Una transacción y un COMMIT por lote del consumidor, que conserva FIFO, la cadena `superseded`, la ausencia de duplicados y una alerta por evento. | D87/RN-181 (ampliación 2026-10-03) |
 
 **Decisiones de producto tomadas por el equipo** (para la redacción de §4 y la Tabla 8):
 
@@ -37,7 +39,7 @@
   Esto reemplaza la alternativa de la guía L-5(d) de mover el rechazo a `quarantined`.
 - Liberar con `restore_original` **equivale a aprobar** el contenido cuarentenado.
 
-**Límites declarados que siguen en pie** (van como límite definitivo, no como pendiente): sin rotación
+**Límites declarados que siguen en pie** (van como límite definitivo, no como pendiente): la compactación de cadenas `superseded` (RN-98) puede borrar un evento con alerta y `alerts.event_id` no tiene `ON DELETE`, así que una ruta con más de 10 eventos reemplazados cuyo más antiguo tiene alerta queda trabada con `ForeignKeyViolation` (reproducción en `openspec/changes/archive/2026-10-03-ingest-batched-persistence/follow-ups.md`; las baterías no lo disparan, unos 5 cambios por ruta); sin rotación
 de la clave de envoltura; pérdida de la clave ⇒ re-bootstrap de todos los agentes; sin vuelta atrás del
 agente sin limpiar las entradas `quarantined`; artefactos de cuarentena anteriores a la Change 64 no
 liberables; ventana entre la reconciliación y la instalación de las marcas de fanotify; archivos de
@@ -46,10 +48,19 @@ contenido aprobado pero con otros permisos no se reporta (el detector compara ha
 
 ## 2. Resultados de desarrollo y decisiones de medición
 
-- **Caudal de ingesta (banco en proceso, no laboratorio).** 100,9 ev/s base → 155,7 con caché →
-  191,5 con caché + ACK por lote (`openspec/changes/archive/2026-10-02-ingest-drain-resilience-and-throughput/mediciones.md`).
-  Estos números **no** son resultados de la tesis; el valor válido sale de B-4. Con el factor
-  laboratorio/banco observado (~0,75) se estiman ~145 ev/s, por eso no se implementó el INSERT agrupado.
+- **Caudal de ingesta: la estimación falló y se corrigió midiendo.**
+  - La Change 69 estimó unos 145 ev/s con un banco que reemplazaba la cadena de notificación por un stub
+    (191,5 ev/s). En el laboratorio, `v5.0-tesis` dio **76,6 ev/s**.
+  - El perfil por etapa atribuyó el 98 % del tiempo a la ingesta (12,3 ms por evento), y el backlog del
+    stream mostró que el cuello estaba en el backend
+    (`tesis/cierre/evidencia/diagnostico-drenaje-v5.0-20261003/`).
+  - La hipótesis del COMMIT quedó refutada: `synchronous_commit=off` no cambió nada. La causa medida fue
+    el cliente HTTP creado en cada entrega.
+  - Banco con la notificación real: 62,0 ev/s de base, 86,0 con la fase A y 175–179 con A+B. En el
+    laboratorio, sobre el build de la Change 70: **98,99 ev/s**.
+  - El valor que va a la tesis sale de la corrida unificada sobre `v5.1-tesis`. Para §7.6: la mejora en
+    el laboratorio (×1,29) es mucho menor que en el banco (×2,9), y ahora el límite de punta a punta
+    está en la entrega de notificaciones.
 - **Tramo sin consumo de L-9a.** Causa probable identificada en el **arnés**: `lab/bateria5.sh`
   restauraba con `up -d valkey backend` usando un conjunto de archivos compose distinto del que levantó
   el backend, lo que recreaba el backend en medio del corte. Corregido (`--no-recreate valkey`, conjunto
@@ -69,6 +80,24 @@ contenido aprobado pero con otros permisos no se reporta (el detector compara ha
   (`tesis/cierre/evidencia/v5-eval-20261002T215744Z-replay-comandos/LEEME.md`). El arnés ya no lo
   dispara. En el producto queda como **límite declarado** para §7.6: corregirlo exige una change y un
   candidato nuevo.
+- **Denominador de la latencia (B-1).** El patrón `revertido` del generador devuelve un archivo a su
+  contenido aprobado, y el agente descarta esa vuelta con `matches_active_baseline`, por diseño
+  (D14/RN-112). Cada repetición recibe entonces entre 496 y 500 eventos de 500 escritos, según cuántas
+  reversiones coincidan con la línea base. En §5 hay que informar el denominador como «eventos esperados
+  según la semántica del producto», no como detecciones perdidas: se verificó caso por caso con la traza
+  causal.
+- **Notificación (B-3).** El P99 de 22 a 24 s mide el drenaje de una cola de 1.000 notificaciones
+  inyectadas en menos de 2 s, no la latencia de una notificación aislada. Es del mismo orden que en
+  `v4.0-tesis`.
+- **Defectos del arnés encontrados al correr `v5.0-tesis`** (todos en `lab/`, ninguno en el producto):
+  - la purga borraba el cursor del stream `commands`;
+  - el publicador de la batería 4 leía el secreto sin desenvolverlo;
+  - el resumen de notificación reutilizaba el nombre de la variable del directorio;
+  - la guarda de procedencia de la batería 5 corría en un subshell y la batería moría en silencio antes
+    del corte.
+
+  Los paquetes que invalidaron están en `tesis/cierre/evidencia/invalidos/` y en
+  `v5-eval-20261002T215744Z-replay-comandos/`, cada uno con su `LEEME.md`.
 - **Retención (L-10).** `audit_log` no se depura nunca (RN-94); `rejected_events_audit` sí, a los 90
   días (`backend/app/modules/events/service.py:540`). **Corregir las Tablas 24 y 25 y §4.2**: la Tabla
   24 dice que no se encontró depuración automática de `rejected_events_audit`, y eso es falso.
