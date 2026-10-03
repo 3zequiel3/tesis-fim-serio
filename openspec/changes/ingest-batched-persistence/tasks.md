@@ -1,0 +1,69 @@
+## 0. Precondiciones
+
+- [ ] 0.1 Confirmar con `openspec list --json` y `fd . openspec/changes/archive` que las Changes 67 (`ingest-token-bucket-rate-limit`), 68 (`agent-secret-wrap-at-rest`) y 69 (`ingest-drain-resilience-and-throughput`) están archivadas. Si alguna no lo está, detenerse.
+- [ ] 0.2 Re-verificar contra el árbol actual las referencias `archivo:línea` de `design.md` (tomadas en `ada3d4e`): `_process_batch`, `_handle_message`, `_ingest`, `_ack_or_defer`, `_flush_acks`, `_reject`, `_RateLimiter` en `events/consumer.py`; `_ingest_event_outcome`, `get_pending_event_for_path`, `mark_superseded`, `compact_chain` en `events/service.py`; `determine_severity_for_path` en `rules/service.py`; `_create_alert_row`, `notify_if_applicable`, `_mark_delivered` en `alerts/service.py`. Anotar desplazamientos en este archivo antes de editar.
+- [ ] 0.3 Correr la suite de backend y `python3 scripts/check_spec_integrity.py` en la base y anotar cualquier falla preexistente como evidencia.
+
+## 1. Banco sin stub y línea base (D-1)
+
+- [ ] 1.1 En `lab/bench_ingest_consumer.py`, agregar `--notify {stub,real}` (default `stub`, el comportamiento actual). En `real`: no reemplazar `notify_if_applicable`; sembrar una regla de severidad `high` que matchee las rutas del banco; levantar un sumidero HTTP local que responda 2xx y, por cada pedido, inserte y confirme una fila en una base `bench_n8n` de la misma instancia de PostgreSQL (crearla si no existe); apuntar `settings.n8n_webhook_url` a ese sumidero.
+- [ ] 1.2 Agregar `--paths N` (default: una ruta por evento, el comportamiento actual) que reparta los eventos sobre N rutas en orden cíclico, para reproducir la repetición del generador (600 rutas para 3.000 eventos).
+- [ ] 1.3 En modo `real`, cada drenaje MUST esperar, además de los N `event_ack`, a que las N alertas tengan `delivered_at`, y registrar por separado el tiempo hasta el último `event_ack` (ev/s de ingesta) y hasta la última entrega. Verificar al final de cada drenaje N filas en `events`, PEL vacía y N filas en el sumidero.
+- [ ] 1.4 Agregar `commit_ms` al `consumer.timing` por evento del camino por evento (perfilado bajo `fim_profile_ingest`, medido alrededor del `session.commit()` de `_ingest_event_outcome` y devuelto en el resultado, sin loguear desde el hilo del executor), con su test.
+- [ ] 1.5 Crear `mediciones.md` en la carpeta de esta change con el formato de la Change 69 (fecha, commit, host, servicios, comando exacto, eventos, ev/s por corrida y mediana, desglose de `consumer.timing`) y la aclaración de que son mediciones de desarrollo, no resultados de la tesis.
+- [ ] 1.6 Medir la línea base sobre el código actual, sin cambios de ingesta: `--notify stub` (comparable con la Change 69) y `--notify real --paths 600`, 3.000 eventos, 3 repeticiones más una perfilada. Registrar en `mediciones.md`, con la fracción de `commit_ms` dentro de `ingest_ms`.
+- [ ] 1.7 Contrastar la atribución de `design.md` con 1.6: si `ingest_ms` en modo `real` no crece respecto de `stub` o si `commit_ms` es marginal, detenerse y reabrir el diseño antes del grupo 2; anotar la conclusión en `mediciones.md`.
+
+## 2. Núcleo de ingesta y severidad puros (D-3)
+
+- [ ] 2.1 En `backend/app/modules/rules/service.py`, extraer `severity_from_rules(path, rules)` con el cuerpo actual de `determine_severity_for_path`, y hacer que `determine_severity_for_path(path, session)` la invoque tras su `SELECT`. Tests: misma severidad para inclusión, negación y sin match que la función actual.
+- [ ] 2.2 En `backend/app/modules/events/service.py`, extraer `_ingest_into_session(session, ctx, event_data, received_at, detected_at, accept_new)` con todo lo que hoy ocurre dentro del `with Session` de `_ingest_event_outcome` salvo el `commit`, y un `_IngestBatchContext` (`known_event_ids`, `pending_by_path`, `rules`, ids eliminados por compactación, tokens consumidos por agente, tiempos por candidato). `_ingest_event_outcome` conserva firma y comportamiento: abre la `Session`, construye un contexto de un evento que consulta la base como hoy, llama al núcleo y hace `commit`.
+- [ ] 2.3 Dentro del núcleo, capturar `InvalidTransitionError` por candidato antes de cualquier escritura de ese candidato y devolverla como resultado `invalid_transition`; en el camino por evento, conservar la propagación actual de la excepción para que `_handle_message` no cambie.
+- [ ] 2.4 Correr la suite completa: ningún test existente de ingesta cambia de resultado con el refactor.
+
+## 3. Persistencia del lote (D-3, D-4, D-6)
+
+- [ ] 3.1 Implementar `_ingest_batch(items, accept_new_for)` en `events/service.py`: una `Session`, dedup en bloque (`SELECT event_id … WHERE event_id IN (…)`), precarga de `pending` por ruta reducida en Python al más reciente, `rules` una vez, núcleo por candidato en orden con `flush` y `expunge` por evento, actualización de `pending_by_path` tras cada inserción y supersesión, y un único `commit`. Devuelve los resultados en orden y los tiempos `ingest_db_ms`, `commit_ms` y por candidato.
+- [ ] 3.2 Dedup dentro del lote: un `event_id` ya visto en el lote resulta `duplicate` sin tocar la base ni el rate limit.
+- [ ] 3.3 Ante `mark_superseded` en `False`, re-consultar con `get_pending_event_for_path` sobre la misma `Session` y corregir `pending_by_path` con su resultado (D25/RN-121).
+- [ ] 3.4 Registrar en el contexto los ids eliminados por `compact_chain` durante el lote.
+- [ ] 3.5 Agregar `_RateLimiter.refund(key, n)` (bajo el lock, sin superar `burst`, sin crear estado para claves desconocidas) y su test. En `_ingest_batch`, ante `SQLAlchemyError`, `rollback`, devolver los tokens consumidos por agente y propagar la excepción.
+- [ ] 3.6 Tests de servicio contra el motor de pruebas: N eventos nuevos → N filas, un `commit`, `id` en orden del lote; dos eventos `pending` de la misma ruta → cadena `superseded` con `version` incrementada y `parent_event_id`; `pending` seguido de `alert_only` en la misma ruta → el terminal supersede al `pending` del lote; `event_id` repetido en el lote → una fila; `pending` previo en la base supersedido por el primer evento del lote; carrera simulada (`mark_superseded` en `False` con y sin `pending` vigente); rollback ante error inyectado en el `commit` → cero filas y tokens devueltos; 12 eventos `pending` de la misma ruta en un lote → la compactación deja 10 `superseded` y reporta los ids eliminados.
+
+## 4. Integración en el consumer (D-2, D-4, D-5, D-8)
+
+- [ ] 4.1 Agregar `_IngestCandidate` y la `ContextVar` `_ingest_batch_var` en `events/consumer.py`, creada y reseteada por `_process_batch` junto a `_ack_batch_var`. En `_handle_message`, con lote activo, el camino feliz agrega el candidato y retorna; sin lote, conserva el camino por evento sin cambios.
+- [ ] 4.2 En `_process_batch`, al terminar el bucle de mensajes sin excepción y con candidatos, despachar una vez `_ingest_batch` al executor de ingesta (`run_in_executor(None, …)`, D75/RN-169).
+- [ ] 4.3 Ante `IntegrityError` o `DataError` del lote: log `consumer.batch_replayed_per_event` y re-ejecutar los candidatos en orden por el camino por evento (`_ingest` en el executor) aplicando sus efectos como hoy. Ante cualquier otro `SQLAlchemyError`: log `consumer.batch_db_error` con `exc_info=True` y cantidad de candidatos, sin `XACK` ni respuesta para ningún candidato.
+- [ ] 4.4 Con el lote confirmado, aplicar los efectos en el orden del stream: `persisted`/`duplicate`/`supersede_race` → `_ack_or_defer`; `persisted` además `_fire_and_forget(notify_if_applicable(event))` salvo ids eliminados por compactación; `rate_limited` → `_reject` con `retry_after` del limitador; `invalid_transition` → `XACK`, auditoría y `event_nack` terminal, como hoy.
+- [ ] 4.5 Perfilado (D-8): `consumer.timing` por evento tras el `COMMIT` con `ingest_ms` de su porción en la transacción; por lote, `candidates`, `ingest_db_ms` y `commit_ms` además de las claves actuales. Nada nuevo con el flag apagado.
+- [ ] 4.6 Comentar el código citando la ampliación del 2026-10-03 de D87/RN-181, D75/RN-169 (una sola salida al executor, sin concurrencia entre eventos) y por qué el `COMMIT` precede a todo efecto.
+
+## 5. Tests del consumer
+
+- [ ] 5.1 Correr sin modificar `test_fifo_order_preserved_after_batch_drain`, `test_no_duplicate_after_transient_db_error_and_pel_redelivery` y `test_batch_dispatch_is_strictly_sequential` (`backend/tests/test_ingest_offload_blocking_db.py`) y el resto de ese archivo. Si alguno falla, el defecto está en la implementación.
+- [ ] 5.2 Reescribir en `backend/tests/test_ingest_drain_resilience.py`, citando la ampliación de RN-181 (D-10): `test_each_ack_is_appended_after_the_commit_of_its_event` (agregados posteriores al `COMMIT` del lote), `test_transient_db_error_in_the_middle_leaves_only_that_event_in_the_pel` (error transitorio → los tres en la PEL, sin respuestas) y `test_timing_emitted_per_event_and_per_batch_when_flag_active` (claves nuevas del lote). Los demás tests del archivo, sin cambios.
+- [ ] 5.3 Test «dos eventos de la misma ruta en un lote forman cadena» a través de `_process_batch`: el primero `superseded`, el segundo `pending` con `parent_event_id` del primero, ambos con `event_ack` en un único pipeline.
+- [ ] 5.4 Test: `IntegrityError` causado por el evento del medio → `e1` y `e3` persistidos con `XACK` y `event_ack`, `e2` sin respuesta.
+- [ ] 5.5 Test: un lote con un persistido, un `rate_limited` y un `InvalidTransitionError` → con un doble que registra el orden, el `commit` precede a los tres efectos, que salen en orden del stream; el persistido agenda notificación.
+- [ ] 5.6 Test: un lote con firma inválida al principio → su `XACK` es inmediato y anterior al `commit` del lote.
+- [ ] 5.7 Test: error transitorio del lote seguido de re-entrega de las mismas entradas desde la PEL → cada evento persistido una sola vez, tokens del primer intento devueltos (el balde tras la re-entrega coincide con el de una sola admisión).
+- [ ] 5.8 Test: un evento del lote eliminado por la compactación del mismo lote no agenda notificación.
+- [ ] 5.9 Verificar con `rg -n "run_in_executor" backend/app/modules/events/consumer.py` que el camino de lote hace una sola salida al executor de ingesta por lote y que ningún acceso a PostgreSQL quedó en el event loop.
+
+## 6. Medición tras la persistencia por lote
+
+- [ ] 6.1 Medir igual que en 1.6 (`stub` y `real --paths 600`) y registrar en `mediciones.md` los ev/s, `ingest_db_ms`, `commit_ms` por lote y `ingest_ms` por evento.
+- [ ] 6.2 Decidir y anotar en `mediciones.md` el paso condicional de D-9: si `real` alcanza al menos 1,5× la línea base `real` de 1.6, marcar el grupo 7 como no aplicable con el número y la fecha y pasar al grupo 8.
+
+## 7. Fila `Alert` en la transacción del lote — condicional (D-9)
+
+- [ ] 7.1 Sólo si 6.2 no alcanza el umbral: escribir el addendum de D-9 en `design.md` y un delta `specs/backend-notifications/spec.md` (MODIFIED del requisito «Notificación asincrónica post-ingesta de eventos críticos o altos») **antes** de escribir código, y correr `openspec validate ingest-batched-persistence --strict`.
+- [ ] 7.2 Sólo si aplica: implementar según el addendum, con tests de que el evento y su alerta se confirman en el mismo `COMMIT`, de que un rollback no deja alerta, de que RN-22 y RN-52 se conservan y de que la entrega, el cupo y `_mark_delivered` no cambian; re-medir como en 6.1 y registrar.
+
+## 8. Batería 5 y cierre
+
+- [ ] 8.1 En `lab/bateria5.sh`, al cerrar el drenaje, registrar `consumption_window_s` y `consumption_ev_s` calculados desde el primer y el último `received_at` de los eventos drenados (misma consulta que produjo `eventos.csv` del diagnóstico), sin quitar las líneas existentes.
+- [ ] 8.2 Correr la suite completa de backend y `python3 scripts/check_spec_integrity.py`.
+- [ ] 8.3 Verificar que `mediciones.md` contiene la línea base (1.6), la medición tras el lote (6.1), la decisión de 6.2 y, si aplica, la de 7.2, y que el umbral de 1,5× quedó cumplido antes de proponer la etiqueta `v5.1-tesis`.
+- [ ] 8.4 DEFERRED to the v5.1-tesis unified run: confirmar en el laboratorio, con la Batería 5 sobre `v5.1-tesis` dentro de la corrida unificada, al menos 95 ev/s como ventana de consumo entre el primer y el último `received_at`, con `FIM_PROFILE_INGEST` según el protocolo de la corrida; registrar el resultado tal como se mida, **sin declarar mejora anticipada**, con referencia cruzada a la Change 61.
