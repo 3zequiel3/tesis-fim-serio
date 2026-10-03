@@ -53,7 +53,12 @@ BACKEND_ID_BEFORE=$(backend_id)
 log "backend_container_id_before=$BACKEND_ID_BEFORE"
 # L-13: TAG required, HEAD must be the tag's commit, agent/backend/frontend/n8n clean.
 # Writes $OUT/env/procedencia.txt (tag=, commit=).
-procedencia_exigir "${TAG:-}" "$OUT/env" 2>&1 | tee -a "$LOG"; [ "${PIPESTATUS[0]}" = "0" ] || exit 1
+# Not inside a pipeline: a pipeline stage runs in a subshell, so COMMIT (set by the
+# guard) would never reach this shell and `set -u` killed the script on the next line
+# without a word in the log. Exit 2 = setup abort, distinct from 3 = invalid cut.
+if ! PROC=$(procedencia_exigir "${TAG:-}" "$OUT/env" 2>&1); then
+  log "ABORTED by provenance: $PROC"; exit 2
+fi
 log "candidate=$COMMIT tree=$(git rev-parse HEAD^{tree}) tag=$TAG"
 log "initial: events=$(q_events) queue+discarded=$(q_counts) valkey_6380=$(q_valkey)"
 
@@ -61,7 +66,7 @@ log "initial: events=$(q_events) queue+discarded=$(q_counts) valkey_6380=$(q_val
 # purged, ingest limit == product defaults unless RATE_LIMIT_VARIANT is declared,
 # Valkey AOF on). Any failure aborts BEFORE the cut and before any generator write.
 if ! PF=$(preflight_todo "$OUT/env" 2>&1); then
-  log "ABORTED by preflight: $PF"; exit 1
+  log "ABORTED by preflight: $PF"; exit 2
 fi
 log "preflight ok: $(tr '\n' ' ' < "$OUT/env/preflight.txt")"
 BACKEND_CID=$(backend_id)
@@ -146,4 +151,4 @@ log "final: events=$(q_events) queue+discarded=$(q_counts)"
 "${DC[@]}" exec -T db psql -U fim -d fim -c "SELECT count(*) AS events, count(DISTINCT event_id) AS unique_events FROM events;" >> "$LOG" 2>&1
 "${DC[@]}" exec -T db psql -U fim -d fim -c "SELECT reason, count(*) FROM rejected_events_audit GROUP BY 1;" >> "$LOG" 2>&1
 log "=== end ==="
-[ "$INVALID" = "0" ] || exit 1
+[ "$INVALID" = "0" ] || exit 3

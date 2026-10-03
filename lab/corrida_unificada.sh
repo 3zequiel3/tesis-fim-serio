@@ -444,8 +444,12 @@ for i in 1 2 3; do
   WIN_START=$(date -u +%Y-%m-%dT%H:%M:%S)
   # bateria5.sh gets exactly the compose file set the backend was brought up with.
   TAG="$TAG" DC_FILES="docker-compose.yml docker-compose.tls.yml $LAB/docker-compose.mailpit.yml" \
-    bash "$LAB/bateria5.sh" "$OUT/resiliencia/$R" "$R" \
-    || say "$R: REPETICION INVALIDA — el backend se recreo durante el corte"
+    bash "$LAB/bateria5.sh" "$OUT/resiliencia/$R" "$R"
+  case $? in
+    0) ;;
+    3) say "$R: REPETICION INVALIDA — el backend se recreo durante el corte" ;;
+    *) say "$R: ABORTA — bateria5.sh no llego al corte (ver $OUT/resiliencia/$R/bateria5_$R.log)"; exit 1 ;;
+  esac
   "${DC[@]}" exec -T db psql -U fim -d fim -c "\copy (SELECT event_id, path, detected_at, received_at FROM events ORDER BY received_at) TO STDOUT WITH CSV HEADER" > "$OUT/resiliencia/$R/eventos.csv" 2>/dev/null
   "${DC[@]}" exec -T db psql -U fim -d fim -tAc "SELECT json_build_object('eventos', count(*), 'unicos', count(DISTINCT event_id), 'ventana_s', round(EXTRACT(EPOCH FROM (max(received_at)-min(received_at)))::numeric,3)) FROM events;" > "$OUT/resiliencia/$R/counts.json" 2>/dev/null
   multipass exec fim-host -- sudo cp /var/lib/fim-agent/traza_b3.jsonl "/srv/evidencia/traza_$R.jsonl" 2>/dev/null
