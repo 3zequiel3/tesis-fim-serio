@@ -15,7 +15,7 @@
 | L-10 | Descartado: se ratifica RN-94 (D88/RN-182) |
 | Arnés (L-11…L-14) | Versionado en `lab/` y actualizado; análisis A-1…A-3 en `scripts/` |
 | Candidato `v5.0-tesis` | **Superado.** Etiquetado (`feea81a`) y medido; el drenaje dio 76,6 ev/s (< 95), lo que reabrió el INSERT agrupado (§2) |
-| Candidato `v5.1-tesis` | Etiquetado (`525679c`) sobre la Change 70; el agente es idéntico al de `v5.0-tesis`. **Es el candidato del Capítulo 5.** Corrida unificada completa y sellada (§2bis); faltan las baterías complementarias (B-5b, B-5 caso D, strace de B-1 y barrido de B-3) |
+| Candidato `v5.1-tesis` | Etiquetado (`525679c`) sobre la Change 70; el agente es idéntico al de `v5.0-tesis`. **Es el candidato del Capítulo 5.** Corrida unificada completa y sellada (§2bis); baterías complementarias completas y selladas (§2bis) |
 
 ## 1. Defectos corregidos (para §4 y §7.6)
 
@@ -112,6 +112,27 @@ Estos son los valores que van al Capítulo 5. La procedencia coincide: el árbol
 | Eventos esperados | 500, 495 y 499. Los faltantes son reversiones al contenido aprobado, descartadas por diseño (§2). |
 | Notificación, 3 escenarios × 1.000 | 1.000 muestras por escenario; P99 de 29,5 a 29,6 s. Es drenaje de cola: la entrega sostiene unas 28 notif/s, igual que en `v5.0-tesis` (`diagnostico-notificacion-v5.0-vs-v5.1-20261003/`). |
 | Resiliencia, 3 repeticiones (corte de Valkey de 5 min) | Consumo de **117,2, 125,2 y 117,5 ev/s** (≥ 95 ✔). 2.998, 2.998 y 2.997 eventos únicos; 0 duplicados; 0 descartados. **Fuera de orden: 0, 0 y 0** (en `v4.0-tesis` fueron 359). Tramo sin consumo: 0,69, 0,76 y 0,01 s (en L-9a fueron 33 s). El backend no se recreó en ninguna repetición. |
+
+### Baterías complementarias (`tesis/cierre/evidencia/v5.1-complementarias-20261003T125747Z/`, sellado 59/59)
+
+| Batería | Resultado |
+|---|---|
+| B-5b, reconciliación al arrancar (10 repeticiones) | **10/10 conformes.** Cada repetición: 4 `file_modified` + 3 `file_deleted` con `detected_offline=true`, 0 eventos para los 3 archivos borrados y recreados idénticos, 0 eventos espurios. Sostiene el hallazgo L-3. |
+| B-5, caso D: `mmap` y escritura d ms después de `close(fd)` (7 demoras × 10) | **70/70 detectados**, con d de 0 a 500 ms. Hubo 0 `evento_sin_cambio` y 0 `sin_evento`, y el control C dio 10/10. **No se midió ninguna ventana de evasión.** El `detected_at` sigue a la escritura sobre el mapeo, no al `close(fd)`: mediana de 13,8 ms con d=0, 114 ms con d=100 y 513 ms con d=500. |
+| B-1 con strace (100 modificaciones a 10/s) | Las 100 tuvieron exactamente 1 `openat`, 1 `write` y 1 `close`, sin escrituras cortas. El `close` llega a una mediana de 0,84 ms después del `open`. Las 125 operaciones tienen su evento. |
+| B-3, barrido de `notify_max_concurrent_deliveries` (100 notificaciones por valor) | P99 de aceptación de 3,83 s con 8, 3,82 con 16, 3,82 con 32 y 3,75 con 64. **Subir la concurrencia no mejora nada**: el límite está aguas abajo (n8n → SMTP), coherente con las ~28 notif/s medidas. |
+
+**Corrección necesaria en §1.7 y §2.6 (`mmap`).** La tesis presenta la escritura sobre un mapeo
+después de `close(fd)` como una limitación potencial de evasión. El caso D no la reproduce con
+ninguna demora. Una explicación probable, **no verificada en el código del kernel dentro de este
+trabajo**: el mapeo mantiene su propia referencia al archivo (`vm_file`), de modo que el
+`close(fd)` no es el último cierre. `FS_CLOSE_WRITE` se emitiría en el `munmap`, posterior a la
+escritura, y eso coincide con que `detected_at` siga a d. Hay dos formas de cerrar el punto en la
+tesis:
+
+1. Retirar la limitación como medida, informando la cota «0 evasiones en 70 intentos con d ≤ 500 ms».
+2. Mantenerla sólo para un proceso que escriba sobre el mapeo y **no** haga `munmap` (por ejemplo, un
+   proceso de larga vida que deja el mapeo abierto). Ese escenario no se midió.
 
 ## 3. Texto nuevo que hace falta
 
