@@ -1,9 +1,12 @@
 ## Context
 
-Esta change aplica la **ampliación del 2026-10-03 de D87/RN-181** (fila D87 de
+Esta change aplica la **ampliación del 2026-10-03 de D87/RN-181, revisada tras la medición de la tarea 1.7** (fila D87 de
 `docs/arquitectura_stack.md`; sección D87/RN-181 de `docs/reglas_de_negocio.md`), que reabre el
 grupo 7 de la Change 69 (`openspec/changes/archive/2026-10-02-ingest-drain-resilience-and-throughput/`,
-tareas 7.1–7.3 y D-7 de su `design.md`). Las referencias `archivo:línea` son de `devel` en
+tareas 7.1–7.3 y D-7 de su `design.md`). La primera versión de este documento atribuía el costo al
+`COMMIT` por evento y proponía sólo la persistencia por lote; la medición la refutó y el diseño quedó
+en dos fases: **A**, obligatoria, un cliente HTTP de larga vida para las entregas, y **B**,
+condicional, la persistencia por lote original. Las referencias `archivo:línea` son de `devel` en
 `ada3d4e`; `/opsx:apply` MUST re-verificarlas antes de editar.
 
 **Evidencia.** `tesis/cierre/evidencia/diagnostico-drenaje-v5.0-20261003/`: Batería 5 aislada sobre
@@ -39,14 +42,24 @@ y `_mark_delivered` (pre-ping, `SELECT`, `UPDATE`, `COMMIT` con `fsync`). n8n pe
 en `fim_n8n` sobre la **misma** instancia de PostgreSQL. Son al menos tres `COMMIT` durables del
 backend por evento más los de n8n, todos serializados por el mismo WAL.
 
-**Atribución.** El banco de la Change 69, con notificación reemplazada por un no-op y rutas únicas,
-midió ~5,5-6,2 ms de ingesta; el mínimo del laboratorio es 4,9 ms y la media 12,27 ms. La parte
-intrínseca de la ingesta (~5-6 ms, 7 viajes y un `fsync`) está presente siempre; la diferencia hasta
-la media del laboratorio es consistente con contención en el `COMMIT` y en el GIL contra el carril
-de notificación y n8n. **Es una hipótesis fundada en el código, no una medición**: el grupo 1 de
-`tasks.md` la contrasta con el banco sin stub y con `commit_ms` separado antes de tocar la
-ingesta. El diseño de abajo ataca ambas componentes, porque elimina 49 de cada 50 `COMMIT` del
-carril de ingesta y ~5 de sus 7 viajes por evento.
+**Atribución medida (tarea 1.7, `mediciones.md` §1).** La hipótesis de la primera versión —el `COMMIT`
+y los viajes por evento en contención con el carril de notificación— quedó **refutada**. El banco
+con la cadena de notificación sin stub (`--notify real --paths 600`) reproduce el laboratorio: 62,0
+ev/s, `ingest_ms` 15,85 ms, contra 170-178 ev/s y 5,1-5,9 ms con stub. En ese modo:
+
+- `commit_ms` es 1,085 ms, el 6,8 % de `ingest_ms`;
+- `synchronous_commit=off` da 61,9 ev/s;
+- `sys.setswitchinterval(1e-4)` da 59,6 ev/s;
+- inyectar `httpx.AsyncClient(verify=False)` da **81,4 ev/s** e `ingest_ms` 11,96 ms.
+
+`send_n8n` (`alerts/notifier.py:45`) y `send_webhook_fallback` (`:142`) construyen un
+`httpx.AsyncClient` por llamada. httpx arma en esa construcción un `ssl.SSLContext` nuevo con la
+carga del bundle de CA, aunque la URL sea `http://`, y ese trabajo de CPU retiene el GIL que el hilo
+del executor de ingesta necesita entre sentencias. Por eso el costo aparece en `ingest_ms`, escala
+con los viajes a la base y no con el `COMMIT`. La brecha residual (~12 contra ~5,5 ms) también queda
+fuera del `COMMIT`: la lectura de trabajo es CPU del carril de notificación (fila `Alert`, SSE, JSON)
+compitiendo por el GIL. Es una hipótesis, no una medición; la fase B ataca su componente de viajes
+por evento si la fase A no alcanza.
 
 **Restricciones.** Single-instance (RN-76). Despacho secuencial y FIFO (D75/RN-169). Todo acceso
 síncrono a PostgreSQL desde una corrutina va al executor (D75/RN-169); el carril de notificación
@@ -63,26 +76,105 @@ argumentos y exige que `_process_batch` lo llame en serie por mensaje.
 
 **Goals:**
 
-- Confirmar con medición qué parte de `ingest_ms` domina antes de cambiar la ingesta.
-- Un único `COMMIT` por lote en el carril de ingesta y ~1-2 viajes por evento.
-- Conservar, dentro del lote, la semántica por evento: dedup, rate limit, cadena `superseded`,
-  carrera de supersesión, estados (RN-11/12/72), compactación (RN-98), rechazos y notificación.
-- Que un error transitorio deje todo el lote en la PEL, sin duplicados tras la re-entrega.
-- ≥95 ev/s en el laboratorio sobre `v5.1-tesis`; ≥1,5× la línea base sin stub en desarrollo.
+- Fase A: quitar del proceso la construcción de un cliente HTTP y su contexto SSL por entrega, sin
+  cambiar la verificación TLS, los timeouts ni la semántica de error y reintento de cada entrega.
+- Medir la fase A con el banco sin stub y decidir la fase B con ese número.
+- Fase B, si aplica: un único `COMMIT` por lote y ~1-2 viajes por evento, conservando dentro del lote
+  la semántica por evento (dedup, rate limit, cadena `superseded`, carrera, RN-11/12/72, RN-98,
+  rechazos y notificación), con todo el lote en la PEL ante un error transitorio.
+- ≥95 ev/s en el laboratorio sobre `v5.1-tesis`; ≥1,5× la línea base sin stub en desarrollo
+  (≥93 ev/s sobre 62,0).
 
 **Non-Goals:**
 
-- Apagar `synchronous_commit`, usar `commit_delay` o cambiar la configuración de PostgreSQL.
+- Apagar `synchronous_commit`, usar `commit_delay` o cambiar la configuración de PostgreSQL: medido
+  sin efecto.
+- `verify=False` o cualquier relajación de TLS.
+- Un reintento inmediato dentro del mismo intento de entrega ante un reset de conexión: la escalera
+  durable de D42/RN-136 ya cubre el caso y no se cambia la semántica de reintento.
+- Cambiar el cliente del chequeo de salud de n8n (`core/health.py:107`): no está en el camino de los
+  eventos y debe medir conectividad fresca.
 - Separar la base de n8n en otra instancia: cambia el despliegue, no el producto.
 - Concurrencia entre eventos del lote o entre lotes (D75/RN-169 la prohíbe).
-- Reutilizar el `httpx.AsyncClient` de `send_n8n` o recortar los viajes del carril de entrega:
-  se registra como dirección si el banco señala ese carril.
-- Corregir que `alerts.event_id` no tenga `ON DELETE` frente a la compactación (ver Risks): es
-  preexistente y ajeno a esta change.
+- Corregir que `alerts.event_id` no tenga `ON DELETE` frente a la compactación (ver Risks).
 
 ## Decisions
 
-### D-1. Medir primero, con el banco sin stub
+### Fase A — cliente HTTP de larga vida (obligatoria)
+
+#### A-1. Un único `httpx.AsyncClient` para las entregas, con ciclo de vida del lifespan
+
+`alerts/notifier.py` gana tres funciones de módulo:
+
+- `init_notify_http_client()` crea el cliente;
+- `get_notify_http_client()` lo devuelve y lo crea de forma perezosa con la misma configuración si
+  todavía no existe (tests, banco, scripts);
+- `close_notify_http_client()` hace `aclose()` y lo descarta.
+
+`send_n8n` y `send_webhook_fallback` usan `get_notify_http_client()` en lugar de
+`async with httpx.AsyncClient(...)`. Su forma no cambia: `try`, `raise_for_status`, `True`/`False`
+y los mismos logs. El timeout de cada canal pasa por pedido (`client.post(url, json=…,
+timeout=timeout)`), así que los 10 s de cada canal se conservan aunque el cliente sea común.
+
+El lifespan (`backend/app/main.py`) llama a `init_notify_http_client()` antes de lanzar los
+consumers y a `close_notify_http_client()` en el apagado. El cierre va después de cancelar las
+tareas que agendan entregas y antes de `notify_executor.shutdown`, para que ninguna entrega en
+vuelo encuentre el cliente cerrado sin haber sido cancelada.
+
+`backend/tests/conftest.py` agrega un fixture autouse que cierra y descarta el cliente después de
+cada test. Las conexiones de httpx quedan ligadas al event loop que las abrió, y pytest-asyncio crea
+un loop por test.
+
+*Alternativa descartada:* un cliente por tarea de entrega o un caché de `SSLContext` pasado a cada
+cliente nuevo. El caché quita el costo del contexto pero conserva la construcción del transporte y
+el handshake TCP por entrega; un cliente único quita los tres.
+
+*Alternativa descartada:* crear el cliente sólo en el lifespan y fallar si no existe. Obliga a todos
+los tests y al banco a correr el lifespan; la creación perezosa con la misma configuración no cambia
+el comportamiento de producción, donde el lifespan siempre lo crea primero.
+
+#### A-2. TLS y pool
+
+- **TLS.** El cliente se construye una vez con la verificación por defecto de httpx (activa, con su
+  almacén de confianza); el `SSLContext` se arma una sola vez, en la construcción. `verify=False`
+  MUST NOT aparecer en código de producción. Un test lo fija inspeccionando el contexto del
+  transporte (`verify_mode == CERT_REQUIRED`, `check_hostname` activo).
+- **Pool.** `httpx.Limits(max_connections=settings.notify_max_concurrent_deliveries,
+  max_keepalive_connections=settings.notify_max_concurrent_deliveries, keepalive_expiry=4.0)`. Las
+  entregas concurrentes ya están acotadas por ese mismo cupo (D76/RN-170), así que el pool nunca
+  hace esperar a una entrega que tiene permiso. Los 4 s quedan por debajo del `keepAliveTimeout` de
+  5 s que Node usa por defecto en su servidor HTTP: el cliente no reutiliza una conexión que n8n ya
+  está por cerrar. La tarea 2.1 verifica ese valor en n8n 2.17.8; si n8n lo cambia, el
+  `keepalive_expiry` se ajusta por debajo y se anota.
+
+#### A-3. Reset de conexión y reinicio de n8n
+
+Si n8n se reinicia o la conexión reutilizada se corta, el `post` lanza un `httpx.TransportError`;
+`send_n8n` lo captura como hoy y devuelve `False`. La entrega sigue la escalera durable de
+D42/RN-136 sin cambios. httpx descarta del pool la conexión rota, así que el intento siguiente
+—de esta entrega o de otra— abre una conexión nueva. No se agrega un reintento inmediato dentro del
+intento: cambiaría la semántica de reintento y la cuenta de `attempt_count` por una mejora de
+latencia que la escalera ya cubre. Un test con un servidor local que cierra la conexión tras la
+primera respuesta lo fija: la primera entrega puede fallar o no, y la siguiente se entrega.
+
+#### A-4. Medición y compuerta de la fase B
+
+Con la fase A, el banco se mide igual que la línea base (`--notify stub` y `--notify real --paths
+600`, 3.000 eventos, 3 repeticiones más una perfilada) y se registra en `mediciones.md`. Si `real`
+alcanza al menos 1,5× la línea base `real` (≥93 ev/s sobre 62,0), la fase B no se implementa y queda
+registrada como no necesaria, con el número y la fecha. Si no, se implementa la fase B.
+
+### Fase B — persistencia por lote (condicional a A-4)
+
+Las decisiones D-2 a D-10 rigen sólo si A-4 no alcanza el umbral. D-1 está cumplida. El delta de
+requisitos de la fase B no forma parte de la change mientras no se adopte, para que el archive no
+lleve a las main specs requisitos sin implementar. Está redactado en `32d9e5d`, en
+`openspec/changes/ingest-batched-persistence/specs/backend-event-consumer/spec.md`: el requisito
+ADDED «Los eventos validados de un lote se persisten en una única transacción» y los MODIFIED de ACK
+por lote y de perfilado. Se restaura, ajustado al requisito de piso vigente, antes de escribir
+código de la fase B.
+
+### D-1. Medir primero, con el banco sin stub (hecho, tareas 1.1–1.7)
 
 Antes de tocar la ingesta, `lab/bench_ingest_consumer.py` gana el modo `--notify real`: siembra
 una regla `high` que matchea las rutas del banco, apunta `N8N_WEBHOOK_URL` a un sumidero HTTP local
@@ -234,7 +326,7 @@ ingest`. `scope="batch"` suma `candidates`, `ingest_db_ms` (transacción sin `CO
 
 ### D-9. Paso condicional: fila `Alert` en la transacción del lote
 
-Si tras D-2…D-8 el banco en modo `real` no alcanza 1,5× su línea base, se escribe **antes del
+Dentro de la fase B, si tras D-2…D-8 el banco en modo `real` no alcanza 1,5× su línea base, se escribe **antes del
 código** un addendum de este documento y un delta de `backend-notifications` que muevan la creación
 de la fila `Alert` a la transacción del lote: para cada evento persistido con severidad `critical` o
 `high` y estado distinto de `superseded` al insertarse (RN-22, RN-52), un `Alert` con
@@ -262,9 +354,17 @@ cambios; si alguno falla, el defecto está en la implementación.
 
 ## Risks / Trade-offs
 
-- **[Riesgo] La atribución a la contención de `COMMIT` es una hipótesis.** → D-1 la mide antes de
-  cambiar el código. Si el `commit_ms` del banco sin stub resulta marginal y el tiempo está en otra
-  parte, la change se detiene y se reabre el diseño antes de seguir con el grupo 3.
+- **[Resuelto] La atribución a la contención de `COMMIT` era una hipótesis.** → D-1 la midió y la
+  refutó (tarea 1.7); el diseño pasó a las fases A y B.
+- **[Riesgo] Un cliente compartido mal cerrado deja conexiones abiertas al apagar.** → A-1 lo cierra
+  en el lifespan con un orden fijo y un test lo verifica.
+- **[Riesgo] Una conexión reutilizada que n8n cerró hace fallar una entrega.** → `keepalive_expiry`
+  de 4 s por debajo de los 5 s del servidor; si ocurre igual, la escalera de D42/RN-136 la reintenta y
+  la entrega siguiente usa una conexión nueva (A-3).
+- **[Riesgo] La fase A puede no alcanzar el umbral sola** (el diagnóstico con `verify=False` dio 81,4
+  ev/s, por debajo de 93; el cliente único quita además la construcción del transporte y el handshake
+  TCP por entrega, pero eso no está medido). → A-4 decide con el número y la fase B queda diseñada y
+  lista.
 - **[Riesgo] El banco de desarrollo no transfirió al laboratorio la vez anterior** (191,5 ev/s en
   desarrollo contra 76,6 en el laboratorio). → El modo `real` reproduce las dos diferencias
   conocidas (notificación con `COMMIT` ajeno en la misma instancia y rutas repetidas); el umbral se
@@ -289,14 +389,17 @@ cambios; si alguno falla, el defecto está en la implementación.
 ## Migration Plan
 
 1. Mergear sobre `devel` con las Changes 67, 68 y 69 archivadas. Sin migraciones de esquema ni
-   cambios de compose.
+   cambios de compose ni settings nuevos (el pool usa `notify_max_concurrent_deliveries`).
 2. Reconstruir y recrear el backend.
 3. Etiquetar `v5.1-tesis` sólo con el umbral de desarrollo cumplido y registrado.
-4. Rollback: revertir el commit y recrear el backend. No hay estado persistente nuevo.
+4. Rollback: revertir el commit y recrear el backend. No hay estado persistente nuevo; el cliente
+   HTTP vive en memoria.
 
 ## Open Questions
 
-Ninguna. La reapertura, la forma de la transacción por lote, el tratamiento de fallas, la
+Ninguna. La refutación de la primera hipótesis, la causa medida, el ciclo de vida del cliente, la
+reutilización del contexto TLS, los límites del pool y el comportamiento ante un reset o un
+reinicio de n8n, la forma de la transacción por lote, el tratamiento de fallas, la
 devolución de tokens, la instantánea de reglas, la notificación de eventos compactados, el paso
 condicional sobre `Alert` y los criterios de aceptación quedaron cerrados en la ampliación del
-2026-10-03 de D87/RN-181.
+2026-10-03 de D87/RN-181, revisada tras la medición.

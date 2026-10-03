@@ -5,73 +5,66 @@ El diagnóstico del drenaje sobre `v5.0-tesis` del 2026-10-03
 (2.995 eventos en 39,1 s de ventana de consumo), por debajo del mínimo de 95 ev/s de D87/RN-181. La
 regla fijada en la Change 69 (`mediciones.md` §5 de
 `openspec/changes/archive/2026-10-02-ingest-drain-resilience-and-throughput/`) dice que, si el
-laboratorio mide menos de 95 ev/s, se reabre el grupo 7 (`INSERT` por lote) y se etiqueta un
+laboratorio mide menos de 95 ev/s, se reabre el rendimiento de la ingesta y se etiqueta un
 candidato nuevo, `v5.1-tesis`. Esta change es esa reapertura.
 
-El perfilado `consumer.timing` de la Change 69 deja poco margen de duda sobre **dónde** está el
-tiempo: autenticación 0,02 ms, validación 0,14 ms e **ingesta transaccional 12,27 ms de media por
-evento** (98 % del tiempo; mediana 10,3 ms, mínimo 4,9 ms). El flush de ACK por lote suma 0,4 s en
-64 lotes y el lag del grupo de consumidores sube de 20 a 581 en 8 s: el backend es el cuello, no el
-broker ni el agente.
+El perfilado `consumer.timing` ubica el tiempo en la ingesta transaccional: autenticación 0,02 ms,
+validación 0,14 ms e `ingest_ms` 12,27 ms de media por evento (98 %). La primera versión de esta
+change atribuía ese costo al `COMMIT` por evento en contención con el carril de notificación y
+proponía persistir por lote. **La medición de la tarea 1.7 refutó esa hipótesis** (`mediciones.md`
+§1 de esta change). El banco `lab/bench_ingest_consumer.py` con la cadena de notificación sin stub
+(`--notify real --paths 600`) reproduce el laboratorio: 62,0 ev/s e `ingest_ms` 15,85 ms, contra
+170-178 ev/s y 5,1-5,9 ms con stub. Pero:
 
-**Qué cubre `ingest_ms`.** Es el tiempo de pared de `run_in_executor(_ingest)`
-(`backend/app/modules/events/consumer.py:547-551`), que ejecuta `_ingest_event_outcome`
-(`backend/app/modules/events/service.py:354-536`) con **una `Session` y un `COMMIT` por evento**.
-Por evento nuevo sin cadena, eso son ~7 viajes a PostgreSQL —`SELECT 1` de `pool_pre_ping`
-(`backend/app/core/database.py:38-45`), `BEGIN`, `SELECT` de dedup (`service.py:429-431`),
-`SELECT` del `pending` de la ruta (`get_pending_event_for_path`, `:290-296`), `SELECT * FROM rules`
-(`determine_severity_for_path`, `backend/app/modules/rules/service.py:75`), `INSERT … RETURNING`
-(`session.flush()`, `:520`) y `COMMIT` (`:535`)— más un `UPDATE` de supersesión y una o dos
-consultas de compactación cuando hay cadena. El `COMMIT` vacía el WAL a disco: el compose no fija
-`synchronous_commit` y rige el default `on`. En el laboratorio, además, cada evento alerta: el
-carril de notificación agrega por evento dos `COMMIT` más (`_create_alert_row`,
-`backend/app/modules/alerts/service.py:169-187`, y `_mark_delivered`, `:498-533`) y n8n persiste su
-ejecución en la base `fim_n8n` **de la misma instancia** de PostgreSQL (`docker-compose.yml`,
-servicio `n8n`, `DB_POSTGRESDB_HOST: db`). El banco de desarrollo de la Change 69 reemplazaba la
-notificación por un no-op (`lab/bench_ingest_consumer.py:164-183`) y usaba rutas únicas: midió
-~5,7 ms de ingesta, cerca del mínimo del laboratorio (4,9 ms). La atribución a la contención de
-`COMMIT` es una hipótesis fundada en el código; esta change la confirma con un banco sin stub
-**antes** de tocar la ingesta.
+- `commit_ms` es 1,085 ms, el 6,8 % de `ingest_ms`;
+- `synchronous_commit=off` deja 61,9 ev/s;
+- un intervalo de cambio del GIL 50 veces menor deja 59,6 ev/s.
 
-Decisión que gobierna esta change: **ampliación del 2026-10-03 de D87/RN-181**
-(`docs/arquitectura_stack.md`, fila D87; `docs/reglas_de_negocio.md`, sección D87/RN-181), con una
-enmienda **condicional** de D76/RN-170. Preserva D75/RN-169, D40/RN-134, D41/RN-135, D25/RN-121,
-RN-11, RN-12, RN-72 y RN-98.
+La causa medida es otra. `send_n8n` (`backend/app/modules/alerts/notifier.py:45`) crea un
+`httpx.AsyncClient` por entrega, y cada construcción arma un contexto SSL nuevo, con la carga del
+bundle de CA, en CPU del proceso. El hilo del executor de ingesta pierde ese tiempo. Con
+`verify=False` inyectado, sólo como diagnóstico, el banco da 81,4 ev/s e `ingest_ms` 11,96 ms
+(+31 %).
+
+Decisión que gobierna esta change: **ampliación del 2026-10-03 de D87/RN-181, revisada tras la
+medición** (`docs/arquitectura_stack.md`, fila D87; `docs/reglas_de_negocio.md`, sección
+D87/RN-181), con una enmienda **condicional** de D76/RN-170 dentro de la fase B. Preserva D42/RN-136,
+D75/RN-169, D40/RN-134, D41/RN-135, D25/RN-121, RN-11, RN-12, RN-72 y RN-98.
 
 ## What Changes
 
-- **Persistencia por lote.** Dentro de `_process_batch`, los eventos que superan la validación
-  (pasos 1–5) se acumulan como candidatos y se persisten en **una sola transacción por lote**, en
-  una única salida al executor de ingesta y en el orden del stream. Un único `COMMIT` por lote
-  reemplaza los ~50 `COMMIT` actuales.
-- **Semántica por evento dentro del lote.** Dedup en bloque contra la base y dentro del lote;
-  `pending` de las rutas del lote precargado y mantenido en memoria, de modo que dos eventos de la
-  misma ruta en un lote forman cadena `superseded`; `UPDATE` optimista y re-consulta ante carrera
-  (D25/RN-121) por evento; reglas leídas una vez por lote; compactación (RN-98) por evento dentro de
-  la misma transacción; rate limit por evento y en orden.
-- **Efectos después del `COMMIT` del lote, en orden del stream.** `event_ack` + `XACK` (acumulador
-  de la Change 69), rechazos `rate_limited`, camino de `InvalidTransitionError` y agendado de la
-  notificación por evento. Los rechazos de validación (pasos 1–5) siguen siendo inmediatos.
-- **Fallas.** Un error transitorio de base de datos revierte el lote y deja **todos** sus
-  candidatos en la PEL, sin `XACK` ni respuesta, y devuelve los tokens de rate limit consumidos. Un
-  `IntegrityError`/`DataError` revierte y re-ejecuta los candidatos uno por uno por el camino por
-  evento actual, para aislar un evento envenenado.
-- **`_handle_message` conserva su firma** y, invocado fuera de un lote, el camino por evento actual.
-- **Perfilado.** `consumer.timing` por lote suma `candidates`, `ingest_db_ms` y `commit_ms`; el
-  `ingest_ms` por evento pasa a ser la porción de ese evento dentro de la transacción del lote.
-- **Paso condicional (enmienda acotada de D76/RN-170).** Sólo si el banco sin stub no alcanza 1,5×
-  su línea base con lo anterior, la fila `Alert` se crea en la misma transacción del lote. Su delta
-  de spec se escribe antes del código, como addendum.
-- **Banco sin stub.** `lab/bench_ingest_consumer.py` gana un modo con la cadena de notificación real
-  (reglas `high`, sumidero HTTP local que persiste una fila por pedido en otra base de la misma
-  instancia, rutas repetidas como el generador de carga) y registra antes y después en
-  `mediciones.md` de esta change.
+- **Fase A (obligatoria): cliente HTTP de larga vida para las entregas.** `send_n8n` y
+  `send_webhook_fallback` dejan de crear un `httpx.AsyncClient` por llamada. Pasan a usar uno solo:
+  - creado en el lifespan y cerrado al apagar;
+  - verificación TLS activa y contexto SSL construido una vez;
+  - mismos timeouts;
+  - pool acotado a `notify_max_concurrent_deliveries` conexiones, con keep-alive de 4 s.
+
+  Un reset de conexión o un reinicio de n8n hacen fallar sólo la entrega en curso, que sigue la
+  escalera de reintentos durable de D42/RN-136. La entrega siguiente abre una conexión nueva. El
+  chequeo de salud de n8n conserva su cliente por llamada.
+- **Medición de la fase A** con el banco sin stub. El umbral es al menos 1,5× la línea base sin
+  stub, es decir ≥93 ev/s sobre los 62,0 medidos.
+- **Fase B (condicional): persistencia por lote.** Sólo si la fase A no alcanza el umbral. Es la
+  persistencia en una única transacción por lote de la versión anterior de esta change, sin cambios
+  de semántica:
+  - dedup en la base y dentro del lote;
+  - cadena `superseded` entre eventos del mismo lote;
+  - todo el lote en la PEL ante un error transitorio;
+  - re-ejecución evento por evento ante `IntegrityError`/`DataError`;
+  - devolución de tokens de rate limit;
+  - efectos después del `COMMIT`, en orden.
+
+  Dentro de ella, y sólo si tampoco alcanza el umbral, la fila `Alert` se crea en la misma
+  transacción (enmienda acotada de D76/RN-170). Si la fase A alcanza el umbral, la fase B no se
+  implementa y queda registrada como no necesaria, con su medición.
+- **Banco sin stub** (`--notify real`, `--paths`, `commit_ms`): ya hecho en la tarea 1.
 - **Batería 5** registra el ritmo como ventana de consumo entre el primer y el último `received_at`.
 - **Confirmación de laboratorio diferida** a la corrida unificada de `v5.1-tesis`, sin declarar
   mejora anticipada.
 
-Sin cambios **BREAKING** de contrato: `event_ack`/`event_nack` no cambian de forma; cambia el
-instante de emisión dentro del lote, que el agente resuelve por `event_id` con una ventana de 60 s.
+Sin cambios **BREAKING**: el contrato de notificación (D40/RN-134), su `notification_id` (D41/RN-135)
+y el protocolo `event_ack`/`event_nack` no cambian.
 
 ## Capabilities
 
@@ -81,23 +74,26 @@ Ninguna.
 
 ### Modified Capabilities
 
-- `backend-event-consumer`: nuevo requisito de persistencia transaccional por lote (dedup intra-lote,
-  cadena `superseded` intra-lote, rollback del lote completo, re-ejecución ante error determinista,
-  devolución de tokens, efectos post-`COMMIT` en orden); se modifican los requisitos de ACK por lote
-  (el `commit` de referencia es el del lote y un error transitorio deja todo el lote en la PEL), de
-  perfilado (campos por lote) y de piso de rendimiento (el `INSERT` por lote queda adoptado, con
-  aceptación en `v5.1-tesis` y el banco sin stub).
+- `backend-notifications`: las entregas HTTP del carril de notificación usan un cliente HTTP de
+  larga vida, con verificación TLS activa, pool acotado y recuperación de una conexión rota en la
+  entrega siguiente (requisito de envío a n8n).
+- `backend-event-consumer`: el requisito de piso de rendimiento pasa de «`INSERT` por lote
+  condicional» a las fases A y B, con aceptación en `v5.1-tesis` y en el banco sin stub. Si la fase B
+  se adopta, su delta (requisito nuevo de persistencia transaccional por lote y extensión de los de
+  ACK por lote y perfilado, redactado en `32d9e5d`) se restaura en la change antes del código; si no,
+  ninguna main spec recibe requisitos que no se implementaron.
 
 ## Impact
 
-- **Código**: `backend/app/modules/events/consumer.py` (`_process_batch`, `_handle_message`,
-  limitador), `backend/app/modules/events/service.py` (núcleo de ingesta reutilizable con una
-  `Session` dada y contexto de lote), `backend/app/modules/rules/service.py` (cálculo de severidad
-  puro sobre una lista de reglas). Condicional: `backend/app/modules/alerts/service.py`.
-- **Tests**: nuevos en `backend/tests/`; se reescriben, bajo la ampliación de RN-181, tres tests de
-  `backend/tests/test_ingest_drain_resilience.py` que fijaban granularidad por evento dentro del
-  lote. `test_fifo_order_preserved_after_batch_drain` y
-  `test_no_duplicate_after_transient_db_error_and_pel_redelivery` no se modifican.
-- **Laboratorio**: `lab/bench_ingest_consumer.py`, `lab/bateria5.sh`.
+- **Código, fase A**: `backend/app/modules/alerts/notifier.py` (cliente compartido y su ciclo de
+  vida), `backend/app/main.py` (creación en el lifespan y cierre al apagar) y
+  `backend/tests/conftest.py` (reset del cliente entre tests).
+- **Código, fase B si aplica**: `backend/app/modules/events/consumer.py`,
+  `backend/app/modules/events/service.py`, `backend/app/modules/rules/service.py` y, en su paso
+  condicional, `backend/app/modules/alerts/service.py`.
+- **Tests**: nuevos para el cliente compartido. Si la fase B aplica, se reescriben tres tests de
+  `backend/tests/test_ingest_drain_resilience.py`. `test_fifo_order_preserved_after_batch_drain` y
+  `test_no_duplicate_after_transient_db_error_and_pel_redelivery` no se modifican en ningún caso.
+- **Laboratorio**: `lab/bench_ingest_consumer.py` (hecho) y `lab/bateria5.sh`.
 - **Sin cambios** de esquema, de compose, de protocolo con el agente ni de frontend.
 - **Candidato**: `v5.1-tesis`; la re-corrida unificada repite todas las baterías.
