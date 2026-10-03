@@ -1,0 +1,1366 @@
+08:14:02.278 name fim-backend consumers 1 pending 0 last-delivered-id 1791015142638-0 entries-read 220580 lag 0
+08:14:03.460 name fim-backend consumers 1 pending 0 last-delivered-id 1791015142638-0 entries-read 220580 lag 0
+08:14:04.615 name fim-backend consumers 1 pending 0 last-delivered-id 1791015142638-0 entries-read 220580 lag 0
+08:14:05.763 
+08:14:07.071 
+08:14:08.170 
+08:14:09.271 
+08:14:10.370 
+08:14:11.472 
+08:14:12.575 
+08:14:13.680 
+08:14:14.786 
+08:14:15.887 
+08:14:16.984 
+08:14:18.087 
+08:14:19.191 
+08:14:20.300 
+08:14:21.403 
+08:14:22.516 
+08:14:23.623 
+08:14:24.726 
+08:14:25.833 
+08:14:26.939 
+08:14:28.043 
+08:14:29.142 
+08:14:30.249 
+08:14:31.354 
+08:14:32.453 
+08:14:33.554 
+08:14:34.674 
+08:14:35.780 
+08:14:36.880 
+08:14:37.999 
+08:14:39.103 
+08:14:40.222 
+08:14:41.322 
+08:14:42.421 
+08:14:43.520 
+08:14:44.625 
+08:14:45.727 
+08:14:46.839 
+08:14:47.939 
+08:14:49.043 
+08:14:50.149 
+08:14:51.252 
+08:14:52.353 
+08:14:53.453 
+08:14:54.555 
+08:14:55.666 
+08:14:56.769 
+08:14:57.867 
+08:14:58.980 
+08:15:00.082 
+08:15:01.186 
+08:15:02.288 
+08:15:03.395 
+08:15:04.497 
+08:15:05.595 
+08:15:06.701 
+08:15:07.810 
+08:15:08.911 
+08:15:10.021 
+08:15:11.124 
+08:15:12.224 
+08:15:13.331 
+08:15:14.429 
+08:15:15.535 
+08:15:16.647 
+08:15:17.759 
+08:15:18.863 
+08:15:19.963 
+08:15:21.067 
+08:15:22.165 
+08:15:23.269 
+08:15:24.369 
+08:15:25.471 
+08:15:26.566 
+08:15:27.668 
+08:15:28.767 
+08:15:29.871 
+08:15:30.985 
+08:15:32.087 
+08:15:33.193 
+08:15:34.297 
+08:15:35.398 
+08:15:36.499 
+08:15:37.599 
+08:15:38.698 
+08:15:39.807 
+08:15:40.915 
+08:15:42.014 
+08:15:43.118 
+08:15:44.217 
+08:15:45.316 
+08:15:46.417 
+08:15:47.522 
+08:15:48.624 
+08:15:49.731 
+08:15:50.832 
+08:15:51.934 
+08:15:53.033 
+08:15:54.132 
+08:15:55.252 
+08:15:56.355 
+08:15:57.462 
+08:15:58.574 
+08:15:59.688 
+08:16:00.809 
+08:16:01.917 
+08:16:03.014 
+08:16:04.118 
+08:16:05.220 
+08:16:06.321 
+08:16:07.426 
+08:16:08.531 
+08:16:09.635 
+08:16:10.733 
+08:16:11.862 
+08:16:12.970 
+08:16:14.074 
+08:16:15.175 
+08:16:16.292 
+08:16:17.391 
+08:16:18.503 
+08:16:19.603 
+08:16:20.707 
+08:16:21.807 
+08:16:22.905 
+08:16:24.020 
+08:16:25.136 
+08:16:26.240 
+08:16:27.340 
+08:16:28.443 
+08:16:29.545 
+08:16:30.650 
+08:16:31.754 
+08:16:32.853 
+08:16:33.959 
+08:16:35.059 
+08:16:36.160 
+08:16:37.272 
+08:16:38.389 
+08:16:39.489 
+08:16:40.590 
+08:16:41.694 
+08:16:42.793 
+08:16:43.899 
+08:16:45.009 
+08:16:46.109 
+08:16:47.216 
+08:16:48.321 
+08:16:49.425 
+08:16:50.527 
+08:16:51.629 
+08:16:52.727 
+08:16:53.839 
+08:16:54.949 
+08:16:56.067 
+08:16:57.173 
+08:16:58.276 
+08:16:59.375 
+08:17:00.476 
+08:17:01.580 
+08:17:02.678 
+08:17:03.779 
+08:17:04.875 
+08:17:05.983 
+08:17:07.085 
+08:17:08.193 
+08:17:09.297 
+08:17:10.396 
+08:17:11.497 
+08:17:12.603 
+08:17:13.704 
+08:17:14.809 
+08:17:15.923 
+08:17:17.027 
+08:17:18.145 
+08:17:19.245 
+08:17:20.348 
+08:17:21.453 
+08:17:22.558 
+08:17:23.657 
+08:17:24.757 
+08:17:25.857 
+08:17:26.962 
+08:17:28.065 
+08:17:29.177 
+08:17:30.279 
+08:17:31.384 
+08:17:32.483 
+08:17:33.591 
+08:17:34.693 
+08:17:35.793 
+08:17:36.894 
+08:17:37.995 
+08:17:39.098 
+08:17:40.210 
+08:17:41.311 
+08:17:42.413 
+08:17:43.512 
+08:17:44.613 
+08:17:45.712 
+08:17:46.814 
+08:17:47.919 
+08:17:49.023 
+08:17:50.125 
+08:17:51.225 
+08:17:52.330 
+08:17:53.431 
+08:17:54.529 
+08:17:55.629 
+08:17:56.732 
+08:17:57.832 
+08:17:58.938 
+08:18:00.041 
+08:18:01.154 
+08:18:02.255 
+08:18:03.354 
+08:18:04.458 
+08:18:05.559 
+08:18:06.673 
+08:18:07.774 
+08:18:08.890 
+08:18:09.990 
+08:18:11.088 
+08:18:12.185 
+08:18:13.287 
+08:18:14.388 
+08:18:15.496 
+08:18:16.598 
+08:18:17.698 
+08:18:18.798 
+08:18:19.900 
+08:18:20.999 
+08:18:22.101 
+08:18:23.200 
+08:18:24.299 
+08:18:25.397 
+08:18:26.497 
+08:18:27.598 
+08:18:28.699 
+08:18:29.801 
+08:18:30.903 
+08:18:32.009 
+08:18:33.120 
+08:18:34.223 
+08:18:35.323 
+08:18:36.424 
+08:18:37.524 
+08:18:38.623 
+08:18:39.726 
+08:18:40.839 
+08:18:41.945 
+08:18:43.053 
+08:18:44.165 
+08:18:45.268 
+08:18:46.361 
+08:18:47.469 
+08:18:48.565 
+08:18:49.670 
+08:18:50.773 
+08:18:51.874 
+08:18:52.983 
+08:18:54.097 
+08:18:55.217 
+08:18:56.321 
+08:18:57.421 
+08:18:58.521 
+08:18:59.619 
+08:19:00.721 
+08:19:01.818 
+08:19:02.916 
+08:19:04.030 
+08:19:05.138 
+08:19:06.250 
+08:19:07.349 
+08:19:08.448 
+08:19:09.546 name fim-backend consumers 1 pending 35 last-delivered-id 1791015549593-0 entries-read 220624 lag 20
+08:19:10.726 name fim-backend consumers 1 pending 50 last-delivered-id 1791015550077-0 entries-read 220724 lag 119
+08:19:11.899 name fim-backend consumers 1 pending 50 last-delivered-id 1791015550683-0 entries-read 220824 lag 204
+08:19:13.061 name fim-backend consumers 1 pending 50 last-delivered-id 1791015551314-0 entries-read 220924 lag 250
+08:19:14.247 name fim-backend consumers 1 pending 50 last-delivered-id 1791015551953-0 entries-read 221024 lag 337
+08:19:15.418 name fim-backend consumers 1 pending 50 last-delivered-id 1791015552844-0 entries-read 221124 lag 399
+08:19:16.634 name fim-backend consumers 1 pending 50 last-delivered-id 1791015553103-0 entries-read 221174 lag 504
+08:19:17.818 name fim-backend consumers 1 pending 50 last-delivered-id 1791015553732-0 entries-read 221274 lag 571
+08:19:18.996 name fim-backend consumers 1 pending 34 last-delivered-id 1791015554570-0 entries-read 221374 lag 581
+08:19:20.168 name fim-backend consumers 1 pending 8 last-delivered-id 1791015555301-0 entries-read 221474 lag 481
+08:19:21.338 name fim-backend consumers 1 pending 39 last-delivered-id 1791015556491-0 entries-read 221624 lag 331
+08:19:22.500 name fim-backend consumers 1 pending 29 last-delivered-id 1791015557213-0 entries-read 221724 lag 231
+08:19:23.668 name fim-backend consumers 1 pending 29 last-delivered-id 1791015557857-0 entries-read 221824 lag 131
+08:19:24.833 name fim-backend consumers 1 pending 12 last-delivered-id 1791015558561-0 entries-read 221924 lag 31
+08:19:25.997 name fim-backend consumers 1 pending 0 last-delivered-id 1791015558694-0 entries-read 221955 lag 0
+08:19:27.152 name fim-backend consumers 1 pending 0 last-delivered-id 1791015566401-0 entries-read 221988 lag 0
+08:19:28.311 name fim-backend consumers 1 pending 0 last-delivered-id 1791015567452-0 entries-read 221993 lag 0
+08:19:29.468 name fim-backend consumers 1 pending 4 last-delivered-id 1791015569600-0 entries-read 222017 lag 1
+08:19:30.630 name fim-backend consumers 1 pending 18 last-delivered-id 1791015570766-0 entries-read 222042 lag 0
+08:19:31.813 name fim-backend consumers 1 pending 0 last-delivered-id 1791015571811-0 entries-read 222047 lag 0
+08:19:32.978 name fim-backend consumers 1 pending 0 last-delivered-id 1791015572938-0 entries-read 222072 lag 0
+08:19:34.186 name fim-backend consumers 1 pending 0 last-delivered-id 1791015573977-0 entries-read 222077 lag 0
+08:19:35.338 name fim-backend consumers 1 pending 0 last-delivered-id 1791015575110-0 entries-read 222101 lag 0
+08:19:36.497 name fim-backend consumers 1 pending 0 last-delivered-id 1791015576163-0 entries-read 222109 lag 0
+08:19:37.644 name fim-backend consumers 1 pending 0 last-delivered-id 1791015577265-0 entries-read 222121 lag 0
+08:19:38.794 name fim-backend consumers 1 pending 0 last-delivered-id 1791015578333-0 entries-read 222131 lag 0
+08:19:39.951 name fim-backend consumers 1 pending 0 last-delivered-id 1791015579381-0 entries-read 222137 lag 0
+08:19:41.110 name fim-backend consumers 1 pending 0 last-delivered-id 1791015580471-0 entries-read 222147 lag 0
+08:19:42.279 name fim-backend consumers 1 pending 0 last-delivered-id 1791015581578-0 entries-read 222155 lag 0
+08:19:43.429 name fim-backend consumers 1 pending 0 last-delivered-id 1791015582688-0 entries-read 222168 lag 0
+08:19:44.577 name fim-backend consumers 1 pending 0 last-delivered-id 1791015583776-0 entries-read 222181 lag 0
+08:19:45.727 name fim-backend consumers 1 pending 2 last-delivered-id 1791015585848-0 entries-read 222190 lag 1
+08:19:46.878 name fim-backend consumers 1 pending 0 last-delivered-id 1791015586922-0 entries-read 222201 lag 0
+08:19:48.048 name fim-backend consumers 1 pending 0 last-delivered-id 1791015587996-0 entries-read 222212 lag 0
+08:19:49.193 name fim-backend consumers 1 pending 0 last-delivered-id 1791015589088-0 entries-read 222222 lag 0
+08:19:50.340 name fim-backend consumers 1 pending 0 last-delivered-id 1791015590154-0 entries-read 222227 lag 0
+08:19:51.493 name fim-backend consumers 1 pending 0 last-delivered-id 1791015591253-0 entries-read 222238 lag 0
+08:19:52.654 name fim-backend consumers 1 pending 0 last-delivered-id 1791015592314-0 entries-read 222246 lag 0
+08:19:53.795 name fim-backend consumers 1 pending 0 last-delivered-id 1791015593427-0 entries-read 222261 lag 0
+08:19:54.941 name fim-backend consumers 1 pending 0 last-delivered-id 1791015594512-0 entries-read 222271 lag 0
+08:19:56.090 name fim-backend consumers 1 pending 0 last-delivered-id 1791015595562-0 entries-read 222275 lag 0
+08:19:57.234 name fim-backend consumers 1 pending 0 last-delivered-id 1791015596681-0 entries-read 222288 lag 0
+08:19:58.384 name fim-backend consumers 1 pending 0 last-delivered-id 1791015597783-0 entries-read 222300 lag 0
+08:19:59.553 name fim-backend consumers 1 pending 0 last-delivered-id 1791015598848-0 entries-read 222309 lag 0
+08:20:00.697 name fim-backend consumers 1 pending 0 last-delivered-id 1791015599927-0 entries-read 222319 lag 0
+08:20:01.847 name fim-backend consumers 1 pending 1 last-delivered-id 1791015601975-0 entries-read 222325 lag 0
+08:20:03.001 name fim-backend consumers 1 pending 0 last-delivered-id 1791015603072-0 entries-read 222345 lag 0
+08:20:04.163 name fim-backend consumers 1 pending 0 last-delivered-id 1791015604165-0 entries-read 222355 lag 0
+08:20:05.317 name fim-backend consumers 1 pending 0 last-delivered-id 1791015605207-0 entries-read 222358 lag 0
+08:20:06.465 name fim-backend consumers 1 pending 0 last-delivered-id 1791015606294-0 entries-read 222368 lag 0
+08:20:07.612 name fim-backend consumers 1 pending 0 last-delivered-id 1791015607370-0 entries-read 222379 lag 0
+08:20:08.763 name fim-backend consumers 1 pending 0 last-delivered-id 1791015608463-0 entries-read 222388 lag 0
+08:20:09.912 name fim-backend consumers 1 pending 0 last-delivered-id 1791015609547-0 entries-read 222403 lag 0
+08:20:11.061 name fim-backend consumers 1 pending 0 last-delivered-id 1791015610584-0 entries-read 222408 lag 0
+08:20:12.211 name fim-backend consumers 1 pending 0 last-delivered-id 1791015611652-0 entries-read 222417 lag 0
+08:20:13.363 name fim-backend consumers 1 pending 0 last-delivered-id 1791015612725-0 entries-read 222432 lag 0
+08:20:14.529 name fim-backend consumers 1 pending 0 last-delivered-id 1791015613785-0 entries-read 222441 lag 0
+08:20:15.681 name fim-backend consumers 1 pending 0 last-delivered-id 1791015615402-0 entries-read 222538 lag 0
+08:20:16.846 name fim-backend consumers 1 pending 1 last-delivered-id 1791015616983-0 entries-read 222606 lag 0
+08:20:18.009 name fim-backend consumers 1 pending 0 last-delivered-id 1791015618002-0 entries-read 222743 lag 0
+08:20:19.156 name fim-backend consumers 1 pending 0 last-delivered-id 1791015619286-0 entries-read 222774 lag 0
+08:20:20.314 name fim-backend consumers 1 pending 0 last-delivered-id 1791015620438-0 entries-read 222912 lag 0
+08:20:21.466 name fim-backend consumers 1 pending 6 last-delivered-id 1791015621540-0 entries-read 223067 lag 5
+08:20:22.631 name fim-backend consumers 1 pending 0 last-delivered-id 1791015622677-0 entries-read 223080 lag 0
+08:20:23.772 name fim-backend consumers 1 pending 0 last-delivered-id 1791015623733-0 entries-read 223084 lag 0
+08:20:24.922 name fim-backend consumers 1 pending 0 last-delivered-id 1791015624832-0 entries-read 223097 lag 0
+08:20:26.069 name fim-backend consumers 1 pending 0 last-delivered-id 1791015625916-0 entries-read 223105 lag 0
+08:20:27.219 name fim-backend consumers 1 pending 0 last-delivered-id 1791015627177-0 entries-read 223136 lag 0
+08:20:28.364 name fim-backend consumers 1 pending 0 last-delivered-id 1791015628262-0 entries-read 223147 lag 0
+08:20:29.510 name fim-backend consumers 1 pending 0 last-delivered-id 1791015629404-0 entries-read 223164 lag 0
+08:20:30.657 name fim-backend consumers 1 pending 0 last-delivered-id 1791015630492-0 entries-read 223172 lag 0
+08:20:31.806 name fim-backend consumers 1 pending 0 last-delivered-id 1791015631629-0 entries-read 223193 lag 0
+08:20:32.951 name fim-backend consumers 1 pending 0 last-delivered-id 1791015632680-0 entries-read 223198 lag 0
+08:20:34.095 name fim-backend consumers 1 pending 0 last-delivered-id 1791015633905-0 entries-read 223221 lag 0
+08:20:35.258 name fim-backend consumers 1 pending 0 last-delivered-id 1791015634966-0 entries-read 223228 lag 0
+08:20:36.408 name fim-backend consumers 1 pending 0 last-delivered-id 1791015636166-0 entries-read 223249 lag 0
+08:20:37.562 name fim-backend consumers 1 pending 0 last-delivered-id 1791015637263-0 entries-read 223258 lag 0
+08:20:38.710 name fim-backend consumers 1 pending 0 last-delivered-id 1791015638349-0 entries-read 223268 lag 0
+08:20:39.866 name fim-backend consumers 1 pending 0 last-delivered-id 1791015639440-0 entries-read 223277 lag 0
+08:20:41.015 name fim-backend consumers 1 pending 0 last-delivered-id 1791015640522-0 entries-read 223285 lag 0
+08:20:42.165 name fim-backend consumers 1 pending 0 last-delivered-id 1791015641709-0 entries-read 223311 lag 0
+08:20:43.319 name fim-backend consumers 1 pending 0 last-delivered-id 1791015642880-0 entries-read 223328 lag 0
+08:20:44.478 name fim-backend consumers 1 pending 0 last-delivered-id 1791015643960-0 entries-read 223339 lag 0
+08:20:45.626 name fim-backend consumers 1 pending 0 last-delivered-id 1791015645035-0 entries-read 223349 lag 0
+08:20:46.771 name fim-backend consumers 1 pending 0 last-delivered-id 1791015646120-0 entries-read 223358 lag 0
+08:20:47.934 name fim-backend consumers 1 pending 0 last-delivered-id 1791015647193-0 entries-read 223365 lag 0
+08:20:49.102 name fim-backend consumers 1 pending 0 last-delivered-id 1791015648284-0 entries-read 223374 lag 0
+08:20:50.249 name fim-backend consumers 1 pending 0 last-delivered-id 1791015649367-0 entries-read 223385 lag 0
+08:20:51.394 name fim-backend consumers 1 pending 6 last-delivered-id 1791015651520-0 entries-read 223414 lag 0
+08:20:52.553 name fim-backend consumers 1 pending 0 last-delivered-id 1791015652574-0 entries-read 223420 lag 0
+08:20:53.701 name fim-backend consumers 1 pending 0 last-delivered-id 1791015653702-0 entries-read 223433 lag 0
+08:20:54.857 name fim-backend consumers 1 pending 0 last-delivered-id 1791015654778-0 entries-read 223444 lag 0
+08:20:56.000 name fim-backend consumers 1 pending 0 last-delivered-id 1791015655939-0 entries-read 223452 lag 0
+08:20:57.145 name fim-backend consumers 1 pending 0 last-delivered-id 1791015657054-0 entries-read 223463 lag 0
+08:20:58.294 name fim-backend consumers 1 pending 0 last-delivered-id 1791015658131-0 entries-read 223474 lag 0
+08:20:59.444 name fim-backend consumers 1 pending 0 last-delivered-id 1791015659207-0 entries-read 223481 lag 0
+08:21:00.603 name fim-backend consumers 1 pending 0 last-delivered-id 1791015660295-0 entries-read 223489 lag 0
+08:21:01.757 name fim-backend consumers 1 pending 0 last-delivered-id 1791015661350-0 entries-read 223497 lag 0
+08:21:02.908 name fim-backend consumers 1 pending 0 last-delivered-id 1791015662484-0 entries-read 223512 lag 0
+08:21:04.061 name fim-backend consumers 1 pending 0 last-delivered-id 1791015663558-0 entries-read 223522 lag 0
+08:21:05.212 name fim-backend consumers 1 pending 0 last-delivered-id 1791015664644-0 entries-read 223530 lag 0
+08:21:06.365 name fim-backend consumers 1 pending 0 last-delivered-id 1791015665700-0 entries-read 223534 lag 0
+08:21:07.528 name fim-backend consumers 1 pending 0 last-delivered-id 1791015666776-0 entries-read 223546 lag 0
+08:21:08.676 name fim-backend consumers 1 pending 0 last-delivered-id 1791015667889-0 entries-read 223560 lag 0
+08:21:09.833 name fim-backend consumers 1 pending 0 last-delivered-id 1791015668972-0 entries-read 223568 lag 0
+08:21:10.975 name fim-backend consumers 1 pending 1 last-delivered-id 1791015671091-0 entries-read 223586 lag 0
+08:21:12.135 name fim-backend consumers 1 pending 0 last-delivered-id 1791015672154-0 entries-read 223595 lag 0
+08:21:13.299 name fim-backend consumers 1 pending 0 last-delivered-id 1791015673269-0 entries-read 223608 lag 0
+08:21:14.448 name fim-backend consumers 1 pending 0 last-delivered-id 1791015674351-0 entries-read 223616 lag 0
+08:21:15.597 name fim-backend consumers 1 pending 6 last-delivered-id 1791015675661-0 entries-read 223657 lag 8
+08:21:16.750 name fim-backend consumers 1 pending 0 last-delivered-id 1791015675993-0 entries-read 223710 lag 0
+08:21:17.904 name fim-backend consumers 1 pending 7 last-delivered-id 1791015678003-0 entries-read 223863 lag 6
+08:21:19.075 name fim-backend consumers 1 pending 0 last-delivered-id 1791015678936-0 entries-read 223915 lag 0
+08:21:20.226 name fim-backend consumers 1 pending 4 last-delivered-id 1791015680353-0 entries-read 223978 lag 1
+08:21:21.385 name fim-backend consumers 1 pending 18 last-delivered-id 1791015681277-0 entries-read 224148 lag 38
+08:21:22.546 name fim-backend consumers 1 pending 0 last-delivered-id 1791015681917-0 entries-read 224238 lag 0
+08:21:23.692 name fim-backend consumers 1 pending 0 last-delivered-id 1791015682984-0 entries-read 224244 lag 0
+08:21:24.845 name fim-backend consumers 1 pending 0 last-delivered-id 1791015684033-0 entries-read 224252 lag 0
+08:21:25.994 name fim-backend consumers 1 pending 0 last-delivered-id 1791015685150-0 entries-read 224275 lag 0
+08:21:27.148 name fim-backend consumers 1 pending 3 last-delivered-id 1791015687294-0 entries-read 224294 lag 1
+08:21:28.324 name fim-backend consumers 1 pending 0 last-delivered-id 1791015687411-0 entries-read 224310 lag 0
+08:21:29.472 name fim-backend consumers 1 pending 0 last-delivered-id 1791015689033-0 entries-read 224326 lag 0
+08:21:30.616 name fim-backend consumers 1 pending 0 last-delivered-id 1791015690105-0 entries-read 224341 lag 0
+08:21:31.762 name fim-backend consumers 1 pending 0 last-delivered-id 1791015691197-0 entries-read 224350 lag 0
+08:21:32.915 name fim-backend consumers 1 pending 0 last-delivered-id 1791015692377-0 entries-read 224369 lag 0
+08:21:34.092 name fim-backend consumers 1 pending 0 last-delivered-id 1791015693431-0 entries-read 224374 lag 0
+08:21:35.240 name fim-backend consumers 1 pending 0 last-delivered-id 1791015694621-0 entries-read 224395 lag 0
+08:21:36.389 name fim-backend consumers 1 pending 0 last-delivered-id 1791015695671-0 entries-read 224400 lag 0
+08:21:37.549 name fim-backend consumers 1 pending 0 last-delivered-id 1791015696787-0 entries-read 224419 lag 0
+08:21:38.698 name fim-backend consumers 1 pending 0 last-delivered-id 1791015697849-0 entries-read 224431 lag 0
+08:21:39.853 name fim-backend consumers 1 pending 0 last-delivered-id 1791015699985-0 entries-read 224454 lag 0
+08:21:41.031 name fim-backend consumers 1 pending 0 last-delivered-id 1791015701064-0 entries-read 224464 lag 0
+08:21:42.189 name fim-backend consumers 1 pending 0 last-delivered-id 1791015702277-0 entries-read 224487 lag 0
+08:21:43.355 name fim-backend consumers 1 pending 0 last-delivered-id 1791015703414-0 entries-read 224503 lag 0
+08:21:44.512 name fim-backend consumers 1 pending 0 last-delivered-id 1791015704477-0 entries-read 224512 lag 0
+08:21:45.660 name fim-backend consumers 1 pending 0 last-delivered-id 1791015705584-0 entries-read 224523 lag 0
+08:21:46.809 name fim-backend consumers 1 pending 0 last-delivered-id 1791015706680-0 entries-read 224532 lag 0
+08:21:47.955 name fim-backend consumers 1 pending 0 last-delivered-id 1791015707747-0 entries-read 224537 lag 0
+08:21:49.104 name fim-backend consumers 1 pending 0 last-delivered-id 1791015708851-0 entries-read 224548 lag 0
+08:21:50.250 name fim-backend consumers 1 pending 0 last-delivered-id 1791015709960-0 entries-read 224559 lag 0
+08:21:51.400 name fim-backend consumers 1 pending 0 last-delivered-id 1791015711138-0 entries-read 224576 lag 0
+08:21:52.546 name fim-backend consumers 1 pending 0 last-delivered-id 1791015712235-0 entries-read 224585 lag 0
+08:21:53.699 name fim-backend consumers 1 pending 0 last-delivered-id 1791015713323-0 entries-read 224593 lag 0
+08:21:54.845 name fim-backend consumers 1 pending 0 last-delivered-id 1791015714440-0 entries-read 224604 lag 0
+08:21:55.993 name fim-backend consumers 1 pending 0 last-delivered-id 1791015715507-0 entries-read 224613 lag 0
+08:21:57.150 name fim-backend consumers 1 pending 0 last-delivered-id 1791015716586-0 entries-read 224622 lag 0
+08:21:58.306 name fim-backend consumers 1 pending 0 last-delivered-id 1791015717684-0 entries-read 224632 lag 0
+08:21:59.454 name fim-backend consumers 1 pending 0 last-delivered-id 1791015718786-0 entries-read 224643 lag 0
+08:22:00.616 name fim-backend consumers 1 pending 0 last-delivered-id 1791015719884-0 entries-read 224653 lag 0
+08:22:01.768 name fim-backend consumers 1 pending 0 last-delivered-id 1791015720960-0 entries-read 224660 lag 0
+08:22:02.921 name fim-backend consumers 1 pending 1 last-delivered-id 1791015723047-0 entries-read 224678 lag 0
+08:22:04.080 name fim-backend consumers 1 pending 0 last-delivered-id 1791015724171-0 entries-read 224699 lag 0
+08:22:05.239 name fim-backend consumers 1 pending 0 last-delivered-id 1791015725228-0 entries-read 224705 lag 0
+08:22:06.400 name fim-backend consumers 1 pending 0 last-delivered-id 1791015726276-0 entries-read 224709 lag 0
+08:22:07.554 name fim-backend consumers 1 pending 0 last-delivered-id 1791015727378-0 entries-read 224719 lag 0
+08:22:08.704 name fim-backend consumers 1 pending 0 last-delivered-id 1791015728467-0 entries-read 224731 lag 0
+08:22:09.864 name fim-backend consumers 1 pending 0 last-delivered-id 1791015729517-0 entries-read 224738 lag 0
+08:22:11.013 name fim-backend consumers 1 pending 0 last-delivered-id 1791015730620-0 entries-read 224749 lag 0
+08:22:12.165 name fim-backend consumers 1 pending 0 last-delivered-id 1791015731672-0 entries-read 224754 lag 0
+08:22:13.318 name fim-backend consumers 1 pending 0 last-delivered-id 1791015732783-0 entries-read 224766 lag 0
+08:22:14.463 name fim-backend consumers 1 pending 0 last-delivered-id 1791015733858-0 entries-read 224777 lag 0
+08:22:15.608 name fim-backend consumers 1 pending 0 last-delivered-id 1791015734936-0 entries-read 224785 lag 0
+08:22:16.762 name fim-backend consumers 1 pending 0 last-delivered-id 1791015736461-0 entries-read 224876 lag 0
+08:22:17.914 name fim-backend consumers 1 pending 21 last-delivered-id 1791015737997-0 entries-read 224973 lag 9
+08:22:19.074 name fim-backend consumers 1 pending 0 last-delivered-id 1791015738493-0 entries-read 225074 lag 0
+08:22:20.220 name fim-backend consumers 1 pending 0 last-delivered-id 1791015739527-0 entries-read 225079 lag 0
+08:22:21.381 name fim-backend consumers 1 pending 26 last-delivered-id 1791015741482-0 entries-read 225238 lag 6
+08:22:22.548 name fim-backend consumers 1 pending 10 last-delivered-id 1791015742475-0 entries-read 225396 lag 0
+08:22:23.703 name fim-backend consumers 1 pending 0 last-delivered-id 1791015743536-0 entries-read 225403 lag 0
+08:22:24.857 name fim-backend consumers 1 pending 0 last-delivered-id 1791015744639-0 entries-read 225414 lag 0
+08:22:26.010 name fim-backend consumers 1 pending 0 last-delivered-id 1791015745756-0 entries-read 225435 lag 0
+08:22:27.175 name fim-backend consumers 1 pending 0 last-delivered-id 1791015746809-0 entries-read 225440 lag 0
+08:22:28.323 name fim-backend consumers 1 pending 0 last-delivered-id 1791015748000-0 entries-read 225468 lag 0
+08:22:29.469 name fim-backend consumers 1 pending 8 last-delivered-id 1791015749580-0 entries-read 225481 lag 0
+08:22:30.622 name fim-backend consumers 1 pending 0 last-delivered-id 1791015750697-0 entries-read 225494 lag 0
+08:22:31.794 name fim-backend consumers 1 pending 0 last-delivered-id 1791015751787-0 entries-read 225503 lag 0
+08:22:32.959 name fim-backend consumers 1 pending 0 last-delivered-id 1791015752959-0 entries-read 225520 lag 0
+08:22:34.110 name fim-backend consumers 1 pending 0 last-delivered-id 1791015753998-0 entries-read 225525 lag 0
+08:22:35.269 name fim-backend consumers 1 pending 0 last-delivered-id 1791015755205-0 entries-read 225544 lag 0
+08:22:36.421 name fim-backend consumers 1 pending 0 last-delivered-id 1791015756260-0 entries-read 225551 lag 0
+08:22:37.574 name fim-backend consumers 1 pending 0 last-delivered-id 1791015757417-0 entries-read 225568 lag 0
+08:22:38.716 name fim-backend consumers 1 pending 0 last-delivered-id 1791015758485-0 entries-read 225578 lag 0
+08:22:39.874 name fim-backend consumers 1 pending 0 last-delivered-id 1791015759587-0 entries-read 225592 lag 0
+08:22:41.021 name fim-backend consumers 1 pending 0 last-delivered-id 1791015760681-0 entries-read 225601 lag 0
+08:22:42.177 name fim-backend consumers 1 pending 0 last-delivered-id 1791015761766-0 entries-read 225609 lag 0
+08:22:43.331 name fim-backend consumers 1 pending 0 last-delivered-id 1791015762904-0 entries-read 225630 lag 0
+08:22:44.480 name fim-backend consumers 1 pending 0 last-delivered-id 1791015764058-0 entries-read 225644 lag 0
+08:22:45.635 name fim-backend consumers 1 pending 0 last-delivered-id 1791015765145-0 entries-read 225652 lag 0
+08:22:46.780 name fim-backend consumers 1 pending 0 last-delivered-id 1791015766215-0 entries-read 225661 lag 0
+08:22:47.936 name fim-backend consumers 1 pending 0 last-delivered-id 1791015767292-0 entries-read 225669 lag 0
+08:22:49.087 name fim-backend consumers 1 pending 0 last-delivered-id 1791015768342-0 entries-read 225675 lag 0
+08:22:50.235 name fim-backend consumers 1 pending 0 last-delivered-id 1791015769432-0 entries-read 225684 lag 0
+08:22:51.383 name fim-backend consumers 1 pending 0 last-delivered-id 1791015770520-0 entries-read 225693 lag 0
+08:22:52.544 name fim-backend consumers 1 pending 1 last-delivered-id 1791015772652-0 entries-read 225711 lag 3
+08:22:53.693 name fim-backend consumers 1 pending 0 last-delivered-id 1791015773726-0 entries-read 225722 lag 0
+08:22:54.837 name fim-backend consumers 1 pending 0 last-delivered-id 1791015774792-0 entries-read 225731 lag 0
+08:22:55.986 name fim-backend consumers 1 pending 0 last-delivered-id 1791015775843-0 entries-read 225740 lag 0
+08:22:57.135 name fim-backend consumers 1 pending 0 last-delivered-id 1791015776935-0 entries-read 225751 lag 0
+08:22:58.295 name fim-backend consumers 1 pending 0 last-delivered-id 1791015778020-0 entries-read 225759 lag 0
+08:22:59.448 name fim-backend consumers 1 pending 0 last-delivered-id 1791015779121-0 entries-read 225768 lag 0
+08:23:00.596 name fim-backend consumers 1 pending 0 last-delivered-id 1791015780237-0 entries-read 225779 lag 0
+08:23:01.743 name fim-backend consumers 1 pending 0 last-delivered-id 1791015781332-0 entries-read 225788 lag 0
+08:23:02.897 name fim-backend consumers 1 pending 0 last-delivered-id 1791015782458-0 entries-read 225803 lag 0
+08:23:04.053 name fim-backend consumers 1 pending 0 last-delivered-id 1791015783544-0 entries-read 225814 lag 0
+08:23:05.201 name fim-backend consumers 1 pending 0 last-delivered-id 1791015784599-0 entries-read 225821 lag 0
+08:23:06.350 name fim-backend consumers 1 pending 0 last-delivered-id 1791015786236-0 entries-read 225841 lag 0
+08:23:07.497 name fim-backend consumers 1 pending 0 last-delivered-id 1791015787342-0 entries-read 225853 lag 0
+08:23:08.645 name fim-backend consumers 1 pending 0 last-delivered-id 1791015788446-0 entries-read 225864 lag 0
+08:23:09.798 name fim-backend consumers 1 pending 0 last-delivered-id 1791015789545-0 entries-read 225874 lag 0
+08:23:10.965 name fim-backend consumers 1 pending 0 last-delivered-id 1791015790674-0 entries-read 225888 lag 0
+08:23:12.115 name fim-backend consumers 1 pending 0 last-delivered-id 1791015791724-0 entries-read 225892 lag 0
+08:23:13.273 name fim-backend consumers 1 pending 0 last-delivered-id 1791015792793-0 entries-read 225904 lag 0
+08:23:14.434 name fim-backend consumers 1 pending 0 last-delivered-id 1791015793889-0 entries-read 225918 lag 0
+08:23:15.597 name fim-backend consumers 1 pending 0 last-delivered-id 1791015794967-0 entries-read 225930 lag 0
+08:23:16.754 name fim-backend consumers 1 pending 0 last-delivered-id 1791015796588-0 entries-read 226020 lag 0
+08:23:17.903 name fim-backend consumers 1 pending 2 last-delivered-id 1791015798003-0 entries-read 226071 lag 3
+08:23:19.056 name fim-backend consumers 1 pending 0 last-delivered-id 1791015799051-0 entries-read 226215 lag 0
+08:23:20.211 name fim-backend consumers 1 pending 0 last-delivered-id 1791015800114-0 entries-read 226220 lag 0
+08:23:21.361 name fim-backend consumers 1 pending 3 last-delivered-id 1791015801499-0 entries-read 226265 lag 1
+08:23:22.533 name fim-backend consumers 1 pending 28 last-delivered-id 1791015802467-0 entries-read 226428 lag 29
+08:23:23.705 name fim-backend consumers 1 pending 0 last-delivered-id 1791015803163-0 entries-read 226531 lag 0
+08:23:24.861 name fim-backend consumers 1 pending 0 last-delivered-id 1791015804757-0 entries-read 226546 lag 0
+08:23:26.008 name fim-backend consumers 1 pending 0 last-delivered-id 1791015805928-0 entries-read 226565 lag 0
+08:23:27.162 name fim-backend consumers 1 pending 0 last-delivered-id 1791015806996-0 entries-read 226576 lag 0
+08:23:28.313 name fim-backend consumers 1 pending 0 last-delivered-id 1791015808219-0 entries-read 226603 lag 0
+08:23:29.456 name fim-backend consumers 1 pending 0 last-delivered-id 1791015809325-0 entries-read 226620 lag 0
+08:23:30.600 name fim-backend consumers 1 pending 0 last-delivered-id 1791015810394-0 entries-read 226630 lag 0
+08:23:31.746 name fim-backend consumers 1 pending 0 last-delivered-id 1791015811490-0 entries-read 226641 lag 0
+08:23:32.895 name fim-backend consumers 1 pending 0 last-delivered-id 1791015812547-0 entries-read 226651 lag 0
+08:23:34.051 name fim-backend consumers 1 pending 0 last-delivered-id 1791015813678-0 entries-read 226666 lag 0
+08:23:35.192 name fim-backend consumers 1 pending 0 last-delivered-id 1791015814777-0 entries-read 226676 lag 0
+08:23:36.339 name fim-backend consumers 1 pending 0 last-delivered-id 1791015815963-0 entries-read 226694 lag 0
+08:23:37.485 name fim-backend consumers 1 pending 0 last-delivered-id 1791015817018-0 entries-read 226699 lag 0
+08:23:38.631 name fim-backend consumers 1 pending 0 last-delivered-id 1791015818158-0 entries-read 226714 lag 0
+08:23:39.777 name fim-backend consumers 1 pending 0 last-delivered-id 1791015819219-0 entries-read 226724 lag 0
+08:23:40.928 name fim-backend consumers 1 pending 0 last-delivered-id 1791015820337-0 entries-read 226736 lag 0
+08:23:42.084 name fim-backend consumers 1 pending 0 last-delivered-id 1791015821434-0 entries-read 226749 lag 0
+08:23:43.233 name fim-backend consumers 1 pending 0 last-delivered-id 1791015822537-0 entries-read 226771 lag 0
+08:23:44.392 name fim-backend consumers 1 pending 0 last-delivered-id 1791015823642-0 entries-read 226789 lag 0
+08:23:45.544 name fim-backend consumers 1 pending 0 last-delivered-id 1791015824759-0 entries-read 226802 lag 0
+08:23:46.696 name fim-backend consumers 1 pending 0 last-delivered-id 1791015825881-0 entries-read 226819 lag 0
+08:23:47.841 name fim-backend consumers 1 pending 0 last-delivered-id 1791015826972-0 entries-read 226833 lag 0
+08:23:48.990 name fim-backend consumers 1 pending 3 last-delivered-id 1791015829102-0 entries-read 226857 lag 1
+08:23:50.147 name fim-backend consumers 1 pending 0 last-delivered-id 1791015830157-0 entries-read 226865 lag 0
+08:23:51.296 name fim-backend consumers 1 pending 0 last-delivered-id 1791015831257-0 entries-read 226885 lag 0
+08:23:52.456 name fim-backend consumers 1 pending 0 last-delivered-id 1791015832344-0 entries-read 226898 lag 0
+08:23:53.604 name fim-backend consumers 1 pending 0 last-delivered-id 1791015833418-0 entries-read 226912 lag 0
+08:23:54.753 name fim-backend consumers 1 pending 0 last-delivered-id 1791015834467-0 entries-read 226920 lag 0
+08:23:55.901 name fim-backend consumers 1 pending 0 last-delivered-id 1791015835541-0 entries-read 226927 lag 0
+08:23:57.076 name fim-backend consumers 1 pending 0 last-delivered-id 1791015836628-0 entries-read 226939 lag 0
+08:23:58.226 name fim-backend consumers 1 pending 0 last-delivered-id 1791015837670-0 entries-read 226948 lag 0
+08:23:59.383 name fim-backend consumers 1 pending 0 last-delivered-id 1791015838755-0 entries-read 226958 lag 0
+08:24:00.535 name fim-backend consumers 1 pending 0 last-delivered-id 1791015839836-0 entries-read 226966 lag 0
+08:24:01.691 name fim-backend consumers 1 pending 0 last-delivered-id 1791015840915-0 entries-read 226975 lag 0
+08:24:02.841 name fim-backend consumers 1 pending 0 last-delivered-id 1791015842043-0 entries-read 226993 lag 0
+08:24:03.991 name fim-backend consumers 1 pending 0 last-delivered-id 1791015843145-0 entries-read 227006 lag 0
+08:24:05.137 name fim-backend consumers 1 pending 5 last-delivered-id 1791015845265-0 entries-read 227030 lag 1
+08:24:06.299 name fim-backend consumers 1 pending 0 last-delivered-id 1791015846387-0 entries-read 227048 lag 0
+08:24:07.461 name fim-backend consumers 1 pending 0 last-delivered-id 1791015847469-0 entries-read 227058 lag 0
+08:24:08.611 name fim-backend consumers 1 pending 0 last-delivered-id 1791015848556-0 entries-read 227073 lag 0
+08:24:09.763 name fim-backend consumers 1 pending 0 last-delivered-id 1791015849627-0 entries-read 227085 lag 0
+08:24:10.914 name fim-backend consumers 1 pending 0 last-delivered-id 1791015850693-0 entries-read 227097 lag 0
+08:24:12.064 name fim-backend consumers 1 pending 0 last-delivered-id 1791015851741-0 entries-read 227102 lag 0
+08:24:13.221 name fim-backend consumers 1 pending 0 last-delivered-id 1791015852830-0 entries-read 227112 lag 0
+08:24:14.373 name fim-backend consumers 1 pending 0 last-delivered-id 1791015853986-0 entries-read 227131 lag 0
+08:24:15.533 name fim-backend consumers 1 pending 0 last-delivered-id 1791015855076-0 entries-read 227147 lag 0
+08:24:16.678 name fim-backend consumers 1 pending 0 last-delivered-id 1791015856559-0 entries-read 227234 lag 0
+08:24:17.824 name fim-backend consumers 1 pending 0 last-delivered-id 1791015857607-0 entries-read 227240 lag 0
+08:24:18.996 name fim-backend consumers 1 pending 10 last-delivered-id 1791015859092-0 entries-read 227311 lag 5
+08:24:20.159 name fim-backend consumers 1 pending 0 last-delivered-id 1791015859882-0 entries-read 227431 lag 0
+08:24:21.305 name fim-backend consumers 1 pending 0 last-delivered-id 1791015860939-0 entries-read 227439 lag 0
+08:24:22.452 name fim-backend consumers 1 pending 1 last-delivered-id 1791015862583-0 entries-read 227525 lag 0
+08:24:23.609 name fim-backend consumers 1 pending 1 last-delivered-id 1791015863734-0 entries-read 227670 lag 0
+08:24:24.756 name fim-backend consumers 1 pending 0 last-delivered-id 1791015864318-0 entries-read 227744 lag 0
+08:24:25.904 name fim-backend consumers 1 pending 0 last-delivered-id 1791015865456-0 entries-read 227757 lag 0
+08:24:27.053 name fim-backend consumers 1 pending 0 last-delivered-id 1791015866606-0 entries-read 227774 lag 0
+08:24:28.204 name fim-backend consumers 1 pending 0 last-delivered-id 1791015867709-0 entries-read 227785 lag 0
+08:24:29.363 name fim-backend consumers 1 pending 0 last-delivered-id 1791015868944-0 entries-read 227810 lag 0
+08:24:30.516 name fim-backend consumers 1 pending 0 last-delivered-id 1791015870077-0 entries-read 227825 lag 0
+08:24:31.663 name fim-backend consumers 1 pending 0 last-delivered-id 1791015871162-0 entries-read 227840 lag 0
+08:24:32.817 name fim-backend consumers 1 pending 0 last-delivered-id 1791015872247-0 entries-read 227850 lag 0
+08:24:33.976 name fim-backend consumers 1 pending 0 last-delivered-id 1791015873334-0 entries-read 227858 lag 0
+08:24:35.123 name fim-backend consumers 1 pending 0 last-delivered-id 1791015874416-0 entries-read 227871 lag 0
+08:24:36.282 name fim-backend consumers 1 pending 0 last-delivered-id 1791015875490-0 entries-read 227880 lag 0
+08:24:37.442 name fim-backend consumers 1 pending 0 last-delivered-id 1791015876585-0 entries-read 227896 lag 0
+08:24:38.592 name fim-backend consumers 1 pending 0 last-delivered-id 1791015877618-0 entries-read 227900 lag 0
+08:24:39.754 name fim-backend consumers 1 pending 0 last-delivered-id 1791015879216-0 entries-read 227914 lag 0
+08:24:40.909 name fim-backend consumers 1 pending 0 last-delivered-id 1791015880307-0 entries-read 227925 lag 0
+08:24:42.061 name fim-backend consumers 1 pending 0 last-delivered-id 1791015881405-0 entries-read 227935 lag 0
+08:24:43.212 name fim-backend consumers 1 pending 0 last-delivered-id 1791015882517-0 entries-read 227950 lag 0
+08:24:44.367 name fim-backend consumers 1 pending 0 last-delivered-id 1791015883625-0 entries-read 227970 lag 0
+08:24:45.525 name fim-backend consumers 1 pending 0 last-delivered-id 1791015884759-0 entries-read 227986 lag 0
+08:24:46.672 name fim-backend consumers 1 pending 0 last-delivered-id 1791015885862-0 entries-read 227998 lag 0
+08:24:47.830 name fim-backend consumers 1 pending 0 last-delivered-id 1791015886976-0 entries-read 228013 lag 0
+08:24:48.981 name fim-backend consumers 1 pending 1 last-delivered-id 1791015889096-0 entries-read 228033 lag 4
+08:24:50.134 name fim-backend consumers 1 pending 0 last-delivered-id 1791015890205-0 entries-read 228052 lag 0
+08:24:51.287 name fim-backend consumers 1 pending 0 last-delivered-id 1791015891254-0 entries-read 228058 lag 0
+08:24:52.435 name fim-backend consumers 1 pending 0 last-delivered-id 1791015892359-0 entries-read 228070 lag 0
+08:24:53.585 name fim-backend consumers 1 pending 0 last-delivered-id 1791015893453-0 entries-read 228085 lag 0
+08:24:54.733 name fim-backend consumers 1 pending 0 last-delivered-id 1791015894572-0 entries-read 228097 lag 0
+08:24:55.878 name fim-backend consumers 1 pending 0 last-delivered-id 1791015895637-0 entries-read 228105 lag 0
+08:24:57.028 name fim-backend consumers 1 pending 0 last-delivered-id 1791015896731-0 entries-read 228115 lag 0
+08:24:58.184 name fim-backend consumers 1 pending 0 last-delivered-id 1791015897814-0 entries-read 228126 lag 0
+08:24:59.336 name fim-backend consumers 1 pending 0 last-delivered-id 1791015898885-0 entries-read 228135 lag 0
+08:25:00.487 name fim-backend consumers 1 pending 0 last-delivered-id 1791015899976-0 entries-read 228146 lag 0
+08:25:01.637 name fim-backend consumers 1 pending 0 last-delivered-id 1791015901046-0 entries-read 228154 lag 0
+08:25:02.797 name fim-backend consumers 1 pending 0 last-delivered-id 1791015902182-0 entries-read 228170 lag 0
+08:25:03.950 name fim-backend consumers 1 pending 0 last-delivered-id 1791015903275-0 entries-read 228181 lag 0
+08:25:05.099 name fim-backend consumers 1 pending 0 last-delivered-id 1791015904383-0 entries-read 228194 lag 0
+08:25:06.251 name fim-backend consumers 1 pending 0 last-delivered-id 1791015905486-0 entries-read 228206 lag 0
+08:25:07.405 name fim-backend consumers 1 pending 0 last-delivered-id 1791015906582-0 entries-read 228225 lag 0
+08:25:08.558 name fim-backend consumers 1 pending 1 last-delivered-id 1791015908673-0 entries-read 228236 lag 4
+08:25:09.716 name fim-backend consumers 1 pending 0 last-delivered-id 1791015909780-0 entries-read 228256 lag 0
+08:25:10.878 name fim-backend consumers 1 pending 0 last-delivered-id 1791015910860-0 entries-read 228266 lag 0
+08:25:12.029 name fim-backend consumers 1 pending 0 last-delivered-id 1791015911942-0 entries-read 228274 lag 0
+08:25:13.171 name fim-backend consumers 1 pending 0 last-delivered-id 1791015912996-0 entries-read 228282 lag 0
+08:25:14.323 name fim-backend consumers 1 pending 0 last-delivered-id 1791015912996-0 entries-read 228282 lag 0
+08:25:15.481 name fim-backend consumers 1 pending 1 last-delivered-id 1791015915606-0 entries-read 228301 lag 0
+08:25:16.632 name fim-backend consumers 1 pending 3 last-delivered-id 1791015916739-0 entries-read 228323 lag 3
+08:25:17.792 name fim-backend consumers 1 pending 0 last-delivered-id 1791015917171-0 entries-read 228397 lag 0
+08:25:18.941 name fim-backend consumers 1 pending 0 last-delivered-id 1791015918207-0 entries-read 228402 lag 0
+08:25:20.094 name fim-backend consumers 1 pending 6 last-delivered-id 1791015920028-0 entries-read 228535 lag 33
+08:25:21.250 name fim-backend consumers 1 pending 0 last-delivered-id 1791015920382-0 entries-read 228589 lag 0
+08:25:22.395 name fim-backend consumers 1 pending 1 last-delivered-id 1791015922529-0 entries-read 228608 lag 0
+08:25:23.553 name fim-backend consumers 1 pending 8 last-delivered-id 1791015923285-0 entries-read 228752 lag 57
+08:25:24.713 name fim-backend consumers 1 pending 0 last-delivered-id 1791015924412-0 entries-read 228895 lag 0
+08:25:25.866 name fim-backend consumers 1 pending 0 last-delivered-id 1791015925487-0 entries-read 228906 lag 0
+08:25:27.013 name fim-backend consumers 1 pending 0 last-delivered-id 1791015926635-0 entries-read 228921 lag 0
+08:25:28.163 name fim-backend consumers 1 pending 0 last-delivered-id 1791015927726-0 entries-read 228931 lag 0
+08:25:29.317 name fim-backend consumers 1 pending 0 last-delivered-id 1791015928949-0 entries-read 228956 lag 0
+08:25:30.469 name fim-backend consumers 1 pending 0 last-delivered-id 1791015930022-0 entries-read 228969 lag 0
+08:25:31.620 name fim-backend consumers 1 pending 0 last-delivered-id 1791015931111-0 entries-read 228978 lag 0
+08:25:32.772 name fim-backend consumers 1 pending 0 last-delivered-id 1791015932240-0 entries-read 228991 lag 0
+08:25:33.933 name fim-backend consumers 1 pending 0 last-delivered-id 1791015933310-0 entries-read 228999 lag 0
+08:25:35.081 name fim-backend consumers 1 pending 0 last-delivered-id 1791015934395-0 entries-read 229007 lag 0
+08:25:36.235 name fim-backend consumers 1 pending 0 last-delivered-id 1791015935477-0 entries-read 229018 lag 0
+08:25:37.392 name fim-backend consumers 1 pending 0 last-delivered-id 1791015936550-0 entries-read 229025 lag 0
+08:25:38.553 name fim-backend consumers 1 pending 0 last-delivered-id 1791015937685-0 entries-read 229039 lag 0
+08:25:39.708 name fim-backend consumers 1 pending 8 last-delivered-id 1791015939812-0 entries-read 229059 lag 0
+08:25:40.869 name fim-backend consumers 1 pending 0 last-delivered-id 1791015940882-0 entries-read 229068 lag 0
+08:25:42.036 name fim-backend consumers 1 pending 0 last-delivered-id 1791015941941-0 entries-read 229080 lag 0
+08:25:43.184 name fim-backend consumers 1 pending 0 last-delivered-id 1791015943045-0 entries-read 229093 lag 0
+08:25:44.334 name fim-backend consumers 1 pending 0 last-delivered-id 1791015944138-0 entries-read 229111 lag 0
+08:25:45.479 name fim-backend consumers 1 pending 0 last-delivered-id 1791015945311-0 entries-read 229126 lag 0
+08:25:46.632 name fim-backend consumers 1 pending 0 last-delivered-id 1791015946376-0 entries-read 229137 lag 0
+08:25:47.781 name fim-backend consumers 1 pending 0 last-delivered-id 1791015947494-0 entries-read 229150 lag 0
+08:25:48.931 name fim-backend consumers 1 pending 0 last-delivered-id 1791015948613-0 entries-read 229164 lag 0
+08:25:50.087 name fim-backend consumers 1 pending 0 last-delivered-id 1791015949719-0 entries-read 229176 lag 0
+08:25:51.245 name fim-backend consumers 1 pending 0 last-delivered-id 1791015950813-0 entries-read 229184 lag 0
+08:25:52.401 name fim-backend consumers 1 pending 0 last-delivered-id 1791015951867-0 entries-read 229189 lag 0
+08:25:53.551 name fim-backend consumers 1 pending 0 last-delivered-id 1791015952976-0 entries-read 229199 lag 0
+08:25:54.701 name fim-backend consumers 1 pending 0 last-delivered-id 1791015954052-0 entries-read 229212 lag 0
+08:25:55.853 name fim-backend consumers 1 pending 0 last-delivered-id 1791015955203-0 entries-read 229230 lag 0
+08:25:57.010 name fim-backend consumers 1 pending 0 last-delivered-id 1791015956293-0 entries-read 229238 lag 0
+08:25:58.162 name fim-backend consumers 1 pending 0 last-delivered-id 1791015957393-0 entries-read 229247 lag 0
+08:25:59.316 name fim-backend consumers 1 pending 0 last-delivered-id 1791015958478-0 entries-read 229256 lag 0
+08:26:00.476 name fim-backend consumers 1 pending 1 last-delivered-id 1791015960601-0 entries-read 229276 lag 0
+08:26:01.634 name fim-backend consumers 1 pending 0 last-delivered-id 1791015961701-0 entries-read 229292 lag 0
+08:26:02.796 name fim-backend consumers 1 pending 0 last-delivered-id 1791015962828-0 entries-read 229306 lag 0
+08:26:03.950 name fim-backend consumers 1 pending 0 last-delivered-id 1791015963916-0 entries-read 229316 lag 0
+08:26:05.094 name fim-backend consumers 1 pending 0 last-delivered-id 1791015965023-0 entries-read 229327 lag 0
+08:26:06.241 name fim-backend consumers 1 pending 0 last-delivered-id 1791015966077-0 entries-read 229337 lag 0
+08:26:07.389 name fim-backend consumers 1 pending 0 last-delivered-id 1791015967234-0 entries-read 229354 lag 0
+08:26:08.539 name fim-backend consumers 1 pending 0 last-delivered-id 1791015968311-0 entries-read 229363 lag 0
+08:26:09.686 name fim-backend consumers 1 pending 0 last-delivered-id 1791015969443-0 entries-read 229375 lag 0
+08:26:10.843 name fim-backend consumers 1 pending 0 last-delivered-id 1791015970519-0 entries-read 229383 lag 0
+08:26:12.002 name fim-backend consumers 1 pending 0 last-delivered-id 1791015971643-0 entries-read 229399 lag 0
+08:26:13.151 name fim-backend consumers 1 pending 0 last-delivered-id 1791015972729-0 entries-read 229409 lag 0
+08:26:14.303 name fim-backend consumers 1 pending 0 last-delivered-id 1791015973816-0 entries-read 229422 lag 0
+08:26:15.448 name fim-backend consumers 1 pending 0 last-delivered-id 1791015974953-0 entries-read 229437 lag 0
+08:26:16.602 name fim-backend consumers 1 pending 0 last-delivered-id 1791015976072-0 entries-read 229449 lag 0
+08:26:17.748 name fim-backend consumers 1 pending 0 last-delivered-id 1791015977559-0 entries-read 229530 lag 0
+08:26:18.897 name fim-backend consumers 1 pending 0 last-delivered-id 1791015978630-0 entries-read 229538 lag 0
+08:26:20.055 name fim-backend consumers 1 pending 1 last-delivered-id 1791015980190-0 entries-read 229617 lag 0
+08:26:21.211 name fim-backend consumers 1 pending 0 last-delivered-id 1791015980840-0 entries-read 229721 lag 0
+08:26:22.361 name fim-backend consumers 1 pending 0 last-delivered-id 1791015981895-0 entries-read 229726 lag 0
+08:26:23.511 name fim-backend consumers 1 pending 23 last-delivered-id 1791015983488-0 entries-read 229837 lag 24
+08:26:24.668 name fim-backend consumers 1 pending 44 last-delivered-id 1791015984515-0 entries-read 230021 lag 0
+08:26:25.821 name fim-backend consumers 1 pending 0 last-delivered-id 1791015984515-0 entries-read 230021 lag 0
+08:26:26.964 name fim-backend consumers 1 pending 1 last-delivered-id 1791015987088-0 entries-read 230032 lag 0
+08:26:28.122 name fim-backend consumers 1 pending 0 last-delivered-id 1791015988204-0 entries-read 230054 lag 0
+08:26:29.287 name fim-backend consumers 1 pending 0 last-delivered-id 1791015989356-0 entries-read 230077 lag 0
+08:26:30.457 name fim-backend consumers 1 pending 0 last-delivered-id 1791015990469-0 entries-read 230088 lag 0
+08:26:31.609 name fim-backend consumers 1 pending 0 last-delivered-id 1791015991516-0 entries-read 230096 lag 0
+08:26:32.755 name fim-backend consumers 1 pending 0 last-delivered-id 1791015992590-0 entries-read 230107 lag 0
+08:26:33.905 name fim-backend consumers 1 pending 0 last-delivered-id 1791015993693-0 entries-read 230119 lag 0
+08:26:35.052 name fim-backend consumers 1 pending 0 last-delivered-id 1791015994805-0 entries-read 230133 lag 0
+08:26:36.208 name fim-backend consumers 1 pending 0 last-delivered-id 1791015995888-0 entries-read 230144 lag 0
+08:26:37.356 name fim-backend consumers 1 pending 0 last-delivered-id 1791015996932-0 entries-read 230149 lag 0
+08:26:38.506 name fim-backend consumers 1 pending 0 last-delivered-id 1791015998051-0 entries-read 230161 lag 0
+08:26:39.651 name fim-backend consumers 1 pending 0 last-delivered-id 1791015999139-0 entries-read 230173 lag 0
+08:26:40.803 name fim-backend consumers 1 pending 0 last-delivered-id 1791016000235-0 entries-read 230186 lag 0
+08:26:41.964 name fim-backend consumers 1 pending 0 last-delivered-id 1791016001315-0 entries-read 230197 lag 0
+08:26:43.114 name fim-backend consumers 1 pending 0 last-delivered-id 1791016002377-0 entries-read 230207 lag 0
+08:26:44.274 name fim-backend consumers 1 pending 0 last-delivered-id 1791016003493-0 entries-read 230227 lag 0
+08:26:45.427 name fim-backend consumers 1 pending 0 last-delivered-id 1791016004607-0 entries-read 230243 lag 0
+08:26:46.577 name fim-backend consumers 1 pending 0 last-delivered-id 1791016005703-0 entries-read 230257 lag 0
+08:26:47.725 name fim-backend consumers 1 pending 3 last-delivered-id 1791016007843-0 entries-read 230277 lag 0
+08:26:48.911 name fim-backend consumers 1 pending 0 last-delivered-id 1791016008939-0 entries-read 230289 lag 0
+08:26:50.069 name fim-backend consumers 1 pending 0 last-delivered-id 1791016010022-0 entries-read 230299 lag 0
+08:26:51.224 name fim-backend consumers 1 pending 0 last-delivered-id 1791016011108-0 entries-read 230307 lag 0
+08:26:52.377 name fim-backend consumers 1 pending 0 last-delivered-id 1791016012202-0 entries-read 230317 lag 0
+08:26:53.527 name fim-backend consumers 1 pending 0 last-delivered-id 1791016013276-0 entries-read 230329 lag 0
+08:26:54.675 name fim-backend consumers 1 pending 0 last-delivered-id 1791016014371-0 entries-read 230340 lag 0
+08:26:55.826 name fim-backend consumers 1 pending 0 last-delivered-id 1791016015522-0 entries-read 230356 lag 0
+08:26:57.008 name fim-backend consumers 1 pending 0 last-delivered-id 1791016016594-0 entries-read 230363 lag 0
+08:26:58.154 name fim-backend consumers 1 pending 0 last-delivered-id 1791016017682-0 entries-read 230374 lag 0
+08:26:59.309 name fim-backend consumers 1 pending 0 last-delivered-id 1791016018772-0 entries-read 230383 lag 0
+08:27:00.468 name fim-backend consumers 1 pending 0 last-delivered-id 1791016019948-0 entries-read 230400 lag 0
+08:27:01.626 name fim-backend consumers 1 pending 0 last-delivered-id 1791016021021-0 entries-read 230407 lag 0
+08:27:02.787 name fim-backend consumers 1 pending 0 last-delivered-id 1791016022063-0 entries-read 230413 lag 0
+08:27:03.949 name fim-backend consumers 1 pending 0 last-delivered-id 1791016023164-0 entries-read 230425 lag 0
+08:27:05.094 name fim-backend consumers 1 pending 0 last-delivered-id 1791016024250-0 entries-read 230434 lag 0
+08:27:06.247 name fim-backend consumers 1 pending 0 last-delivered-id 1791016026365-0 entries-read 230446 lag 2
+08:27:07.400 name fim-backend consumers 1 pending 0 last-delivered-id 1791016027468-0 entries-read 230467 lag 0
+08:27:08.568 name fim-backend consumers 1 pending 0 last-delivered-id 1791016028545-0 entries-read 230477 lag 0
+08:27:09.720 name fim-backend consumers 1 pending 0 last-delivered-id 1791016029619-0 entries-read 230487 lag 0
+08:27:10.868 name fim-backend consumers 1 pending 0 last-delivered-id 1791016030688-0 entries-read 230496 lag 0
+08:27:12.018 name fim-backend consumers 1 pending 0 last-delivered-id 1791016031823-0 entries-read 230510 lag 0
+08:27:13.166 name fim-backend consumers 1 pending 0 last-delivered-id 1791016032902-0 entries-read 230518 lag 0
+08:27:14.312 name fim-backend consumers 1 pending 0 last-delivered-id 1791016033994-0 entries-read 230529 lag 0
+08:27:15.463 name fim-backend consumers 1 pending 0 last-delivered-id 1791016035121-0 entries-read 230544 lag 0
+08:27:16.611 name fim-backend consumers 1 pending 0 last-delivered-id 1791016036176-0 entries-read 230555 lag 0
+08:27:17.758 name fim-backend consumers 1 pending 0 last-delivered-id 1791016037557-0 entries-read 230634 lag 0
+08:27:18.908 name fim-backend consumers 1 pending 0 last-delivered-id 1791016038628-0 entries-read 230645 lag 0
+08:27:20.064 name fim-backend consumers 1 pending 0 last-delivered-id 1791016039712-0 entries-read 230655 lag 0
+08:27:21.214 name fim-backend consumers 1 pending 1 last-delivered-id 1791016041199-0 entries-read 230736 lag 25
+08:27:22.379 name fim-backend consumers 1 pending 0 last-delivered-id 1791016041946-0 entries-read 230834 lag 0
+08:27:23.530 name fim-backend consumers 1 pending 1 last-delivered-id 1791016043659-0 entries-read 230940 lag 1
+08:27:24.691 name fim-backend consumers 1 pending 10 last-delivered-id 1791016044790-0 entries-read 231125 lag 2
+08:27:25.845 name fim-backend consumers 1 pending 0 last-delivered-id 1791016045888-0 entries-read 231135 lag 0
+08:27:27.008 name fim-backend consumers 1 pending 0 last-delivered-id 1791016046976-0 entries-read 231144 lag 0
+08:27:28.166 name fim-backend consumers 1 pending 0 last-delivered-id 1791016048096-0 entries-read 231155 lag 0
+08:27:29.315 name fim-backend consumers 1 pending 0 last-delivered-id 1791016049179-0 entries-read 231163 lag 0
+08:27:30.481 name fim-backend consumers 1 pending 0 last-delivered-id 1791016049179-0 entries-read 231163 lag 0
+08:27:31.635 name fim-backend consumers 1 pending 0 last-delivered-id 1791016050865-0 entries-read 231193 lag 0
+08:27:32.787 name fim-backend consumers 1 pending 0 last-delivered-id 1791016052456-0 entries-read 231203 lag 0
+08:27:33.932 name fim-backend consumers 1 pending 0 last-delivered-id 1791016053551-0 entries-read 231212 lag 0
+08:27:35.086 name fim-backend consumers 1 pending 0 last-delivered-id 1791016054643-0 entries-read 231222 lag 0
+08:27:36.237 name fim-backend consumers 1 pending 0 last-delivered-id 1791016055791-0 entries-read 231234 lag 0
+08:27:37.385 name fim-backend consumers 1 pending 0 last-delivered-id 1791016056852-0 entries-read 231243 lag 0
+08:27:38.530 name fim-backend consumers 1 pending 0 last-delivered-id 1791016057940-0 entries-read 231255 lag 0
+08:27:39.678 name fim-backend consumers 1 pending 0 last-delivered-id 1791016059026-0 entries-read 231265 lag 0
+08:27:40.828 name fim-backend consumers 1 pending 0 last-delivered-id 1791016060122-0 entries-read 231277 lag 0
+08:27:41.979 name fim-backend consumers 1 pending 0 last-delivered-id 1791016061251-0 entries-read 231288 lag 0
+08:27:43.127 name fim-backend consumers 1 pending 0 last-delivered-id 1791016062316-0 entries-read 231297 lag 0
+08:27:44.278 name fim-backend consumers 1 pending 1 last-delivered-id 1791016064398-0 entries-read 231308 lag 1
+08:27:45.428 name fim-backend consumers 1 pending 3 last-delivered-id 1791016065551-0 entries-read 231332 lag 2
+08:27:46.593 name fim-backend consumers 1 pending 8 last-delivered-id 1791016066689-0 entries-read 231355 lag 1
+08:27:47.758 name fim-backend consumers 1 pending 0 last-delivered-id 1791016067764-0 entries-read 231363 lag 0
+08:27:48.921 name fim-backend consumers 1 pending 0 last-delivered-id 1791016068864-0 entries-read 231375 lag 0
+08:27:50.066 name fim-backend consumers 1 pending 0 last-delivered-id 1791016069923-0 entries-read 231386 lag 0
+08:27:51.215 name fim-backend consumers 1 pending 0 last-delivered-id 1791016071009-0 entries-read 231395 lag 0
+08:27:52.367 name fim-backend consumers 1 pending 0 last-delivered-id 1791016072111-0 entries-read 231410 lag 0
+08:27:53.539 name fim-backend consumers 1 pending 0 last-delivered-id 1791016073192-0 entries-read 231418 lag 0
+08:27:54.693 name fim-backend consumers 1 pending 0 last-delivered-id 1791016074285-0 entries-read 231428 lag 0
+08:27:55.844 name fim-backend consumers 1 pending 0 last-delivered-id 1791016075361-0 entries-read 231439 lag 0
+08:27:57.016 name fim-backend consumers 1 pending 0 last-delivered-id 1791016076490-0 entries-read 231453 lag 0
+08:27:58.171 name fim-backend consumers 1 pending 0 last-delivered-id 1791016077558-0 entries-read 231465 lag 0
+08:27:59.337 name fim-backend consumers 1 pending 0 last-delivered-id 1791016078620-0 entries-read 231474 lag 0
+08:28:00.491 name fim-backend consumers 1 pending 0 last-delivered-id 1791016079681-0 entries-read 231481 lag 0
+08:28:01.645 name fim-backend consumers 1 pending 0 last-delivered-id 1791016080777-0 entries-read 231496 lag 0
+08:28:02.801 name fim-backend consumers 1 pending 1 last-delivered-id 1791016082893-0 entries-read 231520 lag 0
+08:28:03.962 name fim-backend consumers 1 pending 0 last-delivered-id 1791016083956-0 entries-read 231530 lag 0
+08:28:05.114 name fim-backend consumers 1 pending 0 last-delivered-id 1791016085015-0 entries-read 231538 lag 0
+08:28:06.259 name fim-backend consumers 1 pending 0 last-delivered-id 1791016086094-0 entries-read 231547 lag 0
+08:28:07.406 name fim-backend consumers 1 pending 0 last-delivered-id 1791016087175-0 entries-read 231557 lag 0
+08:28:08.556 name fim-backend consumers 1 pending 0 last-delivered-id 1791016088285-0 entries-read 231570 lag 0
+08:28:09.706 name fim-backend consumers 1 pending 0 last-delivered-id 1791016089353-0 entries-read 231578 lag 0
+08:28:10.854 name fim-backend consumers 1 pending 0 last-delivered-id 1791016090437-0 entries-read 231589 lag 0
+08:28:12.000 name fim-backend consumers 1 pending 0 last-delivered-id 1791016091528-0 entries-read 231599 lag 0
+08:28:13.154 name fim-backend consumers 1 pending 0 last-delivered-id 1791016092640-0 entries-read 231611 lag 0
+08:28:14.307 name fim-backend consumers 1 pending 0 last-delivered-id 1791016093738-0 entries-read 231624 lag 0
+08:28:15.464 name fim-backend consumers 1 pending 0 last-delivered-id 1791016094818-0 entries-read 231633 lag 0
+08:28:16.610 name fim-backend consumers 1 pending 0 last-delivered-id 1791016095907-0 entries-read 231646 lag 0
+08:28:17.760 name fim-backend consumers 1 pending 0 last-delivered-id 1791016096963-0 entries-read 231655 lag 0
+08:28:18.908 name fim-backend consumers 1 pending 0 last-delivered-id 1791016098486-0 entries-read 231732 lag 0
+08:28:20.052 name fim-backend consumers 1 pending 0 last-delivered-id 1791016099583-0 entries-read 231741 lag 0
+08:28:21.199 name fim-backend consumers 1 pending 0 last-delivered-id 1791016100682-0 entries-read 231751 lag 0
+08:28:22.360 name fim-backend consumers 1 pending 1 last-delivered-id 1791016102491-0 entries-read 231857 lag 0
+08:28:23.515 name fim-backend consumers 1 pending 0 last-delivered-id 1791016102967-0 entries-read 231927 lag 0
+08:28:24.659 name fim-backend consumers 1 pending 1 last-delivered-id 1791016104783-0 entries-read 232035 lag 0
+08:28:25.807 name fim-backend consumers 1 pending 5 last-delivered-id 1791016105945-0 entries-read 232200 lag 0
+08:28:26.968 name fim-backend consumers 1 pending 1 last-delivered-id 1791016107091-0 entries-read 232217 lag 0
+08:28:28.119 name fim-backend consumers 1 pending 1 last-delivered-id 1791016108229-0 entries-read 232237 lag 0
+08:28:29.276 name fim-backend consumers 1 pending 0 last-delivered-id 1791016109285-0 entries-read 232248 lag 0
+08:28:30.423 name fim-backend consumers 1 pending 0 last-delivered-id 1791016110344-0 entries-read 232253 lag 0
+08:28:31.581 name fim-backend consumers 1 pending 0 last-delivered-id 1791016111536-0 entries-read 232279 lag 0
+08:28:32.737 name fim-backend consumers 1 pending 0 last-delivered-id 1791016112603-0 entries-read 232287 lag 0
+08:28:33.881 name fim-backend consumers 1 pending 0 last-delivered-id 1791016113693-0 entries-read 232299 lag 0
+08:28:35.039 name fim-backend consumers 1 pending 0 last-delivered-id 1791016114743-0 entries-read 232307 lag 0
+08:28:36.233 name fim-backend consumers 1 pending 0 last-delivered-id 1791016115851-0 entries-read 232318 lag 0
+08:28:37.385 name fim-backend consumers 1 pending 0 last-delivered-id 1791016116909-0 entries-read 232325 lag 0
+08:28:38.531 name fim-backend consumers 1 pending 0 last-delivered-id 1791016118000-0 entries-read 232335 lag 0
+08:28:39.691 name fim-backend consumers 1 pending 0 last-delivered-id 1791016119087-0 entries-read 232348 lag 0
+08:28:40.848 name fim-backend consumers 1 pending 0 last-delivered-id 1791016120173-0 entries-read 232358 lag 0
+08:28:41.999 name fim-backend consumers 1 pending 0 last-delivered-id 1791016121256-0 entries-read 232369 lag 0
+08:28:43.146 name fim-backend consumers 1 pending 0 last-delivered-id 1791016122327-0 entries-read 232377 lag 0
+08:28:44.297 name fim-backend consumers 1 pending 0 last-delivered-id 1791016123424-0 entries-read 232386 lag 0
+08:28:45.445 name fim-backend consumers 1 pending 1 last-delivered-id 1791016125568-0 entries-read 232402 lag 0
+08:28:46.606 name fim-backend consumers 1 pending 4 last-delivered-id 1791016126733-0 entries-read 232423 lag 1
+08:28:47.772 name fim-backend consumers 1 pending 0 last-delivered-id 1791016127838-0 entries-read 232436 lag 0
+08:28:48.937 name fim-backend consumers 1 pending 0 last-delivered-id 1791016128911-0 entries-read 232443 lag 0
+08:28:50.083 name fim-backend consumers 1 pending 0 last-delivered-id 1791016130064-0 entries-read 232461 lag 0
+08:28:51.235 name fim-backend consumers 1 pending 0 last-delivered-id 1791016131121-0 entries-read 232469 lag 0
+08:28:52.384 name fim-backend consumers 1 pending 0 last-delivered-id 1791016132233-0 entries-read 232482 lag 0
+08:28:53.530 name fim-backend consumers 1 pending 0 last-delivered-id 1791016133292-0 entries-read 232493 lag 0
+08:28:54.678 name fim-backend consumers 1 pending 0 last-delivered-id 1791016134349-0 entries-read 232502 lag 0
+08:28:55.831 name fim-backend consumers 1 pending 0 last-delivered-id 1791016135402-0 entries-read 232514 lag 0
+08:28:56.977 name fim-backend consumers 1 pending 0 last-delivered-id 1791016136505-0 entries-read 232527 lag 0
+08:28:58.123 name fim-backend consumers 1 pending 0 last-delivered-id 1791016137594-0 entries-read 232538 lag 0
+08:28:59.274 name fim-backend consumers 1 pending 0 last-delivered-id 1791016138732-0 entries-read 232552 lag 0
+08:29:00.420 name fim-backend consumers 1 pending 0 last-delivered-id 1791016139784-0 entries-read 232558 lag 0
+08:29:01.575 name fim-backend consumers 1 pending 0 last-delivered-id 1791016140881-0 entries-read 232571 lag 0
+08:29:02.722 name fim-backend consumers 1 pending 0 last-delivered-id 1791016141940-0 entries-read 232582 lag 0
+08:29:03.871 name fim-backend consumers 1 pending 0 last-delivered-id 1791016143039-0 entries-read 232594 lag 0
+08:29:05.014 name fim-backend consumers 1 pending 3 last-delivered-id 1791016145141-0 entries-read 232610 lag 0
+08:29:06.174 name fim-backend consumers 1 pending 5 last-delivered-id 1791016146248-0 entries-read 232628 lag 0
+08:29:07.345 name fim-backend consumers 1 pending 0 last-delivered-id 1791016147336-0 entries-read 232637 lag 0
+08:29:08.497 name fim-backend consumers 1 pending 0 last-delivered-id 1791016148419-0 entries-read 232648 lag 0
+08:29:09.647 name fim-backend consumers 1 pending 0 last-delivered-id 1791016149529-0 entries-read 232662 lag 0
+08:29:10.806 name fim-backend consumers 1 pending 0 last-delivered-id 1791016150627-0 entries-read 232671 lag 0
+08:29:11.952 name fim-backend consumers 1 pending 0 last-delivered-id 1791016151718-0 entries-read 232679 lag 0
+08:29:13.100 name fim-backend consumers 1 pending 0 last-delivered-id 1791016152809-0 entries-read 232690 lag 0
+08:29:14.254 name fim-backend consumers 1 pending 0 last-delivered-id 1791016153876-0 entries-read 232702 lag 0
+08:29:15.418 name fim-backend consumers 1 pending 0 last-delivered-id 1791016154953-0 entries-read 232714 lag 0
+08:29:16.570 name fim-backend consumers 1 pending 0 last-delivered-id 1791016156085-0 entries-read 232726 lag 0
+08:29:17.724 name fim-backend consumers 1 pending 0 last-delivered-id 1791016157144-0 entries-read 232733 lag 0
+08:29:18.882 name fim-backend consumers 1 pending 0 last-delivered-id 1791016158584-0 entries-read 232807 lag 0
+08:29:20.029 name fim-backend consumers 1 pending 0 last-delivered-id 1791016159657-0 entries-read 232815 lag 0
+08:29:21.184 name fim-backend consumers 1 pending 0 last-delivered-id 1791016160719-0 entries-read 232821 lag 0
+08:29:22.339 name fim-backend consumers 1 pending 1 last-delivered-id 1791016162471-0 entries-read 232930 lag 0
+08:29:23.494 name fim-backend consumers 1 pending 0 last-delivered-id 1791016162843-0 entries-read 232995 lag 0
+08:29:24.643 name fim-backend consumers 1 pending 0 last-delivered-id 1791016163920-0 entries-read 233005 lag 0
+08:29:25.824 name fim-backend consumers 1 pending 4 last-delivered-id 1791016165911-0 entries-read 233161 lag 6
+08:29:26.990 name fim-backend consumers 1 pending 0 last-delivered-id 1791016166717-0 entries-read 233288 lag 0
+08:29:28.143 name fim-backend consumers 1 pending 0 last-delivered-id 1791016167812-0 entries-read 233299 lag 0
+08:29:29.290 name fim-backend consumers 1 pending 0 last-delivered-id 1791016168901-0 entries-read 233306 lag 0
+08:29:30.437 name fim-backend consumers 1 pending 0 last-delivered-id 1791016170010-0 entries-read 233317 lag 0
+08:29:31.588 name fim-backend consumers 1 pending 0 last-delivered-id 1791016171133-0 entries-read 233330 lag 0
+08:29:32.735 name fim-backend consumers 1 pending 0 last-delivered-id 1791016172327-0 entries-read 233353 lag 0
+08:29:33.885 name fim-backend consumers 1 pending 0 last-delivered-id 1791016173407-0 entries-read 233360 lag 0
+08:29:35.031 name fim-backend consumers 1 pending 0 last-delivered-id 1791016174502-0 entries-read 233370 lag 0
+08:29:36.190 name fim-backend consumers 1 pending 0 last-delivered-id 1791016175592-0 entries-read 233379 lag 0
+08:29:37.337 name fim-backend consumers 1 pending 0 last-delivered-id 1791016176678-0 entries-read 233391 lag 0
+08:29:38.496 name fim-backend consumers 1 pending 0 last-delivered-id 1791016177767-0 entries-read 233401 lag 0
+08:29:39.644 name fim-backend consumers 1 pending 0 last-delivered-id 1791016178831-0 entries-read 233409 lag 0
+08:29:40.790 name fim-backend consumers 1 pending 0 last-delivered-id 1791016179914-0 entries-read 233420 lag 0
+08:29:41.936 name fim-backend consumers 1 pending 1 last-delivered-id 1791016182031-0 entries-read 233441 lag 0
+08:29:43.090 name fim-backend consumers 1 pending 0 last-delivered-id 1791016183113-0 entries-read 233453 lag 0
+08:29:44.247 name fim-backend consumers 1 pending 0 last-delivered-id 1791016184185-0 entries-read 233460 lag 0
+08:29:45.396 name fim-backend consumers 1 pending 0 last-delivered-id 1791016184185-0 entries-read 233460 lag 0
+08:29:46.547 name fim-backend consumers 1 pending 0 last-delivered-id 1791016185833-0 entries-read 233484 lag 0
+08:29:47.694 name fim-backend consumers 1 pending 0 last-delivered-id 1791016186918-0 entries-read 233493 lag 0
+08:29:48.844 name fim-backend consumers 1 pending 0 last-delivered-id 1791016188022-0 entries-read 233505 lag 0
+08:29:50.004 name fim-backend consumers 1 pending 0 last-delivered-id 1791016189139-0 entries-read 233518 lag 0
+08:29:51.160 name fim-backend consumers 1 pending 1 last-delivered-id 1791016191270-0 entries-read 233537 lag 2
+08:29:52.314 name fim-backend consumers 1 pending 0 last-delivered-id 1791016192365-0 entries-read 233553 lag 0
+08:29:53.485 name fim-backend consumers 1 pending 2 last-delivered-id 1791016193487-0 entries-read 233576 lag 0
+08:29:54.643 name fim-backend consumers 1 pending 0 last-delivered-id 1791016194547-0 entries-read 233586 lag 0
+08:29:55.795 name fim-backend consumers 1 pending 0 last-delivered-id 1791016195646-0 entries-read 233596 lag 0
+08:29:56.949 name fim-backend consumers 1 pending 0 last-delivered-id 1791016196742-0 entries-read 233607 lag 0
+08:29:58.098 name fim-backend consumers 1 pending 0 last-delivered-id 1791016197821-0 entries-read 233617 lag 0
+08:29:59.252 name fim-backend consumers 1 pending 0 last-delivered-id 1791016198937-0 entries-read 233629 lag 0
+08:30:00.415 name fim-backend consumers 1 pending 0 last-delivered-id 1791016200031-0 entries-read 233638 lag 0
+08:30:01.584 name fim-backend consumers 1 pending 0 last-delivered-id 1791016201094-0 entries-read 233649 lag 0
+08:30:02.731 name fim-backend consumers 1 pending 0 last-delivered-id 1791016202162-0 entries-read 233658 lag 0
+08:30:03.880 name fim-backend consumers 1 pending 0 last-delivered-id 1791016203238-0 entries-read 233668 lag 0
+08:30:05.042 name fim-backend consumers 1 pending 0 last-delivered-id 1791016204322-0 entries-read 233677 lag 0
+08:30:06.188 name fim-backend consumers 1 pending 0 last-delivered-id 1791016205376-0 entries-read 233687 lag 0
+08:30:07.340 name fim-backend consumers 1 pending 0 last-delivered-id 1791016206478-0 entries-read 233703 lag 0
+08:30:08.503 name fim-backend consumers 1 pending 0 last-delivered-id 1791016208574-0 entries-read 233720 lag 0
+08:30:09.668 name fim-backend consumers 1 pending 0 last-delivered-id 1791016209665-0 entries-read 233736 lag 0
+08:30:10.824 name fim-backend consumers 1 pending 0 last-delivered-id 1791016210775-0 entries-read 233750 lag 0
+08:30:11.971 name fim-backend consumers 1 pending 0 last-delivered-id 1791016211853-0 entries-read 233757 lag 0
+08:30:13.121 name fim-backend consumers 1 pending 0 last-delivered-id 1791016212942-0 entries-read 233766 lag 0
+08:30:14.270 name fim-backend consumers 1 pending 0 last-delivered-id 1791016214053-0 entries-read 233781 lag 0
+08:30:15.417 name fim-backend consumers 1 pending 0 last-delivered-id 1791016215128-0 entries-read 233792 lag 0
+08:30:16.566 name fim-backend consumers 1 pending 0 last-delivered-id 1791016216220-0 entries-read 233803 lag 0
+08:30:17.722 name fim-backend consumers 1 pending 0 last-delivered-id 1791016217305-0 entries-read 233815 lag 0
+08:30:18.871 name fim-backend consumers 1 pending 0 last-delivered-id 1791016218729-0 entries-read 233886 lag 0
+08:30:20.022 name fim-backend consumers 1 pending 0 last-delivered-id 1791016219784-0 entries-read 233894 lag 0
+08:30:21.174 name fim-backend consumers 1 pending 0 last-delivered-id 1791016220822-0 entries-read 233899 lag 0
+08:30:22.325 name fim-backend consumers 1 pending 10 last-delivered-id 1791016222445-0 entries-read 233988 lag 2
+08:30:23.479 name fim-backend consumers 1 pending 0 last-delivered-id 1791016222883-0 entries-read 234069 lag 0
+08:30:24.626 name fim-backend consumers 1 pending 0 last-delivered-id 1791016223940-0 entries-read 234075 lag 0
+08:30:25.778 name fim-backend consumers 1 pending 9 last-delivered-id 1791016225671-0 entries-read 234208 lag 33
+08:30:26.945 name fim-backend consumers 1 pending 0 last-delivered-id 1791016226776-0 entries-read 234359 lag 0
+08:30:28.092 name fim-backend consumers 1 pending 0 last-delivered-id 1791016227895-0 entries-read 234369 lag 0
+08:30:29.241 name fim-backend consumers 1 pending 0 last-delivered-id 1791016228986-0 entries-read 234377 lag 0
+08:30:30.389 name fim-backend consumers 1 pending 0 last-delivered-id 1791016230051-0 entries-read 234387 lag 0
+08:30:31.535 name fim-backend consumers 1 pending 0 last-delivered-id 1791016231149-0 entries-read 234395 lag 0
+08:30:32.682 name fim-backend consumers 1 pending 0 last-delivered-id 1791016232384-0 entries-read 234425 lag 0
+08:30:33.852 name fim-backend consumers 1 pending 0 last-delivered-id 1791016233471-0 entries-read 234434 lag 0
+08:30:35.001 name fim-backend consumers 1 pending 0 last-delivered-id 1791016234533-0 entries-read 234443 lag 0
+08:30:36.160 name fim-backend consumers 1 pending 0 last-delivered-id 1791016235612-0 entries-read 234453 lag 0
+08:30:37.312 name fim-backend consumers 1 pending 0 last-delivered-id 1791016236707-0 entries-read 234463 lag 0
+08:30:38.483 name fim-backend consumers 1 pending 0 last-delivered-id 1791016237778-0 entries-read 234471 lag 0
+08:30:39.629 name fim-backend consumers 1 pending 0 last-delivered-id 1791016238864-0 entries-read 234481 lag 0
+08:30:40.773 name fim-backend consumers 1 pending 0 last-delivered-id 1791016239935-0 entries-read 234491 lag 0
+08:30:41.925 name fim-backend consumers 1 pending 2 last-delivered-id 1791016242036-0 entries-read 234501 lag 4
+08:30:43.077 name fim-backend consumers 1 pending 0 last-delivered-id 1791016243138-0 entries-read 234517 lag 0
+08:30:44.230 name fim-backend consumers 1 pending 0 last-delivered-id 1791016244238-0 entries-read 234527 lag 0
+08:30:45.377 name fim-backend consumers 1 pending 0 last-delivered-id 1791016245286-0 entries-read 234533 lag 0
+08:30:46.526 name fim-backend consumers 1 pending 0 last-delivered-id 1791016246428-0 entries-read 234555 lag 0
+08:30:47.686 name fim-backend consumers 1 pending 0 last-delivered-id 1791016247519-0 entries-read 234564 lag 0
+08:30:48.833 name fim-backend consumers 1 pending 0 last-delivered-id 1791016248633-0 entries-read 234574 lag 0
+08:30:49.977 name fim-backend consumers 1 pending 0 last-delivered-id 1791016249745-0 entries-read 234585 lag 0
+08:30:51.120 name fim-backend consumers 1 pending 0 last-delivered-id 1791016250886-0 entries-read 234599 lag 0
+08:30:52.272 name fim-backend consumers 1 pending 0 last-delivered-id 1791016251950-0 entries-read 234604 lag 0
+08:30:53.418 name fim-backend consumers 1 pending 0 last-delivered-id 1791016253052-0 entries-read 234615 lag 0
+08:30:54.566 name fim-backend consumers 1 pending 0 last-delivered-id 1791016254188-0 entries-read 234636 lag 0
+08:30:55.712 name fim-backend consumers 1 pending 0 last-delivered-id 1791016255275-0 entries-read 234645 lag 0
+08:30:56.868 name fim-backend consumers 1 pending 0 last-delivered-id 1791016256407-0 entries-read 234663 lag 0
+08:30:58.017 name fim-backend consumers 1 pending 0 last-delivered-id 1791016257514-0 entries-read 234673 lag 0
+08:30:59.165 name fim-backend consumers 1 pending 0 last-delivered-id 1791016258595-0 entries-read 234681 lag 0
+08:31:00.328 name fim-backend consumers 1 pending 0 last-delivered-id 1791016259718-0 entries-read 234691 lag 0
+08:31:01.478 name fim-backend consumers 1 pending 0 last-delivered-id 1791016260825-0 entries-read 234703 lag 0
+08:31:02.621 name fim-backend consumers 1 pending 0 last-delivered-id 1791016261932-0 entries-read 234712 lag 0
+08:31:03.775 name fim-backend consumers 1 pending 0 last-delivered-id 1791016263033-0 entries-read 234721 lag 0
+08:31:04.924 name fim-backend consumers 1 pending 0 last-delivered-id 1791016264097-0 entries-read 234730 lag 0
+08:31:06.070 name fim-backend consumers 1 pending 5 last-delivered-id 1791016266193-0 entries-read 234746 lag 1
+08:31:07.225 name fim-backend consumers 1 pending 0 last-delivered-id 1791016267301-0 entries-read 234761 lag 0
+08:31:08.382 name fim-backend consumers 1 pending 0 last-delivered-id 1791016268384-0 entries-read 234770 lag 0
+08:31:09.538 name fim-backend consumers 1 pending 0 last-delivered-id 1791016269476-0 entries-read 234780 lag 0
+08:31:10.689 name fim-backend consumers 1 pending 0 last-delivered-id 1791016270622-0 entries-read 234794 lag 0
+08:31:11.840 name fim-backend consumers 1 pending 0 last-delivered-id 1791016271768-0 entries-read 234806 lag 0
+08:31:12.986 name fim-backend consumers 1 pending 0 last-delivered-id 1791016272912-0 entries-read 234823 lag 0
+08:31:14.138 name fim-backend consumers 1 pending 0 last-delivered-id 1791016274011-0 entries-read 234833 lag 0
+08:31:15.284 name fim-backend consumers 1 pending 0 last-delivered-id 1791016275093-0 entries-read 234846 lag 0
+08:31:16.437 name fim-backend consumers 1 pending 0 last-delivered-id 1791016276187-0 entries-read 234855 lag 0
+08:31:17.594 name fim-backend consumers 1 pending 0 last-delivered-id 1791016277237-0 entries-read 234864 lag 0
+08:31:18.742 name fim-backend consumers 1 pending 0 last-delivered-id 1791016278333-0 entries-read 234874 lag 0
+08:31:19.893 name fim-backend consumers 1 pending 0 last-delivered-id 1791016279792-0 entries-read 234943 lag 0
+08:31:21.045 name fim-backend consumers 1 pending 0 last-delivered-id 1791016280877-0 entries-read 234952 lag 0
+08:31:22.194 name fim-backend consumers 1 pending 1 last-delivered-id 1791016282327-0 entries-read 235000 lag 0
+08:31:23.354 name fim-backend consumers 1 pending 0 last-delivered-id 1791016283183-0 entries-read 235119 lag 0
+08:31:24.504 name fim-backend consumers 1 pending 0 last-delivered-id 1791016284245-0 entries-read 235126 lag 0
+08:31:25.653 name fim-backend consumers 1 pending 0 last-delivered-id 1791016285784-0 entries-read 235192 lag 0
+08:31:26.810 name fim-backend consumers 1 pending 0 last-delivered-id 1791016286940-0 entries-read 235359 lag 0
+08:31:27.969 name fim-backend consumers 1 pending 0 last-delivered-id 1791016287260-0 entries-read 235405 lag 0
+08:31:29.159 name fim-backend consumers 1 pending 0 last-delivered-id 1791016288355-0 entries-read 235420 lag 0
+08:31:30.309 name fim-backend consumers 1 pending 0 last-delivered-id 1791016289469-0 entries-read 235433 lag 0
+08:31:31.453 name fim-backend consumers 1 pending 1 last-delivered-id 1791016291572-0 entries-read 235442 lag 0
+08:31:32.608 name fim-backend consumers 1 pending 0 last-delivered-id 1791016291607-0 entries-read 235447 lag 0
+08:31:33.754 name fim-backend consumers 1 pending 0 last-delivered-id 1791016293353-0 entries-read 235475 lag 0
+08:31:34.895 name fim-backend consumers 1 pending 0 last-delivered-id 1791016294435-0 entries-read 235485 lag 0
+08:31:36.049 name fim-backend consumers 1 pending 0 last-delivered-id 1791016295524-0 entries-read 235494 lag 0
+08:31:37.217 name fim-backend consumers 1 pending 0 last-delivered-id 1791016296603-0 entries-read 235509 lag 0
+08:31:38.384 name fim-backend consumers 1 pending 0 last-delivered-id 1791016297716-0 entries-read 235521 lag 0
+08:31:39.542 name fim-backend consumers 1 pending 0 last-delivered-id 1791016298774-0 entries-read 235527 lag 0
+08:31:40.696 name fim-backend consumers 1 pending 0 last-delivered-id 1791016299837-0 entries-read 235535 lag 0
+08:31:41.852 name fim-backend consumers 1 pending 3 last-delivered-id 1791016301962-0 entries-read 235552 lag 0
+08:31:43.010 name fim-backend consumers 1 pending 0 last-delivered-id 1791016303037-0 entries-read 235561 lag 0
+08:31:44.162 name fim-backend consumers 1 pending 0 last-delivered-id 1791016304108-0 entries-read 235567 lag 0
+08:31:45.307 name fim-backend consumers 1 pending 0 last-delivered-id 1791016305204-0 entries-read 235581 lag 0
+08:31:46.457 name fim-backend consumers 1 pending 0 last-delivered-id 1791016306297-0 entries-read 235591 lag 0
+08:31:47.606 name fim-backend consumers 1 pending 0 last-delivered-id 1791016307448-0 entries-read 235611 lag 0
+08:31:48.752 name fim-backend consumers 1 pending 0 last-delivered-id 1791016308555-0 entries-read 235623 lag 0
+08:31:49.905 name fim-backend consumers 1 pending 0 last-delivered-id 1791016309647-0 entries-read 235631 lag 0
+08:31:51.062 name fim-backend consumers 1 pending 0 last-delivered-id 1791016310715-0 entries-read 235640 lag 0
+08:31:52.227 name fim-backend consumers 1 pending 0 last-delivered-id 1791016311799-0 entries-read 235656 lag 0
+08:31:53.386 name fim-backend consumers 1 pending 0 last-delivered-id 1791016312884-0 entries-read 235668 lag 0
+08:31:54.535 name fim-backend consumers 1 pending 0 last-delivered-id 1791016313950-0 entries-read 235679 lag 0
+08:31:55.686 name fim-backend consumers 1 pending 0 last-delivered-id 1791016315141-0 entries-read 235698 lag 0
+08:31:56.836 name fim-backend consumers 1 pending 0 last-delivered-id 1791016316195-0 entries-read 235705 lag 0
+08:31:57.988 name fim-backend consumers 1 pending 0 last-delivered-id 1791016317357-0 entries-read 235721 lag 0
+08:31:59.162 name fim-backend consumers 1 pending 0 last-delivered-id 1791016318448-0 entries-read 235732 lag 0
+08:32:00.315 name fim-backend consumers 1 pending 0 last-delivered-id 1791016319526-0 entries-read 235746 lag 0
+08:32:01.464 name fim-backend consumers 1 pending 0 last-delivered-id 1791016320606-0 entries-read 235755 lag 0
+08:32:02.610 name fim-backend consumers 1 pending 0 last-delivered-id 1791016322720-0 entries-read 235772 lag 0
+08:32:03.769 name fim-backend consumers 1 pending 0 last-delivered-id 1791016323802-0 entries-read 235783 lag 0
+08:32:04.919 name fim-backend consumers 1 pending 0 last-delivered-id 1791016324880-0 entries-read 235792 lag 0
+08:32:06.072 name fim-backend consumers 1 pending 0 last-delivered-id 1791016325976-0 entries-read 235803 lag 0
+08:32:07.218 name fim-backend consumers 1 pending 0 last-delivered-id 1791016327033-0 entries-read 235811 lag 0
+08:32:08.366 name fim-backend consumers 1 pending 0 last-delivered-id 1791016328148-0 entries-read 235823 lag 0
+08:32:09.517 name fim-backend consumers 1 pending 0 last-delivered-id 1791016329239-0 entries-read 235834 lag 0
+08:32:10.685 name fim-backend consumers 1 pending 0 last-delivered-id 1791016330345-0 entries-read 235844 lag 0
+08:32:11.832 name fim-backend consumers 1 pending 0 last-delivered-id 1791016331431-0 entries-read 235857 lag 0
+08:32:12.990 name fim-backend consumers 1 pending 0 last-delivered-id 1791016332536-0 entries-read 235868 lag 0
+08:32:14.140 name fim-backend consumers 1 pending 0 last-delivered-id 1791016333678-0 entries-read 235883 lag 0
+08:32:15.289 name fim-backend consumers 1 pending 0 last-delivered-id 1791016334742-0 entries-read 235891 lag 0
+08:32:16.443 name fim-backend consumers 1 pending 0 last-delivered-id 1791016335824-0 entries-read 235902 lag 0
+08:32:17.588 name fim-backend consumers 1 pending 0 last-delivered-id 1791016336968-0 entries-read 235919 lag 0
+08:32:18.735 name fim-backend consumers 1 pending 0 last-delivered-id 1791016338063-0 entries-read 235927 lag 0
+08:32:19.886 name fim-backend consumers 1 pending 0 last-delivered-id 1791016339132-0 entries-read 235938 lag 0
+08:32:21.035 name fim-backend consumers 1 pending 0 last-delivered-id 1791016340574-0 entries-read 236004 lag 0
+08:32:22.192 name fim-backend consumers 1 pending 0 last-delivered-id 1791016341651-0 entries-read 236012 lag 0
+08:32:23.353 name fim-backend consumers 1 pending 0 last-delivered-id 1791016341651-0 entries-read 236012 lag 0
+08:32:24.500 name fim-backend consumers 1 pending 0 last-delivered-id 1791016341651-0 entries-read 236012 lag 0
+08:32:25.669 name fim-backend consumers 1 pending 0 last-delivered-id 1791016341651-0 entries-read 236012 lag 0
+08:32:26.821 name fim-backend consumers 1 pending 34 last-delivered-id 1791016346953-0 entries-read 236062 lag 2
+08:32:28.001 name fim-backend consumers 1 pending 17 last-delivered-id 1791016347754-0 entries-read 236195 lag 66
+08:32:29.165 name fim-backend consumers 1 pending 34 last-delivered-id 1791016348602-0 entries-read 236345 lag 110
+08:32:30.325 name fim-backend consumers 1 pending 0 last-delivered-id 1791016349167-0 entries-read 236455 lag 0
+08:32:31.471 name fim-backend consumers 1 pending 0 last-delivered-id 1791016349167-0 entries-read 236455 lag 0
+08:32:32.618 name fim-backend consumers 1 pending 0 last-delivered-id 1791016349167-0 entries-read 236455 lag 0
+08:32:33.768 name fim-backend consumers 1 pending 0 last-delivered-id 1791016349167-0 entries-read 236455 lag 0
+08:32:34.915 name fim-backend consumers 1 pending 0 last-delivered-id 1791016354696-0 entries-read 236515 lag 0
+08:32:36.065 name fim-backend consumers 1 pending 0 last-delivered-id 1791016354696-0 entries-read 236515 lag 0
+08:32:37.207 name fim-backend consumers 1 pending 0 last-delivered-id 1791016354696-0 entries-read 236515 lag 0
+08:32:38.358 name fim-backend consumers 1 pending 0 last-delivered-id 1791016354696-0 entries-read 236515 lag 0
+08:32:39.511 name fim-backend consumers 1 pending 0 last-delivered-id 1791016354696-0 entries-read 236515 lag 0
+08:32:40.673 name fim-backend consumers 1 pending 0 last-delivered-id 1791016360004-0 entries-read 236558 lag 0
+08:32:41.825 name fim-backend consumers 1 pending 0 last-delivered-id 1791016360004-0 entries-read 236558 lag 0
+08:32:42.982 name fim-backend consumers 1 pending 0 last-delivered-id 1791016360004-0 entries-read 236558 lag 0
+08:32:44.133 name fim-backend consumers 1 pending 0 last-delivered-id 1791016360004-0 entries-read 236558 lag 0
+08:32:45.288 name fim-backend consumers 1 pending 0 last-delivered-id 1791016365233-0 entries-read 236589 lag 0
+08:32:46.452 name fim-backend consumers 1 pending 0 last-delivered-id 1791016365233-0 entries-read 236589 lag 0
+08:32:47.603 name fim-backend consumers 1 pending 0 last-delivered-id 1791016365233-0 entries-read 236589 lag 0
+08:32:48.762 name fim-backend consumers 1 pending 0 last-delivered-id 1791016365233-0 entries-read 236589 lag 0
+08:32:49.915 name fim-backend consumers 1 pending 0 last-delivered-id 1791016365233-0 entries-read 236589 lag 0
+08:32:51.058 name fim-backend consumers 1 pending 0 last-delivered-id 1791016370586-0 entries-read 236643 lag 0
+08:32:52.213 name fim-backend consumers 1 pending 0 last-delivered-id 1791016370586-0 entries-read 236643 lag 0
+08:32:53.372 name fim-backend consumers 1 pending 0 last-delivered-id 1791016370586-0 entries-read 236643 lag 0
+08:32:54.522 name fim-backend consumers 1 pending 0 last-delivered-id 1791016370586-0 entries-read 236643 lag 0
+08:32:55.673 name fim-backend consumers 1 pending 25 last-delivered-id 1791016375810-0 entries-read 236681 lag 2
+08:32:56.849 name fim-backend consumers 1 pending 0 last-delivered-id 1791016376002-0 entries-read 236701 lag 0
+08:32:58.005 name fim-backend consumers 1 pending 0 last-delivered-id 1791016376002-0 entries-read 236701 lag 0
+08:32:59.152 name fim-backend consumers 1 pending 0 last-delivered-id 1791016376002-0 entries-read 236701 lag 0
+08:33:00.309 name fim-backend consumers 1 pending 0 last-delivered-id 1791016376002-0 entries-read 236701 lag 0
+08:33:01.458 name fim-backend consumers 1 pending 0 last-delivered-id 1791016381268-0 entries-read 236749 lag 0
+08:33:02.613 name fim-backend consumers 1 pending 0 last-delivered-id 1791016381268-0 entries-read 236749 lag 0
+08:33:03.761 name fim-backend consumers 1 pending 0 last-delivered-id 1791016381268-0 entries-read 236749 lag 0
+08:33:04.917 name fim-backend consumers 1 pending 0 last-delivered-id 1791016381268-0 entries-read 236749 lag 0
+08:33:06.066 name fim-backend consumers 1 pending 0 last-delivered-id 1791016381268-0 entries-read 236749 lag 0
+08:33:07.220 name fim-backend consumers 1 pending 0 last-delivered-id 1791016386512-0 entries-read 236788 lag 0
+08:33:08.381 name fim-backend consumers 1 pending 0 last-delivered-id 1791016386512-0 entries-read 236788 lag 0
+08:33:09.528 name fim-backend consumers 1 pending 0 last-delivered-id 1791016386512-0 entries-read 236788 lag 0
+08:33:10.691 name fim-backend consumers 1 pending 0 last-delivered-id 1791016386512-0 entries-read 236788 lag 0
+08:33:11.844 name fim-backend consumers 1 pending 0 last-delivered-id 1791016391741-0 entries-read 236833 lag 0
+08:33:13.001 name fim-backend consumers 1 pending 0 last-delivered-id 1791016391741-0 entries-read 236833 lag 0
+08:33:14.147 name fim-backend consumers 1 pending 0 last-delivered-id 1791016391741-0 entries-read 236833 lag 0
+08:33:15.299 name fim-backend consumers 1 pending 0 last-delivered-id 1791016391741-0 entries-read 236833 lag 0
+08:33:16.452 name fim-backend consumers 1 pending 0 last-delivered-id 1791016391741-0 entries-read 236833 lag 0
+08:33:17.602 name fim-backend consumers 1 pending 0 last-delivered-id 1791016397027-0 entries-read 236871 lag 0
+08:33:18.752 name fim-backend consumers 1 pending 0 last-delivered-id 1791016397027-0 entries-read 236871 lag 0
+08:33:19.907 name fim-backend consumers 1 pending 0 last-delivered-id 1791016397027-0 entries-read 236871 lag 0
+08:33:21.054 name fim-backend consumers 1 pending 0 last-delivered-id 1791016397027-0 entries-read 236871 lag 0
+08:33:22.199 name fim-backend consumers 1 pending 22 last-delivered-id 1791016402242-0 entries-read 236906 lag 17
+08:33:23.377 name fim-backend consumers 1 pending 0 last-delivered-id 1791016402714-0 entries-read 236971 lag 0
+08:33:24.531 name fim-backend consumers 1 pending 0 last-delivered-id 1791016402714-0 entries-read 236971 lag 0
+08:33:25.681 name fim-backend consumers 1 pending 0 last-delivered-id 1791016402714-0 entries-read 236971 lag 0
+08:33:26.825 name fim-backend consumers 1 pending 0 last-delivered-id 1791016402714-0 entries-read 236971 lag 0
+08:33:27.976 name fim-backend consumers 1 pending 4 last-delivered-id 1791016407941-0 entries-read 237003 lag 20
+08:33:29.160 name fim-backend consumers 1 pending 1 last-delivered-id 1791016409229-0 entries-read 237176 lag 7
+08:33:30.325 name fim-backend consumers 1 pending 3 last-delivered-id 1791016410387-0 entries-read 237335 lag 10
+08:33:31.496 name fim-backend consumers 1 pending 0 last-delivered-id 1791016410846-0 entries-read 237400 lag 0
+08:33:32.645 name fim-backend consumers 1 pending 0 last-delivered-id 1791016410846-0 entries-read 237400 lag 0
+08:33:33.791 name fim-backend consumers 1 pending 0 last-delivered-id 1791016410846-0 entries-read 237400 lag 0
+08:33:34.940 name fim-backend consumers 1 pending 0 last-delivered-id 1791016410846-0 entries-read 237400 lag 0
+08:33:36.083 name fim-backend consumers 1 pending 25 last-delivered-id 1791016416149-0 entries-read 237448 lag 3
+08:33:37.251 name fim-backend consumers 1 pending 0 last-delivered-id 1791016416235-0 entries-read 237452 lag 0
+08:33:38.400 name fim-backend consumers 1 pending 0 last-delivered-id 1791016416235-0 entries-read 237452 lag 0
+08:33:39.546 name fim-backend consumers 1 pending 0 last-delivered-id 1791016416235-0 entries-read 237452 lag 0
+08:33:40.705 name fim-backend consumers 1 pending 0 last-delivered-id 1791016416235-0 entries-read 237452 lag 0
+08:33:41.857 name fim-backend consumers 1 pending 0 last-delivered-id 1791016421464-0 entries-read 237486 lag 0
+08:33:43.008 name fim-backend consumers 1 pending 0 last-delivered-id 1791016421464-0 entries-read 237486 lag 0
+08:33:44.162 name fim-backend consumers 1 pending 0 last-delivered-id 1791016421464-0 entries-read 237486 lag 0
+08:33:45.316 name fim-backend consumers 1 pending 0 last-delivered-id 1791016421464-0 entries-read 237486 lag 0
+08:33:46.462 name fim-backend consumers 1 pending 6 last-delivered-id 1791016426511-0 entries-read 237495 lag 14
+08:33:47.625 name fim-backend consumers 1 pending 0 last-delivered-id 1791016426604-0 entries-read 237509 lag 0
+08:33:48.777 name fim-backend consumers 1 pending 0 last-delivered-id 1791016426604-0 entries-read 237509 lag 0
+08:33:49.921 name fim-backend consumers 1 pending 0 last-delivered-id 1791016426604-0 entries-read 237509 lag 0
+08:33:51.082 name fim-backend consumers 1 pending 0 last-delivered-id 1791016426604-0 entries-read 237509 lag 0
+08:33:52.242 name fim-backend consumers 1 pending 0 last-delivered-id 1791016431859-0 entries-read 237554 lag 0
+08:33:53.393 name fim-backend consumers 1 pending 0 last-delivered-id 1791016431859-0 entries-read 237554 lag 0
+08:33:54.543 name fim-backend consumers 1 pending 0 last-delivered-id 1791016431859-0 entries-read 237554 lag 0
+08:33:55.699 name fim-backend consumers 1 pending 0 last-delivered-id 1791016431859-0 entries-read 237554 lag 0
+08:33:56.851 name fim-backend consumers 1 pending 17 last-delivered-id 1791016437002-0 entries-read 237579 lag 1
+08:33:58.032 name fim-backend consumers 1 pending 0 last-delivered-id 1791016437173-0 entries-read 237603 lag 0
+08:33:59.184 name fim-backend consumers 1 pending 0 last-delivered-id 1791016437173-0 entries-read 237603 lag 0
+08:34:00.334 name fim-backend consumers 1 pending 0 last-delivered-id 1791016437173-0 entries-read 237603 lag 0
+08:34:01.483 name fim-backend consumers 1 pending 0 last-delivered-id 1791016437173-0 entries-read 237603 lag 0
+08:34:02.637 name fim-backend consumers 1 pending 0 last-delivered-id 1791016442383-0 entries-read 237642 lag 0
+08:34:03.787 name fim-backend consumers 1 pending 0 last-delivered-id 1791016442383-0 entries-read 237642 lag 0
+08:34:04.940 name fim-backend consumers 1 pending 0 last-delivered-id 1791016442383-0 entries-read 237642 lag 0
+08:34:06.084 name fim-backend consumers 1 pending 0 last-delivered-id 1791016442383-0 entries-read 237642 lag 0
+08:34:07.240 name fim-backend consumers 1 pending 0 last-delivered-id 1791016442383-0 entries-read 237642 lag 0
+08:34:08.393 name fim-backend consumers 1 pending 0 last-delivered-id 1791016447558-0 entries-read 237672 lag 0
+08:34:09.548 name fim-backend consumers 1 pending 0 last-delivered-id 1791016447558-0 entries-read 237672 lag 0
+08:34:10.716 name fim-backend consumers 1 pending 0 last-delivered-id 1791016447558-0 entries-read 237672 lag 0
+08:34:11.864 name fim-backend consumers 1 pending 0 last-delivered-id 1791016447558-0 entries-read 237672 lag 0
+08:34:13.011 name fim-backend consumers 1 pending 0 last-delivered-id 1791016452786-0 entries-read 237708 lag 0
+08:34:14.160 name fim-backend consumers 1 pending 0 last-delivered-id 1791016452786-0 entries-read 237708 lag 0
+08:34:15.304 name fim-backend consumers 1 pending 0 last-delivered-id 1791016452786-0 entries-read 237708 lag 0
+08:34:16.454 name fim-backend consumers 1 pending 0 last-delivered-id 1791016452786-0 entries-read 237708 lag 0
+08:34:17.614 name fim-backend consumers 1 pending 0 last-delivered-id 1791016452786-0 entries-read 237708 lag 0
+08:34:18.763 name fim-backend consumers 1 pending 0 last-delivered-id 1791016457989-0 entries-read 237738 lag 0
+08:34:19.913 name fim-backend consumers 1 pending 0 last-delivered-id 1791016457989-0 entries-read 237738 lag 0
+08:34:21.067 name fim-backend consumers 1 pending 0 last-delivered-id 1791016457989-0 entries-read 237738 lag 0
+08:34:22.232 name fim-backend consumers 1 pending 0 last-delivered-id 1791016457989-0 entries-read 237738 lag 0
+08:34:23.393 name fim-backend consumers 1 pending 12 last-delivered-id 1791016463415-0 entries-read 237809 lag 16
+08:34:24.559 name fim-backend consumers 1 pending 0 last-delivered-id 1791016463557-0 entries-read 237828 lag 0
+08:34:25.708 name fim-backend consumers 1 pending 0 last-delivered-id 1791016463557-0 entries-read 237828 lag 0
+08:34:26.861 name fim-backend consumers 1 pending 0 last-delivered-id 1791016463557-0 entries-read 237828 lag 0
+08:34:28.009 name fim-backend consumers 1 pending 0 last-delivered-id 1791016463557-0 entries-read 237828 lag 0
+08:34:29.153 name fim-backend consumers 1 pending 12 last-delivered-id 1791016469251-0 entries-read 237918 lag 4
+08:34:30.309 name fim-backend consumers 1 pending 0 last-delivered-id 1791016470431-0 entries-read 238071 lag 1
+08:34:31.458 name fim-backend consumers 1 pending 17 last-delivered-id 1791016471520-0 entries-read 238244 lag 0
+08:34:32.615 name fim-backend consumers 1 pending 0 last-delivered-id 1791016471520-0 entries-read 238244 lag 0
+08:34:33.762 name fim-backend consumers 1 pending 0 last-delivered-id 1791016471520-0 entries-read 238244 lag 0
+08:34:34.911 name fim-backend consumers 1 pending 0 last-delivered-id 1791016471520-0 entries-read 238244 lag 0
+08:34:36.061 name fim-backend consumers 1 pending 0 last-delivered-id 1791016471520-0 entries-read 238244 lag 0
+08:34:37.220 name fim-backend consumers 1 pending 0 last-delivered-id 1791016476738-0 entries-read 238287 lag 0
+08:34:38.369 name fim-backend consumers 1 pending 0 last-delivered-id 1791016476738-0 entries-read 238287 lag 0
+08:34:39.524 name fim-backend consumers 1 pending 0 last-delivered-id 1791016476738-0 entries-read 238287 lag 0
+08:34:40.676 name fim-backend consumers 1 pending 0 last-delivered-id 1791016476738-0 entries-read 238287 lag 0
+08:34:41.828 name fim-backend consumers 1 pending 6 last-delivered-id 1791016481820-0 entries-read 238296 lag 16
+08:34:42.993 name fim-backend consumers 1 pending 0 last-delivered-id 1791016481903-0 entries-read 238312 lag 0
+08:34:44.139 name fim-backend consumers 1 pending 0 last-delivered-id 1791016481903-0 entries-read 238312 lag 0
+08:34:45.289 name fim-backend consumers 1 pending 0 last-delivered-id 1791016481903-0 entries-read 238312 lag 0
+08:34:46.441 name fim-backend consumers 1 pending 0 last-delivered-id 1791016481903-0 entries-read 238312 lag 0
+08:34:47.597 name fim-backend consumers 1 pending 0 last-delivered-id 1791016487028-0 entries-read 238326 lag 0
+08:34:48.746 name fim-backend consumers 1 pending 0 last-delivered-id 1791016487028-0 entries-read 238326 lag 0
+08:34:49.895 name fim-backend consumers 1 pending 0 last-delivered-id 1791016487028-0 entries-read 238326 lag 0
+08:34:51.045 name fim-backend consumers 1 pending 0 last-delivered-id 1791016487028-0 entries-read 238326 lag 0
+08:34:52.191 name fim-backend consumers 1 pending 15 last-delivered-id 1791016492234-0 entries-read 238356 lag 6
+08:34:53.367 name fim-backend consumers 1 pending 0 last-delivered-id 1791016492278-0 entries-read 238362 lag 0
+08:34:54.514 name fim-backend consumers 1 pending 0 last-delivered-id 1791016492278-0 entries-read 238362 lag 0
+08:34:55.665 name fim-backend consumers 1 pending 0 last-delivered-id 1791016492278-0 entries-read 238362 lag 0
+08:34:56.817 name fim-backend consumers 1 pending 0 last-delivered-id 1791016492278-0 entries-read 238362 lag 0
+08:34:57.972 name fim-backend consumers 1 pending 0 last-delivered-id 1791016497472-0 entries-read 238403 lag 0
+08:34:59.122 name fim-backend consumers 1 pending 0 last-delivered-id 1791016497472-0 entries-read 238403 lag 0
+08:35:00.271 name fim-backend consumers 1 pending 0 last-delivered-id 1791016497472-0 entries-read 238403 lag 0
+08:35:01.420 name fim-backend consumers 1 pending 0 last-delivered-id 1791016497472-0 entries-read 238403 lag 0
+08:35:02.577 name fim-backend consumers 1 pending 7 last-delivered-id 1791016502588-0 entries-read 238418 lag 15
+08:35:03.743 name fim-backend consumers 1 pending 0 last-delivered-id 1791016502659-0 entries-read 238433 lag 0
+08:35:04.906 name fim-backend consumers 1 pending 0 last-delivered-id 1791016502659-0 entries-read 238433 lag 0
+08:35:06.069 name fim-backend consumers 1 pending 0 last-delivered-id 1791016502659-0 entries-read 238433 lag 0
+08:35:07.213 name fim-backend consumers 1 pending 0 last-delivered-id 1791016502659-0 entries-read 238433 lag 0
+08:35:08.367 name fim-backend consumers 1 pending 0 last-delivered-id 1791016507812-0 entries-read 238454 lag 0
+08:35:09.518 name fim-backend consumers 1 pending 0 last-delivered-id 1791016507812-0 entries-read 238454 lag 0
+08:35:10.679 name fim-backend consumers 1 pending 0 last-delivered-id 1791016507812-0 entries-read 238454 lag 0
+08:35:11.832 name fim-backend consumers 1 pending 0 last-delivered-id 1791016507812-0 entries-read 238454 lag 0
+08:35:12.998 name fim-backend consumers 1 pending 11 last-delivered-id 1791016513001-0 entries-read 238482 lag 0
+08:35:14.179 name fim-backend consumers 1 pending 0 last-delivered-id 1791016513001-0 entries-read 238482 lag 0
+08:35:15.334 name fim-backend consumers 1 pending 0 last-delivered-id 1791016513001-0 entries-read 238482 lag 0
+08:35:16.481 name fim-backend consumers 1 pending 0 last-delivered-id 1791016513001-0 entries-read 238482 lag 0
+08:35:17.639 name fim-backend consumers 1 pending 0 last-delivered-id 1791016513001-0 entries-read 238482 lag 0
+08:35:18.800 name fim-backend consumers 1 pending 0 last-delivered-id 1791016518171-0 entries-read 238503 lag 0
+08:35:19.960 name fim-backend consumers 1 pending 0 last-delivered-id 1791016518171-0 entries-read 238503 lag 0
+08:35:21.125 name fim-backend consumers 1 pending 0 last-delivered-id 1791016518171-0 entries-read 238503 lag 0
+08:35:22.279 name fim-backend consumers 1 pending 0 last-delivered-id 1791016518171-0 entries-read 238503 lag 0
+08:35:23.431 name fim-backend consumers 1 pending 18 last-delivered-id 1791016523519-0 entries-read 238550 lag 4
+08:35:24.632 name fim-backend consumers 1 pending 0 last-delivered-id 1791016523851-0 entries-read 238584 lag 0
+08:35:25.797 name fim-backend consumers 1 pending 0 last-delivered-id 1791016523851-0 entries-read 238584 lag 0
+08:35:26.978 name fim-backend consumers 1 pending 0 last-delivered-id 1791016523851-0 entries-read 238584 lag 0
+08:35:28.136 name fim-backend consumers 1 pending 0 last-delivered-id 1791016523851-0 entries-read 238584 lag 0
+08:35:29.280 name fim-backend consumers 1 pending 31 last-delivered-id 1791016529375-0 entries-read 238666 lag 6
+08:35:30.447 name fim-backend consumers 1 pending 38 last-delivered-id 1791016530255-0 entries-read 238831 lag 58
+08:35:31.612 name fim-backend consumers 1 pending 37 last-delivered-id 1791016531105-0 entries-read 238981 lag 5
+08:35:32.769 name fim-backend consumers 1 pending 0 last-delivered-id 1791016531129-0 entries-read 238986 lag 0
+08:35:33.919 name fim-backend consumers 1 pending 0 last-delivered-id 1791016531129-0 entries-read 238986 lag 0
+08:35:35.087 name fim-backend consumers 1 pending 0 last-delivered-id 1791016531129-0 entries-read 238986 lag 0
+08:35:36.242 name fim-backend consumers 1 pending 0 last-delivered-id 1791016531129-0 entries-read 238986 lag 0
+08:35:37.404 name fim-backend consumers 1 pending 0 last-delivered-id 1791016531129-0 entries-read 238986 lag 0
+08:35:38.555 name fim-backend consumers 1 pending 0 last-delivered-id 1791016531129-0 entries-read 238986 lag 0
+08:35:39.703 name fim-backend consumers 1 pending 0 last-delivered-id 1791016531129-0 entries-read 238986 lag 0
+08:35:40.849 name fim-backend consumers 1 pending 0 last-delivered-id 1791016531129-0 entries-read 238986 lag 0
+08:35:42.007 name fim-backend consumers 1 pending 0 last-delivered-id 1791016541376-0 entries-read 239021 lag 0
+08:35:43.153 name fim-backend consumers 1 pending 0 last-delivered-id 1791016541376-0 entries-read 239021 lag 0
+08:35:44.312 name fim-backend consumers 1 pending 0 last-delivered-id 1791016541376-0 entries-read 239021 lag 0
+08:35:45.464 name fim-backend consumers 1 pending 0 last-delivered-id 1791016541376-0 entries-read 239021 lag 0
+08:35:46.610 name fim-backend consumers 1 pending 0 last-delivered-id 1791016546495-0 entries-read 239037 lag 0
+08:35:47.767 name fim-backend consumers 1 pending 0 last-delivered-id 1791016546495-0 entries-read 239037 lag 0
+08:35:48.917 name fim-backend consumers 1 pending 0 last-delivered-id 1791016546495-0 entries-read 239037 lag 0
+08:35:50.065 name fim-backend consumers 1 pending 0 last-delivered-id 1791016546495-0 entries-read 239037 lag 0
+08:35:51.217 name fim-backend consumers 1 pending 0 last-delivered-id 1791016546495-0 entries-read 239037 lag 0
+08:35:52.375 name fim-backend consumers 1 pending 0 last-delivered-id 1791016551546-0 entries-read 239043 lag 0
+08:35:53.531 name fim-backend consumers 1 pending 0 last-delivered-id 1791016551546-0 entries-read 239043 lag 0
+08:35:54.677 name fim-backend consumers 1 pending 0 last-delivered-id 1791016551546-0 entries-read 239043 lag 0
+08:35:55.832 name fim-backend consumers 1 pending 0 last-delivered-id 1791016551546-0 entries-read 239043 lag 0
+08:35:56.984 name fim-backend consumers 1 pending 0 last-delivered-id 1791016556671-0 entries-read 239070 lag 0
+08:35:58.135 name fim-backend consumers 1 pending 0 last-delivered-id 1791016556671-0 entries-read 239070 lag 0
+08:35:59.287 name fim-backend consumers 1 pending 0 last-delivered-id 1791016556671-0 entries-read 239070 lag 0
+08:36:00.436 name fim-backend consumers 1 pending 0 last-delivered-id 1791016556671-0 entries-read 239070 lag 0
+08:36:01.606 name fim-backend consumers 1 pending 6 last-delivered-id 1791016561722-0 entries-read 239079 lag 5
+08:36:02.778 name fim-backend consumers 1 pending 0 last-delivered-id 1791016561872-0 entries-read 239102 lag 0
+08:36:03.929 name fim-backend consumers 1 pending 0 last-delivered-id 1791016561872-0 entries-read 239102 lag 0
+08:36:05.081 name fim-backend consumers 1 pending 0 last-delivered-id 1791016561872-0 entries-read 239102 lag 0
+08:36:06.230 name fim-backend consumers 1 pending 0 last-delivered-id 1791016561872-0 entries-read 239102 lag 0
+08:36:07.378 name fim-backend consumers 1 pending 0 last-delivered-id 1791016567061-0 entries-read 239123 lag 0
+08:36:08.527 name fim-backend consumers 1 pending 0 last-delivered-id 1791016567061-0 entries-read 239123 lag 0
+08:36:09.679 name fim-backend consumers 1 pending 0 last-delivered-id 1791016567061-0 entries-read 239123 lag 0
+08:36:10.834 name fim-backend consumers 1 pending 0 last-delivered-id 1791016567061-0 entries-read 239123 lag 0
+08:36:11.983 name fim-backend consumers 1 pending 5 last-delivered-id 1791016572105-0 entries-read 239131 lag 1
+08:36:13.140 name fim-backend consumers 1 pending 0 last-delivered-id 1791016572131-0 entries-read 239136 lag 0
+08:36:14.299 name fim-backend consumers 1 pending 0 last-delivered-id 1791016572131-0 entries-read 239136 lag 0
+08:36:15.465 name fim-backend consumers 1 pending 0 last-delivered-id 1791016572131-0 entries-read 239136 lag 0
+08:36:16.624 name fim-backend consumers 1 pending 0 last-delivered-id 1791016572131-0 entries-read 239136 lag 0
+08:36:17.774 name fim-backend consumers 1 pending 0 last-delivered-id 1791016577278-0 entries-read 239155 lag 0
+08:36:18.921 name fim-backend consumers 1 pending 0 last-delivered-id 1791016577278-0 entries-read 239155 lag 0
+08:36:20.069 name fim-backend consumers 1 pending 0 last-delivered-id 1791016577278-0 entries-read 239155 lag 0
+08:36:21.222 name fim-backend consumers 1 pending 0 last-delivered-id 1791016577278-0 entries-read 239155 lag 0
+08:36:22.378 name fim-backend consumers 1 pending 0 last-delivered-id 1791016582385-0 entries-read 239168 lag 0
+08:36:23.546 name fim-backend consumers 1 pending 0 last-delivered-id 1791016582385-0 entries-read 239168 lag 0
+08:36:24.697 name fim-backend consumers 1 pending 0 last-delivered-id 1791016582385-0 entries-read 239168 lag 0
+08:36:25.849 name fim-backend consumers 1 pending 0 last-delivered-id 1791016582385-0 entries-read 239168 lag 0
+08:36:27.018 name fim-backend consumers 1 pending 0 last-delivered-id 1791016582385-0 entries-read 239168 lag 0
+08:36:28.179 name fim-backend consumers 1 pending 0 last-delivered-id 1791016587860-0 entries-read 239239 lag 0
+08:36:29.332 name fim-backend consumers 1 pending 0 last-delivered-id 1791016587860-0 entries-read 239239 lag 0
+08:36:30.488 name fim-backend consumers 1 pending 0 last-delivered-id 1791016587860-0 entries-read 239239 lag 0
+08:36:31.648 name fim-backend consumers 1 pending 0 last-delivered-id 1791016587860-0 entries-read 239239 lag 0
+08:36:32.804 name fim-backend consumers 1 pending 6 last-delivered-id 1791016592910-0 entries-read 239248 lag 6
+08:36:33.968 name fim-backend consumers 1 pending 14 last-delivered-id 1791016593732-0 entries-read 239392 lag 71
+08:36:35.133 name fim-backend consumers 1 pending 23 last-delivered-id 1791016594962-0 entries-read 239592 lag 36
+08:36:36.295 name fim-backend consumers 1 pending 0 last-delivered-id 1791016595228-0 entries-read 239628 lag 0
+08:36:37.445 name fim-backend consumers 1 pending 0 last-delivered-id 1791016595228-0 entries-read 239628 lag 0
+08:36:38.595 name fim-backend consumers 1 pending 0 last-delivered-id 1791016595228-0 entries-read 239628 lag 0
+08:36:39.758 name fim-backend consumers 1 pending 0 last-delivered-id 1791016595228-0 entries-read 239628 lag 0
+08:36:40.910 name fim-backend consumers 1 pending 0 last-delivered-id 1791016595228-0 entries-read 239628 lag 0
+08:36:42.062 name fim-backend consumers 1 pending 0 last-delivered-id 1791016595228-0 entries-read 239628 lag 0
+08:36:43.210 name fim-backend consumers 1 pending 0 last-delivered-id 1791016595228-0 entries-read 239628 lag 0
+08:36:44.361 name fim-backend consumers 1 pending 0 last-delivered-id 1791016595228-0 entries-read 239628 lag 0
+08:36:45.508 name fim-backend consumers 1 pending 0 last-delivered-id 1791016605354-0 entries-read 239647 lag 0
+08:36:46.664 name fim-backend consumers 1 pending 0 last-delivered-id 1791016605354-0 entries-read 239647 lag 0
+08:36:47.814 name fim-backend consumers 1 pending 0 last-delivered-id 1791016605354-0 entries-read 239647 lag 0
+08:36:48.968 name fim-backend consumers 1 pending 0 last-delivered-id 1791016605354-0 entries-read 239647 lag 0
+08:36:50.136 name fim-backend consumers 1 pending 0 last-delivered-id 1791016605354-0 entries-read 239647 lag 0
+08:36:51.281 name fim-backend consumers 1 pending 0 last-delivered-id 1791016610429-0 entries-read 239654 lag 0
+08:36:52.426 name fim-backend consumers 1 pending 0 last-delivered-id 1791016610429-0 entries-read 239654 lag 0
+08:36:53.573 name fim-backend consumers 1 pending 0 last-delivered-id 1791016610429-0 entries-read 239654 lag 0
+08:36:54.722 name fim-backend consumers 1 pending 0 last-delivered-id 1791016610429-0 entries-read 239654 lag 0
+08:36:55.879 name fim-backend consumers 1 pending 0 last-delivered-id 1791016610429-0 entries-read 239654 lag 0
+08:36:57.032 name fim-backend consumers 1 pending 0 last-delivered-id 1791016610429-0 entries-read 239654 lag 0
+08:36:58.188 name fim-backend consumers 1 pending 0 last-delivered-id 1791016610429-0 entries-read 239654 lag 0
+08:36:59.337 name fim-backend consumers 1 pending 0 last-delivered-id 1791016610429-0 entries-read 239654 lag 0
+08:37:00.480 name fim-backend consumers 1 pending 8 last-delivered-id 1791016620514-0 entries-read 239666 lag 4
+08:37:01.644 name fim-backend consumers 1 pending 0 last-delivered-id 1791016620536-0 entries-read 239670 lag 0
+08:37:02.800 name fim-backend consumers 1 pending 0 last-delivered-id 1791016620536-0 entries-read 239670 lag 0
+08:37:03.952 name fim-backend consumers 1 pending 0 last-delivered-id 1791016620536-0 entries-read 239670 lag 0
+08:37:05.105 name fim-backend consumers 1 pending 0 last-delivered-id 1791016620536-0 entries-read 239670 lag 0
+08:37:06.253 name fim-backend consumers 1 pending 0 last-delivered-id 1791016625689-0 entries-read 239694 lag 0
+08:37:07.408 name fim-backend consumers 1 pending 0 last-delivered-id 1791016625689-0 entries-read 239694 lag 0
+08:37:08.558 name fim-backend consumers 1 pending 0 last-delivered-id 1791016625689-0 entries-read 239694 lag 0
+08:37:09.721 name fim-backend consumers 1 pending 0 last-delivered-id 1791016625689-0 entries-read 239694 lag 0
+08:37:10.866 name fim-backend consumers 1 pending 0 last-delivered-id 1791016630801-0 entries-read 239706 lag 0
+08:37:12.023 name fim-backend consumers 1 pending 0 last-delivered-id 1791016630801-0 entries-read 239706 lag 0
+08:37:13.169 name fim-backend consumers 1 pending 0 last-delivered-id 1791016630801-0 entries-read 239706 lag 0
+08:37:14.328 name fim-backend consumers 1 pending 0 last-delivered-id 1791016630801-0 entries-read 239706 lag 0
+08:37:15.495 name fim-backend consumers 1 pending 0 last-delivered-id 1791016630801-0 entries-read 239706 lag 0
+08:37:16.663 name fim-backend consumers 1 pending 0 last-delivered-id 1791016635853-0 entries-read 239711 lag 0
+08:37:17.808 name fim-backend consumers 1 pending 0 last-delivered-id 1791016635853-0 entries-read 239711 lag 0
+08:37:18.960 name fim-backend consumers 1 pending 0 last-delivered-id 1791016635853-0 entries-read 239711 lag 0
+08:37:20.113 name fim-backend consumers 1 pending 0 last-delivered-id 1791016635853-0 entries-read 239711 lag 0
+08:37:21.259 name fim-backend consumers 1 pending 0 last-delivered-id 1791016640946-0 entries-read 239721 lag 0
+08:37:22.411 name fim-backend consumers 1 pending 0 last-delivered-id 1791016640946-0 entries-read 239721 lag 0
+08:37:23.558 name fim-backend consumers 1 pending 0 last-delivered-id 1791016640946-0 entries-read 239721 lag 0
+08:37:24.715 name fim-backend consumers 1 pending 0 last-delivered-id 1791016640946-0 entries-read 239721 lag 0
+08:37:25.862 name fim-backend consumers 1 pending 2 last-delivered-id 1791016645972-0 entries-read 239724 lag 2
+08:37:27.018 name fim-backend consumers 1 pending 0 last-delivered-id 1791016645987-0 entries-read 239726 lag 0
+08:37:28.174 name fim-backend consumers 1 pending 0 last-delivered-id 1791016645987-0 entries-read 239726 lag 0
+08:37:29.324 name fim-backend consumers 1 pending 0 last-delivered-id 1791016645987-0 entries-read 239726 lag 0
+08:37:30.479 name fim-backend consumers 1 pending 0 last-delivered-id 1791016645987-0 entries-read 239726 lag 0
+08:37:31.628 name fim-backend consumers 1 pending 0 last-delivered-id 1791016651356-0 entries-read 239787 lag 0
+08:37:32.805 name fim-backend consumers 1 pending 0 last-delivered-id 1791016651356-0 entries-read 239787 lag 0
+08:37:33.956 name fim-backend consumers 1 pending 0 last-delivered-id 1791016651356-0 entries-read 239787 lag 0
+08:37:35.106 name fim-backend consumers 1 pending 0 last-delivered-id 1791016651356-0 entries-read 239787 lag 0
+08:37:36.263 name fim-backend consumers 1 pending 2 last-delivered-id 1791016656378-0 entries-read 239790 lag 1
+08:37:37.412 name fim-backend consumers 1 pending 9 last-delivered-id 1791016657449-0 entries-read 239965 lag 11
+08:37:38.576 name fim-backend consumers 1 pending 35 last-delivered-id 1791016658606-0 entries-read 240158 lag 6
+08:37:39.740 name fim-backend consumers 1 pending 0 last-delivered-id 1791016658648-0 entries-read 240164 lag 0
+08:37:40.892 name fim-backend consumers 1 pending 0 last-delivered-id 1791016658648-0 entries-read 240164 lag 0
+08:37:42.044 name fim-backend consumers 1 pending 0 last-delivered-id 1791016658648-0 entries-read 240164 lag 0
+08:37:43.199 name fim-backend consumers 1 pending 0 last-delivered-id 1791016658648-0 entries-read 240164 lag 0
+08:37:44.344 name fim-backend consumers 1 pending 0 last-delivered-id 1791016658648-0 entries-read 240164 lag 0
+08:37:45.489 name fim-backend consumers 1 pending 0 last-delivered-id 1791016658648-0 entries-read 240164 lag 0
+08:37:46.640 name fim-backend consumers 1 pending 0 last-delivered-id 1791016658648-0 entries-read 240164 lag 0
+08:37:47.798 name fim-backend consumers 1 pending 0 last-delivered-id 1791016658648-0 entries-read 240164 lag 0
+08:37:48.962 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:50.118 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:51.260 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:52.410 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:53.567 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:54.717 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:55.873 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:57.026 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:58.177 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:37:59.326 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:00.482 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:01.646 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:02.796 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:03.952 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:05.101 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:06.250 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:07.402 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:08.556 name fim-backend consumers 1 pending 0 last-delivered-id 1791016668681-0 entries-read 240166 lag 0
+08:38:09.707 name fim-backend consumers 1 pending 0 last-delivered-id 1791016688768-0 entries-read 240179 lag 0
+08:38:10.866 name fim-backend consumers 1 pending 0 last-delivered-id 1791016688768-0 entries-read 240179 lag 0
+08:38:12.013 name fim-backend consumers 1 pending 0 last-delivered-id 1791016688768-0 entries-read 240179 lag 0
+08:38:13.164 name fim-backend consumers 1 pending 0 last-delivered-id 1791016688768-0 entries-read 240179 lag 0
+08:38:14.324 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:15.486 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:16.630 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:17.785 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:18.947 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:20.107 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:21.260 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:22.411 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:23.562 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:24.729 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:25.887 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:27.048 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:28.198 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:29.344 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:30.492 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:31.638 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:32.799 name fim-backend consumers 1 pending 0 last-delivered-id 1791016693817-0 entries-read 240183 lag 0
+08:38:33.939 name fim-backend consumers 1 pending 24 last-delivered-id 1791016714060-0 entries-read 240217 lag 5
+08:38:35.134 name fim-backend consumers 1 pending 0 last-delivered-id 1791016714146-0 entries-read 240229 lag 0
+08:38:36.289 name fim-backend consumers 1 pending 0 last-delivered-id 1791016714146-0 entries-read 240229 lag 0
+08:38:37.436 name fim-backend consumers 1 pending 0 last-delivered-id 1791016714146-0 entries-read 240229 lag 0
+08:38:38.587 name fim-backend consumers 1 pending 0 last-delivered-id 1791016714146-0 entries-read 240229 lag 0
+08:38:39.769 name fim-backend consumers 1 pending 49 last-delivered-id 1791016719508-0 entries-read 240310 lag 76
+08:38:40.947 name fim-backend consumers 1 pending 28 last-delivered-id 1791016720607-0 entries-read 240460 lag 60
+08:38:42.102 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:43.253 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:44.424 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:45.591 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:46.738 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:47.885 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:49.033 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:50.186 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:51.337 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:52.493 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:53.643 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:54.790 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:55.934 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:57.085 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:58.245 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:38:59.397 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:00.545 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:01.694 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:02.845 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:04.003 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:05.154 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:06.310 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:07.470 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:08.616 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:09.768 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:10.918 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:12.075 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:13.223 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:14.369 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:15.518 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:16.668 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:17.817 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:18.965 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:20.119 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:21.268 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:22.422 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:23.571 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:24.717 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:25.865 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:27.006 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:28.154 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:29.304 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:30.463 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:31.620 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:32.775 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:33.928 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:35.081 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:36.226 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:37.385 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:38.532 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:39.681 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:40.832 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:41.993 name fim-backend consumers 1 pending 0 last-delivered-id 1791016721542-0 entries-read 240594 lag 0
+08:39:43.144 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:44.308 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:45.461 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:46.610 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:47.756 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:48.905 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:50.065 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:51.212 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:52.365 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:53.516 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:54.669 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:55.819 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:56.965 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:58.123 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:39:59.276 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:40:00.427 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:40:01.585 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:40:02.752 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
+08:40:03.898 name fim-backend consumers 1 pending 0 last-delivered-id 1791016782879-0 entries-read 240610 lag 0
