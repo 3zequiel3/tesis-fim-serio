@@ -1,0 +1,20 @@
+backend-1  | {"event": "Started server process [1]", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:34:35.350794Z"}
+backend-1  | {"event": "Waiting for application startup.", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:34:35.350936Z"}
+backend-1  | {"environment": "dev", "event": "backend.startup", "level": "info", "timestamp": "2026-10-03T13:34:35.351159Z"}
+backend-1  | {"console_tls_mode": "off", "warning": "credentials and tokens travel unencrypted (CONSOLE_TLS_MODE=off)", "event": "backend.console_tls_mode", "level": "warning", "timestamp": "2026-10-03T13:34:35.351199Z"}
+backend-1  | {"expected_version": 23, "found_version": 23, "event": "backend.schema_version", "level": "info", "timestamp": "2026-10-03T13:34:35.373906Z"}
+backend-1  | {"path": "/secrets/agent-secret-wrap.key", "event": "backend.agent_secret_wrap_key.loaded", "level": "info", "timestamp": "2026-10-03T13:34:35.374040Z"}
+backend-1  | {"cert_path": "/certs/ca.pem", "event": "pki.ca.loaded", "level": "info", "timestamp": "2026-10-03T13:34:35.374632Z"}
+backend-1  | {"username": "admin", "event": "seed_admin.env_password_ignored", "level": "warning", "timestamp": "2026-10-03T13:34:35.462295Z"}
+backend-1  | {"wrapped": 0, "skipped_invalid": 0, "event": "agents.secret_wrap.migrated", "level": "info", "timestamp": "2026-10-03T13:34:35.466382Z"}
+backend-1  | {"port": 8443, "event": "pki.mtls_server.configured", "level": "info", "timestamp": "2026-10-03T13:34:35.476744Z"}
+backend-1  | {"port": 8444, "event": "pki.bootstrap_tls_server.configured", "level": "info", "timestamp": "2026-10-03T13:34:35.477392Z"}
+backend-1  | {"event": "Started server process [1]", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:34:35.511011Z"}
+backend-1  | {"event": "Started server process [1]", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:34:35.511195Z"}
+backend-1  | {"event": "Application startup complete.", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:34:35.511290Z"}
+backend-1  | {"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-10-03T13:34:35.511406Z"}
+backend-1  | {"event": "Uvicorn running on https://0.0.0.0:8443 (Press CTRL+C to quit)", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:34:35.528273Z"}
+backend-1  | {"event": "Uvicorn running on https://0.0.0.0:8444 (Press CTRL+C to quit)", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:34:35.528488Z"}
+backend-1  | {"event": "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:34:35.528622Z"}
+backend-1  | {"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-10-03T13:34:35.535747Z"}
+backend-1  | {"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-10-03T13:34:35.536000Z"}

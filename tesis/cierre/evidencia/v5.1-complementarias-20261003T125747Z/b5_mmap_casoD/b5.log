@@ -1,0 +1,99 @@
+Plan: 80 operaciones (10 por caso, 8 casos)
+ [0001/80] C_escritura_convencional   mmap_C_escritura_convencional_001.bin modificado=True esperado=True
+ [0002/80] C_escritura_convencional   mmap_C_escritura_convencional_002.bin modificado=True esperado=True
+ [0003/80] C_escritura_convencional   mmap_C_escritura_convencional_003.bin modificado=True esperado=True
+ [0004/80] C_escritura_convencional   mmap_C_escritura_convencional_004.bin modificado=True esperado=True
+ [0005/80] C_escritura_convencional   mmap_C_escritura_convencional_005.bin modificado=True esperado=True
+ [0006/80] C_escritura_convencional   mmap_C_escritura_convencional_006.bin modificado=True esperado=True
+ [0007/80] C_escritura_convencional   mmap_C_escritura_convencional_007.bin modificado=True esperado=True
+ [0008/80] C_escritura_convencional   mmap_C_escritura_convencional_008.bin modificado=True esperado=True
+ [0009/80] C_escritura_convencional   mmap_C_escritura_convencional_009.bin modificado=True esperado=True
+ [0010/80] C_escritura_convencional   mmap_C_escritura_convencional_010.bin modificado=True esperado=True
+ [0011/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_001.bin modificado=True esperado=None
+ [0012/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_002.bin modificado=True esperado=None
+ [0013/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_003.bin modificado=True esperado=None
+ [0014/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_004.bin modificado=True esperado=None
+ [0015/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_005.bin modificado=True esperado=None
+ [0016/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_006.bin modificado=True esperado=None
+ [0017/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_007.bin modificado=True esperado=None
+ [0018/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_008.bin modificado=True esperado=None
+ [0019/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_009.bin modificado=True esperado=None
+ [0020/80] D_mmap_close_retardo_000ms mmap_D_mmap_close_retardo_000ms_010.bin modificado=True esperado=None
+ [0021/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_001.bin modificado=True esperado=None
+ [0022/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_002.bin modificado=True esperado=None
+ [0023/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_003.bin modificado=True esperado=None
+ [0024/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_004.bin modificado=True esperado=None
+ [0025/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_005.bin modificado=True esperado=None
+ [0026/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_006.bin modificado=True esperado=None
+ [0027/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_007.bin modificado=True esperado=None
+ [0028/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_008.bin modificado=True esperado=None
+ [0029/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_009.bin modificado=True esperado=None
+ [0030/80] D_mmap_close_retardo_005ms mmap_D_mmap_close_retardo_005ms_010.bin modificado=True esperado=None
+ [0031/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_001.bin modificado=True esperado=None
+ [0032/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_002.bin modificado=True esperado=None
+ [0033/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_003.bin modificado=True esperado=None
+ [0034/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_004.bin modificado=True esperado=None
+ [0035/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_005.bin modificado=True esperado=None
+ [0036/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_006.bin modificado=True esperado=None
+ [0037/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_007.bin modificado=True esperado=None
+ [0038/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_008.bin modificado=True esperado=None
+ [0039/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_009.bin modificado=True esperado=None
+ [0040/80] D_mmap_close_retardo_010ms mmap_D_mmap_close_retardo_010ms_010.bin modificado=True esperado=None
+ [0041/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_001.bin modificado=True esperado=None
+ [0042/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_002.bin modificado=True esperado=None
+ [0043/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_003.bin modificado=True esperado=None
+ [0044/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_004.bin modificado=True esperado=None
+ [0045/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_005.bin modificado=True esperado=None
+ [0046/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_006.bin modificado=True esperado=None
+ [0047/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_007.bin modificado=True esperado=None
+ [0048/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_008.bin modificado=True esperado=None
+ [0049/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_009.bin modificado=True esperado=None
+ [0050/80] D_mmap_close_retardo_020ms mmap_D_mmap_close_retardo_020ms_010.bin modificado=True esperado=None
+ [0051/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_001.bin modificado=True esperado=None
+ [0052/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_002.bin modificado=True esperado=None
+ [0053/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_003.bin modificado=True esperado=None
+ [0054/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_004.bin modificado=True esperado=None
+ [0055/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_005.bin modificado=True esperado=None
+ [0056/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_006.bin modificado=True esperado=None
+ [0057/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_007.bin modificado=True esperado=None
+ [0058/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_008.bin modificado=True esperado=None
+ [0059/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_009.bin modificado=True esperado=None
+ [0060/80] D_mmap_close_retardo_050ms mmap_D_mmap_close_retardo_050ms_010.bin modificado=True esperado=None
+ [0061/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_001.bin modificado=True esperado=None
+ [0062/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_002.bin modificado=True esperado=None
+ [0063/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_003.bin modificado=True esperado=None
+ [0064/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_004.bin modificado=True esperado=None
+ [0065/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_005.bin modificado=True esperado=None
+ [0066/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_006.bin modificado=True esperado=None
+ [0067/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_007.bin modificado=True esperado=None
+ [0068/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_008.bin modificado=True esperado=None
+ [0069/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_009.bin modificado=True esperado=None
+ [0070/80] D_mmap_close_retardo_100ms mmap_D_mmap_close_retardo_100ms_010.bin modificado=True esperado=None
+ [0071/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_001.bin modificado=True esperado=None
+ [0072/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_002.bin modificado=True esperado=None
+ [0073/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_003.bin modificado=True esperado=None
+ [0074/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_004.bin modificado=True esperado=None
+ [0075/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_005.bin modificado=True esperado=None
+ [0076/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_006.bin modificado=True esperado=None
+ [0077/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_007.bin modificado=True esperado=None
+ [0078/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_008.bin modificado=True esperado=None
+ [0079/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_009.bin modificado=True esperado=None
+ [0080/80] D_mmap_close_retardo_500ms mmap_D_mmap_close_retardo_500ms_010.bin modificado=True esperado=None
+
+JSONL:      /tmp/b5out/bateria8_cambios.jsonl
+Manifiesto: /tmp/b5out/bateria8_manifiesto.json
+
+Correlacionar contra la tabla `events` filtrando por ruta_agente y ts_utc.
+NO alcanza con contar eventos: hay que comparar hash_detected contra hash_despues.
+  - Caso A: 1 evento por operación, con hash_detected == hash_antes
+            (estado `evento_sin_cambio`) → confirma la evasión
+  - Casos B y C: 1 evento por operación, con hash_detected == hash_despues
+            (estado `detectada`) → confirman que la instrumentación es válida
+
+Usar analisis_mmap.py para el cruce: clasifica cada operación en
+detectada / evento_sin_cambio / sin_evento y aplica el corte de validez.
+  - Caso D: por retardo, ¿hubo evento y su hash_detected coincide con hash_despues?
+            (la tabla por caso de analisis_mmap.py da una fila por retardo)
+
+Si el caso C no produce eventos, la corrida NO es válida: el agente no
+estaba monitoreando el directorio o no estaba corriendo.

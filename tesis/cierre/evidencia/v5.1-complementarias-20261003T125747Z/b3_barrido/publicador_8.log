@@ -1,0 +1,2 @@
+2026-10-03 13:31:58 [info     ] backend.agent_secret_wrap_key.loaded path=/secrets/agent-secret-wrap.key
+escenario=barrido_8 publicados=100 concurrencia=100 inicio=2026-10-03T13:31:58.842251+00:00 fin=2026-10-03T13:31:59.810104+00:00

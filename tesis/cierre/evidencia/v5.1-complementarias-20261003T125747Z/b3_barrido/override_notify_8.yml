@@ -1,0 +1,4 @@
+services:
+  backend:
+    environment:
+      NOTIFY_MAX_CONCURRENT_DELIVERIES: "8"

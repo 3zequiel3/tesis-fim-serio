@@ -1,0 +1,2 @@
+settings.notify_max_concurrent_deliveries= 32
+printenv NOTIFY_MAX_CONCURRENT_DELIVERIES -> (vacio: sin override, rige el default 32 de config.py:237)

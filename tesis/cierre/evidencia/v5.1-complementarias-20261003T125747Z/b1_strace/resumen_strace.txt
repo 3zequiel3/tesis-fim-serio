@@ -1,0 +1,6 @@
+create: n=25 openat/op=1.00 write/op=1.00 close/op=1.00  distribucion (openat,write,close)={(1, 1, 1): 25}
+   escrituras con retorno != bytes del manifiesto: 0; duracion open..close mediana=1.834 ms max=2.937 ms
+modify: n=100 openat/op=1.00 write/op=1.00 close/op=1.00  distribucion (openat,write,close)={(1, 1, 1): 100}
+   escrituras con retorno != bytes del manifiesto: 0; duracion open..close mediana=0.839 ms max=1.310 ms
+total modify: openat=100 write=100 close=100
+lineas strace totales: 1036

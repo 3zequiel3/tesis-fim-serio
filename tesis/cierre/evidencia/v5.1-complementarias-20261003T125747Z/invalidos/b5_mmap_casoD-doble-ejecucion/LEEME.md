@@ -1,0 +1,3 @@
+# B-5 caso D: intento invalido (doble ejecucion concurrente)
+
+El primer lanzamiento de `bateria_mmap.py` en la VM (13:02:31 UTC) devolvio un error de comillas en el wrapper de `multipass exec`, pero el proceso si arranco. Un segundo lanzamiento (13:03:16 UTC) escribio en el mismo directorio de salida (`/tmp/b5out`) y sobre los mismos archivos de `/srv/fim-watch`. Ambas ejecuciones corrieron en paralelo, por lo que sus operaciones se pisan (mismos nombres `mmap_<caso>_<rep>.bin`) y los resultados no son atribuibles. El segundo proceso se detuvo con `pkill` al detectarlo. Los datos se conservan aqui como constancia (el JSONL local tiene 76 lineas por haberse copiado con la segunda corrida en curso); la bateria se repitio desde un estado limpio.

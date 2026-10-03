@@ -1,0 +1,8 @@
+path,event_type,detected_offline
+/srv/fim-watch/r01,file_modified,t
+/srv/fim-watch/r02,file_modified,t
+/srv/fim-watch/r03,file_modified,t
+/srv/fim-watch/r04,file_modified,t
+/srv/fim-watch/r05,file_deleted,t
+/srv/fim-watch/r06,file_deleted,t
+/srv/fim-watch/r07,file_deleted,t

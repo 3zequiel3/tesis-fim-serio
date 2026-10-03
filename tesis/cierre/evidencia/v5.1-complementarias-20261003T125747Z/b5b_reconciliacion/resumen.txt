@@ -1,0 +1,3 @@
+repeticiones=10 conformes=10 desviadas=0
+esperado por repeticion: 4 file_modified + 3 file_deleted (detected_offline=true), 0 para los 3 identicos
+columnas: rep,modificados_ok,borrados_ok,identicos_con_evento,inesperados,todos_offline,valido

@@ -1,0 +1,634 @@
+backend-1  | {"event": "Started server process [1]", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:30:54.024342Z"}
+backend-1  | {"event": "Started server process [1]", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:30:54.024521Z"}
+backend-1  | {"event": "Application startup complete.", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:30:54.024649Z"}
+backend-1  | {"event": "heartbeat_consumer.started", "level": "info", "timestamp": "2026-10-03T13:30:54.024761Z"}
+backend-1  | {"event": "Uvicorn running on https://0.0.0.0:8443 (Press CTRL+C to quit)", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:30:54.041732Z"}
+backend-1  | {"event": "Uvicorn running on https://0.0.0.0:8444 (Press CTRL+C to quit)", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:30:54.041917Z"}
+backend-1  | {"event": "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)", "level": "info", "logger": "uvicorn.error", "timestamp": "2026-10-03T13:30:54.042065Z"}
+backend-1  | {"group": "fim-backend", "event": "consumer.started", "level": "info", "timestamp": "2026-10-03T13:30:54.049523Z"}
+backend-1  | {"group": "fim-command-ack", "event": "command_ack_consumer.started", "level": "info", "timestamp": "2026-10-03T13:30:54.050045Z"}
+backend-1  | {"event_id": "d94c121d-6311-47c7-ba72-fe81c84326e3", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:00.533688Z"}
+backend-1  | {"alert_id": 1, "event_id": "d94c121d-6311-47c7-ba72-fe81c84326e3", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:00.543941Z"}
+backend-1  | {"event_id": "115df0a8-7881-4f74-853f-63d3309efd4a", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:00.610692Z"}
+backend-1  | {"alert_id": 2, "event_id": "115df0a8-7881-4f74-853f-63d3309efd4a", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:00.618132Z"}
+backend-1  | {"event_id": "42876eb9-0249-4e25-9055-8b2a6553c3b0", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:00.711102Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:00.715180Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:00.717274Z"}
+backend-1  | {"alert_id": 3, "event_id": "42876eb9-0249-4e25-9055-8b2a6553c3b0", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:00.721493Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:00.726853Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:00.727327Z"}
+backend-1  | {"alert_id": 2, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:00.731786Z"}
+backend-1  | {"alert_id": 1, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:00.733952Z"}
+backend-1  | {"event_id": "b3285ee2-3a98-448a-90bd-5804c1d3b3c8", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:00.804783Z"}
+backend-1  | {"alert_id": 4, "event_id": "b3285ee2-3a98-448a-90bd-5804c1d3b3c8", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:00.810842Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:00.819184Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:00.820123Z"}
+backend-1  | {"alert_id": 3, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:00.823082Z"}
+backend-1  | {"event_id": "a901ccc8-7659-493c-b899-0708ba485feb", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:00.906043Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:00.912723Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:00.913404Z"}
+backend-1  | {"alert_id": 5, "event_id": "a901ccc8-7659-493c-b899-0708ba485feb", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:00.913786Z"}
+backend-1  | {"alert_id": 4, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:00.918863Z"}
+backend-1  | {"event_id": "31e1ece0-07a8-42d6-9858-f70f06187ca5", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.006393Z"}
+backend-1  | {"alert_id": 6, "event_id": "31e1ece0-07a8-42d6-9858-f70f06187ca5", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.016678Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.021220Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.023396Z"}
+backend-1  | {"alert_id": 5, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.031034Z"}
+backend-1  | {"event_id": "2b032ca2-e4b1-49e4-aec7-5552a25cd571", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.109702Z"}
+backend-1  | {"alert_id": 7, "event_id": "2b032ca2-e4b1-49e4-aec7-5552a25cd571", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.119786Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.127674Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.130433Z"}
+backend-1  | {"alert_id": 6, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.135982Z"}
+backend-1  | {"event_id": "2b21977a-1367-411f-9882-129d42763f82", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.210411Z"}
+backend-1  | {"alert_id": 8, "event_id": "2b21977a-1367-411f-9882-129d42763f82", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.216615Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.228488Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.229853Z"}
+backend-1  | {"alert_id": 7, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.235106Z"}
+backend-1  | {"event_id": "fa881013-e6d4-4315-bd50-e0a0b096a944", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.299021Z"}
+backend-1  | {"alert_id": 9, "event_id": "fa881013-e6d4-4315-bd50-e0a0b096a944", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.307329Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.353060Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.354018Z"}
+backend-1  | {"alert_id": 8, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.358398Z"}
+backend-1  | {"event_id": "bdba1f2f-bd6a-4306-a278-cc7c16f2bd24", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.408711Z"}
+backend-1  | {"alert_id": 10, "event_id": "bdba1f2f-bd6a-4306-a278-cc7c16f2bd24", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.417242Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.430856Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.431816Z"}
+backend-1  | {"alert_id": 9, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.436884Z"}
+backend-1  | {"event_id": "3c38af1f-de6a-444b-a6cd-7b205faf91b2", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.508209Z"}
+backend-1  | {"alert_id": 11, "event_id": "3c38af1f-de6a-444b-a6cd-7b205faf91b2", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.516977Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.535042Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.535795Z"}
+backend-1  | {"alert_id": 10, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.539332Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.591155Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.591730Z"}
+backend-1  | {"alert_id": 11, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.596093Z"}
+backend-1  | {"event_id": "b26951b4-e12a-4fde-bfae-d692fb3b016a", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.604237Z"}
+backend-1  | {"alert_id": 12, "event_id": "b26951b4-e12a-4fde-bfae-d692fb3b016a", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.609776Z"}
+backend-1  | {"event_id": "7de1146f-a896-4a6f-abb1-9c05bbc4d14f", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.708456Z"}
+backend-1  | {"alert_id": 13, "event_id": "7de1146f-a896-4a6f-abb1-9c05bbc4d14f", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.715764Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.722534Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.723525Z"}
+backend-1  | {"alert_id": 12, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.727913Z"}
+backend-1  | {"event_id": "4eb7fd98-1d16-4ddb-9c58-32b354bb06ff", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.809219Z"}
+backend-1  | {"alert_id": 14, "event_id": "4eb7fd98-1d16-4ddb-9c58-32b354bb06ff", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.815196Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.820407Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.821489Z"}
+backend-1  | {"alert_id": 13, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.826291Z"}
+backend-1  | {"event_id": "385e0851-0f55-4c07-96e3-a8353b21bd5f", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:01.898444Z"}
+backend-1  | {"alert_id": 15, "event_id": "385e0851-0f55-4c07-96e3-a8353b21bd5f", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:01.906030Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:01.910620Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:01.911610Z"}
+backend-1  | {"alert_id": 14, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:01.918594Z"}
+backend-1  | {"event_id": "d4f06d74-ebfc-4e40-9fa3-ebd6fe6878d0", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.010406Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.012835Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.015182Z"}
+backend-1  | {"alert_id": 15, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.023884Z"}
+backend-1  | {"alert_id": 16, "event_id": "d4f06d74-ebfc-4e40-9fa3-ebd6fe6878d0", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.024426Z"}
+backend-1  | {"event_id": "530c6822-125a-4da9-83d2-1e06ccd4547a", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.109188Z"}
+backend-1  | {"alert_id": 17, "event_id": "530c6822-125a-4da9-83d2-1e06ccd4547a", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.118258Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.134435Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.135445Z"}
+backend-1  | {"alert_id": 16, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.141244Z"}
+backend-1  | {"event_id": "e3aaee2d-6f6d-413d-9309-faef27265b88", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.209321Z"}
+backend-1  | {"alert_id": 18, "event_id": "e3aaee2d-6f6d-413d-9309-faef27265b88", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.217783Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.231907Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.233008Z"}
+backend-1  | {"alert_id": 17, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.238331Z"}
+backend-1  | {"event_id": "afbc44dd-592a-42d3-a7cb-ad5474d357c7", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.309092Z"}
+backend-1  | {"alert_id": 19, "event_id": "afbc44dd-592a-42d3-a7cb-ad5474d357c7", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.316749Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.331929Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.332859Z"}
+backend-1  | {"alert_id": 18, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.337416Z"}
+backend-1  | {"event_id": "f8cd7b65-13e9-40b7-997e-3b6182735f39", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.394243Z"}
+backend-1  | {"alert_id": 20, "event_id": "f8cd7b65-13e9-40b7-997e-3b6182735f39", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.398221Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.425981Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.426685Z"}
+backend-1  | {"alert_id": 19, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.430526Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.500430Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.502456Z"}
+backend-1  | {"event_id": "28f4ed7c-9775-4e3a-9803-504d0cb53948", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.507757Z"}
+backend-1  | {"alert_id": 20, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.511445Z"}
+backend-1  | {"alert_id": 21, "event_id": "28f4ed7c-9775-4e3a-9803-504d0cb53948", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.513721Z"}
+backend-1  | {"event_id": "3cd9b25a-9679-4d5c-988b-357ba21935bc", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.608907Z"}
+backend-1  | {"alert_id": 22, "event_id": "3cd9b25a-9679-4d5c-988b-357ba21935bc", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.617857Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.651012Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.652492Z"}
+backend-1  | {"alert_id": 21, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.659338Z"}
+backend-1  | {"event_id": "90c9effc-7d51-4c16-82a1-4cdaddb50566", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.705384Z"}
+backend-1  | {"alert_id": 23, "event_id": "90c9effc-7d51-4c16-82a1-4cdaddb50566", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.713685Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.771451Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.772241Z"}
+backend-1  | {"alert_id": 22, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.776297Z"}
+backend-1  | {"event_id": "59e5682d-5e16-46dc-be33-58a5316dd171", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.795738Z"}
+backend-1  | {"alert_id": 24, "event_id": "59e5682d-5e16-46dc-be33-58a5316dd171", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.801753Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.835479Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.836048Z"}
+backend-1  | {"alert_id": 23, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.840256Z"}
+backend-1  | {"event_id": "24ebc5ea-9986-4abd-87c3-8bc3384972eb", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:02.899116Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:02.900680Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:02.902129Z"}
+backend-1  | {"alert_id": 24, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:02.906845Z"}
+backend-1  | {"alert_id": 25, "event_id": "24ebc5ea-9986-4abd-87c3-8bc3384972eb", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:02.907098Z"}
+backend-1  | {"event_id": "f26527ac-7b3e-4d06-ac1a-42a59dd38e1f", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.015968Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.019767Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.022027Z"}
+backend-1  | {"alert_id": 25, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.030319Z"}
+backend-1  | {"alert_id": 26, "event_id": "f26527ac-7b3e-4d06-ac1a-42a59dd38e1f", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.030793Z"}
+backend-1  | {"event_id": "b82fd5f0-9510-427a-9f1c-fc04da55ca6b", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.109365Z"}
+backend-1  | {"alert_id": 27, "event_id": "b82fd5f0-9510-427a-9f1c-fc04da55ca6b", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.118437Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.174187Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.174873Z"}
+backend-1  | {"alert_id": 26, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.180002Z"}
+backend-1  | {"event_id": "7e24bc18-ec54-4888-b7c7-8c47f6f61a1f", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.207568Z"}
+backend-1  | {"alert_id": 28, "event_id": "7e24bc18-ec54-4888-b7c7-8c47f6f61a1f", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.212886Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.252515Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.253259Z"}
+backend-1  | {"alert_id": 27, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.258168Z"}
+backend-1  | {"event_id": "f36d622d-66c0-4c69-86f6-c53c2d3d44a5", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.292626Z"}
+backend-1  | {"alert_id": 29, "event_id": "f36d622d-66c0-4c69-86f6-c53c2d3d44a5", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.296883Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.324325Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.325069Z"}
+backend-1  | {"alert_id": 28, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.328799Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.400347Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.402637Z"}
+backend-1  | {"alert_id": 29, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.408476Z"}
+backend-1  | {"event_id": "3db5e961-7700-4f30-a5b0-5ea99e3b14ed", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.411254Z"}
+backend-1  | {"alert_id": 30, "event_id": "3db5e961-7700-4f30-a5b0-5ea99e3b14ed", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.420233Z"}
+backend-1  | {"event_id": "3e5db8cc-fa84-460b-915d-e64076e4ce48", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.510084Z"}
+backend-1  | {"alert_id": 31, "event_id": "3e5db8cc-fa84-460b-915d-e64076e4ce48", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.518475Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.564555Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.565798Z"}
+backend-1  | {"alert_id": 30, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.571172Z"}
+backend-1  | {"event_id": "7b3e6806-d54d-4199-94ef-3c13456a03ce", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.595255Z"}
+backend-1  | {"alert_id": 32, "event_id": "7b3e6806-d54d-4199-94ef-3c13456a03ce", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.601407Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.651517Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.652490Z"}
+backend-1  | {"alert_id": 31, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.657409Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.711954Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.713530Z"}
+backend-1  | {"event_id": "cf710446-fc20-4149-ae5e-3b0c31b6b1c3", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.714961Z"}
+backend-1  | {"alert_id": 32, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.721606Z"}
+backend-1  | {"alert_id": 33, "event_id": "cf710446-fc20-4149-ae5e-3b0c31b6b1c3", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.723206Z"}
+backend-1  | {"event_id": "f0db01ec-634f-4244-b7f1-405588a3dd8b", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.802047Z"}
+backend-1  | {"alert_id": 34, "event_id": "f0db01ec-634f-4244-b7f1-405588a3dd8b", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.807874Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.847339Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.848071Z"}
+backend-1  | {"alert_id": 33, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.852463Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:03.876416Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:03.877493Z"}
+backend-1  | {"alert_id": 34, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:03.883938Z"}
+backend-1  | {"event_id": "8145e323-12c6-4c2e-a99a-85cf4acc9873", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:03.906801Z"}
+backend-1  | {"alert_id": 35, "event_id": "8145e323-12c6-4c2e-a99a-85cf4acc9873", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:03.914598Z"}
+backend-1  | {"event_id": "92f665db-18cd-4eae-b1ef-f8c68fa44d7e", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.008412Z"}
+backend-1  | {"alert_id": 36, "event_id": "92f665db-18cd-4eae-b1ef-f8c68fa44d7e", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.016400Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.027306Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.028286Z"}
+backend-1  | {"alert_id": 35, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.035191Z"}
+backend-1  | {"event_id": "478e5256-1c03-493a-b5e1-48fbc02f6532", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.107385Z"}
+backend-1  | {"alert_id": 37, "event_id": "478e5256-1c03-493a-b5e1-48fbc02f6532", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.117009Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.128706Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.129719Z"}
+backend-1  | {"alert_id": 36, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.134908Z"}
+backend-1  | {"event_id": "60e8c6ab-232f-4d66-937d-a00ff9709cc6", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.201136Z"}
+backend-1  | {"alert_id": 38, "event_id": "60e8c6ab-232f-4d66-937d-a00ff9709cc6", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.211190Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.237024Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.237771Z"}
+backend-1  | {"alert_id": 37, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.242358Z"}
+backend-1  | {"event_id": "b1b0ed04-d16b-41d6-be78-fd2f54f12375", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.308991Z"}
+backend-1  | {"alert_id": 39, "event_id": "b1b0ed04-d16b-41d6-be78-fd2f54f12375", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.318041Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.336919Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.337545Z"}
+backend-1  | {"alert_id": 38, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.344331Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.396268Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.397481Z"}
+backend-1  | {"alert_id": 39, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.405031Z"}
+backend-1  | {"event_id": "c6f0979b-cc78-4586-8bf1-aee68ccad6d8", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.406722Z"}
+backend-1  | {"alert_id": 40, "event_id": "c6f0979b-cc78-4586-8bf1-aee68ccad6d8", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.414045Z"}
+backend-1  | {"event_id": "8b0d80b8-6952-435d-8b9f-d1d7fdbad570", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.494776Z"}
+backend-1  | {"alert_id": 41, "event_id": "8b0d80b8-6952-435d-8b9f-d1d7fdbad570", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.499331Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.522051Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.523070Z"}
+backend-1  | {"alert_id": 40, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.527791Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.603997Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.607631Z"}
+backend-1  | {"event_id": "abdd379f-bb5e-4d51-96f3-044b68ea0d2d", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.610556Z"}
+backend-1  | {"alert_id": 41, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.617088Z"}
+backend-1  | {"alert_id": 42, "event_id": "abdd379f-bb5e-4d51-96f3-044b68ea0d2d", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.617543Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.691897Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.692945Z"}
+backend-1  | {"alert_id": 42, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.699106Z"}
+backend-1  | {"event_id": "3c797271-298f-4558-a305-09608557257e", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.701695Z"}
+backend-1  | {"alert_id": 43, "event_id": "3c797271-298f-4558-a305-09608557257e", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.707463Z"}
+backend-1  | {"event_id": "3da3eae9-e801-4ef2-a036-e2ce032846a1", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.810435Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.819350Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.820991Z"}
+backend-1  | {"alert_id": 44, "event_id": "3da3eae9-e801-4ef2-a036-e2ce032846a1", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.821541Z"}
+backend-1  | {"alert_id": 43, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.833682Z"}
+backend-1  | {"event_id": "0710d202-eeda-47c6-85b6-f20609683340", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.896892Z"}
+backend-1  | {"alert_id": 45, "event_id": "0710d202-eeda-47c6-85b6-f20609683340", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:04.901498Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:04.929891Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:04.930490Z"}
+backend-1  | {"alert_id": 44, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:04.934385Z"}
+backend-1  | {"event_id": "5e86ca4e-9d56-4f7c-8ad8-df21a82c7ab6", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:04.999243Z"}
+backend-1  | {"alert_id": 46, "event_id": "5e86ca4e-9d56-4f7c-8ad8-df21a82c7ab6", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.009123Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.012628Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.014373Z"}
+backend-1  | {"alert_id": 45, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.021893Z"}
+backend-1  | {"event_id": "c722bb7c-2454-455a-878b-808ebad95877", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.109969Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.116596Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.118264Z"}
+backend-1  | {"alert_id": 47, "event_id": "c722bb7c-2454-455a-878b-808ebad95877", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.118530Z"}
+backend-1  | {"alert_id": 46, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.126286Z"}
+backend-1  | {"event_id": "b14d4714-4058-473c-a983-190460de8ebb", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.199596Z"}
+backend-1  | {"alert_id": 48, "event_id": "b14d4714-4058-473c-a983-190460de8ebb", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.206037Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.225716Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.226928Z"}
+backend-1  | {"alert_id": 47, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.230833Z"}
+backend-1  | {"event_id": "f7b60a0b-7510-4fef-828c-34f487f30694", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.305272Z"}
+backend-1  | {"alert_id": 49, "event_id": "f7b60a0b-7510-4fef-828c-34f487f30694", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.314604Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.315600Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.316757Z"}
+backend-1  | {"alert_id": 48, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.325820Z"}
+backend-1  | {"event_id": "60ffa5cc-f2c7-43be-9214-ff673b843930", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.396513Z"}
+backend-1  | {"alert_id": 50, "event_id": "60ffa5cc-f2c7-43be-9214-ff673b843930", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.402599Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.418329Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.419189Z"}
+backend-1  | {"alert_id": 49, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.424050Z"}
+backend-1  | {"event_id": "39bf0c3a-d7ab-450e-9d64-97b137a06867", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.504785Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.512104Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.513789Z"}
+backend-1  | {"alert_id": 51, "event_id": "39bf0c3a-d7ab-450e-9d64-97b137a06867", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.516095Z"}
+backend-1  | {"alert_id": 50, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.521830Z"}
+backend-1  | {"event_id": "30c70ed3-a7e1-4909-a02b-4f3fa3f59c72", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.612916Z"}
+backend-1  | {"alert_id": 52, "event_id": "30c70ed3-a7e1-4909-a02b-4f3fa3f59c72", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.621962Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.628213Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.629614Z"}
+backend-1  | {"alert_id": 51, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.635679Z"}
+backend-1  | {"event_id": "65a74790-701e-4cb3-8881-f8f123088e26", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.709047Z"}
+backend-1  | {"alert_id": 53, "event_id": "65a74790-701e-4cb3-8881-f8f123088e26", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.718423Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.743972Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.744917Z"}
+backend-1  | {"alert_id": 52, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.749711Z"}
+backend-1  | {"event_id": "75a31bd9-512f-4fef-ae28-d4eeb5a4956c", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.808463Z"}
+backend-1  | {"alert_id": 54, "event_id": "75a31bd9-512f-4fef-ae28-d4eeb5a4956c", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.816998Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.838272Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.839232Z"}
+backend-1  | {"alert_id": 53, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.843762Z"}
+backend-1  | {"event_id": "de711fe5-0a63-467b-a046-2f1cd7c0baa0", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:05.911643Z"}
+backend-1  | {"alert_id": 55, "event_id": "de711fe5-0a63-467b-a046-2f1cd7c0baa0", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:05.919533Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:05.937713Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:05.939107Z"}
+backend-1  | {"alert_id": 54, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:05.944820Z"}
+backend-1  | {"event_id": "d3360350-f0f4-421d-a510-88ddd67b8354", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.014967Z"}
+backend-1  | {"alert_id": 56, "event_id": "d3360350-f0f4-421d-a510-88ddd67b8354", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.024165Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.039610Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.040509Z"}
+backend-1  | {"alert_id": 55, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.044395Z"}
+backend-1  | {"event_id": "084ee03b-7231-4031-951d-11bff116b89f", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.101173Z"}
+backend-1  | {"alert_id": 57, "event_id": "084ee03b-7231-4031-951d-11bff116b89f", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.110028Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.139125Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.139751Z"}
+backend-1  | {"alert_id": 56, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.145663Z"}
+backend-1  | {"event_id": "cbd95074-f1ef-49d8-837c-5a40f41355cf", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.203389Z"}
+backend-1  | {"alert_id": 58, "event_id": "cbd95074-f1ef-49d8-837c-5a40f41355cf", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.209707Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.220142Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.221159Z"}
+backend-1  | {"alert_id": 57, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.226110Z"}
+backend-1  | {"event_id": "f3f601d7-592a-42c3-84e7-75edee60df52", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.299881Z"}
+backend-1  | {"alert_id": 59, "event_id": "f3f601d7-592a-42c3-84e7-75edee60df52", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.307063Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.317227Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.318560Z"}
+backend-1  | {"alert_id": 58, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.325052Z"}
+backend-1  | {"event_id": "db633dd8-9fd4-400a-8f0a-19994f7cccc6", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.405262Z"}
+backend-1  | {"alert_id": 60, "event_id": "db633dd8-9fd4-400a-8f0a-19994f7cccc6", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.415334Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.419025Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.420476Z"}
+backend-1  | {"alert_id": 59, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.426408Z"}
+backend-1  | {"event_id": "7e9c133e-5c8a-4a36-8751-b623e4fce7a6", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.510716Z"}
+backend-1  | {"alert_id": 61, "event_id": "7e9c133e-5c8a-4a36-8751-b623e4fce7a6", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.521492Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.530171Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.531546Z"}
+backend-1  | {"alert_id": 60, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.537119Z"}
+backend-1  | {"event_id": "409f5ab8-af3d-41ef-b7d6-ad6b6684cafd", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.604818Z"}
+backend-1  | {"alert_id": 62, "event_id": "409f5ab8-af3d-41ef-b7d6-ad6b6684cafd", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.612303Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.628294Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.629457Z"}
+backend-1  | {"alert_id": 61, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.634201Z"}
+backend-1  | {"event_id": "49cac88c-c604-4540-bfd5-5dbfebf7683f", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.713369Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.722758Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.724212Z"}
+backend-1  | {"alert_id": 63, "event_id": "49cac88c-c604-4540-bfd5-5dbfebf7683f", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.724503Z"}
+backend-1  | {"alert_id": 62, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.730618Z"}
+backend-1  | {"event_id": "a31d0441-c668-4977-be26-44365e4071cc", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.808157Z"}
+backend-1  | {"alert_id": 64, "event_id": "a31d0441-c668-4977-be26-44365e4071cc", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.817746Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.831042Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.832020Z"}
+backend-1  | {"alert_id": 63, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.837391Z"}
+backend-1  | {"event_id": "e58fd279-4505-42d0-96c4-6db7bc43f5b0", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.900021Z"}
+backend-1  | {"alert_id": 65, "event_id": "e58fd279-4505-42d0-96c4-6db7bc43f5b0", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:06.904982Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:06.927978Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:06.928659Z"}
+backend-1  | {"alert_id": 64, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:06.933044Z"}
+backend-1  | {"event_id": "dba05717-1795-497e-91fb-7bc5d8a494fb", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:06.996663Z"}
+backend-1  | {"alert_id": 66, "event_id": "dba05717-1795-497e-91fb-7bc5d8a494fb", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.002467Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.005960Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.007040Z"}
+backend-1  | {"alert_id": 65, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.012123Z"}
+backend-1  | {"event_id": "81c2d50a-9171-4c00-a800-8a5033b16c7c", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.095491Z"}
+backend-1  | {"alert_id": 67, "event_id": "81c2d50a-9171-4c00-a800-8a5033b16c7c", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.101299Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.117913Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.118895Z"}
+backend-1  | {"alert_id": 66, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.124092Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.208384Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.212085Z"}
+backend-1  | {"event_id": "c74c7cf0-eb94-4aa2-aa71-e12ed54ca245", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.214282Z"}
+backend-1  | {"alert_id": 67, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.219111Z"}
+backend-1  | {"alert_id": 68, "event_id": "c74c7cf0-eb94-4aa2-aa71-e12ed54ca245", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.222978Z"}
+backend-1  | {"event_id": "21f2cee1-258c-44b8-9a13-db44e81c9e42", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.301115Z"}
+backend-1  | {"alert_id": 69, "event_id": "21f2cee1-258c-44b8-9a13-db44e81c9e42", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.310141Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.367379Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.368322Z"}
+backend-1  | {"alert_id": 68, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.373425Z"}
+backend-1  | {"event_id": "814cfc96-64e3-48ab-b468-234b97a6fe2a", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.405351Z"}
+backend-1  | {"alert_id": 70, "event_id": "814cfc96-64e3-48ab-b468-234b97a6fe2a", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.413734Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.447842Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.448447Z"}
+backend-1  | {"alert_id": 69, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.452241Z"}
+backend-1  | {"event_id": "2c1ef92d-d8db-449e-985f-00c7a0923aae", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.498771Z"}
+backend-1  | {"alert_id": 71, "event_id": "2c1ef92d-d8db-449e-985f-00c7a0923aae", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.505715Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.521247Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.522154Z"}
+backend-1  | {"alert_id": 70, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.527677Z"}
+backend-1  | {"event_id": "f9e4ae81-19ad-41d4-bef2-449df08b86dc", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.609468Z"}
+backend-1  | {"alert_id": 72, "event_id": "f9e4ae81-19ad-41d4-bef2-449df08b86dc", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.617519Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.618451Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.619669Z"}
+backend-1  | {"alert_id": 71, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.625166Z"}
+backend-1  | {"event_id": "c20988fa-4133-4bff-a30a-d5cc44d957b0", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.709702Z"}
+backend-1  | {"alert_id": 73, "event_id": "c20988fa-4133-4bff-a30a-d5cc44d957b0", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.715409Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.722290Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.722978Z"}
+backend-1  | {"alert_id": 72, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.727019Z"}
+backend-1  | {"event_id": "a584fa9e-d597-49b0-80d5-e9a57ebb4ee6", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.807679Z"}
+backend-1  | {"alert_id": 74, "event_id": "a584fa9e-d597-49b0-80d5-e9a57ebb4ee6", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.814352Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.827237Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.827834Z"}
+backend-1  | {"alert_id": 73, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.831172Z"}
+backend-1  | {"event_id": "c6a353ac-c122-4923-803c-ab22c3467999", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:07.896786Z"}
+backend-1  | {"alert_id": 75, "event_id": "c6a353ac-c122-4923-803c-ab22c3467999", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:07.903154Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:07.928334Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:07.929412Z"}
+backend-1  | {"alert_id": 74, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:07.933478Z"}
+backend-1  | {"event_id": "bc3de2c1-8a98-4b54-8ed3-66245502a44f", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.005014Z"}
+backend-1  | {"alert_id": 76, "event_id": "bc3de2c1-8a98-4b54-8ed3-66245502a44f", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.011366Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.017553Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.018594Z"}
+backend-1  | {"alert_id": 75, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.021957Z"}
+backend-1  | {"event_id": "a4c630b1-6f90-424d-9108-29397f2a05bb", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.107112Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.111371Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.113332Z"}
+backend-1  | {"alert_id": 77, "event_id": "a4c630b1-6f90-424d-9108-29397f2a05bb", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.115199Z"}
+backend-1  | {"alert_id": 76, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.118797Z"}
+backend-1  | {"event_id": "b34db6d7-9aeb-4df7-b601-dd906da1e6d4", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.207191Z"}
+backend-1  | {"alert_id": 78, "event_id": "b34db6d7-9aeb-4df7-b601-dd906da1e6d4", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.215034Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.219361Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.220561Z"}
+backend-1  | {"alert_id": 77, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.225940Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.271381Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.272353Z"}
+backend-1  | {"alert_id": 78, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.277457Z"}
+backend-1  | {"event_id": "2b2c9a2f-b69e-442f-b9ec-3086966586cf", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.299847Z"}
+backend-1  | {"alert_id": 79, "event_id": "2b2c9a2f-b69e-442f-b9ec-3086966586cf", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.306498Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.404211Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.406010Z"}
+backend-1  | {"event_id": "19e0c361-88a9-4cff-8615-64e62dba832b", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.407447Z"}
+backend-1  | {"alert_id": 79, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.413837Z"}
+backend-1  | {"alert_id": 80, "event_id": "19e0c361-88a9-4cff-8615-64e62dba832b", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.415915Z"}
+backend-1  | {"event_id": "23f9eab6-5e5e-4504-8510-c76dd97cc881", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.503181Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.511641Z"}
+backend-1  | {"alert_id": 81, "event_id": "23f9eab6-5e5e-4504-8510-c76dd97cc881", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.512105Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.512919Z"}
+backend-1  | {"alert_id": 80, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.518780Z"}
+backend-1  | {"event_id": "6954e7ed-940a-4981-9d15-9ab9e1b16d76", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.607802Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.614719Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.616096Z"}
+backend-1  | {"alert_id": 82, "event_id": "6954e7ed-940a-4981-9d15-9ab9e1b16d76", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.616957Z"}
+backend-1  | {"alert_id": 81, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.620458Z"}
+backend-1  | {"event_id": "754ce8c5-11db-4cd3-8692-6fbed2fce950", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.710612Z"}
+backend-1  | {"alert_id": 83, "event_id": "754ce8c5-11db-4cd3-8692-6fbed2fce950", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.717713Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.720581Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.721782Z"}
+backend-1  | {"alert_id": 82, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.725820Z"}
+backend-1  | {"event_id": "cde586fd-8ec6-4d3c-bdaf-9c01803386ed", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.809764Z"}
+backend-1  | {"alert_id": 84, "event_id": "cde586fd-8ec6-4d3c-bdaf-9c01803386ed", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.816890Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.826775Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.827453Z"}
+backend-1  | {"alert_id": 83, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.831896Z"}
+backend-1  | {"event_id": "cecc0243-f57d-411c-924c-bf84ace78344", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.898843Z"}
+backend-1  | {"alert_id": 85, "event_id": "cecc0243-f57d-411c-924c-bf84ace78344", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:08.906479Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:08.920068Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:08.921543Z"}
+backend-1  | {"alert_id": 84, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:08.927610Z"}
+backend-1  | {"event_id": "c6c0ae6f-f243-43b1-b8ef-a0ab878fde63", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:08.994513Z"}
+backend-1  | {"alert_id": 86, "event_id": "c6c0ae6f-f243-43b1-b8ef-a0ab878fde63", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.000507Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.009128Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.009686Z"}
+backend-1  | {"alert_id": 85, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.013675Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.049472Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.050485Z"}
+backend-1  | {"alert_id": 86, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.055197Z"}
+backend-1  | {"event_id": "339b17a4-3475-463f-962e-e90480aee227", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.110484Z"}
+backend-1  | {"alert_id": 87, "event_id": "339b17a4-3475-463f-962e-e90480aee227", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.119837Z"}
+backend-1  | {"event_id": "bd317591-1261-4a44-ba79-06289d4fb5f0", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.205984Z"}
+backend-1  | {"alert_id": 88, "event_id": "bd317591-1261-4a44-ba79-06289d4fb5f0", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.213727Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.252293Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.253425Z"}
+backend-1  | {"alert_id": 87, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.257235Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.278247Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.279615Z"}
+backend-1  | {"alert_id": 88, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.284187Z"}
+backend-1  | {"event_id": "09d1aa7e-ba0d-4db3-899f-25013c91bf71", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.302216Z"}
+backend-1  | {"alert_id": 89, "event_id": "09d1aa7e-ba0d-4db3-899f-25013c91bf71", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.308644Z"}
+backend-1  | {"event_id": "19fdea19-0f82-4836-b2bf-5e407c820c9b", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.402421Z"}
+backend-1  | {"alert_id": 90, "event_id": "19fdea19-0f82-4836-b2bf-5e407c820c9b", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.409435Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.417347Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.418424Z"}
+backend-1  | {"alert_id": 89, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.422783Z"}
+backend-1  | {"event_id": "cd2cc248-424e-458f-97e9-52e7380f9ab1", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.509093Z"}
+backend-1  | {"alert_id": 91, "event_id": "cd2cc248-424e-458f-97e9-52e7380f9ab1", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.518256Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.520284Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.521711Z"}
+backend-1  | {"alert_id": 90, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.532040Z"}
+backend-1  | {"event_id": "159c20ef-96ba-42de-a3d8-610618754d53", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.597422Z"}
+backend-1  | {"alert_id": 92, "event_id": "159c20ef-96ba-42de-a3d8-610618754d53", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.602043Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.628727Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.629708Z"}
+backend-1  | {"alert_id": 91, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.634380Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.702282Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.705954Z"}
+backend-1  | {"event_id": "5d989b63-14f2-40ec-b727-ff0721a4d680", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.708661Z"}
+backend-1  | {"alert_id": 92, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.714106Z"}
+backend-1  | {"alert_id": 93, "event_id": "5d989b63-14f2-40ec-b727-ff0721a4d680", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.716712Z"}
+backend-1  | {"event_id": "1f4e56ac-7f54-40b9-b756-50d0ac7418ea", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.805405Z"}
+backend-1  | {"alert_id": 94, "event_id": "1f4e56ac-7f54-40b9-b756-50d0ac7418ea", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.813777Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.834196Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.834852Z"}
+backend-1  | {"alert_id": 93, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.841023Z"}
+backend-1  | {"event_id": "1ced3c3f-e995-4a0b-9e36-697d7b94cbe8", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:09.906663Z"}
+backend-1  | {"alert_id": 95, "event_id": "1ced3c3f-e995-4a0b-9e36-697d7b94cbe8", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:09.914991Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:09.925157Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:09.925750Z"}
+backend-1  | {"alert_id": 94, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:09.930135Z"}
+backend-1  | {"event_id": "7fd0f706-489b-4184-a4e3-ce7a5a1649e1", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.008775Z"}
+backend-1  | {"alert_id": 96, "event_id": "7fd0f706-489b-4184-a4e3-ce7a5a1649e1", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.016886Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.018272Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.020075Z"}
+backend-1  | {"alert_id": 95, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.024908Z"}
+backend-1  | {"event_id": "f8904631-a5f4-4d75-bdc1-c46c7700edd4", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.106640Z"}
+backend-1  | {"alert_id": 97, "event_id": "f8904631-a5f4-4d75-bdc1-c46c7700edd4", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.113656Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.126193Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.127400Z"}
+backend-1  | {"alert_id": 96, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.131404Z"}
+backend-1  | {"event_id": "df857d15-40fc-4e63-b1eb-74c32793c310", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.205352Z"}
+backend-1  | {"alert_id": 98, "event_id": "df857d15-40fc-4e63-b1eb-74c32793c310", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.214998Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.219044Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.220539Z"}
+backend-1  | {"alert_id": 97, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.224957Z"}
+backend-1  | {"event_id": "f2791613-8c83-4ad5-a514-6115d788820c", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.299262Z"}
+backend-1  | {"alert_id": 99, "event_id": "f2791613-8c83-4ad5-a514-6115d788820c", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.304733Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.313545Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.314165Z"}
+backend-1  | {"alert_id": 98, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.319561Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.359175Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.360509Z"}
+backend-1  | {"alert_id": 99, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.366248Z"}
+backend-1  | {"event_id": "23528215-9400-4c1b-93ae-9cff6bee3f34", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.394674Z"}
+backend-1  | {"alert_id": 100, "event_id": "23528215-9400-4c1b-93ae-9cff6bee3f34", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.399558Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.447090Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.448041Z"}
+backend-1  | {"alert_id": 100, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.452114Z"}
+backend-1  | {"event_id": "e0a682ae-f6c4-451d-b6d2-a5bf1943cea1", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.511189Z"}
+backend-1  | {"alert_id": 101, "event_id": "e0a682ae-f6c4-451d-b6d2-a5bf1943cea1", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.518993Z"}
+backend-1  | {"event_id": "a19b24e7-1689-40d7-b3e6-ef087f06da80", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.612397Z"}
+backend-1  | {"alert_id": 102, "event_id": "a19b24e7-1689-40d7-b3e6-ef087f06da80", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.621240Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.652592Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.653542Z"}
+backend-1  | {"alert_id": 101, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.657854Z"}
+backend-1  | {"event_id": "95339562-667f-402b-b25e-a455a0afbc25", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.714005Z"}
+backend-1  | {"alert_id": 103, "event_id": "95339562-667f-402b-b25e-a455a0afbc25", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.718861Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.754791Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.755767Z"}
+backend-1  | {"alert_id": 102, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.761287Z"}
+backend-1  | {"event_id": "dacdb88e-f239-4189-8c32-31a672fb2112", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.799660Z"}
+backend-1  | {"alert_id": 104, "event_id": "dacdb88e-f239-4189-8c32-31a672fb2112", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.807269Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.845886Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.846920Z"}
+backend-1  | {"alert_id": 103, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.851232Z"}
+backend-1  | {"event_id": "b2ce3db6-d60a-4bdc-9182-8b34420c05cd", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:10.910968Z"}
+backend-1  | {"alert_id": 105, "event_id": "b2ce3db6-d60a-4bdc-9182-8b34420c05cd", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:10.917242Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:10.925588Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:10.926623Z"}
+backend-1  | {"alert_id": 104, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:10.931850Z"}
+backend-1  | {"event_id": "89475edb-eb15-4b4b-a0b0-e49e47c29ac8", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.011097Z"}
+backend-1  | {"alert_id": 106, "event_id": "89475edb-eb15-4b4b-a0b0-e49e47c29ac8", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.017906Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.021419Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.022197Z"}
+backend-1  | {"alert_id": 105, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.025542Z"}
+backend-1  | {"event_id": "7e4ecda4-cf74-4257-a6d8-9a2a346266b7", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.111246Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.119482Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.120195Z"}
+backend-1  | {"alert_id": 107, "event_id": "7e4ecda4-cf74-4257-a6d8-9a2a346266b7", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.121188Z"}
+backend-1  | {"alert_id": 106, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.128917Z"}
+backend-1  | {"event_id": "6177e46c-7058-4c3b-b61b-00b322b3212a", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.210243Z"}
+backend-1  | {"alert_id": 108, "event_id": "6177e46c-7058-4c3b-b61b-00b322b3212a", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.219715Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.266546Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.267838Z"}
+backend-1  | {"alert_id": 107, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.273914Z"}
+backend-1  | {"event_id": "98174ce6-0fde-446a-b0a0-f3f3df5c1f49", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.305100Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.310416Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.312263Z"}
+backend-1  | {"alert_id": 109, "event_id": "98174ce6-0fde-446a-b0a0-f3f3df5c1f49", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.314412Z"}
+backend-1  | {"alert_id": 108, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.320742Z"}
+backend-1  | {"event_id": "959542be-bf30-41f6-8aad-a905f4fcf806", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.406847Z"}
+backend-1  | {"alert_id": 110, "event_id": "959542be-bf30-41f6-8aad-a905f4fcf806", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.416689Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.423564Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.425071Z"}
+backend-1  | {"alert_id": 109, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.429648Z"}
+backend-1  | {"event_id": "493af7c9-70de-49f0-85fa-e860a65cb49c", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.512907Z"}
+backend-1  | {"alert_id": 111, "event_id": "493af7c9-70de-49f0-85fa-e860a65cb49c", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.521336Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.526825Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.528806Z"}
+backend-1  | {"alert_id": 110, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.534788Z"}
+backend-1  | {"event_id": "ffa63627-03ca-4655-b6d3-8a1664992649", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.610851Z"}
+backend-1  | {"alert_id": 112, "event_id": "ffa63627-03ca-4655-b6d3-8a1664992649", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.620448Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.632678Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.633255Z"}
+backend-1  | {"alert_id": 111, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.638790Z"}
+backend-1  | {"event_id": "4655202e-224f-4232-b892-23fb4487311a", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.711294Z"}
+backend-1  | {"alert_id": 113, "event_id": "4655202e-224f-4232-b892-23fb4487311a", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.718674Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.731414Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.732518Z"}
+backend-1  | {"alert_id": 112, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.737113Z"}
+backend-1  | {"event_id": "923cff8b-0c05-4430-858c-9a7d8fe015d1", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.802625Z"}
+backend-1  | {"alert_id": 114, "event_id": "923cff8b-0c05-4430-858c-9a7d8fe015d1", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.809253Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.853158Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.854482Z"}
+backend-1  | {"alert_id": 113, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.859732Z"}
+backend-1  | {"event_id": "21bc0bf4-95cd-4e8f-aa89-eb2e4f47706d", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.909207Z"}
+backend-1  | {"alert_id": 115, "event_id": "21bc0bf4-95cd-4e8f-aa89-eb2e4f47706d", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.918292Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:11.956098Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:11.956768Z"}
+backend-1  | {"alert_id": 114, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:11.959945Z"}
+backend-1  | {"event_id": "261d9577-bab1-4da7-a9bc-acd4dd38cd42", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:11.994774Z"}
+backend-1  | {"alert_id": 116, "event_id": "261d9577-bab1-4da7-a9bc-acd4dd38cd42", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:11.999504Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.035277Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.036233Z"}
+backend-1  | {"alert_id": 115, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.041642Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.104603Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.105509Z"}
+backend-1  | {"alert_id": 116, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.113147Z"}
+backend-1  | {"event_id": "92725b39-476c-43ee-98a2-d4c9aa2aaf2f", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.113996Z"}
+backend-1  | {"alert_id": 117, "event_id": "92725b39-476c-43ee-98a2-d4c9aa2aaf2f", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.119446Z"}
+backend-1  | {"event_id": "2007bb56-88e0-4069-a33c-f454af5b063e", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.210414Z"}
+backend-1  | {"alert_id": 118, "event_id": "2007bb56-88e0-4069-a33c-f454af5b063e", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.218318Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.224790Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.225884Z"}
+backend-1  | {"alert_id": 117, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.230380Z"}
+backend-1  | {"event_id": "5cf6c860-b0f8-4d77-854a-47e66d9741dc", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.310164Z"}
+backend-1  | {"alert_id": 119, "event_id": "5cf6c860-b0f8-4d77-854a-47e66d9741dc", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.317386Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.325365Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.326692Z"}
+backend-1  | {"alert_id": 118, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.331647Z"}
+backend-1  | {"event_id": "5d72f87d-ed58-4c00-9b44-28f8121a7b12", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.412985Z"}
+backend-1  | {"alert_id": 120, "event_id": "5d72f87d-ed58-4c00-9b44-28f8121a7b12", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.420209Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.433717Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.435027Z"}
+backend-1  | {"alert_id": 119, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.440367Z"}
+backend-1  | {"event_id": "c51ab423-2ca1-4495-b6d4-46f7d8c33d93", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.497532Z"}
+backend-1  | {"alert_id": 121, "event_id": "c51ab423-2ca1-4495-b6d4-46f7d8c33d93", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.503512Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.530982Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.531704Z"}
+backend-1  | {"alert_id": 120, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.535568Z"}
+backend-1  | {"event_id": "ccc54666-a51e-4975-bdc8-6d605a7a75c5", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.606831Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.611314Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.613844Z"}
+backend-1  | {"alert_id": 122, "event_id": "ccc54666-a51e-4975-bdc8-6d605a7a75c5", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.617481Z"}
+backend-1  | {"alert_id": 121, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.618585Z"}
+backend-1  | {"event_id": "7a2ad253-f8ff-4b31-b1ab-4227dc6e6ed3", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.712230Z"}
+backend-1  | {"alert_id": 123, "event_id": "7a2ad253-f8ff-4b31-b1ab-4227dc6e6ed3", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.720141Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.725372Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.726627Z"}
+backend-1  | {"alert_id": 122, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.731593Z"}
+backend-1  | {"event_id": "5f49daee-c3f1-4e04-bb67-8b2d6db75447", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.802702Z"}
+backend-1  | {"alert_id": 124, "event_id": "5f49daee-c3f1-4e04-bb67-8b2d6db75447", "severity": "high", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.810248Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.821847Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.822524Z"}
+backend-1  | {"alert_id": 123, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.825993Z"}
+backend-1  | {"event_id": "8bcc5310-b1c9-4e68-b507-9f080528bcdb", "agent_id": "fim-vm", "event": "consumer.event_persisted", "level": "info", "timestamp": "2026-10-03T13:31:12.899688Z"}
+backend-1  | {"alert_id": 125, "event_id": "8bcc5310-b1c9-4e68-b507-9f080528bcdb", "severity": "critical", "event": "notify.alert_created", "level": "info", "timestamp": "2026-10-03T13:31:12.904824Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:12.919403Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:12.921670Z"}
+backend-1  | {"alert_id": 124, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:12.925099Z"}
+backend-1  | {"event": "HTTP Request: POST http://n8n:5678/webhook/fim-alert \"HTTP/1.1 202 Accepted\"", "level": "info", "logger": "httpx", "timestamp": "2026-10-03T13:31:13.014727Z"}
+backend-1  | {"status_code": 202, "event": "notifier.n8n_sent", "level": "info", "timestamp": "2026-10-03T13:31:13.015773Z"}
+backend-1  | {"alert_id": 125, "channel": "n8n", "attempt": 0, "event": "notify.delivered", "level": "info", "timestamp": "2026-10-03T13:31:13.020448Z"}

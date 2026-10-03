@@ -1,0 +1,18 @@
+Operaciones en el manifiesto: 80
+
+CSV: /home/ezequiel/Facultad/tesis/tesis-fim-serio/tesis/cierre/evidencia/v5.1-complementarias-20261003T125747Z/b5_mmap_casoD/bateria8_correlacion.csv
+
+TABLA 17 — filas para el Capítulo 5
+------------------------------------------------------------------------------------------------
+Caso                          Mod.efectivas   Eventos  Detectadas  Ev.sin cambio  Sin evento
+C_escritura_convencional          10/10            10      10/10               0           0
+D_mmap_close_retardo_000ms        10/10            10      10/10               0           0
+D_mmap_close_retardo_005ms        10/10            10      10/10               0           0
+D_mmap_close_retardo_010ms        10/10            10      10/10               0           0
+D_mmap_close_retardo_020ms        10/10            10      10/10               0           0
+D_mmap_close_retardo_050ms        10/10            10      10/10               0           0
+D_mmap_close_retardo_100ms        10/10            10      10/10               0           0
+D_mmap_close_retardo_500ms        10/10            10      10/10               0           0
+------------------------------------------------------------------------------------------------
+
+Corrida válida: el testigo (caso C) detectó 10/10.

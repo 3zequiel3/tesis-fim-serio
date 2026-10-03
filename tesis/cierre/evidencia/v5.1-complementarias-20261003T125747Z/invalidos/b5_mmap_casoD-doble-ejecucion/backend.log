@@ -1,0 +1,1 @@
+compose file "/home/ezequiel/Facultad/tesis/tesis-fim-serio/ docker-compose.yml -f docker-compose.tls.yml -f /home/ezequiel/fim-lab/docker-compose.mailpit.yml" is invalid: open /home/ezequiel/Facultad/tesis/tesis-fim-serio/ docker-compose.yml -f docker-compose.tls.yml -f /home/ezequiel/fim-lab/docker-compose.mailpit.yml: no such file or directory

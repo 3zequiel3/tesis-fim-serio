@@ -1,0 +1,8 @@
+N=8 muestras=100 de 100
+N=16 muestras=100 de 100
+N=32 muestras=100 de 100
+N=64 muestras=100 de 100
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ModuleNotFoundError: No module named 'pandas'
+backend restaurado al limite por defecto
