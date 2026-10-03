@@ -1,0 +1,29 @@
+{
+  "run": "run-03",
+  "tag": "v5.1-tesis",
+  "commit": "404402a9049d6cba63f1cd122279c963bdceaf79",
+  "fuera_de_orden": {
+    "filas": 2997,
+    "unicos": 2997,
+    "duplicados": 0,
+    "fuera_de_orden": 0,
+    "fuera_de_orden_pct": 0.0,
+    "regresiones_adyacentes": 0
+  },
+  "drenaje": {
+    "t0_origen": "FIN_CORTE",
+    "t0": "2026-10-03T12:50:43.749670+00:00",
+    "primer_xadd": "2026-10-03T12:50:44.620395+00:00",
+    "primer_received_at": "2026-10-03T12:50:44.630070+00:00",
+    "ultimo_received_at": "2026-10-03T12:51:10.141440+00:00",
+    "reconexion_agente": 0.871,
+    "sin_consumo": 0.01,
+    "consumo": 25.511,
+    "drenaje": 26.392,
+    "backend_started_at_pre": "2026-10-03T12:45:34.347545253Z",
+    "backend_started_at_post": "2026-10-03T12:45:34.347545253Z",
+    "restart_count_pre": "0",
+    "restart_count_post": "0",
+    "backend_reiniciado": false
+  }
+}

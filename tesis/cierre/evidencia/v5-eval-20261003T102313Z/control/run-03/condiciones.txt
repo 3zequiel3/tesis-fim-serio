@@ -1,0 +1,10 @@
+tag=v5.1-tesis
+commit=404402a9049d6cba63f1cd122279c963bdceaf79
+repeticion=run-03
+seed=20261003
+fase_control_s=28
+generador=--rate 0.2778 --count 500 --mix 20/70/10 --critical-frac 0.2
+control=control_hashing.py --loop --interval 900 tras baseline inmediato y espera de fase_control_s
+csv_control=nuevo por corrida (vm_control.sh lo borra antes de empezar)
+inicio_utc=2026-10-03T11:42:25Z
+fin_utc=2026-10-03T12:28:26Z

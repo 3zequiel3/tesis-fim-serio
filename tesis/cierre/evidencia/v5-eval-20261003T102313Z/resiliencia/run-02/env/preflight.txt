@@ -1,0 +1,8 @@
+preflight=ok
+schema=migrar.py --verificar ok
+host_clock_offset_us=82
+vm_clock_offset_us=2019
+sink=mailpit /api/v1/info ok
+baseline_entries=0
+rate_limit=rate_per_s=1.6666666666666667 burst=3000 variant=none
+valkey_appendonly=yes

@@ -1,0 +1,8 @@
+seed=20261003 fase_control_s=28
+[control] estado /srv/evidencia/control_estado.json descartado (--reset)
+[control] scan_id=1 (baseline) ts=2026-10-03T11:42:25.480627+00:00 archivos=0 cambios=0 duracion_scan_s=0.000 csv=/srv/evidencia/bateria7_control.csv
+loop_scans=4
+[control] scan_id=2 (diff) ts=2026-10-03T11:42:53.582687+00:00 archivos=0 cambios=0 duracion_scan_s=0.000 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=3 (diff) ts=2026-10-03T11:57:53.587125+00:00 archivos=29 cambios=29 duracion_scan_s=0.004 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=4 (diff) ts=2026-10-03T12:12:53.591040+00:00 archivos=50 cambios=65 duracion_scan_s=0.006 csv=/srv/evidencia/bateria7_control.csv
+[control] scan_id=5 (diff) ts=2026-10-03T12:27:53.592147+00:00 archivos=50 cambios=0 duracion_scan_s=0.007 csv=/srv/evidencia/bateria7_control.csv
