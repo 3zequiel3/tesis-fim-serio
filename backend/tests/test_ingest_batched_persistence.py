@@ -242,3 +242,12 @@ def test_batch_reads_the_ruleset_once(mem_engine) -> None:
     result = _ingest_batch([_item(path=f"/srv/f{i}") for i in range(4)], _always)
     assert len(selects) == 1
     assert {o.event.severity for o in result.outcomes} == {RuleSeverity.critical}
+
+
+def test_non_database_exception_rolls_back_and_refunds_the_tokens(mem_engine) -> None:
+    """W3: a TypeError (path of the wrong type) must not skip the rollback/refund of the batch."""
+    refunded: dict[str, int] = {}
+    good, poisoned = _item(path="/ok", agent="a1"), _item(path=5, agent="a1")
+    with pytest.raises(TypeError):
+        _ingest_batch([good, poisoned], _always, lambda agent, n: refunded.__setitem__(agent, n))
+    assert _rows(mem_engine) == []

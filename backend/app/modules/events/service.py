@@ -19,7 +19,6 @@ import structlog
 import sqlalchemy as sa
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import update as sa_update
-from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.core.config import settings
@@ -658,7 +657,7 @@ def _ingest_batch(
     `superseded` chain, optimistic UPDATE and race re-query D25/RN-121, compaction
     RN-98) are those of `_ingest_into_session`. `accept_new_for(agent_id)` returns
     the rate-limit check of that agent; `refund(agent_id, n)` gives the consumed
-    tokens back if the transaction rolls back (D-6). On `SQLAlchemyError` the
+    tokens back if the transaction rolls back (D-6). On any exception the
     transaction is rolled back, the tokens are refunded and the error propagates.
     """
     ctx = _IngestBatchContext(preloaded=True)
@@ -710,7 +709,9 @@ def _ingest_batch(
             t_commit = time.perf_counter()
             session.commit()
             commit_ms = (time.perf_counter() - t_commit) * 1000
-        except SQLAlchemyError:
+        except Exception:
+            # Any failure, not only SQLAlchemyError (e.g. a TypeError on an unexpected payload
+            # shape): the transaction never committed, so roll back and give the tokens back.
             session.rollback()
             if refund is not None:
                 for agent_id, tokens in ctx.tokens_by_agent.items():

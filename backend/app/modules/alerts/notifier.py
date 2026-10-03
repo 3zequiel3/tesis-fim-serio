@@ -48,6 +48,11 @@ _FALLBACK_TIMEOUT = 10.0
 # connection from the pool and the next delivery opens a new one (A-3).
 _KEEPALIVE_EXPIRY_S = 4.0
 _notify_http_client: httpx.AsyncClient | None = None
+# Set by `close_notify_http_client()` (backend shutdown) and cleared by an explicit
+# `init_notify_http_client()`: a fire-and-forget delivery that outlives the shutdown must
+# fail (and follow the durable retry ladder on the next start) instead of lazily recreating
+# a client nobody will ever close.
+_notify_http_client_closed = False
 
 
 def _build_notify_http_client() -> httpx.AsyncClient:
@@ -62,21 +67,31 @@ def _build_notify_http_client() -> httpx.AsyncClient:
 
 
 def init_notify_http_client() -> httpx.AsyncClient:
-    """Create the shared client (lifespan startup). Idempotent."""
-    global _notify_http_client
+    """Create the shared client (lifespan startup). Idempotent; re-opens a closed lane."""
+    global _notify_http_client, _notify_http_client_closed
+    _notify_http_client_closed = False
     if _notify_http_client is None or _notify_http_client.is_closed:
         _notify_http_client = _build_notify_http_client()
     return _notify_http_client
 
 
 def get_notify_http_client() -> httpx.AsyncClient:
-    """The shared client; lazily created with the same configuration (tests, bench, scripts)."""
+    """
+    The shared client; lazily created with the same configuration (tests, bench, scripts).
+    After `close_notify_http_client()` it refuses to recreate it (RuntimeError, which the
+    channel functions turn into a failed delivery).
+    """
+    if _notify_http_client is not None and not _notify_http_client.is_closed:
+        return _notify_http_client
+    if _notify_http_client_closed:
+        raise RuntimeError("notify http client closed (backend shutting down)")
     return init_notify_http_client()
 
 
 async def close_notify_http_client() -> None:
-    """Close and drop the shared client (lifespan shutdown)."""
-    global _notify_http_client
+    """Close and drop the shared client (lifespan shutdown); later gets refuse to recreate it."""
+    global _notify_http_client, _notify_http_client_closed
+    _notify_http_client_closed = True
     client, _notify_http_client = _notify_http_client, None
     if client is not None:
         await client.aclose()
@@ -84,8 +99,9 @@ async def close_notify_http_client() -> None:
 
 def reset_notify_http_client_for_tests() -> None:
     """Drop the client without awaiting it. Test-suite use only (connections are bound to one loop)."""
-    global _notify_http_client
+    global _notify_http_client, _notify_http_client_closed
     _notify_http_client = None
+    _notify_http_client_closed = False
 
 
 async def send_n8n(payload: dict[str, Any], url: str, timeout: float = _N8N_TIMEOUT) -> bool:

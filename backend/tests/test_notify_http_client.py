@@ -215,3 +215,18 @@ async def test_per_request_timeout_is_kept() -> None:
     finally:
         await srv.stop()
         await close_notify_http_client()
+
+
+async def test_after_close_a_straggler_delivery_fails_without_recreating_the_client(server) -> None:
+    """S2: a fire-and-forget delivery that outlives the shutdown must not resurrect an unclosed client."""
+    assert await send_n8n({"i": 1}, server.url) is True
+    await close_notify_http_client()
+    assert await send_n8n({"i": 2}, server.url) is False
+    assert await send_webhook_fallback({"i": 3}, server.url) is False
+    assert notifier._notify_http_client is None
+    with pytest.raises(RuntimeError):
+        get_notify_http_client()
+    # An explicit init (next lifespan startup) re-opens the lane.
+    client = init_notify_http_client()
+    assert await send_n8n({"i": 4}, server.url) is True
+    assert get_notify_http_client() is client

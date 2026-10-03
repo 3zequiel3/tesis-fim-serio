@@ -416,7 +416,7 @@ async def _process_batch(client: Any, start_id: str) -> None:
         finally:
             _ingest_batch_var.reset(candidates_token)
         if candidates:
-            await _persist_batch(client, candidates, acks, batch_stats)
+            await _run_to_completion(_persist_batch(client, candidates, acks, batch_stats))
     finally:
         _ack_batch_var.reset(batch_token)
         # Flush even if a later message of the batch raised: the events already
@@ -435,6 +435,33 @@ async def _process_batch(client: Any, start_id: str) -> None:
                 ack_flush_ms=round((time.perf_counter() - flush_started) * 1000, 3),
                 **batch_stats,
             )
+
+
+# Upper bound for finishing a batch whose consumer task was cancelled (shutdown).
+_PERSIST_CANCEL_GRACE_S = 10.0
+
+
+async def _run_to_completion(coro: Any) -> None:
+    """
+    Run the persist + effects section of a batch so a cancellation (backend shutdown) cannot
+    cut it in half: the executor commits the whole batch even after the awaiting coroutine is
+    cancelled, and without its effects up to 50 committed events would never be acknowledged
+    nor notified. On cancellation, wait (bounded) for the section to finish, then re-raise.
+    """
+    task = asyncio.ensure_future(coro)
+    try:
+        await asyncio.shield(task)
+    except asyncio.CancelledError:
+        if not task.done():
+            try:
+                await asyncio.wait_for(asyncio.shield(task), _PERSIST_CANCEL_GRACE_S)
+            except asyncio.TimeoutError:
+                log.warning("consumer.persist_cancel_timeout", grace_s=_PERSIST_CANCEL_GRACE_S)
+            except BaseException:  # noqa: BLE001 - a second cancel or a failure: give up waiting
+                pass
+        if task.done() and not task.cancelled():
+            task.exception()  # retrieved, so it is not reported as never-retrieved
+        raise
 
 
 async def _persist_batch(
@@ -466,19 +493,19 @@ async def _persist_batch(
                 _rate_limiter.refund,
             ),
         )
-    except (IntegrityError, DataError):
-        # Deterministic error (an event violates a constraint or does not fit a column):
-        # replay one by one through the per-event path so only the offending event stays
-        # in the PEL, as before the batched persistence. The batch already rolled back and
-        # refunded its tokens, which the replay decides again.
-        log.warning("consumer.batch_replayed_per_event", candidates=len(candidates), exc_info=True)
-        for candidate in candidates:
-            await _ingest_one(client, acks, candidate)
+    except SQLAlchemyError as exc:
+        if not isinstance(exc, (IntegrityError, DataError)):
+            # Transient error: nothing is acknowledged or answered, the whole batch stays in
+            # the PEL and the agent republishes after 60 s (dedup makes the re-delivery safe).
+            log.error("consumer.batch_db_error", candidates=len(candidates), exc_info=True)
+            return
+        await _replay_per_event(client, candidates, acks)
         return
-    except SQLAlchemyError:
-        # Transient error: nothing is acknowledged or answered, the whole batch stays in
-        # the PEL and the agent republishes after 60 s (dedup makes the re-delivery safe).
-        log.error("consumer.batch_db_error", candidates=len(candidates), exc_info=True)
+    except Exception:
+        # Not a database error (e.g. a TypeError on an unexpected payload shape): the batch
+        # rolled back and refunded its tokens like for a deterministic error. Replay one by
+        # one so the offending event cannot stall its neighbours.
+        await _replay_per_event(client, candidates, acks)
         return
 
     batch_stats.update(
@@ -486,15 +513,42 @@ async def _persist_batch(
         ingest_db_ms=round(result.ingest_db_ms, 3),
         commit_ms=round(result.commit_ms, 3),
     )
+    # The batch is durable. The effects of each candidate are independent of the others: a
+    # failure of one (a Valkey error on its XACK, its rejection audit write...) is logged and
+    # leaves only that message un-acked in the PEL; it MUST NOT stop the notifications of the
+    # events that are already committed (their re-delivery would resolve as a duplicate and
+    # the alert would be lost for good).
     for candidate, outcome, candidate_ms in zip(candidates, result.outcomes, result.candidate_ms):
-        if outcome.disposition == IngestDisposition.invalid_transition:
-            # The only transition the ingest can reject is superseding a pending event.
-            await _reject_invalid_transition(
-                client, candidate, EventStatus.pending, EventStatus.superseded
+        try:
+            if outcome.disposition == IngestDisposition.invalid_transition:
+                # The only transition the ingest can reject is superseding a pending event.
+                await _reject_invalid_transition(
+                    client, candidate, EventStatus.pending, EventStatus.superseded
+                )
+            else:
+                _log_event_timing(candidate, candidate_ms, outcome=None)
+                await _apply_outcome(client, acks, candidate, outcome, result.removed_event_ids)
+        except Exception:
+            log.error(
+                "consumer.effect_error", event_id=candidate.event_id, msg_id=candidate.msg_id,
+                disposition=outcome.disposition.value, exc_info=True,
             )
-        else:
-            _log_event_timing(candidate, candidate_ms, outcome=None)
-            await _apply_outcome(client, acks, candidate, outcome, result.removed_event_ids)
+
+
+async def _replay_per_event(
+    client: Any, candidates: list[_IngestCandidate], acks: list[tuple[str, str]]
+) -> None:
+    """
+    Replay a rolled-back batch one candidate at a time through the per-event path, so only
+    the offending event stays in the PEL (as before the batched persistence). The batch
+    already rolled back and refunded its tokens, which the replay decides again.
+    """
+    log.warning("consumer.batch_replayed_per_event", candidates=len(candidates), exc_info=True)
+    for candidate in candidates:
+        try:
+            await _ingest_one(client, acks, candidate)
+        except Exception:
+            log.error("consumer.replay_error", event_id=candidate.event_id, msg_id=candidate.msg_id, exc_info=True)
 
 
 async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) -> None:
@@ -647,6 +701,18 @@ async def _handle_message(client: Any, msg_id: str, msg_data: dict[str, Any]) ->
         )
         return
 
+    # ── 5.5 field types the ingest relies on ──────────────────────────────────
+    # An HMAC-valid payload can still carry a `path` / `event_id` of the wrong type
+    # (an agent bug, or a compromised agent). They would raise a TypeError deep inside
+    # the batch transaction; reject the event here, isolated, with an existing reason.
+    path_value = payload.get("path")
+    if (path_value is not None and not isinstance(path_value, str)) or not isinstance(event_id, str):
+        await _reject(
+            client, msg_id, event_id if isinstance(event_id, str) else None, agent_id,
+            RejectionReason.invalid_schema, received_at, payload, payload_dump,
+            shared_secret=shared_secret,
+        )
+        return
 
     # ── camino feliz ───────────────────────────────────────────────────────────
     candidate = _IngestCandidate(
@@ -784,15 +850,18 @@ async def _apply_outcome(
         return
 
     if outcome.disposition == IngestDisposition.persisted and outcome.event is not None:
-        await _ack_or_defer(client, ack_batch, c.msg_id, c.event_id, c.agent_id, c.shared_secret)
-        log.info("consumer.event_persisted", event_id=c.event_id, agent_id=c.agent_id)
-        # The notification depends on the commit, not on the ACK: it is scheduled
-        # right away, never deferred to the end of the batch (D76/RN-170). An event the
-        # compaction of the same batch deleted before the COMMIT has no row to alert on.
-        if outcome.event.id in removed_event_ids:
-            log.info("consumer.notification_skipped_compacted", event_id=c.event_id)
-        else:
-            _fire_and_forget(notify_if_applicable(outcome.event))
+        try:
+            await _ack_or_defer(client, ack_batch, c.msg_id, c.event_id, c.agent_id, c.shared_secret)
+            log.info("consumer.event_persisted", event_id=c.event_id, agent_id=c.agent_id)
+        finally:
+            # The notification depends on the commit, not on the ACK: it is scheduled
+            # right away, never deferred to the end of the batch (D76/RN-170), and even when
+            # the ACK failed (the committed event would otherwise lose its alert). An event
+            # the compaction of the same batch deleted before the COMMIT has no row to alert on.
+            if outcome.event.id in removed_event_ids:
+                log.info("consumer.notification_skipped_compacted", event_id=c.event_id)
+            else:
+                _fire_and_forget(notify_if_applicable(outcome.event))
     else:
         # Una transición concurrente dejó otro pending como representación
         # activa. Resolver esta entrega con el mismo ACK atómico.
