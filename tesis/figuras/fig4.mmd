@@ -1,0 +1,17 @@
+sequenceDiagram
+    autonumber
+    participant A as Agente
+    participant V as Valkey Streams
+    participant B as Backend (consumidor)
+    participant P as PostgreSQL
+    A->>V: XADD events: event_id (UUID v4), detected_at, sent_at, firma HMAC
+    B->>V: XREADGROUP events (grupo fim-backend)
+    V-->>B: Lote de mensajes pendientes
+    Note over B,P: Por cada mensaje: firma HMAC,<br/>ventana sent_at → received_at ≤ 300 s,<br/>deduplicación por event_id
+    B->>P: INSERT de los eventos del lote (una transacción por lote)
+    P-->>B: COMMIT
+    B->>V: XACK del lote procesado
+    B->>V: XADD commands: event_ack(event_id), uno por evento
+    V-->>A: event_ack firmado
+    Note over A,V: Elimina de la cola local la entrada confirmada
+    Note over A,P: Entrega al menos una vez con persistencia deduplicada (UNIQUE(event_id)).<br/>Los efectos laterales fuera de la transacción pueden repetirse y deben tolerarse.

@@ -1,0 +1,30 @@
+digraph G {
+  graph [fontname="DejaVu Sans" fontsize=15 dpi=300 pad=0.2 nodesep=0.5 ranksep=0.6 bgcolor=white];
+  node  [fontname="DejaVu Sans" fontsize=14];
+  edge  [fontname="DejaVu Sans" fontsize=12 color="#333333" fontcolor="#222222" arrowsize=0.8];
+  rankdir=LR; compound=true;
+subgraph cluster_host { label=<<B>ANFITRIÓN MONITOREADO</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#9AA3AD" fontsize=16 margin=16;
+fan [shape=plain label=<<TABLE BORDER="1" COLOR="#6C757D" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" STYLE="ROUNDED"><TR><TD BGCOLOR="#F1F3F5"><B>fanotify</B></TD></TR><TR><TD BGCOLOR="white" ALIGN="LEFT"><TABLE BORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT" BALIGN="LEFT">Observación del sistema de archivos</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">FAN_REPORT_DFID_NAME · FAN_MARK_FILESYSTEM</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Requiere capacidades del anfitrión</TD></TR></TABLE></TD></TR></TABLE>>];
+agent [shape=plain label=<<TABLE BORDER="1" COLOR="#5B7DB1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" STYLE="ROUNDED"><TR><TD BGCOLOR="#EAF1FB"><B>Agente FIM (servicio systemd)</B></TD></TR><TR><TD BGCOLOR="white" ALIGN="LEFT"><TABLE BORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT" BALIGN="LEFT">Baseline restaurable cifrada local</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Reconciliación de la baseline al arrancar</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Cola local FIFO y journal</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Motor de decisión (4 acciones)</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Cuarentena cifrada con liberación</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Firma HMAC de eventos · verifica comandos</TD></TR></TABLE></TD></TR></TABLE>>];
+fan -> agent [dir=both]; {rank=same; fan; agent;}
+}
+subgraph cluster_srv { label=<<B>SERVIDOR CENTRAL · DOCKER COMPOSE</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#9AA3AD" fontsize=16 margin=16;
+valkey [shape=plain label=<<TABLE BORDER="1" COLOR="#C9A227" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" STYLE="ROUNDED"><TR><TD BGCOLOR="#FFF6D6"><B>Valkey Streams</B></TD></TR><TR><TD BGCOLOR="white" ALIGN="LEFT"><TABLE BORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT" BALIGN="LEFT">events · commands · heartbeat</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">TLS con certificado de cliente (6380)</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Persistencia AOF</TD></TR></TABLE></TD></TR></TABLE>>];
+backend [shape=plain label=<<TABLE BORDER="1" COLOR="#5B7DB1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" STYLE="ROUNDED"><TR><TD BGCOLOR="#EAF1FB"><B>Backend FastAPI (instancia única)</B></TD></TR><TR><TD BGCOLOR="white" ALIGN="LEFT"><TABLE BORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT" BALIGN="LEFT">API y lógica de dominio por módulos</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Transacción por lote del consumidor</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Límite de ingesta por agente</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Secreto HMAC cifrado en reposo</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">CA propia (mTLS) · bandeja de comandos</TD></TR></TABLE></TD></TR></TABLE>>];
+pg [shape=plain label=<<TABLE BORDER="1" COLOR="#4A8F5A" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" STYLE="ROUNDED"><TR><TD BGCOLOR="#E6F4EA"><B>PostgreSQL 18</B></TD></TR><TR><TD BGCOLOR="white" ALIGN="LEFT"><TABLE BORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT" BALIGN="LEFT">events: depuración a 30 días*</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">rejected_events_audit: 90 días</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">audit_log: no se depura (RN-94)</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">schema_migrations</TD></TR></TABLE></TD></TR></TABLE>>];
+front [shape=plain label=<<TABLE BORDER="1" COLOR="#6C757D" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" STYLE="ROUNDED"><TR><TD BGCOLOR="#F1F3F5"><B>Frontend + nginx</B></TD></TR><TR><TD BGCOLOR="white" ALIGN="LEFT"><TABLE BORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT" BALIGN="LEFT">Consola web</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">HTTP/SSE con el backend</TD></TR></TABLE></TD></TR></TABLE>>];
+n8n [shape=plain label=<<TABLE BORDER="1" COLOR="#6C757D" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" STYLE="ROUNDED"><TR><TD BGCOLOR="#F1F3F5"><B>n8n</B></TD></TR><TR><TD BGCOLOR="white" ALIGN="LEFT"><TABLE BORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT" BALIGN="LEFT">Enrutamiento de notificaciones</TD></TR><TR><TD ALIGN="LEFT" BALIGN="LEFT">Evaluado hasta Mailpit (SMTP local)</TD></TR></TABLE></TD></TR></TABLE>>];
+{rank=same; valkey; backend;}
+backend -> valkey [dir=both xlabel="consume events\npublica commands  "];
+backend -> pg [label="persistencia" color="#4A8F5A" fontcolor="#2E6B3C"];
+backend -> front [label="HTTP/SSE" dir=both];
+backend -> n8n [label="webhook"];
+{rank=same; pg; front; n8n;}
+}
+ext [shape=plain label=<<TABLE BORDER="1" COLOR="#6C757D" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" STYLE="ROUNDED"><TR><TD BGCOLOR="#F1F3F5"><B>Canales externos</B></TD></TR><TR><TD BGCOLOR="white" ALIGN="LEFT"><TABLE BORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT" BALIGN="LEFT">SMTP / mensajería</TD></TR></TABLE></TD></TR></TABLE>>];
+  agent -> backend [label="mTLS · TLS 1.3" color="#5B7DB1" fontcolor="#2F4F7F" dir=both];
+  agent -> valkey [label="events, heartbeat →\n← commands firmados" color="#A07D10" fontcolor="#7A5C00" dir=both];
+  n8n -> ext;
+  backend -> ext [style=dashed label="alternativas: SMTP / webhook directo"];
+  label="* Los eventos referenciados por auditoría quedan exceptuados de la depuración."; labelloc=b; fontsize=12;
+}

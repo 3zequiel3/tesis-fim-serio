@@ -1,0 +1,45 @@
+digraph G {
+  graph [fontname="DejaVu Sans" fontsize=15 dpi=300 pad=0.2 nodesep=0.5 ranksep=0.6 bgcolor=white];
+  node  [fontname="DejaVu Sans" fontsize=14];
+  edge  [fontname="DejaVu Sans" fontsize=12 color="#333333" fontcolor="#222222" arrowsize=0.8];
+  rankdir=TB; compound=true; nodesep=0.35; ranksep=0.55;
+subgraph cluster_ag { label=<<FONT POINT-SIZE="11">«subsystem»</FONT><BR/><B>Agente FIM · anfitrión monitoreado</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#5B7DB1" margin=12;
+obs [shape=component style=filled fillcolor="#EAF1FB" color="#5B7DB1" label=<<B>Observador</B><BR/><FONT POINT-SIZE="11">fanotify</FONT>>];
+hsh [shape=component style=filled fillcolor="#EAF1FB" color="#5B7DB1" label=<<B>Calculador de huellas</B><BR/><FONT POINT-SIZE="11">SHA-256</FONT>>];
+dec [shape=component style=filled fillcolor="#EAF1FB" color="#5B7DB1" label=<<B>Motor de decisión</B><BR/><FONT POINT-SIZE="11">reglas locales · 4 acciones</FONT>>];
+com [shape=component style=filled fillcolor="#EAF1FB" color="#5B7DB1" label=<<B>Comunicador</B><BR/><FONT POINT-SIZE="11">Valkey · HMAC · FIFO estricto</FONT>>];
+sto [shape=component style=filled fillcolor="#EAF1FB" color="#5B7DB1" label=<<B>Almacenamiento local</B><BR/><FONT POINT-SIZE="11">baseline cifrada · cola · cuarentena · journal</FONT>>];
+rec [shape=component style=filled fillcolor="#EAF1FB" color="#5B7DB1" label=<<B>Recuperador</B><BR/><FONT POINT-SIZE="11">rehidratación y reconciliación al arrancar</FONT>>];
+obs->hsh->dec->com; hsh->sto [dir=both]; dec->sto [dir=both]; com->sto; rec->sto; rec->obs [label=" instala marcas" constraint=false];
+{rank=same; obs; hsh; dec; com;} {rank=same; sto; rec;}
+}
+valkey [shape=box style="rounded,filled" fillcolor="#FFF6D6" color="#C9A227" label=<<FONT POINT-SIZE="11">«infrastructure»</FONT><BR/><B>Valkey Streams</B><BR/><FONT POINT-SIZE="11">TLS con certificado de cliente · AOF</FONT>>];
+pg [shape=cylinder style=filled fillcolor="#E6F4EA" color="#4A8F5A" label=<<B>PostgreSQL</B>>];
+subgraph cluster_be { label=<<FONT POINT-SIZE="11">«subsystem»</FONT><BR/><B>Backend · organización por dominio</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#6F5BA7" margin=12;
+act [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>acciones</B><BR/><FONT POINT-SIZE="11">cuarentena y liberación</FONT>>];
+rul [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>reglas</B><BR/><FONT POINT-SIZE="11">CRUD + sync</FONT>>];
+evs [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>eventos</B><BR/><FONT POINT-SIZE="11">consumidor por lote</FONT>>];
+agt [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>agentes</B><BR/><FONT POINT-SIZE="11">secreto cifrado</FONT>>];
+auth [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>autenticación</B>>];
+aud [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>auditoría</B>>];
+alr [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>alertas</B>>];
+ntf [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>notificaciones</B><BR/><FONT POINT-SIZE="11">executor propio</FONT>>];
+hlt [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>salud</B>>];
+core [shape=component style=filled fillcolor="#F1ECFA" color="#6F5BA7" label=<<B>core transversal</B><BR/><FONT POINT-SIZE="11">migraciones · límite de ingesta</FONT>>];
+{rank=same; act; rul; evs; agt; auth;} {rank=same; aud; alr; ntf; hlt; core;} act->aud [style=invis]; rul->alr [style=invis]; evs->ntf [style=invis]; agt->hlt [style=invis]; auth->core [style=invis]; act->rul->evs->agt->auth [style=invis]; aud->alr->ntf->hlt->core [style=invis];
+}
+subgraph cluster_fe { label=<<FONT POINT-SIZE="11">«subsystem»</FONT><BR/><B>Frontend · React/Vite</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#4A8F5A" margin=12;
+cmps [shape=component style=filled fillcolor="#E6F4EA" color="#4A8F5A" label=<<B>components</B><BR/><FONT POINT-SIZE="11">layout + UI</FONT>>];
+pages [shape=component style=filled fillcolor="#E6F4EA" color="#4A8F5A" label=<<B>pages</B><BR/><FONT POINT-SIZE="11">vistas</FONT>>];
+stores [shape=component style=filled fillcolor="#E6F4EA" color="#4A8F5A" label=<<B>stores</B><BR/><FONT POINT-SIZE="11">Zustand</FONT>>];
+api [shape=component style=filled fillcolor="#E6F4EA" color="#4A8F5A" label=<<B>api</B><BR/><FONT POINT-SIZE="11">cliente HTTP</FONT>>];
+pages->stores->api [constraint=false]; pages->cmps [constraint=false]; {rank=same; cmps; pages; stores; api;} cmps->pages->stores->api [style=invis];
+}
+sto -> valkey [style=invis]; valkey -> evs [style=invis]; alr -> pages [style=invis]; core -> api [style=invis]; core -> pg [style=invis];
+com -> valkey [label=" eventos →  ← comandos" dir=both color="#A07D10" fontcolor="#7A5C00"];
+valkey -> evs [label=" consume eventos" color="#5B7DB1"];
+rul -> valkey [label=" publica comandos" color="#5B7DB1" constraint=false];
+com -> auth [label=" agente ↔ backend:\n TLS 1.3 + mTLS" dir=both constraint=false];
+core -> pg [dir=both];
+api -> auth [label=" HTTP / SSE (API)" dir=both constraint=false];
+}

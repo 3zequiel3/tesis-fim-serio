@@ -1,0 +1,24 @@
+digraph G {
+  graph [fontname="DejaVu Sans" fontsize=15 dpi=300 pad=0.2 nodesep=0.5 ranksep=0.6 bgcolor=white];
+  node  [fontname="DejaVu Sans" fontsize=14];
+  edge  [fontname="DejaVu Sans" fontsize=12 color="#333333" fontcolor="#222222" arrowsize=0.8];
+  rankdir=LR; nodesep=0.45; ranksep=1.1;
+ini [shape=circle style=filled fillcolor="#222222" label="" width=0.22];
+fin [shape=doublecircle style=filled fillcolor="#222222" color="#222222" label="" width=0.18];
+pend [shape=box style="rounded,filled" fillcolor="#FFF6D6" color="#C9A227" label=<<FONT FACE="DejaVu Sans Mono" POINT-SIZE="15"><B>pending</B></FONT><BR/><FONT POINT-SIZE="11">requiere revisión humana</FONT>> width=2.4 height=0.8];
+appr [shape=box style="rounded,filled" fillcolor="#EAF1FB" color="#5B7DB1" label=<<FONT FACE="DejaVu Sans Mono" POINT-SIZE="15"><B>approved</B></FONT><BR/><FONT POINT-SIZE="11">«terminal»</FONT>> width=2.4 height=0.8];
+rej [shape=box style="rounded,filled" fillcolor="#EAF1FB" color="#5B7DB1" label=<<FONT FACE="DejaVu Sans Mono" POINT-SIZE="15"><B>rejected</B></FONT><BR/><FONT POINT-SIZE="11">«terminal» · quarantine_state derivado:<BR/>none · quarantined · released · discarded</FONT>> width=2.4 height=0.8];
+sup [shape=box style="rounded,filled" fillcolor="#EAF1FB" color="#5B7DB1" label=<<FONT FACE="DejaVu Sans Mono" POINT-SIZE="15"><B>superseded</B></FONT><BR/><FONT POINT-SIZE="11">«terminal»</FONT>> width=2.4 height=0.8];
+ar [shape=box style="rounded,filled" fillcolor="#E6F4EA" color="#4A8F5A" label=<<FONT FACE="DejaVu Sans Mono" POINT-SIZE="15"><B>auto_restored</B></FONT><BR/><FONT POINT-SIZE="11">«terminal · agente»</FONT>> width=2.4 height=0.8];
+qu [shape=box style="rounded,filled" fillcolor="#E6F4EA" color="#4A8F5A" label=<<FONT FACE="DejaVu Sans Mono" POINT-SIZE="15"><B>quarantined</B></FONT><BR/><FONT POINT-SIZE="11">«terminal · agente»</FONT>> width=2.4 height=0.8];
+ao [shape=box style="rounded,filled" fillcolor="#E6F4EA" color="#4A8F5A" label=<<FONT FACE="DejaVu Sans Mono" POINT-SIZE="15"><B>alert_only</B></FONT><BR/><FONT POINT-SIZE="11">«terminal · agente»</FONT>> width=2.4 height=0.8];
+ini -> pend [label="manual_review"];
+ini -> ar [label="auto_restore"];
+ini -> qu [label="quarantine"];
+ini -> ao [label="alert_only / por defecto"];
+pend -> appr [label="el administrador aprueba"];
+pend -> rej [label="el administrador rechaza"];
+pend -> sup [label="nuevo evento en la ruta\no nuevo escaneo"];
+{appr rej sup ar qu ao} -> fin;
+{rank=same; appr; rej; sup; ar; qu; ao;}
+}

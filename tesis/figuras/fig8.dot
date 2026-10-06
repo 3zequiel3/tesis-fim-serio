@@ -1,0 +1,26 @@
+digraph G {
+  graph [fontname="DejaVu Sans" fontsize=15 dpi=300 pad=0.2 nodesep=0.5 ranksep=0.6 bgcolor=white];
+  node  [fontname="DejaVu Sans" fontsize=14];
+  edge  [fontname="DejaVu Sans" fontsize=12 color="#333333" fontcolor="#222222" arrowsize=0.8];
+  rankdir=TB; nodesep=0.6; ranksep=0.45;
+ev [shape=box style="rounded,filled" fillcolor="#F1F3F5" color="#6C757D" label=<<B>Evento con severidad crítica o alta</B><BR/><FONT POINT-SIZE="11">dispatcher.send(event) · executor propio de notificación<BR/>hasta 32 entregas concurrentes (Change 59)</FONT>> width=4.2];
+q [shape=diamond style=filled fillcolor=white color="#5B7DB1" label="¿URL del webhook\nde n8n configurada?" fontsize=12];
+p [shape=box style="rounded,filled" fillcolor="#EAF1FB" color="#5B7DB1" label=<<B>Principal: webhook HTTP → n8n</B><BR/><FONT POINT-SIZE="11">un intento y tres reintentos, esperas de 5, 30 y 120 s · tiempo de espera de 10 s<BR/>cliente HTTP de larga vida con TLS verificado (Change 70)</FONT>> width=4.2];
+a1 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Alternativa 1: SMTP directo</B><BR/><FONT POINT-SIZE="11">aiosmtplib, si está configurado · tiempo de espera de 60 s</FONT>> width=4.2];
+a2 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Alternativa 2: webhook directo</B><BR/><FONT POINT-SIZE="11">si está configurado · tiempo de espera de 10 s</FONT>> width=4.2];
+a3 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Alternativa 3: log CRITICAL estructurado</B><BR/><FONT POINT-SIZE="11">siempre</FONT>> width=4.2];
+ok [shape=box style="rounded,filled" fillcolor="#E6F4EA" color="#4A8F5A" label=<<B>Registro en alerts: entrega</B><BR/><FONT POINT-SIZE="11">channel_accepted_at al aceptar el canal · delivered_at al entregar</FONT>> width=4.2];
+ko [shape=box style="rounded,filled" fillcolor="#FDECEC" color="#B85450" label=<<B>Registro en alerts: fallo terminal</B><BR/><FONT POINT-SIZE="11">failed_at con valor · delivered_at sin valor<BR/>reintento manual · aviso en la consola</FONT>> width=4.2];
+hc [shape=box style="rounded,dashed,filled" fillcolor="#F7F8FA" color="#9AA3AD" label=<<B>Verificación de salud de n8n</B><BR/><FONT POINT-SIZE="11">independiente del despacho · GET a la URL de salud (3 s)<BR/>alimenta el panel de infraestructura; no decide la entrega</FONT>> width=4.2];
+ev -> q;
+q -> p [label=" sí"];
+q -> a1 [label=" no" style=dashed];
+p -> ok [label=" el canal acepta" color="#4A8F5A"];
+p -> a1 [label=" falla tras 4 intentos (≤ 195 s)" style=dashed];
+a1 -> a2 [label=" si falla o no está configurada" style=dashed];
+a2 -> a3 [label=" si falla o no está configurada" style=dashed];
+a3 -> ko [label=" ningún canal configurado aceptó"];
+a1 -> ok [style=dotted color="#4A8F5A"]; a2 -> ok [style=dotted color="#4A8F5A"];
+{rank=same; q; hc;}
+{rank=same; ok; a2;}
+}

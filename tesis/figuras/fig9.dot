@@ -1,0 +1,37 @@
+digraph G {
+  graph [fontname="DejaVu Sans" fontsize=15 dpi=300 pad=0.2 nodesep=0.5 ranksep=0.6 bgcolor=white];
+  node  [fontname="DejaVu Sans" fontsize=14];
+  edge  [fontname="DejaVu Sans" fontsize=12 color="#333333" fontcolor="#222222" arrowsize=0.8];
+  rankdir=LR; compound=true; nodesep=0.35; ranksep=0.9;
+subgraph cluster_host { label=<<FONT POINT-SIZE="11">«device»</FONT><BR/><B>Anfitrión monitoreado (Linux)</B>> style="filled" fillcolor="#F7F8FA" color="#6C757D" margin=14;
+ subgraph cluster_sysd { label=<<FONT POINT-SIZE="11">«executionEnvironment»</FONT><BR/><B>systemd</B>> style="filled" fillcolor="#FFFFFF" color="#9AA3AD";
+agent [shape=box3d style=filled fillcolor="#EAF1FB" color="#5B7DB1" label=<<FONT POINT-SIZE="11">«component»</FONT><BR/><B>Agente FIM</B><BR/><FONT POINT-SIZE="11">fim-agent.service</FONT>> width=2.6];
+base [shape=note style=filled fillcolor="white" color="#6C757D" label=<<FONT POINT-SIZE="10">«artifact»</FONT><BR/>Baseline cifrada<BR/><FONT POINT-SIZE="10">/var/lib/fim-agent/baseline/</FONT>> fontsize=12];
+queue [shape=note style=filled fillcolor="white" color="#6C757D" label=<<FONT POINT-SIZE="10">«artifact»</FONT><BR/>Cola local<BR/><FONT POINT-SIZE="10">/var/lib/fim-agent/queue/</FONT>> fontsize=12];
+ }
+}
+subgraph cluster_srv { label=<<FONT POINT-SIZE="11">«device»</FONT><BR/><B>Servidor central (Linux)</B>> style="filled" fillcolor="#F7F8FA" color="#6C757D" margin=14;
+ subgraph cluster_dc { label=<<FONT POINT-SIZE="11">«executionEnvironment»</FONT><BR/><B>Docker Compose · red fim_internal</B>> style="filled" fillcolor="#FFFFFF" color="#9AA3AD";
+valkey [shape=box3d style=filled fillcolor="#FFF6D6" color="#C9A227" label=<<FONT POINT-SIZE="11">«container»</FONT><BR/><B>Valkey 9.0.3</B><BR/><FONT POINT-SIZE="11">Streams · AOF</FONT>> width=2.6];
+backend [shape=box3d style=filled fillcolor="#EAF1FB" color="#5B7DB1" label=<<FONT POINT-SIZE="11">«container»</FONT><BR/><B>Backend FastAPI</B><BR/><FONT POINT-SIZE="11">fim-backend · instancia única</FONT>> width=2.6];
+pg [shape=box3d style=filled fillcolor="#E6F4EA" color="#4A8F5A" label=<<FONT POINT-SIZE="11">«container»</FONT><BR/><B>PostgreSQL 18.3</B>> width=2.6];
+n8n [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D" label=<<FONT POINT-SIZE="11">«container»</FONT><BR/><B>n8n 2.17.8</B>> width=2.6];
+front [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D" label=<<FONT POINT-SIZE="11">«container»</FONT><BR/><B>Frontend</B><BR/><FONT POINT-SIZE="11">nginx · React</FONT>> width=2.6];
+certs [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D" label=<<FONT POINT-SIZE="11">«container»</FONT><BR/><B>certs-init</B><BR/><FONT POINT-SIZE="11">ejecución única</FONT>> width=2.6];
+secret [shape=note style=filled fillcolor="white" color="#6C757D" label=<<FONT POINT-SIZE="10">«artifact»</FONT><BR/>Clave de envoltura<BR/><FONT POINT-SIZE="10">volumen backend_secrets</FONT>> fontsize=12];
+ }
+}
+browser [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D" label=<<FONT POINT-SIZE="11">«device»</FONT><BR/><B>Estación del operador</B><BR/><FONT POINT-SIZE="11">navegador</FONT>>];
+smtp [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D" label=<<FONT POINT-SIZE="11">«device»</FONT><BR/><B>Servidor SMTP</B><BR/><FONT POINT-SIZE="11">Mailpit en la evaluación</FONT>>];
+agent -> backend [dir=both label="HTTPS mTLS · TLS 1.3\n8443 (registro inicial: 8444)" color="#5B7DB1" fontcolor="#2F4F7F"];
+agent -> valkey [dir=both label="RESP sobre TLS, certificado de cliente · 6380" color="#A07D10" fontcolor="#7A5C00"];
+backend -> valkey [dir=both label="RESP sobre TLS · 6380"];
+backend -> pg [label="SQL · 5432"];
+backend -> n8n [label="HTTP webhook · 5678"];
+front -> backend [label="HTTP interno · 8000"];
+browser -> front [label="HTTPS · 443"];
+n8n -> smtp [label="SMTP"];
+certs -> secret [style=dashed label="genera"];
+backend -> secret [style=dashed label="lee (sólo lectura)"];
+base -> agent [style=dotted arrowhead=none]; queue -> agent [style=dotted arrowhead=none]; agent -> front [style=invis]; agent -> certs [style=invis]; browser -> front [style=invis];
+}
