@@ -16,7 +16,7 @@ import zipfile
 from html import unescape
 
 PREFIJOS = r"(?:tesis|scripts|agent|backend|frontend|docs|n8n|openspec|lab|deploy)"
-PATRON = re.compile(PREFIJOS + r"/[\w./\-]+")
+PATRON = re.compile(r"(?<![\w/.:-])" + PREFIJOS + r"/[\w./\-]+")
 
 
 def texto_de(ruta: str) -> str:
