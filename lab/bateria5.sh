@@ -13,7 +13,10 @@ cd "$REPO" || exit 1
 # shellcheck source=lib_arnes.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib_arnes.sh"
 
-ts() { date -u +%Y-%m-%dT%H:%M:%S.%6NZ; }
+# Marcas de tiempo con Python: la utilidad date del anfitrión omite el cero inicial de la
+# fracción de segundo cuando es menor a 0,1 s (56.080 se escribía 56.80); ver tesis, apartado 6.4.
+ts() { python3 -c 'import datetime as d; print(d.datetime.now(d.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))'; }
+epoch() { python3 -c 'import time; print(f"{time.time():.6f}")'; }
 log() { echo "[$(ts)] $*" | tee -a "$LOG"; }
 
 # The caller provides the COMPLETE list of compose files (DC_FILES, space separated):
@@ -98,7 +101,7 @@ log "--- phase 3: restore Valkey and time the drain ---"
 log "FIN_CORTE t=$(ts)"
 # t0 is the instant connectivity is actually restored: the TLS port serving again.
 for _ in $(seq 1 60); do [ "$(q_valkey)" = "1" ] && break; sleep 1; done
-T0=$(date -u +%s.%N)
+T0=$(epoch)
 log "valkey up (t0); valkey_6380=$(q_valkey)"
 
 PREV=-1; STABLE=0
@@ -113,7 +116,7 @@ for i in $(seq 1 1400); do
   # under the nominal budget the agent discards after max_attempts, so events may
   # legitimately end below 3000 — that outcome is the measurement, not a failure.
   if [ "${QS:-1}" = "0" ] && [ "$STABLE" -ge 3 ]; then
-    T1=$(date -u +%s.%N)
+    T1=$(epoch)
     log "DRAIN COMPLETE: events=$EV queue=$QS discarded=$DS"
     log "drain_duration_s=$(echo "$T1 - $T0" | bc)"
     log "throughput_ev_s=$(echo "scale=4; $EV / ($T1 - $T0)" | bc)"
@@ -121,7 +124,7 @@ for i in $(seq 1 1400); do
     break
   fi
   if [ "$STABLE" -ge 120 ]; then
-    T1=$(date -u +%s.%N)
+    T1=$(epoch)
     log "STALLED 10 min without progress: events=$EV queue=$QS discarded=$DS"
     log "duration_to_stall_s=$(echo "$T1 - $T0" | bc)"
     break
