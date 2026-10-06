@@ -97,3 +97,7 @@ resultados/
 !/tesis/cierre/evidencia/v10-closure-20260912T190052Z/lanes/
 !/tesis/cierre/evidencia/v10-closure-20260912T190052Z/m8/
 !/tesis/cierre/evidencia/v10-closure-20260912T190052Z/m9/
+
+# Custody binaries of the coverage packages exceed GitHub's 100 MB limit; hashes are in the package.
+/tesis/cierre/evidencia/*-cobertura-custodia-*/custody/candidate.bundle
+/tesis/cierre/evidencia/*-cobertura-custodia-*/custody/candidate-tree.tar.gz
