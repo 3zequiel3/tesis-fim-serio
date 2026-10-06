@@ -1,0 +1,88 @@
+/home/ezequiel/Facultad/tesis/tesis-fim-serio/backend/.venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-8.3.4, pluggy-1.6.0
+rootdir: /home/ezequiel/tesis-worktrees/candidato-v5.1-tesis-cov/agent
+configfile: pyproject.toml
+plugins: anyio-4.14.0, timeout-2.3.1, asyncio-0.25.2, cov-6.0.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None
+collected 811 items
+
+agent/tests/integration/test_install_sh_container.py ...........         [  1%]
+agent/tests/test_agent_config.py ...............                         [  3%]
+agent/tests/test_audit_fixes.py ....................                     [  5%]
+agent/tests/test_baseline.py .............................               [  9%]
+agent/tests/test_baseline_restore.py ...........                         [ 10%]
+agent/tests/test_bootstrap.py .....                                      [ 11%]
+agent/tests/test_cert_renewal.py ...........                             [ 12%]
+agent/tests/test_commands.py ................................            [ 16%]
+agent/tests/test_decision.py .......................................     [ 21%]
+agent/tests/test_deployment_dropin.py ................                   [ 23%]
+agent/tests/test_detection_gap.py ......                                 [ 24%]
+agent/tests/test_detector_ack.py ........                                [ 25%]
+agent/tests/test_detector_binary_diff.py .......                         [ 25%]
+agent/tests/test_detector_context.py ......                              [ 26%]
+agent/tests/test_detector_dedup.py ....                                  [ 27%]
+agent/tests/test_detector_diff.py ..........                             [ 28%]
+agent/tests/test_detector_discard.py .                                   [ 28%]
+agent/tests/test_detector_draining.py ....                               [ 28%]
+agent/tests/test_detector_hash.py .........                              [ 30%]
+agent/tests/test_detector_multi_event.py s.........                      [ 31%]
+agent/tests/test_detector_reload.py .....                                [ 31%]
+agent/tests/test_drain_then_stop.py ....                                 [ 32%]
+agent/tests/test_event_payload_contract.py ....                          [ 32%]
+agent/tests/test_executed_commands.py .....                              [ 33%]
+agent/tests/test_experiment_trace.py ...                                 [ 33%]
+agent/tests/test_experiment_trace_publisher.py ...                       [ 34%]
+agent/tests/test_heartbeat_interval.py ..                                [ 34%]
+agent/tests/test_heartbeat_queue_pressure_high.py .....                  [ 35%]
+agent/tests/test_installer.py .......................................... [ 40%]
+..                                                                       [ 40%]
+agent/tests/test_journal.py ...........                                  [ 41%]
+agent/tests/test_journal_state_after_action_handlers.py ....             [ 42%]
+agent/tests/test_log_inspection.py ..                                    [ 42%]
+agent/tests/test_logging.py ....                                         [ 43%]
+agent/tests/test_logging_level.py ....                                   [ 43%]
+agent/tests/test_offline_reconcile.py ................................   [ 47%]
+agent/tests/test_preflight.py ...........                                [ 48%]
+agent/tests/test_preflight_startup.py ...                                [ 49%]
+agent/tests/test_publisher.py ............                               [ 50%]
+agent/tests/test_publisher_dispatch_integration.py .....                 [ 51%]
+agent/tests/test_publisher_fifo.py ..............                        [ 53%]
+agent/tests/test_quarantine.py ....................                      [ 55%]
+agent/tests/test_quarantine_baseline_preservation.py ................... [ 57%]
+........................                                                 [ 60%]
+agent/tests/test_quarantine_maintenance.py ...................           [ 63%]
+agent/tests/test_quarantine_release_store.py ...........                 [ 64%]
+agent/tests/test_queue.py .......................                        [ 67%]
+agent/tests/test_queue_encryption.py ....................                [ 69%]
+agent/tests/test_queue_inspect.py ......                                 [ 70%]
+agent/tests/test_reconnect_order.py .........                            [ 71%]
+agent/tests/test_release_quarantine.py ................................. [ 75%]
+.....                                                                    [ 76%]
+agent/tests/test_resilience_fixes.py ....................                [ 78%]
+agent/tests/test_restore_feedback_loop.py ................               [ 80%]
+agent/tests/test_restore_metadata.py ........                            [ 81%]
+agent/tests/test_rules.py ........                                       [ 82%]
+agent/tests/test_scope_filter.py .....................                   [ 85%]
+agent/tests/test_shutdown_heartbeat.py ............                      [ 86%]
+agent/tests/test_stability_fixes.py ...............                      [ 88%]
+agent/tests/test_state_initialized_roots.py ....                         [ 89%]
+agent/tests/test_stream_ack_durability.py .............................. [ 92%]
+.........                                                                [ 94%]
+agent/tests/test_streams.py .............                                [ 95%]
+agent/tests/test_symlink_hardening.py .......................            [ 98%]
+agent/tests/test_transport.py ............                               [100%]
+
+- generated xml file: /home/ezequiel/Facultad/tesis/tesis-fim-serio/tesis/cierre/evidencia/v5.1-tesis-cobertura-custodia-20261005T235409Z/suites/agente.xml -
+
+---------- coverage: platform linux, python 3.13.14-final-0 ----------
+Coverage XML written to file /home/ezequiel/Facultad/tesis/tesis-fim-serio/tesis/cierre/evidencia/v5.1-tesis-cobertura-custodia-20261005T235409Z/coverage/agent-coverage.xml
+Coverage JSON written to file /home/ezequiel/Facultad/tesis/tesis-fim-serio/tesis/cierre/evidencia/v5.1-tesis-cobertura-custodia-20261005T235409Z/coverage/agent-coverage.json
+
+================== 810 passed, 1 skipped in 169.30s (0:02:49) ==================

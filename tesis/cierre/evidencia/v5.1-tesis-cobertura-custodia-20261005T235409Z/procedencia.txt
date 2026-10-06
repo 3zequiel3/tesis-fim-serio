@@ -1,0 +1,6 @@
+tag=v5.1-tesis
+commit=404402a9049d6cba63f1cd122279c963bdceaf79
+tree=56d42646e744d61b192ddeda7169e08a42c100d5
+generado_utc=20261005T235409Z
+recuperacion_desde_bundle=ok
+archivo_determinista=ok

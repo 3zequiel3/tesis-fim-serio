@@ -1,0 +1,11 @@
+agent     lineas  82.09 % (3777/4601)
+backend   lineas  94.98 % (4069/4284)
+frontend  lines       88.33 % (3778/4277)
+frontend  statements  88.33 % (3778/4277)
+frontend  functions   77.30 % (235/304)
+frontend  branches    84.02 % (831/989)
+agente.xml    tests=811 fallas=0 errores=0 omitidos=1
+backend.xml   tests=1106 fallas=0 errores=0 omitidos=4
+frontend.xml  tests=298 fallas=0 errores=0 omitidos=0
+bundle_sha256=2544b515f0438b1332c56cd1bc08aae58fde946f019d62c8f971ddd396cf6242
+archivo_sha256=57b0ed50cc5955796f7c10af9fd4270aa1ce8e3ecce4a1a73984e6c17506c68f
