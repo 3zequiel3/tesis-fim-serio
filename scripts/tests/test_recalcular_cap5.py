@@ -46,3 +46,20 @@ def test_a_changed_expected_value_fails(tmp_path: Path) -> None:
     result = run("--esperados", str(alterado), "--solo-diferencias")
     assert result.returncode == 1
     assert "DIFIERE tabla17.combinado.p99" in result.stdout
+
+
+def test_thesis_number_format() -> None:
+    assert rc5.formato_tesis(41.73, 2) == "41,73"
+    assert rc5.formato_tesis(16193.6, 1) == "16.193,6"
+    assert rc5.formato_tesis(1494, 0) == "1.494"
+    assert rc5.formato_tesis(1.21e-94, "rel") == "1,21 × 10⁻⁹⁴"
+
+
+def test_values_appear_in_the_versioned_document() -> None:
+    documentos = sorted((REPO / "tesis" / "entrega").glob("*.docx")) if (REPO / "tesis" / "entrega").is_dir() else []
+    if not documentos:
+        import pytest
+        pytest.skip("no hay un documento versionado en tesis/entrega/")
+    result = run("--docx", str(documentos[-1]), "--solo-diferencias")
+    assert result.returncode == 0, result.stdout[-2000:]
+    assert "no figuran: 0" in result.stdout

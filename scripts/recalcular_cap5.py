@@ -16,8 +16,15 @@ Cada valor esperado lleva los decimales con que la tesis lo informa; la
 comparación acepta solo la diferencia de redondeo de esos decimales. Sale con
 código 1 si algún valor difiere o falta, y con 0 si todos coinciden.
 
+Con --docx, comprueba además que cada valor esperado figure, con el formato de
+la tesis (41,73; 16.193,6; 1,21 × 10⁻⁹⁴), en la celda que le corresponde de la
+tabla del documento: así la cadena queda cerrada de punta a punta, evidencia →
+scripts → valores_esperados.json → documento. Los valores que el documento no
+informa en una tabla se buscan en la nota de la tabla o en el Anexo L.3.
+
 Uso, desde la raíz del clon:
-    python scripts/recalcular_cap5.py [--esperados tesis/cierre/valores_esperados.json] [--solo-diferencias]
+    python scripts/recalcular_cap5.py [--esperados tesis/cierre/valores_esperados.json]
+                                      [--docx tesis/entrega/<documento>.docx] [--solo-diferencias]
 
 Sólo biblioteca estándar; los scripts que invoca, también.
 """
@@ -26,13 +33,16 @@ from __future__ import annotations
 
 import argparse
 import csv
+import html
 import json
+import math
 import os
 import re
 import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -262,6 +272,154 @@ def comparar(esperado, obtenido, ruta: str, filas: list) -> None:
     filas.append((ok, ruta, obtenido, valor, dec))
 
 
+# ── comparación con el documento (.docx) ──────────────────────────────────────
+SUPER = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def formato_tesis(valor, dec) -> str:
+    """El número como lo escribe la tesis: coma decimal, punto de miles, potencias de 10."""
+    if dec == "rel":
+        exp = math.floor(math.log10(abs(valor)))
+        mant = valor / 10 ** exp
+        return f"{mant:.2f}".replace(".", ",") + " × 10" + str(exp).translate(SUPER)
+    texto = f"{valor:,.{dec}f}" if dec else f"{round(valor):,}"
+    return texto.replace(",", "§").replace(".", ",").replace("§", ".")
+
+
+def leer_docx(docx: Path) -> tuple[dict, list[str]]:
+    """Tablas numeradas (filas de celdas y nota) y párrafos del documento."""
+    x = zipfile.ZipFile(docx).read("word/document.xml").decode("utf-8")
+    body = x[x.find("<w:body>"):]
+    texto = lambda s: html.unescape("".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", s)))  # noqa: E731
+    items = re.findall(r"<w:p[ >].*?</w:p>|<w:tbl>.*?</w:tbl>", body, flags=re.S)
+    tablas, parrafos = {}, []
+    for i, g in enumerate(items):
+        if not g.startswith("<w:p"):
+            continue
+        t = texto(g)
+        parrafos.append(t)
+        m = re.match(r"Tabla (\d+)\.", t)
+        if m and i + 1 < len(items) and items[i + 1].startswith("<w:tbl>"):
+            filas = [[texto(c) for c in re.findall(r"<w:tc>.*?</w:tc>", r, flags=re.S)]
+                     for r in re.findall(r"<w:tr[ >].*?</w:tr>", items[i + 1], flags=re.S)]
+            nota = texto(items[i + 2]) if i + 2 < len(items) and texto(items[i + 2]).startswith("Nota.") else ""
+            tablas[int(m.group(1))] = {"filas": filas, "nota": nota}
+    return tablas, parrafos
+
+
+# Para cada valor: tabla, fila (comienzo del rótulo) y columna (rótulo o réplica).
+FILAS = {
+    "tabla17": {"n": "Eventos", "media": "Media", "p50": "P50", "p95": "P95", "p99": "P99",
+                "ic_bajo": "IC 95 % del P99", "ic_alto": "IC 95 % del P99", "min": "Mín.", "max": "Máx."},
+    "tabla18": {"detectadas": "Detectadas por el control", "no_detectadas": "No detectadas",
+                "no_detectadas_pct": "No detectadas", "colapso": "No detectadas por colapso",
+                "nunca_observadas": "No detectadas por colapso", "archivo_marcado": "Archivo marcado",
+                "archivo_marcado_pct": "Archivo marcado", "invisibles_pct": "Invisibles",
+                "patron_simple": "No detectadas por patrón", "patron_colapsado": "No detectadas por patrón",
+                "patron_revertido": "No detectadas por patrón", "patron_efimero": "No detectadas por patrón",
+                "mediana_ms": "Mediana", "p99_ms": "Percentil 99", "media_ms": "Media / desvío",
+                "desvio_ms": "Media / desvío", "min_ms": "Mínimo / máximo", "max_ms": "Mínimo / máximo"},
+    "tabla19": {"prop_artefacto": "Proporción detectada, artefacto", "prop_control": "Proporción detectada, control",
+                "diferencia": "Diferencia de proporciones", "b": "Pares discordantes", "c": "Pares discordantes",
+                "ic_con_phi": "IC 95 % de Newcombe", "mcnemar": "McNemar", "p": "McNemar"},
+    "tabla21": {"encolados": "Eventos encolados", "persistidos": "Persistidos", "unicos": "Persistidos",
+                "duplicados": "Persistidos", "descartados": "Descartados", "fuera_de_orden": "Entregas fuera de orden",
+                "reconexion_s": "Reconexión", "sin_consumo_s": "Tramo sin consumo", "consumo_s": "Consumo",
+                "drenaje_s": "Drenaje total", "caudal": "Caudal", "backend_reiniciado": "Backend reiniciado"},
+}
+RUN_COL = {"run-01": "Réplica 1", "run-02": "Réplica 2", "run-03": "Réplica 3"}
+FILA17 = {"run-01": "run-01", "run-02": "run-02", "run-03": "run-03", "combinado": "Combinado",
+          "create": "Creación", "modify": "Modificación", "delete": "Eliminación"}
+ESC20 = {"secuencial": "Secuencial", "conc50": "Concurrencia 50", "conc100": "Concurrencia 100"}
+INT20 = {"aceptacion": "Aceptación", "entrega": "Entrega"}
+COL20 = {"n": "n", "media": "Media", "p50": "P50", "p95": "P95", "p99": "P99", "max": "Máx."}
+COMP23 = {"agente": "Agente", "backend": "Backend", "frontend": "Frontend"}
+COL23 = {"pruebas": "Pruebas", "fallidas": "Fallidas", "con_error": "Con error", "omitidas": "Omitidas"}
+NUMERO = re.compile(r"\d+(?:\.\d{3})*(?:,\d+)?(?: × 10[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+)?")
+
+
+def celda(tabla: dict, fila: str, col: str, fila2: str | None = None) -> str | None:
+    cab = tabla["filas"][0]
+    if col not in cab:
+        return None
+    j = cab.index(col)
+    for f in tabla["filas"][1:]:
+        if f[0].startswith(fila) and (fila2 is None or (len(f) > 1 and f[1].startswith(fila2))):
+            return f[j]
+    return None
+
+
+def ubicar(ruta: list[str], tablas: dict, parrafos: list[str]) -> tuple[str, str | None]:
+    """Dónde debería figurar el valor: (descripción, texto en el que buscarlo)."""
+    tab, *resto = ruta
+    T = tablas.get(int(tab[5:]))
+    if T is None:
+        return f"Tabla {tab[5:]}", None
+    if ruta == ["tabla17", "operaciones"]:
+        p = next((p for p in parrafos if "1.494 produjeron evento" in p), None)
+        return "apartado 5.2 (De las 1.500 operaciones…)", p
+    if ruta == ["tabla17", "operaciones_sin_evento"]:
+        fila = next((f for f in tablas.get(26, {"filas": []})["filas"] if f and f[0].startswith("Falsos negativos")), None)
+        return "Tabla 26, Falsos negativos", " ".join(fila) if fila else None
+    if tab == "tabla17" and resto[0] in FILA17:
+        col = FILAS[tab][resto[1]]
+        return f"Tabla 17, {FILA17[resto[0]]} / {col}", celda(T, FILA17[resto[0]], col)
+    if tab in ("tabla18", "tabla19") and resto[0] in RUN_COL and resto[1] in FILAS[tab]:
+        fila = FILAS[tab][resto[1]]
+        return f"Tabla {tab[5:]}, {fila} / {RUN_COL[resto[0]]}", celda(T, fila, RUN_COL[resto[0]])
+    if tab == "tabla19" and resto[1] in ("a", "b", "c", "d", "ic_sin_phi"):
+        l3 = " ".join(p for p in parrafos if "REPLICAS = {" in p or p.startswith("La salida reproduce la Tabla 19"))
+        return "Tabla 19, nota, y Anexo L.3", T["nota"] + " " + l3
+    if tab == "tabla20":
+        col = COL20[resto[2]]
+        return f"Tabla 20, {ESC20[resto[0]]} / {INT20[resto[1]]} / {col}", celda(T, ESC20[resto[0]], col, INT20[resto[1]])
+    if tab == "tabla21" and resto[0] in RUN_COL:
+        fila = FILAS[tab][resto[1]]
+        return f"Tabla 21, {fila} / {resto[0]}", celda(T, fila, resto[0])
+    if tab == "tabla21":
+        return "Tabla 21, nota", T["nota"]
+    if tab == "tabla23":
+        col = COL23[resto[1]]
+        return f"Tabla 23, {COMP23[resto[0]]} / {col}", celda(T, COMP23[resto[0]], col)
+    return f"Tabla {tab[5:]} (sin celda propia)", None
+
+
+def comparar_docx(esperados: dict, docx: Path) -> list:
+    tablas, parrafos = leer_docx(docx)
+    filas = []
+
+    def recorrer(nodo, ruta):
+        if isinstance(nodo, dict):
+            for k, v in nodo.items():
+                if not k.startswith("_"):
+                    recorrer(v, ruta + [k])
+        elif isinstance(nodo, list) and nodo and isinstance(nodo[0], list):
+            texto = "[" + "; ".join(formato_tesis(v, d) for v, d in nodo) + "]"
+            donde, ambito = ubicar(ruta, tablas, parrafos)
+            filas.append((ambito is not None and texto in ambito, ".".join(ruta), texto, donde, ambito))
+        else:
+            valor, dec = nodo
+            donde, ambito = ubicar(ruta, tablas, parrafos)
+            if ruta[-1] in ("a", "b", "c", "d") and ruta[0] == "tabla19":
+                r = esperados["tabla19"][ruta[1]]
+                texto = "(" + ", ".join(str(r[k][0]) for k in "abcd") + ")"
+                ok = ambito is not None and texto in ambito
+                if ruta[-1] in ("b", "c"):
+                    cel = celda(tablas[19], "Pares discordantes", RUN_COL[ruta[1]])
+                    texto, ok = f"{r['b'][0]} / {r['c'][0]}", cel is not None and f"{r['b'][0]} / {r['c'][0]}" in cel
+                    donde, ambito = f"Tabla 19, Pares discordantes / {RUN_COL[ruta[1]]}", cel
+            elif ruta[-1] == "backend_reiniciado":
+                texto = "Sí" if valor else "No"
+                ok = ambito is not None and ambito.strip() == texto
+            else:
+                texto = formato_tesis(valor, dec)
+                ok = ambito is not None and texto in NUMERO.findall(ambito)
+            filas.append((ok, ".".join(ruta), texto, donde, ambito))
+
+    recorrer({k: v for k, v in esperados.items() if k.startswith("tabla")}, [])
+    return filas
+
+
 def formato(x, dec, extra: int = 0) -> str:
     """Con los decimales de la tesis; extra agrega dígitos para ver el redondeo."""
     if x is None:
@@ -276,6 +434,7 @@ def main() -> None:
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--esperados", type=Path, default=Path("tesis/cierre/valores_esperados.json"))
+    ap.add_argument("--docx", type=Path, help="además, comprueba que los valores figuren en este documento")
     ap.add_argument("--solo-diferencias", action="store_true", help="no lista los valores que coinciden")
     args = ap.parse_args()
     esperados = json.loads(args.esperados.read_text(encoding="utf-8"))
@@ -291,7 +450,19 @@ def main() -> None:
             continue
         print(f"{'OK     ' if ok else 'DIFIERE'} {ruta}: obtenido {formato(obt, dec, 2 if dec else 0)}, tesis {formato(esp, dec)}")
     print(f"valores comparados: {len(filas)}; coinciden: {len(filas) - len(malos)}; difieren o faltan: {len(malos)}")
-    sys.exit(1 if malos else 0)
+    malos_doc = []
+    if args.docx:
+        doc = comparar_docx(esperados, args.docx)
+        malos_doc = [f for f in doc if not f[0]]
+        print(f"documento: {args.docx}")
+        for ok, ruta, texto, donde, ambito in doc:
+            if ok and args.solo_diferencias:
+                continue
+            print(f"{'OK     ' if ok else 'NO ESTÁ'} {ruta}: {texto!r} en {donde}"
+                  + ("" if ok else f" (el documento dice: {ambito!r})"))
+        print(f"valores buscados en el documento: {len(doc)}; figuran: {len(doc) - len(malos_doc)}; "
+              f"no figuran: {len(malos_doc)}")
+    sys.exit(1 if malos or malos_doc else 0)
 
 
 if __name__ == "__main__":

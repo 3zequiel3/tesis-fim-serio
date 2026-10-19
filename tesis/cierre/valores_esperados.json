@@ -35,7 +35,7 @@
     "run-01": {"encolados": [2998, 0], "persistidos": [2998, 0], "unicos": [2998, 0], "duplicados": [0, 0], "descartados": [0, 0], "fuera_de_orden": [0, 0], "reconexion_s": [0.470, 3], "sin_consumo_s": [0.947, 3], "consumo_s": [25.584, 3], "drenaje_s": [27.000, 3], "caudal": [117.2, 1], "backend_reiniciado": [0, 0]},
     "run-02": {"encolados": [2998, 0], "persistidos": [2998, 0], "unicos": [2998, 0], "duplicados": [0, 0], "descartados": [0, 0], "fuera_de_orden": [0, 0], "reconexion_s": [0.629, 3], "sin_consumo_s": [0.756, 3], "consumo_s": [23.948, 3], "drenaje_s": [25.334, 3], "caudal": [125.2, 1], "backend_reiniciado": [0, 0]},
     "run-03": {"encolados": [2997, 0], "persistidos": [2997, 0], "unicos": [2997, 0], "duplicados": [0, 0], "descartados": [0, 0], "fuera_de_orden": [0, 0], "reconexion_s": [0.871, 3], "sin_consumo_s": [0.010, 3], "consumo_s": [25.511, 3], "drenaje_s": [26.392, 3], "caudal": [117.5, 1], "backend_reiniciado": [0, 0]},
-    "run-01_t0_campo_t": {"drenaje_s": [27.006, 3], "reconexion_s": [0.475, 3]}
+    "run-01_t0_campo_t": {"drenaje_s": [27.006, 3]}
   },
   "tabla23": {
     "agente":   {"pruebas": [811, 0],  "fallidas": [0, 0], "con_error": [0, 0], "omitidas": [1, 0]},
