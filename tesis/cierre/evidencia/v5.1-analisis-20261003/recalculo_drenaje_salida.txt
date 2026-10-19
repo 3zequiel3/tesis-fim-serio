@@ -1,0 +1,6 @@
+# python scripts/recalculo_drenaje.py
+run-01: eventos=2998 reconexion=0.470 sin_consumo=0.947 consumo=25.584 drenaje=27.000 caudal=117.2
+run-02: eventos=2998 reconexion=0.629 sin_consumo=0.756 consumo=23.948 drenaje=25.334 caudal=125.2
+run-03: eventos=2997 reconexion=0.871 sin_consumo=0.010 consumo=25.511 drenaje=26.392 caudal=117.5
+# python scripts/recalculo_drenaje.py --run 1 --t0 campo-t
+run-01: eventos=2998 reconexion=0.475 sin_consumo=0.947 consumo=25.584 drenaje=27.006 caudal=117.2
