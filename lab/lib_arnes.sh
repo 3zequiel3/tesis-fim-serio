@@ -63,6 +63,24 @@ procedencia_exigir() {
   { echo "tag=$tag"; echo "commit=$COMMIT"; echo "head=$head"; } > "$envdir/procedencia.txt"
 }
 
+# ── N-5: backend fingerprint against the tag ─────────────────────────────────
+# The fingerprint is the SHA-256 of the sorted list "sha256  app/<file>.py".
+# Both functions sort with LC_ALL=C: es_AR.UTF-8 and C order that list
+# differently (4749b8a5... and 981dc0f3... for v5.1-tesis, Anexo L.1), and a
+# guard whose value depends on the host's collation compares nothing stable.
+# huella_backend_etiqueta <TAG>: backend/app as committed in TAG (git archive),
+#   not as it is in the working tree.
+huella_backend_etiqueta() {
+  local tag=${1:-}
+  [ -n "$tag" ] || { _aborta "huella_backend_etiqueta: TAG missing"; return 1; }
+  bash "$REPO/scripts/huella_backend.sh" --tag "$tag" | sed 's/.*: //'
+}
+# huella_backend_contenedor: /app/app inside the running backend container.
+huella_backend_contenedor() {
+  "${DC[@]}" exec -T backend sh -c 'cd /app && find app -name "*.py" -exec sha256sum {} \;' \
+    | sed 's/^\([0-9a-f]\{64\}\) \*/\1  /' | LC_ALL=C sort -k2 | sha256sum | cut -d' ' -f1
+}
+
 # ── L-14: preflight guards ────────────────────────────────────────────────────
 # Schema registry reaches the candidate tree (change 66, D84/RN-178).
 preflight_esquema() {

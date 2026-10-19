@@ -68,22 +68,34 @@ MIG_OUT=$("${MIGRAR[@]}" --verificar 2>&1) \
 # hostname that resolved to nothing.
 "${DC[@]}" --profile app up -d --force-recreate backend mailpit >/dev/null 2>&1
 sleep 25
-CONT=$("${DC[@]}" exec -T backend sh -c 'cd /app && find app -name "*.py" -exec sha256sum {} \;' | sort -k2 | sha256sum | cut -d' ' -f1)
-ARBOL=$(fd -e py . backend/app -x sha256sum | sd 'backend/app/' 'app/' | sort -k2 | sha256sum | cut -d' ' -f1)
+# The container is compared against the TAG (git archive), not against the
+# working tree, and every fingerprint sorts with LC_ALL=C (N-5). The working
+# tree fingerprint stays as information.
+CONT=$(huella_backend_contenedor)
+ETIQ=$(huella_backend_etiqueta "$TAG")
+ARBOL=$(fd -e py . backend/app -x sha256sum | sd 'backend/app/' 'app/' | LC_ALL=C sort -k2 | sha256sum | cut -d' ' -f1)
+# The run's own output lives inside the repository, so it is left out of the
+# status it measures; the list of what was modified is kept, not only a yes/no.
+REL_OUT=${OUT#"$REPO"/}
+git status --porcelain -- . ":(exclude)$REL_OUT" > "$OUT/env/git_status.txt"
 {
   echo "candidate_tag=$TAG"
   echo "candidate_commit=$(git rev-list -1 "$TAG")"
   echo "candidate_tree=$(git rev-parse "$TAG^{tree}")"
-  echo "git_status_clean=$(git status --porcelain | wc -l | sed 's/^0$/yes/;s/^[1-9].*/no/')"
+  echo "git_status_clean=$([ -s "$OUT/env/git_status.txt" ] && echo no || echo yes)"
+  echo "git_status_file=env/git_status.txt (excluye $REL_OUT, la salida de esta corrida)"
+  echo "fingerprint_locale=C"
   echo "backend_tree_container=$CONT"
+  echo "backend_tree_tag=$ETIQ"
   echo "backend_tree_worktree=$ARBOL"
-  echo "provenance_match=$([ "$CONT" = "$ARBOL" ] && echo yes || echo NO)"
+  echo "provenance_match=$([ -n "$CONT" ] && [ "$CONT" = "$ETIQ" ] && echo yes || echo NO)"
   echo "agent_tree_matches=$(git diff --quiet "$TAG" -- agent/ && echo yes || echo no)"
   echo "notification_sink=mailpit (canal SMTP real, local)"
   echo "gmail_verified=yes (autenticacion y entrega comprobadas por separado)"
 } >> "$OUT/env/procedencia.txt"
 cat "$OUT/env/procedencia.txt" | tee -a "$RES"
-[ "$CONT" = "$ARBOL" ] || { say "ABORTADO: la procedencia no coincide"; exit 1; }
+[ -n "$CONT" ] && [ "$CONT" = "$ETIQ" ] \
+  || { say "ABORTADO: el backend del contenedor ($CONT) no coincide con $TAG ($ETIQ)"; exit 1; }
 
 # ── el esquema tiene que coincidir con el modelo ──────────────────────────────
 # A candidate whose model carried a new column once ran against a table that did
