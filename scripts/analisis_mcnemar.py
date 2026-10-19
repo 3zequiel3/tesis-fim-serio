@@ -40,11 +40,14 @@ def wilson(k: int, n: int, z: float = Z) -> tuple[float, float]:
     return centre - half, centre + half
 
 
-def newcombe_paired(a: int, b: int, c: int, d: int) -> tuple[float, float, float]:
+def newcombe_paired(a: int, b: int, c: int, d: int,
+                    corregir_phi: bool = True) -> tuple[float, float, float]:
     """Difference of paired proportions with Newcombe's method 10 interval.
 
     The table is FIM (rows) by control (columns): a both, b FIM only,
-    c control only, d neither.
+    c control only, d neither. With corregir_phi (the default), the numerator
+    ad - bc of phi is shrunk towards zero by n/2, as method 10 prescribes;
+    without it, the result reproduces the values of the entrega-tesis tag.
     """
     n = a + b + c + d
     p1 = (a + b) / n  # FIM detection rate
@@ -57,7 +60,15 @@ def newcombe_paired(a: int, b: int, c: int, d: int) -> tuple[float, float, float
     # Correlation correction. Undefined when a margin is empty, and Newcombe
     # sets it to zero there rather than leaving the interval undefined.
     margins = (a + b) * (c + d) * (a + c) * (b + d)
-    phi = ((a * d - b * c) / math.sqrt(margins)) if margins > 0 else 0.0
+    num = a * d - b * c
+    if corregir_phi:
+        if num > n / 2:
+            num -= n / 2
+        elif num < -n / 2:
+            num += n / 2
+        else:
+            num = 0.0
+    phi = (num / math.sqrt(margins)) if margins > 0 else 0.0
 
     lo_term = (p1 - l1) ** 2 - 2 * phi * (p1 - l1) * (u2 - p2) + (u2 - p2) ** 2
     hi_term = (u1 - p1) ** 2 - 2 * phi * (u1 - p1) * (p2 - l2) + (p2 - l2) ** 2
@@ -87,6 +98,8 @@ def main() -> None:
     ap.add_argument("--salida", help="CSV with one row per paired observation")
     ap.add_argument("--tolerancia-s", type=float, default=1.5,
                     help="Window to match an event to its operation by time (default 1.5 s)")
+    ap.add_argument("--sin-correccion-phi", action="store_true",
+                    help="Compute phi without Newcombe's correction, as the entrega-tesis tag did")
     args = ap.parse_args()
 
     manifiesto = json.loads(Path(args.manifiesto).read_text())
@@ -136,7 +149,7 @@ def main() -> None:
                       "ruta_agente": op["ruta_agente"], "fim": int(f), "control": int(k)})
 
     n = a + b + c + d
-    delta, lo, hi = newcombe_paired(a, b, c, d)
+    delta, lo, hi = newcombe_paired(a, b, c, d, corregir_phi=not args.sin_correccion_phi)
     chi2, p = mcnemar(b, c)
 
     print("=" * 72)
@@ -150,7 +163,8 @@ def main() -> None:
     print(f"  proporción detectada, FIM      = {(a + b) / n:.4f}  ({a + b}/{n})")
     print(f"  proporción detectada, control  = {(a + c) / n:.4f}  ({a + c}/{n})")
     print(f"  diferencia pareada             = {delta:.4f}")
-    print(f"  IC 95 % de Newcombe (pareado)  = [{lo:.4f}, {hi:.4f}]")
+    etiqueta = "sin corrección de phi" if args.sin_correccion_phi else "con corrección de phi"
+    print(f"  IC 95 % de Newcombe (pareado)  = [{lo:.4f}, {hi:.4f}]  ({etiqueta})")
     print("-" * 72)
     print(f"  pares discordantes             = b {b}  /  c {c}")
     print(f"  McNemar con corrección chi2(1) = {chi2:.4f}")
