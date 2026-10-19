@@ -28,7 +28,12 @@ CAND_TAG="${CAND_TAG:-v1.0-tesis}"
 git rev-parse -q --verify "$CAND^{commit}" >/dev/null \
   || { echo "ABORTA: el candidato $CAND no existe"; exit 1; }
 WT="${WORKTREE_DIR:-$HOME/tesis-worktrees}/candidato-$CAND_TAG"
-OUT="${SUITES_OUT:-$REPO/tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/suites}"
+# No default: the old one pointed at the sealed v1.0-tesis package, and later
+# runs overwrote it (P-9). The caller names a new directory.
+OUT="${SUITES_OUT:?ABORTA: SUITES_OUT is required (a new directory; a sealed package is never rewritten)}"
+# shellcheck source=../lab/lib_arnes.sh
+source "$REPO/lab/lib_arnes.sh"
+destino_virgen "$OUT" || exit 1
 LAB="${LAB_DIR:-$HOME/fim-lab}"
 RES=$LAB/suites_candidato.out
 CERTS=$LAB/suites_certs

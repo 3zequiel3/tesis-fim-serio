@@ -8,6 +8,8 @@ REPO=/home/ezequiel/Facultad/tesis/tesis-fim-serio
 OUT=${1:?usage: TAG=<tag> bateria5.sh <output_dir> <label>   (DC_FILES="<compose files>" optional)}
 ETIQUETA=${2:?}
 LOG="$OUT/bateria5_${ETIQUETA}.log"
+source "$(dirname "${BASH_SOURCE[0]}")/lib_arnes.sh"
+destino_virgen "$OUT" || exit 1
 mkdir -p "$OUT"
 cd "$REPO" || exit 1
 # shellcheck source=lib_arnes.sh

@@ -31,6 +31,7 @@ for f in "${COMPOSE_FILES[@]}"; do DC+=(-f "$f"); done
 cd "$REPO" || exit 1
 # shellcheck source=lib_arnes.sh
 source "$LAB/lib_arnes.sh"
+destino_virgen "$OUT" || exit 1
 # L-13: provenance guard BEFORE anything is built or written. Aborts unless HEAD is
 # the tag's commit and agent/backend/frontend/n8n are clean; writes env/procedencia.txt
 # with tag= and commit=. The tag must therefore be CHECKED OUT in $REPO.

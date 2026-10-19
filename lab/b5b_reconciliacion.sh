@@ -22,6 +22,7 @@ for f in "${COMPOSE_FILES[@]}"; do DC+=(-f "$f"); done
 cd "$REPO" || exit 1
 # shellcheck source=lib_arnes.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib_arnes.sh"
+destino_virgen "$OUT" || exit 1
 procedencia_exigir "${TAG:-}" "$OUT/env" || exit 1
 preflight_esquema || exit 1
 preflight_rate_limit || exit 1

@@ -7,6 +7,9 @@ set -uo pipefail
 REPO=/home/ezequiel/Facultad/tesis/tesis-fim-serio
 WT=/home/ezequiel/tesis-worktrees/candidato-v1.0
 OUT=$REPO/docs/cierre/evidencia/oficial-cap5-20260917T223823Z/suites
+# Historical script with a fixed destination: refuse to write into a sealed package (P-9).
+source "$(dirname "${BASH_SOURCE[0]}")/lib_arnes.sh"
+destino_virgen "$OUT" || exit 1
 CERTS=/home/ezequiel/fim-lab/suites_certs
 RES=/home/ezequiel/fim-lab/suites_rerun.out
 PGC=fim-suites-pg

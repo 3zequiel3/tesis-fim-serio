@@ -13,6 +13,27 @@ RATE_LIMIT_DEFAULT_BURST=3000
 
 _aborta() { echo "ABORTA: $*" >&2; return 1; }
 
+# ── P-9: custody of sealed evidence ───────────────────────────────────────────
+# Usage: destino_virgen <dir>
+# Aborts if <dir> or any directory above it already holds a SHA256SUMS
+# manifest. A sealed package is never written again: a new run writes a new,
+# timestamped directory. Checking the ancestors matters: the suites of later
+# candidates overwrote oficial-cap5-20260917T223823Z/suites/, whose manifest
+# lives one level up.
+destino_virgen() {
+  local d="${1:-}" prev=""
+  [ -n "$d" ] || { _aborta "destino_virgen: directory missing"; return 1; }
+  # A Windows path (C:/...) becomes /c/... under Git Bash.
+  case "$d" in [A-Za-z]:[\\/]*) command -v cygpath >/dev/null 2>&1 && d="$(cygpath -u "$d")" ;; esac
+  case "$d" in /*) ;; *) d="$PWD/$d" ;; esac
+  # Walk up until dirname stops changing: "/" on Linux, "//" under Cygwin/MSYS.
+  while [ "$d" != "$prev" ]; do
+    [ -e "$d/SHA256SUMS" ] && { _aborta "destino ya sellado: $d"; return 1; }
+    prev="$d"; d="$(dirname "$d")"
+  done
+  return 0
+}
+
 # ── L-13: provenance ──────────────────────────────────────────────────────────
 # Usage: procedencia_exigir <TAG> <env_dir>
 # TAG is required (no default: a harness that hardcodes one tag silently measures

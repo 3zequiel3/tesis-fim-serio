@@ -5,6 +5,9 @@ set -uo pipefail
 REPO=/home/ezequiel/Facultad/tesis/tesis-fim-serio
 PAQ=$REPO/docs/cierre/evidencia/oficial-cap5-20260917T223823Z
 OUT=$PAQ/bateria5/corte-valkey-post-d75
+# Historical script with a fixed destination: refuse to write into a sealed package (P-9).
+source "$(dirname "${BASH_SOURCE[0]}")/lib_arnes.sh"
+destino_virgen "$OUT" || exit 1
 LAB=/home/ezequiel/fim-lab
 RES=$LAB/b5_post_d75.out
 DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml)

@@ -39,11 +39,13 @@ esperar_consumo() {  # $1 since
 case "$modo" in
   export)
     salida=${1:?usage: export <out.csv>}
+    destino_virgen "$(dirname "$salida")" || exit 1
     exportar_notif_csv > "$salida"
     echo "rows=$(( $(wc -l < "$salida") - 1 )) -> $salida"
     ;;
   barrido)
     out=${1:?usage: barrido <out_dir> [N...]}; shift
+    destino_virgen "$out" || exit 1
     valores=("$@"); [ "${#valores[@]}" -gt 0 ] || valores=(8 16 32 64)
     N_NOTIF=100
     procedencia_exigir "${TAG:-}" "$out/env" || exit 1

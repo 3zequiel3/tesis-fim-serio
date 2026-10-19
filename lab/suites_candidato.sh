@@ -14,7 +14,12 @@
 set -uo pipefail
 REPO=/home/ezequiel/Facultad/tesis/tesis-fim-serio
 WT=/home/ezequiel/tesis-worktrees/candidato-v1.0
-OUT=$REPO/tesis/cierre/evidencia/oficial-cap5-20260917T223823Z/suites
+# A new, timestamped directory per run: the old fixed path was the sealed
+# v1.0-tesis package, and every rerun overwrote it (P-9).
+OUT=$REPO/tesis/cierre/evidencia/suites-v1.0-tesis-$(date -u +%Y%m%dT%H%M%SZ)
+# shellcheck source=lib_arnes.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib_arnes.sh"
+destino_virgen "$OUT" || exit 1
 LAB=/home/ezequiel/fim-lab
 RES=$LAB/suites_candidato.out
 CERTS=$LAB/suites_certs

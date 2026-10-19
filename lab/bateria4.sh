@@ -15,6 +15,7 @@ DC=(docker compose -f docker-compose.yml -f docker-compose.tls.yml)
 cd "$REPO" || exit 1
 # shellcheck source=lib_arnes.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib_arnes.sh"
+destino_virgen "$OUT" || exit 1
 procedencia_exigir "${TAG:-}" "$OUT/env" || exit 1
 mkdir -p "$OUT"
 # L-14 (the guards that apply: this battery uses the real SMTP channel, no sink, and no agent).
