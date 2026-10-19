@@ -1,0 +1,45 @@
+{
+  "_descripcion": "Valores del Capítulo 5 de la tesis (candidato v5.1-tesis), tal como los informan las Tablas 17 a 21 y 23 y el Anexo L.3. Cada valor es [número, decimales informados]; scripts/recalcular_cap5.py acepta la diferencia de redondeo de esos decimales. Los valores p de McNemar se comparan con una tolerancia relativa del 1 %.",
+  "paquete": "tesis/cierre/evidencia/v5-eval-20261003T102313Z",
+  "analisis": "tesis/cierre/evidencia/v5.1-analisis-20261003",
+  "tabla17": {
+    "run-01":    {"n": [500, 0],  "media": [28.73, 2], "p50": [29.44, 2], "p95": [34.01, 2], "p99": [40.58, 2], "ic_bajo": [36.84, 2], "ic_alto": [135.11, 2], "min": [11.58, 2], "max": [139.91, 2]},
+    "run-02":    {"n": [495, 0],  "media": [29.70, 2], "p50": [31.21, 2], "p95": [35.51, 2], "p99": [39.53, 2], "ic_bajo": [37.16, 2], "ic_alto": [40.47, 2],  "min": [12.68, 2], "max": [142.48, 2]},
+    "run-03":    {"n": [499, 0],  "media": [32.83, 2], "p50": [33.94, 2], "p95": [40.02, 2], "p99": [42.19, 2], "ic_bajo": [41.49, 2], "ic_alto": [42.93, 2],  "min": [15.91, 2], "max": [137.66, 2]},
+    "combinado": {"n": [1494, 0], "media": [30.42, 2], "p50": [31.00, 2], "p95": [37.84, 2], "p99": [41.73, 2], "ic_bajo": [40.53, 2], "ic_alto": [42.32, 2],  "min": [11.58, 2], "max": [142.48, 2]},
+    "create":    {"n": [300, 0],  "p50": [30.43, 2], "p95": [37.42, 2], "p99": [40.95, 2], "max": [139.91, 2]},
+    "modify":    {"n": [1044, 0], "p50": [30.90, 2], "p95": [37.06, 2], "p99": [40.31, 2], "max": [137.66, 2]},
+    "delete":    {"n": [150, 0],  "p50": [33.77, 2], "p95": [40.73, 2], "p99": [42.54, 2], "max": [142.48, 2]},
+    "operaciones": [1500, 0],
+    "operaciones_sin_evento": [6, 0]
+  },
+  "tabla18": {
+    "run-01": {"detectadas": [72, 0], "no_detectadas": [428, 0], "no_detectadas_pct": [85.6, 1], "colapso": [179, 0], "nunca_observadas": [249, 0], "archivo_marcado": [251, 0], "archivo_marcado_pct": [50.2, 1], "invisibles_pct": [49.8, 1], "patron_simple": [271, 0], "patron_colapsado": [70, 0], "patron_revertido": [67, 0], "patron_efimero": [20, 0], "mediana_ms": [514159.9, 1], "p99_ms": [897475.8, 1], "media_ms": [495241.5, 1], "desvio_ms": [290251.3, 1], "min_ms": [8324.9, 1], "max_ms": [897529.3, 1]},
+    "run-02": {"detectadas": [98, 0], "no_detectadas": [402, 0], "no_detectadas_pct": [80.4, 1], "colapso": [252, 0], "nunca_observadas": [150, 0], "archivo_marcado": [350, 0], "archivo_marcado_pct": [70.0, 1], "invisibles_pct": [30.0, 1], "patron_simple": [246, 0], "patron_colapsado": [70, 0], "patron_revertido": [66, 0], "patron_efimero": [20, 0], "mediana_ms": [477666.4, 1], "p99_ms": [896997.4, 1], "media_ms": [492259.0, 1], "desvio_ms": [287948.0, 1], "min_ms": [4267.2, 1], "max_ms": [897070.3, 1]},
+    "run-03": {"detectadas": [94, 0], "no_detectadas": [406, 0], "no_detectadas_pct": [81.2, 1], "colapso": [278, 0], "nunca_observadas": [128, 0], "archivo_marcado": [372, 0], "archivo_marcado_pct": [74.4, 1], "invisibles_pct": [25.6, 1], "patron_simple": [249, 0], "patron_colapsado": [68, 0], "patron_revertido": [69, 0], "patron_efimero": [20, 0], "mediana_ms": [537865.7, 1], "p99_ms": [894526.8, 1], "media_ms": [499585.5, 1], "desvio_ms": [280729.8, 1], "min_ms": [5070.7, 1], "max_ms": [897875.2, 1]}
+  },
+  "tabla19": {
+    "run-01": {"a": [72, 0], "b": [428, 0], "c": [0, 0], "d": [0, 0], "prop_artefacto": [1.000, 3], "prop_control": [0.144, 3], "diferencia": [0.856, 3], "ic_con_phi": [[0.8217, 4], [0.8841, 4]], "ic_sin_phi": [[0.8217, 4], [0.8841, 4]], "mcnemar": [426.00, 2], "p": [1.21e-94, "rel"]},
+    "run-02": {"a": [98, 0], "b": [397, 0], "c": [0, 0], "d": [5, 0], "prop_artefacto": [0.990, 3], "prop_control": [0.196, 3], "diferencia": [0.794, 3], "ic_con_phi": [[0.7550, 4], [0.8268, 4]], "ic_sin_phi": [[0.7553, 4], [0.8266, 4]], "mcnemar": [395.00, 2], "p": [6.74e-88, "rel"]},
+    "run-03": {"a": [94, 0], "b": [405, 0], "c": [0, 0], "d": [1, 0], "prop_artefacto": [0.998, 3], "prop_control": [0.188, 3], "diferencia": [0.810, 3], "ic_con_phi": [[0.7723, 4], [0.8419, 4]], "ic_sin_phi": [[0.7725, 4], [0.8418, 4]], "mcnemar": [403.00, 2], "p": [1.22e-89, "rel"]}
+  },
+  "tabla20": {
+    "secuencial": {"aceptacion": {"n": [1000, 0], "media": [16193.6, 1], "p50": [16245.5, 1], "p95": [28643.2, 1], "p99": [29469.4, 1], "max": [29703.9, 1]},
+                   "entrega":    {"n": [1000, 0], "media": [16201.5, 1], "p50": [16250.6, 1], "p95": [28645.4, 1], "p99": [29472.7, 1], "max": [29705.4, 1]}},
+    "conc50":     {"aceptacion": {"n": [1000, 0], "media": [16108.5, 1], "p50": [16184.7, 1], "p95": [28611.6, 1], "p99": [29640.6, 1], "max": [29834.1, 1]},
+                   "entrega":    {"n": [1000, 0], "media": [16114.6, 1], "p50": [16187.7, 1], "p95": [28614.3, 1], "p99": [29642.4, 1], "max": [29836.5, 1]}},
+    "conc100":    {"aceptacion": {"n": [1000, 0], "media": [16209.1, 1], "p50": [16389.5, 1], "p95": [28543.3, 1], "p99": [29534.6, 1], "max": [29704.3, 1]},
+                   "entrega":    {"n": [1000, 0], "media": [16215.4, 1], "p50": [16392.4, 1], "p95": [28545.4, 1], "p99": [29536.7, 1], "max": [29705.7, 1]}}
+  },
+  "tabla21": {
+    "run-01": {"encolados": [2998, 0], "persistidos": [2998, 0], "unicos": [2998, 0], "duplicados": [0, 0], "descartados": [0, 0], "fuera_de_orden": [0, 0], "reconexion_s": [0.470, 3], "sin_consumo_s": [0.947, 3], "consumo_s": [25.584, 3], "drenaje_s": [27.000, 3], "caudal": [117.2, 1], "backend_reiniciado": [0, 0]},
+    "run-02": {"encolados": [2998, 0], "persistidos": [2998, 0], "unicos": [2998, 0], "duplicados": [0, 0], "descartados": [0, 0], "fuera_de_orden": [0, 0], "reconexion_s": [0.629, 3], "sin_consumo_s": [0.756, 3], "consumo_s": [23.948, 3], "drenaje_s": [25.334, 3], "caudal": [125.2, 1], "backend_reiniciado": [0, 0]},
+    "run-03": {"encolados": [2997, 0], "persistidos": [2997, 0], "unicos": [2997, 0], "duplicados": [0, 0], "descartados": [0, 0], "fuera_de_orden": [0, 0], "reconexion_s": [0.871, 3], "sin_consumo_s": [0.010, 3], "consumo_s": [25.511, 3], "drenaje_s": [26.392, 3], "caudal": [117.5, 1], "backend_reiniciado": [0, 0]},
+    "run-01_t0_campo_t": {"drenaje_s": [27.006, 3], "reconexion_s": [0.475, 3]}
+  },
+  "tabla23": {
+    "agente":   {"pruebas": [811, 0],  "fallidas": [0, 0], "con_error": [0, 0], "omitidas": [1, 0]},
+    "backend":  {"pruebas": [1106, 0], "fallidas": [0, 0], "con_error": [0, 0], "omitidas": [4, 0]},
+    "frontend": {"pruebas": [298, 0],  "fallidas": [0, 0], "con_error": [0, 0], "omitidas": [0, 0]}
+  }
+}
