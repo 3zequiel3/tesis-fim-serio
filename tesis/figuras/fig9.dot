@@ -1,47 +1,47 @@
 digraph G {
-  graph [fontname="DejaVu Sans" fontsize=16 dpi=300 pad=0.2 bgcolor=white];
-  node  [fontname="DejaVu Sans" fontsize=15];
-  edge  [fontname="DejaVu Sans" fontsize=13 color="#333333" fontcolor="#222222" arrowsize=0.8];
-  rankdir=TB; compound=true; nodesep=0.3; ranksep=0.45;
+  graph [fontname="DejaVu Sans" fontsize=18 dpi=300 pad=0.2 bgcolor=white];
+  node  [fontname="DejaVu Sans" fontsize=18];
+  edge  [fontname="DejaVu Sans" fontsize=16 color="#333333" fontcolor="#222222" arrowsize=0.8];
+  rankdir=TB; compound=true; nodesep=0.15; ranksep=0.45;
   browser [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D"
-    label=<<FONT POINT-SIZE="13">«device»</FONT><BR/><B>Estación del operador</B><BR/><FONT POINT-SIZE="13">navegador</FONT>>];
+    label=<<FONT POINT-SIZE="16">«device»</FONT><BR/><B>Estación del operador</B><BR/><FONT POINT-SIZE="16">navegador</FONT>>];
   subgraph cluster_host {
-    label=<<FONT POINT-SIZE="13">«device»</FONT><BR/><B>Anfitrión monitoreado (Linux)</B>>;
+    label=<<FONT POINT-SIZE="16">«device»</FONT><BR/><B>Anfitrión monitoreado (Linux)</B>>;
     style=filled; fillcolor="#F7F8FA"; color="#6C757D"; margin=12;
     subgraph cluster_sysd {
-      label=<<FONT POINT-SIZE="13">«executionEnvironment»</FONT><BR/><B>systemd</B>>;
+      label=<<FONT POINT-SIZE="16">«executionEnvironment»</FONT><BR/><B>systemd</B>>;
       style=filled; fillcolor="#FFFFFF"; color="#9AA3AD";
-      queue [shape=note style=filled fillcolor="white" color="#6C757D" fontsize=13
-        label=<<FONT POINT-SIZE="13">«artifact»</FONT><BR/>Cola local<BR/><FONT POINT-SIZE="13">/var/lib/fim-agent/<BR/>queue/</FONT>>];
-      base [shape=note style=filled fillcolor="white" color="#6C757D" fontsize=13
-        label=<<FONT POINT-SIZE="13">«artifact»</FONT><BR/>Línea base cifrada<BR/><FONT POINT-SIZE="13">/var/lib/fim-agent/<BR/>baseline/</FONT>>];
+      queue [shape=note style=filled fillcolor="white" color="#6C757D" fontsize=16
+        label=<<FONT POINT-SIZE="16">«artifact»</FONT><BR/>Cola local<BR/><FONT POINT-SIZE="16">/var/lib/fim-agent/<BR/>queue/</FONT>>];
+      base [shape=note style=filled fillcolor="white" color="#6C757D" fontsize=16
+        label=<<FONT POINT-SIZE="16">«artifact»</FONT><BR/>Línea base cifrada<BR/><FONT POINT-SIZE="16">/var/lib/fim-agent/<BR/>baseline/</FONT>>];
       agent [shape=box3d style=filled fillcolor="#EAF1FB" color="#5B7DB1"
-        label=<<FONT POINT-SIZE="13">«component»</FONT><BR/><B>Agente FIM</B><BR/><FONT POINT-SIZE="13">fim-agent.service</FONT>>];
+        label=<<FONT POINT-SIZE="16">«component»</FONT><BR/><B>Agente FIM</B><BR/><FONT POINT-SIZE="16">fim-agent.service</FONT>>];
       {rank=same; queue; base;}
       queue -> agent [style=dotted arrowhead=none];
       base -> agent [style=dotted arrowhead=none];
     }
   }
   subgraph cluster_srv {
-    label=<<FONT POINT-SIZE="13">«device»</FONT><BR/><B>Servidor central (Linux)</B>>; labeljust=l;
+    label=<<FONT POINT-SIZE="16">«device»</FONT><BR/><B>Servidor central (Linux)</B>>; labeljust=l;
     style=filled; fillcolor="#F7F8FA"; color="#6C757D"; margin=12;
     subgraph cluster_dc {
-      label=<<FONT POINT-SIZE="13">«executionEnvironment»</FONT><BR/><B>Docker Compose</B><BR/><FONT POINT-SIZE="13">red fim_internal</FONT>>;
+      label=<<FONT POINT-SIZE="16">«executionEnvironment»</FONT><BR/><B>Docker Compose</B><BR/><FONT POINT-SIZE="16">red fim_internal</FONT>>;
       style=filled; fillcolor="#FFFFFF"; color="#9AA3AD"; labeljust=l;
       certs [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D"
-        label=<<FONT POINT-SIZE="13">«container»</FONT><BR/><B>certs-init</B><BR/><FONT POINT-SIZE="13">ejecución única</FONT>>];
+        label=<<FONT POINT-SIZE="16">«container»</FONT><BR/><B>certs-init</B><BR/><FONT POINT-SIZE="16">ejecución única</FONT>>];
       front [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D"
-        label=<<FONT POINT-SIZE="13">«container»</FONT><BR/><B>Frontend</B><BR/><FONT POINT-SIZE="13">nginx · React</FONT>>];
+        label=<<FONT POINT-SIZE="16">«container»</FONT><BR/><B>Frontend</B><BR/><FONT POINT-SIZE="16">nginx · React</FONT>>];
       backend [shape=box3d style=filled fillcolor="#EAF1FB" color="#5B7DB1"
-        label=<<FONT POINT-SIZE="13">«container»</FONT><BR/><B>Backend FastAPI</B><BR/><FONT POINT-SIZE="13">fim-backend<BR/>instancia única</FONT>>];
+        label=<<FONT POINT-SIZE="16">«container»</FONT><BR/><B>Backend FastAPI</B><BR/><FONT POINT-SIZE="16">fim-backend<BR/>instancia única</FONT>>];
       valkey [shape=box3d style=filled fillcolor="#FFF6D6" color="#C9A227"
-        label=<<FONT POINT-SIZE="13">«container»</FONT><BR/><B>Valkey 9.0.3</B><BR/><FONT POINT-SIZE="13">Streams · AOF</FONT>>];
-      secret [shape=note style=filled fillcolor="white" color="#6C757D" fontsize=13
-        label=<<FONT POINT-SIZE="13">«artifact»</FONT><BR/>Clave de envoltura<BR/><FONT POINT-SIZE="13">volumen<BR/>backend_secrets</FONT>>];
+        label=<<FONT POINT-SIZE="16">«container»</FONT><BR/><B>Valkey 9.0.3</B><BR/><FONT POINT-SIZE="16">Streams · AOF</FONT>>];
+      secret [shape=note style=filled fillcolor="white" color="#6C757D" fontsize=16
+        label=<<FONT POINT-SIZE="16">«artifact»</FONT><BR/>Clave de envoltura<BR/><FONT POINT-SIZE="16">volumen<BR/>backend_secrets</FONT>>];
       pg [shape=box3d style=filled fillcolor="#E6F4EA" color="#4A8F5A"
-        label=<<FONT POINT-SIZE="13">«container»</FONT><BR/><B>PostgreSQL 18.3</B>>];
+        label=<<FONT POINT-SIZE="16">«container»</FONT><BR/><B>PostgreSQL 18.3</B>>];
       n8n [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D"
-        label=<<FONT POINT-SIZE="13">«container»</FONT><BR/><B>n8n 2.17.8</B>>];
+        label=<<FONT POINT-SIZE="16">«container»</FONT><BR/><B>n8n 2.17.8</B>>];
       {rank=same; front; valkey; certs;}
       {rank=same; pg; n8n; secret;}
       front -> backend [label=" HTTP interno\n · 8000"];
@@ -53,7 +53,7 @@ digraph G {
     }
   }
   smtp [shape=box3d style=filled fillcolor="#F1F3F5" color="#6C757D"
-    label=<<FONT POINT-SIZE="13">«device»</FONT><BR/><B>Servidor SMTP</B><BR/><FONT POINT-SIZE="13">Mailpit en la evaluación</FONT>>];
+    label=<<FONT POINT-SIZE="16">«device»</FONT><BR/><B>Servidor SMTP</B><BR/><FONT POINT-SIZE="16">Mailpit en la evaluación</FONT>>];
   agent -> valkey [style=invis];
   browser -> front [label=" HTTPS · 443"];
   agent -> backend [dir=both label=" HTTPS mTLS\n TLS 1.3 · 8443\n (registro: 8444)" color="#5B7DB1" fontcolor="#2F4F7F"];
