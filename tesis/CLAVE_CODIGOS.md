@@ -60,14 +60,10 @@ contenedor con la etiqueta) corresponde al hallazgo N-5 de la devolución del tr
 
 ## Commits de entrega-tesis-v9 a entrega-tesis-v10
 
-| Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
-|---|---|---|---|---|---|---|
-Se completa en el último commit de la etiqueta, con los commits anteriores a él
-(`git log --reverse entrega-tesis-v9..HEAD --date=format:'%d/%m/%Y %H:%M' --format='| %h | %ad | %an |'`).
-El último commit, que versiona el documento (P-11), no puede listarse a sí mismo.
+El último commit de la etiqueta, que versiona el documento (P-11), no se lista a sí mismo.
 
 | Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
 |---|---|---|---|---|---|---|
-| [completar] | | | T-1 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| [completar] | | | T-5, T-6 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| [completar] | | | T-2 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
+| c9f3088 | 21/10/2026 11:44 | Nicolás Castro | T-1 | Devolución de la segunda corrección (hallazgos T-1 a T-9) | 19/10/2026 | Tribunal |
+| a6566ec | 21/10/2026 11:56 | Nicolás Castro | T-5, T-6 | Devolución de la segunda corrección (hallazgos T-1 a T-9) | 19/10/2026 | Tribunal |
+| 6cea514 | 21/10/2026 12:16 | Nicolás Castro | T-2 | Devolución de la segunda corrección (hallazgos T-1 a T-9) | 19/10/2026 | Tribunal |
