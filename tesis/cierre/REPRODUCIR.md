@@ -2,6 +2,37 @@
 
 > Ejecutar sobre un clon de laboratorio y un commit congelado, en una misma sesión de Bash para conservar `RUN_ID` y `EVIDENCE_DIR`. No sobrescribir `resultados/`. Los comandos destructivos se limitan a contenedores/volúmenes de prueba identificados.
 
+## 0. Requisitos del equipo de laboratorio
+
+Además de Docker Engine con Compose v2, multipass, git y Python 3.13, el arnés de
+`lab/` usa tres utilidades que no forman parte de una instalación base:
+
+| Utilidad | Uso en el arnés | Versión |
+|---|---|---|
+| `fd` | huella de `backend/app` (`lab/corrida_unificada.sh`, `lab/repetir_cap5.sh`) | no registrada |
+| `sd` | sustituciones en la huella y en la lectura de resultados (`lab/corrida_unificada.sh`, `lab/lib_arnes.sh`) | no registrada |
+| `rg` (ripgrep) | espera de arranque del backend y lectura de registros (`lab/*.sh`) | no registrada |
+
+   La corrida unificada no registró las versiones de estas tres utilidades
+   (`env/versions.txt` solo registra Docker, Compose, Python, PostgreSQL y n8n). El arnés
+   usa solo opciones básicas de cada una: `fd -e` y `-x`, sustituciones simples con `sd`,
+   y `rg` con `-q`, `-N`, `-o` y `-x`. Para una corrida nueva, registrar sus versiones
+   con `fd --version`, `sd --version` y `rg --version` junto a las demás.
+   
+En Debian y Ubuntu se instalan con `sudo apt install fd-find sd ripgrep`. El paquete
+`fd-find` instala el ejecutable como `fdfind`; el arnés lo invoca como `fd`, de modo que
+hay que enlazarlo:
+
+```bash
+mkdir -p ~/.local/bin && ln -s "$(command -v fdfind)" ~/.local/bin/fd
+fd --version && sd --version && rg --version | head -1
+```
+
+Versión mínima del núcleo del anfitrión monitoreado: 5.9, porque el agente usa
+`FAN_REPORT_DFID_NAME`. El comentario de cabecera de `agent/_fanotify.py` menciona 5.1
+(la incorporación del modo FID); es un comentario, no una comprobación en tiempo de
+ejecución, y no se corrige para preservar la identidad del código evaluado (`v5.1-tesis`).
+
 ## 1. Congelar identidad y crear directorio de evidencia
 
 ```bash
@@ -461,7 +492,7 @@ Este ensayo ya se ejecutó una vez como A-3 (dos equipos físicos por LAN domés
 
 La guía operativa completa es `docs/despliegue_servidor_remoto.md`. Resumen de su procedimiento, verificado por lectura completa de esa guía:
 
-1. **Requisitos.** Servidor con Docker Engine + Compose v2, puertos publicables para la consola (80/443 según el modo TLS elegido), 8443 (mTLS agente-backend), 8444 (bootstrap) y 6380 (Valkey TLS); IP pública o nombre DNS. Host monitoreado con systemd, kernel ≥ 5.1 y Python 3.13 exacto (`agent/install.sh` valida la versión antes de crear el venv y admite `--python` para apuntar a un intérprete alternativo cuando el del sistema es otra versión).
+1. **Requisitos.** Servidor con Docker Engine + Compose v2, puertos publicables para la consola (80/443 según el modo TLS elegido), 8443 (mTLS agente-backend), 8444 (bootstrap) y 6380 (Valkey TLS); IP pública o nombre DNS. Host monitoreado con systemd, kernel ≥ 5.9 y Python 3.13 exacto (`agent/install.sh` valida la versión antes de crear el venv y admite `--python` para apuntar a un intérprete alternativo cuando el del sistema es otra versión).
 2. **Preparar el `.env` del servidor** con `scripts/prepare_server_env.py --fim-public-hosts <ip-o-dominio> --console-tls-mode off|self_signed|provided`; nunca sobrescribe un `.env` existente; las contraseñas generadas se muestran una sola vez.
 3. **Elegir el modo de consola** (`off`, `self_signed` o `provided`) según haya sólo IP, un dominio sin certificado, o un certificado real.
 4. **Levantar el stack** con `docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up -d --build`, sin editar ningún YAML; verificar `certs-init` (`Exited (0)` es el resultado esperado) y `n8n` en `healthy`.

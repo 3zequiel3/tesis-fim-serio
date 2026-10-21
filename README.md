@@ -144,7 +144,7 @@ Las imágenes están pinneadas en `docker-compose.yml`: PostgreSQL `18.3`, Valke
 | Requisito | Valor | Verificado en |
 |---|---|---|
 | Sistema | Linux con systemd | `agent/deploy/fim-agent.service` |
-| Kernel | ≥ 5.1 (fanotify en modo FID) | `docs/operations.md` §"Requisitos previos" |
+| Kernel | ≥ 5.9 (fanotify con `FAN_REPORT_DFID_NAME`, necesario para reconstruir la ruta de un archivo eliminado; tesis, apartados 1.7 y 2.6) | `docs/operations.md` §"Requisitos previos" |
 | Python | **Exactamente 3.13** (ni 3.12 ni 3.14) | `agent/install.sh` (`REQUIRED_PYTHON_MAJOR=3`, `REQUIRED_PYTHON_MINOR=13`) |
 | Privilegios | `root` para instalar el servicio | `agent/install.sh` |
 | Capabilities otorgables | `CAP_SYS_ADMIN`, `CAP_DAC_READ_SEARCH`, `CAP_DAC_OVERRIDE`, `CAP_FOWNER`, `CAP_CHOWN` | `agent/deploy/fim-agent.service` |

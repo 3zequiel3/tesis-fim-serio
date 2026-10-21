@@ -192,7 +192,7 @@ y reiniciar el backend.
 
 ### Requisitos previos
 
-- Linux con systemd (kernel ≥ 5.1 para fanotify en modo FID).
+- Linux con systemd (kernel ≥ 5.9: fanotify en modo FID con `FAN_REPORT_DFID_NAME`).
 - Python 3.13 instalado en el host. El detector **no** depende de `pyfanotify`:
   usa un backend propio sobre syscalls crudas vía `ctypes` (`agent/_fanotify.py`),
   en modo `FAN_REPORT_DFID_NAME` — la API pública de `pyfanotify` es incompatible
