@@ -1,0 +1,2 @@
+# Los SVG se comparan byte a byte con los del documento (scripts/verificar_medios.py)
+tesis/figuras/*.svg -text
