@@ -597,3 +597,25 @@ Todos de sólo biblioteca estándar.
 | `bateria_mmap.py --casos C,D` | B-5, caso D: `mmap → close(fd) → dormir d ms → escribir → msync → munmap`, d ∈ {0, 5, 10, 20, 50, 100, 500} ms. Sin hipótesis fijada (`deteccion_agente_esperada` null); `analisis_mmap.py` da una fila por retardo con `detectada` / `evento_sin_cambio` / `sin_evento`. Se pide con `C,D` para conservar el testigo de validez. | — |
 
 `latencia_por_tipo.py` acepta ahora también la carpeta de una repetición (`latencia/run-0N/`).
+
+## Verificación de las figuras del documento: `verificar_medios.py`
+
+Sólo biblioteca estándar. Comprueba que el documento incruste las Figuras 1 a
+5 y 8 a 10 como SVG y que cada SVG incrustado coincida byte a byte con uno de
+`tesis/figuras/` (Anexo F.1). Informa también las imágenes que sólo tienen mapa
+de bits, que deben ser las dos capturas de la consola (Figuras 6 y 7).
+
+```bash
+python3 scripts/verificar_medios.py tesis/entrega/<documento>.docx
+```
+
+Salida esperada sobre el documento de entrega:
+
+```
+SVG incrustados: 8 (esperados 8); coinciden con tesis/figuras: 8
+Imágenes solo en mapa de bits: 2
+```
+
+Sale con código 1 si el número de SVG no es el esperado (`--esperados`, 8 por
+defecto) o si alguno difiere del versionado. La prueba está en
+`scripts/tests/test_verificar_medios.py`.
