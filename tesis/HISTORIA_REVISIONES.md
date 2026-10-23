@@ -1,0 +1,29 @@
+# Historia de las revisiones del documento
+
+Texto completo del Anexo N del documento antes de reducirlo a un resumen, con las correcciones posteriores a la etiqueta entrega-tesis-v10; se traslada sin cambios. El Anexo N del documento lo resume y remite a este archivo.
+
+En la etiqueta entrega-tesis-v9 denominamos erróneamente «devolución de la segunda corrección» a nuestras revisiones del 16 de octubre asistidas por Claude, mientras que en la v8 las habíamos llamado correctamente «revisión del 16 de octubre». El error ingresó al Anexo F mediante un texto generado por la herramienta que no detectamos al revisar la v9, lo que también confundió el código «N-5» del commit d0297f1, que en realidad pertenece a la devolución original del 9 de octubre. En la entrega-tesis-v10 rectificamos esta clave para dejar constancia de que el tribunal solo emitió documentos los días 9 y 19 de octubre de 2026.
+
+Este anexo reconstruye las revisiones del documento de octubre de 2026: qué cambió cada una y cómo se contrastó con el repositorio. El apartado 9.1.2 declara el uso de la herramienta en la versión vigente, y el Anexo F.3, los commits de cada corrección. Salvo las devoluciones del tribunal del 9 y el 19 de octubre de 2026, que se identifican como tales, todas las revisiones que consigna las hicieron los autores con la herramienta.
+
+**10 de octubre de 2026, plan de corrección asistido por la herramienta.** A partir de la devolución del tribunal del 9 de octubre de 2026, los autores elaboraron con la herramienta las tareas C-1 a C-5, que citan los commits del 19 de octubre (Anexo F).
+
+**13 y 15 de octubre de 2026.** La herramienta contrastó los datos de repositorio del documento sobre un clon del repositorio público, con las órdenes del Anexo L.7, y todos coincidieron; la segunda revisión repitió, además, la verificación de rutas del Anexo F.1. Las salidas de L.1 a L.6 se obtuvieron el 13 de octubre sobre la etiqueta entrega-tesis, y las de L.7, el 15.
+
+**16 de octubre de 2026, primera revisión asistida por la herramienta.** Se hizo sin acceso al repositorio y agregó dos datos de repositorio: el commit a7199d7 y la autoría que cita el apartado 3.8.
+
+**16 de octubre de 2026, segunda revisión asistida por la herramienta.** Se hizo sobre un clon de la etiqueta entrega-tesis con los bundles de custodia incorporados. Repitió las órdenes del Anexo L.7 y las verificaciones del Anexo F.1, y todas las salidas coincidieron, salvo una: la última orden de L.7 devuelve mncrmn2009, el nombre de la cuenta de N. Castro, y no «Nicolás Castro», como había consignado la revisión anterior sin ejecutarla. Agregó, además, la precisión del alcance de la guarda de procedencia fuera del apartado 3.7, las entradas nuevas del glosario, la correspondencia del Anexo M y la revisión de estilo de los apartados 2.4, 3.1 a 3.4 y 6.3.
+
+**19 de octubre de 2026, revisión asistida por la herramienta.** Sobre la versión del documento que no reflejaba los commits del 18 de octubre, consignó las observaciones NS-1 a NS-3 (Anexo F).
+
+**19 de octubre de 2026, etiqueta entrega-tesis-v8.** Acompañó los commits del 18 y el 19 de octubre que resolvieron P-7 a P-12 y la guarda de procedencia contra la etiqueta, cuyo código escribió la herramienta. Incorporó el Resumen y los apartados 6.1 y 7.1 escritos por los autores y el Abstract traducido, corrigió la cita de las mediciones preliminares del 2 de julio (apartado 3.2 y Anexo F.2) y agregó la declaración de contribuciones del Anexo I. scripts/recalcular_cap5.sh comenzó a comparar el Capítulo 5 también con el documento.
+
+**19 de octubre de 2026, plan de corrección asistido por la herramienta.** Sobre la versión de la etiqueta entrega-tesis-v8, los autores elaboraron con la herramienta los puntos PC-1 a PC-13, que citan los commits de entrega-tesis-v9 (Anexo F).
+
+**19 de octubre de 2026, etiqueta entrega-tesis-v9.** Unificó la declaración de autoría en la Declaración de originalidad, el apartado 3.8, el apartado 9.1.2 y la nota de la Tabla 29; versionó el apartado 7.5; acotó en la declaración de contribuciones el rol de redacción del borrador original; y publicó scripts/verificar_autoria.py, que compara los textos de los autores con el documento. Agregó la clave de los códigos de los mensajes de commit (Anexo F), corrigió la descripción del paquete de cobertura y custodia (Tabla 33), declaró como limitación la falta de un segundo evaluador del triage (apartados 3.6 y 5.6 y Anexo M), consignó las diferencias entre las etiquetas de entrega (Anexo F.3), amplió el texto de la Figura 9, reescribió el apartado 9.1.2 y trasladó a este anexo la historia de las revisiones.
+
+**19 de octubre de 2026, devolución de la segunda corrección del tribunal.** Evaluó la versión de la etiqueta entrega-tesis-v9 y consignó los hallazgos T-1 a T-9. Con la devolución de la primera corrección, del 9 de octubre de 2026 (hallazgos N-1 a N-10), es uno de los dos documentos del tribunal que cita este trabajo.
+
+**20 de octubre de 2026, plan de corrección asistido por la herramienta.** Los autores elaboraron con la herramienta un plan de corrección de los hallazgos T-1 a T-9.
+
+**21 de octubre de 2026, etiqueta entrega-tesis-v10.** La herramienta aplicó al documento, como cambios marcados que los autores revisaron uno por uno, la rectificación de la clave de códigos del Anexo F, de la Tabla 29 y de este anexo; los anchos de la Tabla 22 y las secciones horizontales de las Tablas 30 a 32 y 35; los ocho dominios del apartado 2.13; la versión de Python de la Tabla 8; las dependencias del arnés y la etiqueta de referencia de los Anexos F.1 y L; la medida del texto de la Figura 9; y la grafía «solo». En el apartado 6.1, la herramienta solo ubicó los pasajes que señala T-2; la corrección es de N. Castro, sin asistencia (tesis/autoria/, commit 6cea514); la herramienta lo insertó en el documento sin modificarlo, lo que comprueba scripts/verificar_autoria.py.
