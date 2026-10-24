@@ -1,5 +1,19 @@
 # scripts/ — arnés de medición del Capítulo 5
 
+> **Nota (octubre de 2026).** Este README describe el arnés tal como se escribió
+> entre agosto y septiembre de 2026, junto con el plan
+> [`tesis/plan_medicion_cap5.md`](../tesis/plan_medicion_cap5.md), y conserva la
+> numeración y las cifras de esa etapa. Llama «Tabla 15» a la comparación con el
+> control y «Tabla 17» al mapeo de memoria, que el documento de entrega presenta
+> en las Tablas 18 y 19 y en la Tabla 25; numera las baterías como el plan, según
+> la correspondencia del Anexo F.2. Los 7 cambios sin evento y la semilla 20260819
+> son los de la batería histórica del 19 de agosto de 2026 (Anexo K); la semilla
+> 20260818 y las latencias de los comandos son ejemplos. Las cifras, las semillas
+> y la numeración vigentes son las del documento (Capítulo 5 y Anexos F, K y L),
+> que también describe los scripts de verificación que no figuran aquí
+> (`verificar_*`, `recalcular_cap5.sh`, `huella_backend.sh`,
+> `inventario_codigo.sh` y `analisis_mcnemar.py`).
+
 Estos scripts **no son código de producto**: son el arnés experimental que produce
 los archivos crudos exigidos por el Anexo F. El plan que los especifica es
 [`tesis/plan_medicion_cap5.md`](../tesis/plan_medicion_cap5.md); la auditoría de qué
