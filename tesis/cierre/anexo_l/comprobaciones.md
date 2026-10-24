@@ -1,6 +1,55 @@
 # Comprobaciones del Anexo L
 
-Este archivo conserva, sin cambios de redacción, las órdenes y salidas que el Anexo L del documento transcribía hasta la etiqueta entrega-tesis-v11 (apartados L.5 y L.7) y que, desde entrega-tesis-v12, el anexo resume y remite aquí (hallazgo T-9). Las órdenes se ejecutan desde la raíz de un clon de la etiqueta de referencia. La numeración de tablas corresponde a entrega-tesis-v11.
+Este archivo conserva, sin cambios de redacción, las órdenes y salidas que el Anexo L del documento transcribía hasta la etiqueta entrega-tesis-v11 (apartados L.1, L.2, L.5 y L.7) y que, desde entrega-tesis-v12, el anexo resume y remite aquí (hallazgo T-9). Las órdenes se ejecutan desde la raíz de un clon de la etiqueta de referencia. La numeración de tablas corresponde a entrega-tesis-v11.
+
+
+## L.1 Huella de backend/app y origen de git_status_clean
+
+El procedimiento extrae backend/app de v5.1-tesis y aplica el cálculo que lab/corrida_unificada.sh ejecuta dentro del contenedor (apartado 3.7). La colación es_AR.UTF-8 debe estar generada en el equipo, lo que se comprueba con locale -a. Las órdenes se ejecutan desde la raíz del clon.
+
+```bash
+grep backend_tree_container \
+  tesis/cierre/evidencia/v5-eval-20261003T102313Z/env/procedencia.txt
+mkdir -p /tmp/v51 && git archive v5.1-tesis backend/app | tar -x -C /tmp/v51
+cd /tmp/v51/backend
+LC_ALL=es_AR.UTF-8 sh -c "find app -name '*.py' -exec sha256sum {} \; | sort -k2 | sha256sum"
+LC_ALL=C sh -c "find app -name '*.py' -exec sha256sum {} \; | sort -k2 | sha256sum"
+```
+
+Con es_AR.UTF-8, la huella es 4749b8a59d02458bd3992a2d0c76bc0e05b7e8676173481c14a2972e95375a56, igual al valor backend_tree_container del paquete; con LC_ALL=C, es 981dc0f3fef006afb842c5d9ff38a66af37452547abc66e39ef6ee9578597325.
+
+El origen de git_status_clean=no se sigue de tres líneas del arnés de v5.1-tesis y de una comprobación sobre .gitignore, también desde la raíz del clon:
+
+```bash
+git show v5.1-tesis:lab/corrida_unificada.sh | grep -n 'OUT=\$REPO\|procedencia_exigir "\|git_status_clean'
+git show v5.1-tesis:lab/lib_arnes.sh | grep -n 'procedencia.txt"$'
+git check-ignore -q tesis/cierre/evidencia/v5-eval-20261003T102313Z/env/procedencia.txt; echo $?
+```
+
+La primera orden muestra que el directorio de salida está dentro de tesis/cierre/evidencia/ (línea 25), que procedencia_exigir recibe su subdirectorio env (línea 37) y que git status --porcelain se ejecuta después (línea 76). La segunda muestra que procedencia_exigir escribe env/procedencia.txt (línea 42). La tercera devuelve 1: ninguna regla de .gitignore excluye la ruta. En conjunto, lab/corrida_unificada.sh ubica su salida en tesis/cierre/evidencia/, procedencia_exigir escribe allí env/procedencia.txt y git status --porcelain lo encuentra después como archivo no versionado.
+
+Salida esperada: 4749b8a5… con es_AR.UTF-8 (igual a backend_tree_container), 981dc0f3… con LC_ALL=C, las líneas 25, 37, 76 y 42 del arnés y el código de salida 1.
+
+## L.2 Inventario de código
+
+El recuento de la Tabla 14 se obtiene sobre los archivos .py de agent/ y backend/app/ de v5.1-tesis, sin los directorios de pruebas:
+
+```bash
+mkdir -p /tmp/inv && git archive v5.1-tesis agent backend/app | tar -x -C /tmp/inv
+cd /tmp/inv
+for d in agent backend/app; do
+  find "$d" -name '*.py' -not -path '*/tests/*' | wc -l
+  find "$d" -name '*.py' -not -path '*/tests/*' -exec cat {} + | wc -l
+done
+pip install pygount==3.2.0
+pygount --format=summary --suffix=py --folders-to-skip='tests,[...]' agent
+pygount --format=summary --suffix=py --folders-to-skip='tests,[...]' backend/app
+ls -d backend/app/modules/*/
+```
+
+El agente tiene 25 archivos y 9.343 líneas, 5.992 de ellas de código según la columna Code de pygount; el backend, 64 archivos, 11.332 líneas y 6.180 de código. La última orden lista los ocho módulos de dominio: actions, agents, alerts, audit, auth, events, rules y users.
+
+Salida esperada: 25 y 64 archivos; 9.343 y 11.332 líneas; 5.992 y 6.180 líneas de código; los ocho módulos actions, agents, alerts, audit, auth, events, rules y users.
 
 ## L.5 SHA-256 de los paquetes sin manifiesto
 
