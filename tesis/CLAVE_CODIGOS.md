@@ -11,7 +11,7 @@ elaborados con la herramienta declarada en el apartado 9.1.2. Ninguno de ellos e
 documento del tribunal.
 
 Las fechas y los autores de los commits salen de
-`git log entrega-tesis..entrega-tesis-v11 --format='%h|%ad|%an|%s'`; los mensajes no se
+`git log entrega-tesis..entrega-tesis-v9 --format='%h|%ad|%an|%s'`; los mensajes no se
 reescribieron.
 
 ## Familias de códigos
@@ -67,30 +67,3 @@ El último commit de la etiqueta, que versiona el documento (P-11), no se lista 
 | c9f3088 | 21/10/2026 11:44 | Nicolás Castro | T-1 | Devolución de la segunda corrección (hallazgos T-1 a T-9) | 19/10/2026 | Tribunal |
 | a6566ec | 21/10/2026 11:56 | Nicolás Castro | T-5, T-6 | Devolución de la segunda corrección (hallazgos T-1 a T-9) | 19/10/2026 | Tribunal |
 | 6cea514 | 21/10/2026 12:16 | Nicolás Castro | T-2 | Devolución de la segunda corrección (hallazgos T-1 a T-9) | 19/10/2026 | Tribunal |
-
-## Commits de entrega-tesis-v10 a entrega-tesis-v11
-
-Solo citan códigos del tribunal (N-n y T-n); los commits sin código no remiten a ningún documento.
-
-| Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
-|---|---|---|---|---|---|---|
-| 2e32fe1 | 22/10/2026 | Nicolás Castro | N-10 | Devolución de la primera corrección | 09/10/2026 | Tribunal |
-| 43791cb | 22/10/2026 | Nicolás Castro | — | — | — | — |
-| 4bc222a | 22/10/2026 | Nicolás Castro | N-10 | Devolución de la primera corrección | 09/10/2026 | Tribunal |
-| d0282db | 22/10/2026 | Nicolás Castro | T-3 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 113d2fd | 22/10/2026 | Nicolás Castro | — | — | — | — |
-| 54ddfd6 | 22/10/2026 | Nicolás Castro | T-5 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| a14e51e | 22/10/2026 | Nicolás Castro | T-1 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| c33306c | 22/10/2026 | Nicolás Castro | T-4 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 8dd0241 | 22/10/2026 | Nicolás Castro | T-1 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 7a36c94 | 22/10/2026 | Nicolás Castro | T-1 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 57fb805 | 22/10/2026 | Nicolás Castro | T-9 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 55ac388 | 22/10/2026 | Nicolás Castro | T-9 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 4fa106c | 22/10/2026 | Nicolás Castro | T-9 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 6378aa8 | 22/10/2026 | Nicolás Castro | T-9 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 7b11600 | 22/10/2026 | Nicolás Castro | — | — | — | — |
-| 6a9fd7a | 23/10/2026 | Nicolás Castro | T-2 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| f1e52ca | 23/10/2026 | Nicolás Castro | T-2 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| 61a915c | 23/10/2026 | Nicolás Castro | T-8 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| e0f17c1 | 23/10/2026 | Nicolás Castro | T-8 | Devolución de la segunda corrección | 19/10/2026 | Tribunal |
-| (este commit) | — | — | — | docs(entrega): cierre de la v11: declaración de uso, referencias, verificaciones e índices | — | — |
