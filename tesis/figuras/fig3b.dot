@@ -1,0 +1,21 @@
+digraph G {
+  graph [fontname="DejaVu Sans" fontsize=20.25 dpi=300 pad=0.2 nodesep=0.5 ranksep=0.6 bgcolor=white];
+  node  [fontname="DejaVu Sans" fontsize=18.9];
+  edge  [fontname="DejaVu Sans" fontsize=17.55 color="#333333" fontcolor="#222222" arrowsize=0.8];
+  rankdir=TB; newrank=true; nodesep=0.2; ranksep=0.22;
+subgraph cluster_f2 { label=<<B>Fase 2 · Operación continua</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#9AA3AD" margin=10;
+b1 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Leer evento de fanotify</B><BR/><FONT POINT-SIZE="17.55">máscara · FID del<BR/>directorio padre<BR/>+ nombre · PID</FONT>> width=2.6];
+b2 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Resolver la ruta<BR/>(open_by_handle_at)<BR/><FONT POINT-SIZE="17.55">UID y ejecutable vía<BR/>/proc/&lt;pid&gt;,<BR/>de mejor esfuerzo</FONT>> width=2.6];
+b3 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Estampar detected_at<BR/>y encolar para procesamiento> width=2.6];
+b4 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Calcular SHA-256 del archivo> width=2.6];
+b5 [shape=diamond style=filled fillcolor="white" color="#5B7DB1" label="¿El hash coincide\ncon la baseline?" fontsize=17.55];
+b6 [shape=box style="rounded,filled" fillcolor="#F1F3F5" color="#6C757D" label=<Descartar sin publicar<BR/><FONT POINT-SIZE="17.55">traza:<BR/>matches_active_baseline</FONT>> width=2.6];
+b7 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Evaluar reglas cacheadas> width=2.6];
+b8 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Escribir el journal: pendiente</B><BR/><FONT POINT-SIZE="17.55">antes de ejecutar la<BR/>acción (write-ahead)</FONT>> width=2.6];
+b9 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Ejecutar la acción (4 niveles)</B><BR/><FONT POINT-SIZE="17.55">auto_restore ·<BR/>quarantine<BR/>manual_review ·<BR/>alert_only</FONT>> width=2.6];
+b10 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Publicar en el stream events</B><BR/><FONT POINT-SIZE="17.55">UUID · ruta · hashes ·<BR/>detected_at;<BR/>al publicar se agregan<BR/>sent_at<BR/>y la firma HMAC</FONT>> width=2.6];
+b11 [shape=box style="rounded,dashed,filled" fillcolor="white" color="#6C757D" label=<Si la publicación falla<BR/><FONT POINT-SIZE="17.55">el evento queda en<BR/>/var/lib/fim-agent/queue/<BR/>(≤ 100 MiB)<BR/>y se republica en orden<BR/>FIFO estricto</FONT>> width=2.6];
+ov [shape=box style="rounded,filled" fillcolor="#FDECEC" color="#B85450" label=<<B>FAN_Q_OVERFLOW</B><BR/><FONT POINT-SIZE="17.55">evento detection_gap<BR/>(como máximo uno<BR/>cada 60 s)</FONT>> width=2.6];
+b1->b2->b3->b4->b5; b5->b6 [label=" sí"]; b5->b7 [label=" no"]; b7->b8->b9->b10->b11; b11->b1 [constraint=false label=" siguiente evento" style=dashed]; b1->ov [style=dashed]; {rank=same; b1; ov;} {rank=same; b6; b7;}
+}
+}

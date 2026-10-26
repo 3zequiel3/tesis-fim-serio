@@ -6,7 +6,7 @@ calcula el SHA-256 del SVG incrustado y lo busca entre los SVG versionados en
 tesis/figuras/. Informa, además, las imágenes que solo tienen mapa de bits.
 
 Uso, desde la raíz del clon:
-    python3 scripts/verificar_medios.py <documento.docx> [--dir tesis/figuras] [--esperados 8]
+    python3 scripts/verificar_medios.py <documento.docx> [--dir tesis/figuras] [--esperados 9]
 
 Sale con código 1 si el número de SVG incrustados no es el esperado o si
 alguno no coincide byte a byte con un SVG versionado.
@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("docx", type=Path)
     ap.add_argument("--dir", type=Path, default=Path("tesis/figuras"))
-    ap.add_argument("--esperados", type=int, default=8)
+    ap.add_argument("--esperados", type=int, default=9)
     a = ap.parse_args(argv)
 
     versionados = {sha256(p.read_bytes()): p.name for p in sorted(a.dir.glob("*.svg"))}

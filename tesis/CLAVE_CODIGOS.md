@@ -11,7 +11,7 @@ elaborados con la herramienta declarada en el apartado 9.1.2. Ninguno de ellos e
 documento del tribunal.
 
 Las fechas y los autores de los commits salen de
-`git log entrega-tesis..entrega-tesis-v12.1 --format='%h|%ad|%an|%s'`; los mensajes no se
+`git log entrega-tesis..entrega-tesis-v12.2 --format='%h|%ad|%an|%s'`; los mensajes no se
 reescribieron.
 
 ## Familias de códigos
@@ -128,4 +128,12 @@ La etiqueta entrega-tesis-v12 se creó sobre 22b7143 y, antes de presentar la ve
 
 | Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
 |---|---|---|---|---|---|---|
-| (este commit) | — | — | — | docs(entrega): v12.1: declaración de uso con los apartados 5.1 y 5.3, reubicación de la etiqueta v12, siglas, cita y Figura 3 | — | — |
+| ec660e1 | 26/10/2026 | Nicolás Castro | — | — | — | — |
+
+## Commits de entrega-tesis-v12.1 a entrega-tesis-v12.2
+
+Responde a observaciones sobre la versión entrega-tesis-v12.1, hechas antes de presentarla; no cita códigos del tribunal.
+
+| Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
+|---|---|---|---|---|---|---|
+| (este commit) | — | — | — | docs(entrega): v12.2: Figura 3 en dos partes, unidad de la cola, objetos de etiqueta, apartados 4.9 y 6.3 | — | — |

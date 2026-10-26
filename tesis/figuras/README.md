@@ -7,7 +7,8 @@ cada PNG se regenera desde su fuente; no editarlos a mano.
 |---|---|---|
 | 1 | `fig1.dot` | Arquitectura general y distribución física |
 | 2 | `fig2.dot` | Modelo entidad-relación (generado desde los modelos SQLModel de v5.1-tesis) |
-| 3 | `fig3.dot` | Flujo de procesamiento del agente |
+| 3a | `fig3a.dot` | Flujo de procesamiento del agente: arranque y sincronización |
+| 3b | `fig3b.dot` | Flujo de procesamiento del agente: operación continua |
 | 4 | `fig4.mmd` | Diagrama de secuencia del protocolo de entrega |
 | 5 | `fig5.dot` | Máquina de estados del evento |
 | 8 | `fig8.dot` | Cascada de notificación |
@@ -39,10 +40,10 @@ cambia la escala del lienzo, no el dibujo, porque el documento ajusta cada
 figura al ancho de la caja de texto:
 
 ```bash
-for f in fig1 fig2 fig3 fig5 fig8; do dot -Tsvg:cairo "$f.dot" -o "$f.svg"; done
+for f in fig1 fig2 fig3a fig3b fig5 fig8; do dot -Tsvg:cairo "$f.dot" -o "$f.svg"; done
 for f in fig9 fig10; do dot -Tsvg:cairo -Gdpi=72 "$f.dot" -o "$f.svg"; done
 # PNG de respaldo, a 300 dpi
-for f in fig1 fig2 fig3 fig5 fig8 fig9 fig10; do dot -Tpng "$f.dot" -o "$f.png"; done
+for f in fig1 fig2 fig3a fig3b fig5 fig8 fig9 fig10; do dot -Tpng "$f.dot" -o "$f.png"; done
 ```
 
 Mermaid (Figura 4), con `@mermaid-js/mermaid-cli`:
