@@ -11,7 +11,7 @@ elaborados con la herramienta declarada en el apartado 9.1.2. Ninguno de ellos e
 documento del tribunal.
 
 Las fechas y los autores de los commits salen de
-`git log entrega-tesis..entrega-tesis-v12 --format='%h|%ad|%an|%s'`; los mensajes no se
+`git log entrega-tesis..entrega-tesis-v12.1 --format='%h|%ad|%an|%s'`; los mensajes no se
 reescribieron.
 
 ## Familias de códigos
@@ -120,4 +120,12 @@ Citan códigos del tribunal: R-n, de la devolución del 23/10/2026, y T-9, de la
 | 921be7c | 26/10/2026 | Nicolás Castro | R-1 | Devolución de la tercera corrección | 23/10/2026 | Tribunal |
 | 195fcd4 | 26/10/2026 | Nicolás Castro | R-1 | Devolución de la tercera corrección | 23/10/2026 | Tribunal |
 | 22b7143 | 26/10/2026 | Nicolás Castro | — | — | — | — |
-| (este commit) | — | — | — | docs(entrega): precisión de la cota R·S/n (apartados 5.3 y 6.7), etiqueta v11 en el Anexo F y clave de códigos completa | — | — |
+| 4f725c9 | 26/10/2026 | Nicolás Castro | — | — | — | — |
+
+## Commits de entrega-tesis-v12 a entrega-tesis-v12.1
+
+La etiqueta entrega-tesis-v12 se creó sobre 22b7143 y, antes de presentar la versión, se reubicó en 4f725c9 (Anexo F.1 del documento). Desde entonces ninguna etiqueta publicada se mueve: cada corrección recibe una etiqueta nueva.
+
+| Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
+|---|---|---|---|---|---|---|
+| (este commit) | — | — | — | docs(entrega): v12.1: declaración de uso con los apartados 5.1 y 5.3, reubicación de la etiqueta v12, siglas, cita y Figura 3 | — | — |

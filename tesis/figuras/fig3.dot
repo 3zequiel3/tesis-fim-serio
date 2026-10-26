@@ -1,48 +1,48 @@
 digraph G {
   graph [fontname="DejaVu Sans" fontsize=15 dpi=300 pad=0.2 nodesep=0.5 ranksep=0.6 bgcolor=white];
   node  [fontname="DejaVu Sans" fontsize=14];
-  edge  [fontname="DejaVu Sans" fontsize=12 color="#333333" fontcolor="#222222" arrowsize=0.8];
-  rankdir=TB; newrank=true; nodesep=0.25; ranksep=0.22;
+  edge  [fontname="DejaVu Sans" fontsize=13 color="#333333" fontcolor="#222222" arrowsize=0.8];
+  rankdir=TB; newrank=true; nodesep=0.2; ranksep=0.22;
 subgraph cluster_f1 { label=<<B>Fase 1 · Arranque</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#9AA3AD" margin=10;
-a1 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Leer configuración local<BR/><FONT POINT-SIZE="11">env vars, /etc/fim-agent</FONT>> width=2.6];
-a2 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Cargar secreto maestro<BR/><FONT POINT-SIZE="11">archivo con permisos restrictivos</FONT>> width=2.6];
-a3 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Derivar clave de la baseline<BR/><FONT POINT-SIZE="11">HKDF-SHA256</FONT>> width=2.6];
-a4 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Abrir la baseline cifrada<BR/><FONT POINT-SIZE="11">AES-256-GCM, autenticada en disco</FONT>> width=2.6];
-a5 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Rehidratar el journal<BR/><FONT POINT-SIZE="11">acciones previas pendientes<BR/>o en ejecución</FONT>> width=2.6];
-a6 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Verificar el certificado TLS<BR/><FONT POINT-SIZE="11">rotar si vence en menos de 15 días</FONT>> width=2.6];
-a7 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Establecer mTLS<BR/>con el backend<BR/><FONT POINT-SIZE="11">TLS 1.3 · CA propia</FONT>> width=2.6];
-a8 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Consumir el stream commands<BR/><FONT POINT-SIZE="11">configuración y nueva<BR/>versión de reglas</FONT>> width=2.6];
-a9 [shape=box style="rounded,filled" fillcolor="#FFF6D6" color="#C9A227" label=<Reconciliar la baseline<BR/>con el disco<BR/><FONT POINT-SIZE="11">modificados, borrados y creados<BR/>con el agente detenido;<BR/>eventos con detected_offline</FONT>> width=2.6];
+a1 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Leer configuración local<BR/><FONT POINT-SIZE="13">env vars, /etc/fim-agent</FONT>> width=2.6];
+a2 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Cargar secreto maestro<BR/><FONT POINT-SIZE="13">archivo con permisos<BR/>restrictivos</FONT>> width=2.6];
+a3 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Derivar clave de la baseline<BR/><FONT POINT-SIZE="13">HKDF-SHA256</FONT>> width=2.6];
+a4 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Abrir la baseline cifrada<BR/><FONT POINT-SIZE="13">AES-256-GCM, autenticada<BR/>en disco</FONT>> width=2.6];
+a5 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Rehidratar el journal<BR/><FONT POINT-SIZE="13">acciones previas<BR/>pendientes<BR/>o en ejecución</FONT>> width=2.6];
+a6 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Verificar el certificado TLS<BR/><FONT POINT-SIZE="13">rotar si vence en menos<BR/>de 15 días</FONT>> width=2.6];
+a7 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Establecer mTLS<BR/>con el backend<BR/><FONT POINT-SIZE="13">TLS 1.3 · CA propia</FONT>> width=2.6];
+a8 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Consumir el stream commands<BR/><FONT POINT-SIZE="13">configuración y nueva<BR/>versión de reglas</FONT>> width=2.6];
+a9 [shape=box style="rounded,filled" fillcolor="#FFF6D6" color="#C9A227" label=<Reconciliar la baseline<BR/>con el disco<BR/><FONT POINT-SIZE="13">modificados, borrados y<BR/>creados<BR/>con el agente detenido;<BR/>eventos con<BR/>detected_offline</FONT>> width=2.6];
 a10 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Drenar la cola local en orden FIFO> width=2.6];
-a11 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Configurar fanotify<BR/><FONT POINT-SIZE="11">FAN_CLASS_NOTIF · FAN_REPORT_DFID_NAME<BR/>FAN_MARK_FILESYSTEM<BR/>filtrado del alcance en espacio de usuario</FONT>> width=2.6];
+a11 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Configurar fanotify<BR/><FONT POINT-SIZE="13">FAN_CLASS_NOTIF ·<BR/>FAN_REPORT_DFID_NAME<BR/>FAN_MARK_FILESYSTEM<BR/>filtrado del alcance en<BR/>espacio de usuario</FONT>> width=2.6];
 a12 [shape=box style="rounded,filled" fillcolor="#E6E9ED" color="#6C757D" label=<<B>Transición a operación</B>> width=2.6];
 a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> a10 -> a11 -> a12;
 }
 subgraph cluster_f2 { label=<<B>Fase 2 · Operación continua</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#9AA3AD" margin=10;
-b1 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Leer evento de fanotify</B><BR/><FONT POINT-SIZE="11">máscara · FID del directorio padre<BR/>+ nombre · PID</FONT>> width=2.6];
-b2 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Resolver la ruta<BR/>(open_by_handle_at)<BR/><FONT POINT-SIZE="11">UID y ejecutable vía /proc/&lt;pid&gt;,<BR/>de mejor esfuerzo</FONT>> width=2.6];
+b1 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Leer evento de fanotify</B><BR/><FONT POINT-SIZE="13">máscara · FID del<BR/>directorio padre<BR/>+ nombre · PID</FONT>> width=2.6];
+b2 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Resolver la ruta<BR/>(open_by_handle_at)<BR/><FONT POINT-SIZE="13">UID y ejecutable vía<BR/>/proc/&lt;pid&gt;,<BR/>de mejor esfuerzo</FONT>> width=2.6];
 b3 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Estampar detected_at<BR/>y encolar para procesamiento> width=2.6];
 b4 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Calcular SHA-256 del archivo> width=2.6];
-b5 [shape=diamond style=filled fillcolor="white" color="#5B7DB1" label="¿El hash coincide\ncon la baseline?" fontsize=12];
-b6 [shape=box style="rounded,filled" fillcolor="#F1F3F5" color="#6C757D" label=<Descartar sin publicar<BR/><FONT POINT-SIZE="11">traza: matches_active_baseline</FONT>> width=2.6];
+b5 [shape=diamond style=filled fillcolor="white" color="#5B7DB1" label="¿El hash coincide\ncon la baseline?" fontsize=13];
+b6 [shape=box style="rounded,filled" fillcolor="#F1F3F5" color="#6C757D" label=<Descartar sin publicar<BR/><FONT POINT-SIZE="13">traza:<BR/>matches_active_baseline</FONT>> width=2.6];
 b7 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<Evaluar reglas cacheadas> width=2.6];
-b8 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Escribir el journal: pendiente</B><BR/><FONT POINT-SIZE="11">antes de ejecutar la acción (write-ahead)</FONT>> width=2.6];
-b9 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Ejecutar la acción (4 niveles)</B><BR/><FONT POINT-SIZE="11">auto_restore · quarantine<BR/>manual_review · alert_only</FONT>> width=2.6];
-b10 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Publicar en el stream events</B><BR/><FONT POINT-SIZE="11">UUID · ruta · hashes · detected_at;<BR/>al publicar se agregan sent_at<BR/>y la firma HMAC</FONT>> width=2.6];
-b11 [shape=box style="rounded,dashed,filled" fillcolor="white" color="#6C757D" label=<Si la publicación falla<BR/><FONT POINT-SIZE="11">el evento queda en<BR/>/var/lib/fim-agent/queue/ (≤ 100 MB)<BR/>y se republica en orden FIFO estricto</FONT>> width=2.6];
-ov [shape=box style="rounded,filled" fillcolor="#FDECEC" color="#B85450" label=<<B>FAN_Q_OVERFLOW</B><BR/><FONT POINT-SIZE="11">evento detection_gap<BR/>(como máximo uno cada 60 s)</FONT>> width=2.6];
+b8 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Escribir el journal: pendiente</B><BR/><FONT POINT-SIZE="13">antes de ejecutar la<BR/>acción (write-ahead)</FONT>> width=2.6];
+b9 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Ejecutar la acción (4 niveles)</B><BR/><FONT POINT-SIZE="13">auto_restore ·<BR/>quarantine<BR/>manual_review ·<BR/>alert_only</FONT>> width=2.6];
+b10 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Publicar en el stream events</B><BR/><FONT POINT-SIZE="13">UUID · ruta · hashes ·<BR/>detected_at;<BR/>al publicar se agregan<BR/>sent_at<BR/>y la firma HMAC</FONT>> width=2.6];
+b11 [shape=box style="rounded,dashed,filled" fillcolor="white" color="#6C757D" label=<Si la publicación falla<BR/><FONT POINT-SIZE="13">el evento queda en<BR/>/var/lib/fim-agent/queue/<BR/>(≤ 100 MB)<BR/>y se republica en orden<BR/>FIFO estricto</FONT>> width=2.6];
+ov [shape=box style="rounded,filled" fillcolor="#FDECEC" color="#B85450" label=<<B>FAN_Q_OVERFLOW</B><BR/><FONT POINT-SIZE="13">evento detection_gap<BR/>(como máximo uno<BR/>cada 60 s)</FONT>> width=2.6];
 b1->b2->b3->b4->b5; b5->b6 [label=" sí"]; b5->b7 [label=" no"]; b7->b8->b9->b10->b11; b11->b1 [constraint=false label=" siguiente evento" style=dashed]; b1->ov [style=dashed]; {rank=same; b1; ov;} {rank=same; b6; b7;}
 }
 subgraph cluster_f3 { label=<<B>Fase 3 · Sincronización (concurrente con la Fase 2)</B>> style="rounded,filled" fillcolor="#F7F8FA" color="#9AA3AD" margin=10;
-c1 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Latido cada 10 s</B><BR/><FONT POINT-SIZE="11">stream agent_heartbeat · tamaño de cola<BR/>queue_pressure · queue_pressure_high<BR/>ruleset_version</FONT>> width=2.6];
-c2 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Consumir comandos</B><BR/><FONT POINT-SIZE="11">verificar HMAC; descartar<BR/>versión ≤ última aplicada</FONT>> width=2.6];
-c3 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Consumir event_ack</B><BR/><FONT POINT-SIZE="11">eliminar la entrada local correspondiente</FONT>> width=2.6];
-c4 [shape=box style="rounded,filled" fillcolor="#FFF6D6" color="#C9A227" label=<<B>Republicación FIFO estricta</B><BR/><FONT POINT-SIZE="11">sondeo cada 0,5 s; la pasada se corta<BR/>ante el primer error; la rehidratación<BR/>va detrás de lo pendiente</FONT>> width=2.6];
-c5 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Rotación del certificado</B><BR/><FONT POINT-SIZE="11">desde 15 días antes del vencimiento,<BR/>sobre mTLS vigente</FONT>> width=2.6];
-c6 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Señal SIGTERM</B><BR/><FONT POINT-SIZE="11">deja de aceptar eventos<BR/>drena la cola (≤ 30 s)<BR/>latido con bandera shutdown · exit 0</FONT>> width=2.6];
+c1 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Latido cada 10 s</B><BR/><FONT POINT-SIZE="13">stream agent_heartbeat ·<BR/>tamaño de cola<BR/>queue_pressure ·<BR/>queue_pressure_high<BR/>ruleset_version</FONT>> width=2.6];
+c2 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Consumir comandos</B><BR/><FONT POINT-SIZE="13">verificar HMAC;<BR/>descartar<BR/>versión ≤ última<BR/>aplicada</FONT>> width=2.6];
+c3 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Consumir event_ack</B><BR/><FONT POINT-SIZE="13">eliminar la entrada<BR/>local correspondiente</FONT>> width=2.6];
+c4 [shape=box style="rounded,filled" fillcolor="#FFF6D6" color="#C9A227" label=<<B>Republicación FIFO estricta</B><BR/><FONT POINT-SIZE="13">sondeo cada 0,5 s; la<BR/>pasada se corta<BR/>ante el primer error; la<BR/>rehidratación<BR/>va detrás de lo<BR/>pendiente</FONT>> width=2.6];
+c5 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Rotación del certificado</B><BR/><FONT POINT-SIZE="13">desde 15 días antes del<BR/>vencimiento,<BR/>sobre mTLS vigente</FONT>> width=2.6];
+c6 [shape=box style="rounded,filled" fillcolor="white" color="#5B7DB1" label=<<B>Señal SIGTERM</B><BR/><FONT POINT-SIZE="13">deja de aceptar eventos<BR/>drena la cola (≤ 30 s)<BR/>latido con bandera<BR/>shutdown · exit 0</FONT>> width=2.6];
 c1 -> c3 -> c5 [style=invis]; c2 -> c4 -> c6 [style=invis]; {rank=same; c1; c2;} {rank=same; c3; c4;} {rank=same; c5; c6;}
 }
 {rank=same; a1; b1;}
 b11 -> c1 [style=invis weight=10]; b11 -> c2 [style=invis];
-label="Los recuadros amarillos señalan los pasos incorporados en v5.1-tesis."; labelloc=b; fontsize=12;
+label="Los recuadros amarillos señalan los pasos incorporados en v5.1-tesis."; labelloc=b; fontsize=13;
 }
