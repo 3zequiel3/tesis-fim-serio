@@ -5,13 +5,13 @@ documento (hallazgo T-1 de la devolución del 19/10/2026). Para cada commit post
 la etiqueta `entrega-tesis` consigna el código que cita su mensaje, el documento del que
 procede, la fecha de ese documento y su autor.
 
-**Solo tres familias proceden del tribunal:** N-1 a N-10 (devolución del 09/10/2026),
-T-1 a T-9 (devolución del 19/10/2026) y R-1 a R-4 (devolución del 23/10/2026). Las demás son documentos de los autores, varios
+**Solo cuatro familias proceden del tribunal:** N-1 a N-10 (devolución del 09/10/2026),
+T-1 a T-9 (devolución del 19/10/2026), R-1 a R-4 (devolución del 23/10/2026) y S-1 a S-5 (devolución del 26/10/2026). Las demás son documentos de los autores, varios
 elaborados con la herramienta declarada en el apartado 9.1.2. Ninguno de ellos es un
 documento del tribunal.
 
 Las fechas y los autores de los commits salen de
-`git log entrega-tesis..entrega-tesis-v12.2 --format='%h|%ad|%an|%s'`; los mensajes no se
+`git log entrega-tesis..entrega-tesis-v13 --format='%h|%ad|%an|%s'`; los mensajes no se
 reescribieron.
 
 ## Familias de códigos
@@ -25,6 +25,7 @@ reescribieron.
 | PC-n | Plan de corrección PC-1 a PC-13, sobre la versión de entrega-tesis-v8 | 19/10/2026 | Autores, con la herramienta (Claude Opus 5.5, claude.ai) |
 | T-n | Devolución de la segunda corrección (hallazgos T-1 a T-9) | 19/10/2026 | Tribunal |
 | R-n | Devolución de la tercera corrección (hallazgos R-1 a R-4) | 23/10/2026 | Tribunal |
+| S-n | Devolución de la cuarta corrección (hallazgos S-1 a S-5) | 26/10/2026 | Tribunal |
 
 ## Commits de entrega-tesis a entrega-tesis-v9
 
@@ -136,4 +137,17 @@ Responde a observaciones sobre la versión entrega-tesis-v12.1, hechas antes de 
 
 | Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
 |---|---|---|---|---|---|---|
-| (este commit) | — | — | — | docs(entrega): v12.2: Figura 3 en dos partes, unidad de la cola, objetos de etiqueta, apartados 4.9 y 6.3 | — | — |
+| 30efcaf | 26/10/2026 | Nicolás Castro | — | — | — | — |
+
+## Commits de entrega-tesis-v12.2 a entrega-tesis-v13
+
+Citan códigos del tribunal: S-n, de la devolución del 26/10/2026. Corresponden a la revisión que declara el apartado 9.1.2 del documento; 688960f es el texto que N. Castro escribió sin asistencia, y 42e02a9 restituye un cambio involuntario de formato de ese commit.
+
+| Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
+|---|---|---|---|---|---|---|
+| ee32e95 | 06/11/2026 | Nicolás Castro | S-2 | Devolución de la cuarta corrección | 26/10/2026 | Tribunal |
+| 7abc7d3 | 06/11/2026 | Nicolás Castro | S-1, S-4 | Devolución de la cuarta corrección | 26/10/2026 | Tribunal |
+| 688960f | 06/11/2026 | Nicolás Castro | S-3 | Devolución de la cuarta corrección | 26/10/2026 | Tribunal |
+| 42e02a9 | 06/11/2026 | Nicolás Castro | — | — | — | — |
+| 06bcc2c | 06/11/2026 | Nicolás Castro | S-3 | Devolución de la cuarta corrección | 26/10/2026 | Tribunal |
+| (este commit) | 06/11/2026 | Nicolás Castro | S-5 | Devolución de la cuarta corrección | 26/10/2026 | Tribunal |
