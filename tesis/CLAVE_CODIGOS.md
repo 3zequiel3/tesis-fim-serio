@@ -132,7 +132,7 @@ La etiqueta entrega-tesis-v12 se creó sobre 22b7143 y, antes de presentar la ve
 
 ## Commits de entrega-tesis-v12.1 a entrega-tesis-v12.2
 
-Responde a observaciones sobre la versión entrega-tesis-v12.1, hechas antes de presentarla; no cita códigos del tribunal.
+Responde a observaciones sobre la versión entrega-tesis-v12.1, hechas antes de presentarla por la herramienta de inteligencia artificial, en una revisión que pidieron los autores (apartado 9.1.2); no son del tribunal y no cita códigos del tribunal.
 
 | Commit | Fecha | Firma | Código | Documento | Fecha del documento | Autor del documento |
 |---|---|---|---|---|---|---|
