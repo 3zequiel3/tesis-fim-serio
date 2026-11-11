@@ -166,7 +166,9 @@ async def list_events(
         q = q.where(qs_expr.in_([s.value for s in quarantine_state_filter]))
 
     if path_prefix:
-        q = q.where(Event.path.startswith(path_prefix))
+        # D91/RN-185: prefijo literal — escapa %, _ y \ del LIKE. El COUNT usa esta
+        # misma subconsulta, así que `total` respeta el mismo filtro.
+        q = q.where(Event.path.startswith(path_prefix, autoescape=True))
 
     if date_from:
         q = q.where(Event.created_at >= _as_utc_instant(date_from))

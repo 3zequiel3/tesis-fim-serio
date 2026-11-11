@@ -703,3 +703,56 @@ async def test_get_event_chain_does_not_require_admin_role(client, session, agen
     # The chain endpoint must never leak diff_text/hash_expected either.
     assert "diff_text" not in resp.json()["items"][0]
     assert "hash_expected" not in resp.json()["items"][0]
+
+
+# ── D91/RN-185: path_prefix es un prefijo literal ─────────────────────────────
+
+
+async def test_path_prefix_percent_is_literal_and_matches_nothing(client, session, agent) -> None:
+    """`%` was a LIKE wildcard that returned every event; now it is a literal."""
+    _persist(
+        session,
+        _new_event(agent, path="/etc/passwd"),
+        _new_event(agent, path="/var/www/index.html"),
+    )
+
+    resp = await client.get("/events?path_prefix=%25", headers=_auth_headers())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["items"] == []
+    assert body["total"] == 0
+
+
+async def test_path_prefix_underscore_is_literal(client, session, agent) -> None:
+    """`/srv/a_b` must not match `/srv/axb/x` (`_` is a single-char wildcard in LIKE)."""
+    literal = _new_event(agent, path="/srv/a_b/x")
+    _persist(session, literal, _new_event(agent, path="/srv/axb/x"))
+
+    resp = await client.get("/events?path_prefix=/srv/a_b", headers=_auth_headers())
+
+    body = resp.json()
+    assert [item["id"] for item in body["items"]] == [literal.id]
+    assert body["total"] == 1
+
+
+async def test_path_prefix_backslash_is_literal(client, session, agent) -> None:
+    literal = _new_event(agent, path="/srv/a\\b/x")
+    _persist(session, literal, _new_event(agent, path="/srv/ab/x"))
+
+    resp = await client.get("/events?path_prefix=" + quote("/srv/a\\b"), headers=_auth_headers())
+
+    body = resp.json()
+    assert [item["id"] for item in body["items"]] == [literal.id]
+    assert body["total"] == 1
+
+
+async def test_path_prefix_with_trailing_slash_still_works(client, session, agent) -> None:
+    inside = _new_event(agent, path="/etc/hosts")
+    _persist(session, inside, _new_event(agent, path="/etcetera/x"))
+
+    resp = await client.get("/events?path_prefix=/etc/", headers=_auth_headers())
+
+    body = resp.json()
+    assert [item["id"] for item in body["items"]] == [inside.id]
+    assert body["total"] == 1
