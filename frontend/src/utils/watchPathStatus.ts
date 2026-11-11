@@ -19,17 +19,17 @@ export interface WatchPathStatusMeta {
 const WATCH_PATH_STATUS_META: Record<string, WatchPathStatusMeta> = {
   read_only_mount: {
     label: 'Solo detección',
-    title: 'Monitoreado, no remediable: el path está en un mount de solo lectura del despliegue',
+    title: 'Monitoreado, no remediable: la ruta está en un montaje de solo lectura del despliegue',
     className: 'bg-warning-bg text-warning-fg border border-warning-line',
   },
   permission_denied: {
     label: 'Solo detección',
-    title: 'Monitoreado, no remediable: permiso denegado al escribir en este path',
+    title: 'Monitoreado, no remediable: permiso denegado al escribir en esta ruta',
     className: 'bg-warning-bg text-warning-fg border border-warning-line',
   },
   missing: {
     label: 'No existe',
-    title: 'El path no existe en el host del agente',
+    title: 'La ruta no existe en el host del agente',
     className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
   },
 }

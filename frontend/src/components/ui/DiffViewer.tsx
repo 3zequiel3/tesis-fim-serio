@@ -175,7 +175,7 @@ function BinaryComparison({
           <p className="font-mono text-xs [overflow-wrap:anywhere] text-text">
             {hashBefore ?? 'sin baseline'}
           </p>
-          <p className="text-xs text-text-muted mt-2 mb-1">Hex dump (primeros bytes)</p>
+          <p className="text-xs text-text-muted mt-2 mb-1">Volcado hexadecimal (primeros bytes)</p>
           <pre className="font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere] text-text-muted bg-surface rounded-control p-2 overflow-x-auto">
             {hexDumpBefore ?? 'contenido anterior no disponible'}
           </pre>
@@ -183,7 +183,7 @@ function BinaryComparison({
         <div>
           <p className="text-xs text-text-muted mb-1">Hash actual</p>
           <p className="font-mono text-xs [overflow-wrap:anywhere] text-danger-fg">{hashAfter ?? '—'}</p>
-          <p className="text-xs text-text-muted mt-2 mb-1">Hex dump (primeros bytes)</p>
+          <p className="text-xs text-text-muted mt-2 mb-1">Volcado hexadecimal (primeros bytes)</p>
           <pre className="font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere] text-text bg-surface rounded-control p-2 overflow-x-auto">
             {hexDumpAfter ?? 'no disponible'}
           </pre>

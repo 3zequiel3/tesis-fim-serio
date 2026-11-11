@@ -329,7 +329,7 @@ describe('AgentCard — lista de paths monitoreados (US-24/C1)', () => {
     // Con >1 watch_paths también se renderiza la selección de re-escaneo
     // (US-22), que repite los mismos paths como <label> — se acota la
     // aserción a la sección "Watch paths" propiamente dicha.
-    const watchPathsSection = screen.getByText('Watch paths').closest('div')!.parentElement!
+    const watchPathsSection = screen.getByText('Rutas vigiladas').closest('div')!.parentElement!
     expect(within(watchPathsSection).getByText('/etc')).toBeInTheDocument()
     expect(within(watchPathsSection).getByText('/var/lib/fim')).toBeInTheDocument()
     expect(within(watchPathsSection).getByText('/home/user')).toBeInTheDocument()
@@ -354,7 +354,7 @@ describe('AgentCard — agregar un nuevo path (US-24/C2)', () => {
 
     expect(screen.getByText('/var/lib/fim')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    await user.click(screen.getByRole('button', { name: /guardar rutas/i }))
 
     expect(onConfigSave).toHaveBeenCalledWith('agent-tz-test', ['/etc', '/var/lib/fim'])
   })
@@ -384,7 +384,7 @@ describe('AgentCard — quitar un path existente (US-24/C3)', () => {
       screen.queryByText('/var/lib/fim', { selector: 'span.font-mono' })
     ).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    await user.click(screen.getByRole('button', { name: /guardar rutas/i }))
 
     expect(onConfigSave).toHaveBeenCalledWith('agent-tz-test', ['/etc'])
   })
@@ -403,7 +403,7 @@ describe('AgentCard — botón de guardar deshabilitado durante drenaje (US-24/C
 
     // Se entra en modo edición mientras el agente todavía está online.
     await user.click(screen.getByRole('button', { name: /editar/i }))
-    expect(screen.getByRole('button', { name: /guardar paths/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /guardar rutas/i })).toBeEnabled()
 
     // El agente pasa a draining (p. ej. por refetch de polling) mientras la
     // edición ya estaba abierta — el botón de guardar debe deshabilitarse
@@ -416,7 +416,7 @@ describe('AgentCard — botón de guardar deshabilitado durante drenaje (US-24/C
       />
     )
 
-    const saveButton = screen.getByRole('button', { name: /guardar paths/i })
+    const saveButton = screen.getByRole('button', { name: /guardar rutas/i })
     expect(saveButton).toBeDisabled()
     expect(saveButton).toHaveAttribute('title', 'No disponible durante shutdown graceful')
   })
@@ -432,7 +432,7 @@ describe('AgentCard — botón de guardar deshabilitado durante drenaje (US-24/C
 
     const editButton = screen.getByRole('button', { name: /editar/i })
     expect(editButton).toBeDisabled()
-    expect(screen.queryByRole('button', { name: /guardar paths/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /guardar rutas/i })).not.toBeInTheDocument()
   })
 })
 
@@ -487,14 +487,14 @@ describe('AgentCard — editor de rutas seguro (D12b)', () => {
   it('una ruta escrita sin «Agregar» se incluye al guardar', async () => {
     const { user, onConfigSave } = await openEditor(makeAgent({ watch_paths: ['/etc'] }))
     await user.type(screen.getByPlaceholderText('/ruta/nueva'), '/var/www')
-    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    await user.click(screen.getByRole('button', { name: /guardar rutas/i }))
     expect(onConfigSave).toHaveBeenCalledWith('agent-tz-test', ['/etc', '/var/www'])
   })
 
   it('quitar la última ruta deshabilita guardar y explica por qué, sin enviar nada', async () => {
     const { user, onConfigSave } = await openEditor(makeAgent({ watch_paths: ['/etc'] }))
     await user.click(screen.getByRole('button', { name: /quitar/i }))
-    expect(screen.getByRole('button', { name: /guardar paths/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /guardar rutas/i })).toBeDisabled()
     expect(screen.getByText('El agente necesita al menos una ruta vigilada.')).toBeInTheDocument()
     expect(onConfigSave).not.toHaveBeenCalled()
   })
@@ -502,7 +502,7 @@ describe('AgentCard — editor de rutas seguro (D12b)', () => {
   it('una ruta escrita inválida bloquea el guardado con un mensaje en línea', async () => {
     const { user, onConfigSave } = await openEditor(makeAgent({ watch_paths: ['/etc'] }))
     await user.type(screen.getByPlaceholderText('/ruta/nueva'), 'var/www')
-    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    await user.click(screen.getByRole('button', { name: /guardar rutas/i }))
     expect(screen.getByText(/debe ser absoluta/)).toBeInTheDocument()
     expect(onConfigSave).not.toHaveBeenCalled()
   })
@@ -510,7 +510,7 @@ describe('AgentCard — editor de rutas seguro (D12b)', () => {
   it('una ruta repetida con barra final se rechaza antes de enviar', async () => {
     const { user, onConfigSave } = await openEditor(makeAgent({ watch_paths: ['/etc'] }))
     await user.type(screen.getByPlaceholderText('/ruta/nueva'), '/etc/')
-    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    await user.click(screen.getByRole('button', { name: /guardar rutas/i }))
     expect(screen.getByText(/repetida/)).toBeInTheDocument()
     expect(onConfigSave).not.toHaveBeenCalled()
   })
@@ -529,8 +529,8 @@ describe('AgentCard — editor de rutas seguro (D12b)', () => {
     await user.click(screen.getByRole('button', { name: /editar/i }))
     const second = screen.getAllByText('/var')[0].closest('li')!
     expect(within(second).getByRole('alert')).toHaveTextContent('repetida')
-    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
-    expect(screen.getByRole('button', { name: /guardar paths/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /guardar rutas/i }))
+    expect(screen.getByRole('button', { name: /guardar rutas/i })).toBeInTheDocument()
   })
 
   it('un usuario que no es admin no ve «Editar» ni «Rescan»', () => {

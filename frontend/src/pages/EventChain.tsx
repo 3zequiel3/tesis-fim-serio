@@ -45,7 +45,7 @@ export function EventChain() {
         {chain && (
           <>
             <h1 className="text-xl font-semibold text-text [overflow-wrap:anywhere]">
-              Cadena de eventos — {chain.path ?? '(sin path)'}
+              Cadena de eventos — {chain.path ?? '(sin ruta)'}
             </h1>
 
             <ol className="mt-4 space-y-2">

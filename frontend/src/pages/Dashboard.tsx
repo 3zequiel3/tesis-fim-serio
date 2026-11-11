@@ -15,11 +15,11 @@ import type { AgentStatus } from '@/api/agents'
 // valor canónico, igual que en la tabla de eventos.
 
 const AGENT_STATUS_LABELS: Record<AgentStatus, string> = {
-  online: 'Online',
-  offline: 'Offline',
-  draining: 'Draining',
-  dead: 'Dead',
-  revoked: 'Revoked',
+  online: 'En línea',
+  offline: 'Sin conexión',
+  draining: 'Drenando',
+  dead: 'Caído',
+  revoked: 'Revocado',
 }
 
 const AGENT_STATUS_TONE: Record<AgentStatus, string> = {
@@ -154,15 +154,15 @@ export function Dashboard() {
       >
         {/* Sección: lo que el operador tiene que mirar */}
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-text">Pending criticos y altos</h2>
+          <h2 className="text-lg font-semibold text-text">Pendientes críticos y altos</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Metric
-              label="Pending (todos)"
+              label="Pendientes (todos)"
               value={data?.eventsByStatus.pending ?? 0}
               to="/events?status=pending"
             />
             <Metric
-              label="Pending critical + high"
+              label="Pendientes críticos + altos"
               value={data?.pendingCriticalHigh ?? 0}
               tone={(data?.pendingCriticalHigh ?? 0) > 0 ? 'text-danger-fg' : undefined}
               emphasis={(data?.pendingCriticalHigh ?? 0) > 0}
@@ -177,7 +177,7 @@ export function Dashboard() {
                     to={`/events/${item.id}`}
                     className={`flex flex-wrap items-center gap-x-3 gap-y-1 border-l-4 px-4 py-2 hover:bg-surface-hover ${getSeverityMeta(item.severity).bandClass}`}
                   >
-                    <span className="min-w-0 flex-1">
+                    <span className="min-w-0 basis-full sm:basis-0 sm:flex-1">
                       <PathLabel path={item.path} />
                     </span>
                     <span className={`font-mono text-xs font-semibold ${getSeverityMeta(item.severity).textClass}`}>{item.severity}</span>

@@ -17,13 +17,13 @@ export interface ActionErrorMeta {
 // barrera de despliegue; el resto, problema de datos.
 const ACTION_ERROR_META: Record<string, ActionErrorMeta> = {
   read_only_mount: {
-    label: 'Causa: el path no es escribible (mount de solo lectura del despliegue)',
-    reason: 'el path no es escribible (mount de solo lectura del despliegue)',
+    label: 'Causa: la ruta no es escribible (montaje de solo lectura del despliegue)',
+    reason: 'la ruta no es escribible (montaje de solo lectura del despliegue)',
     className: 'bg-warning-bg text-warning-fg border border-warning-line',
   },
   permission_denied: {
-    label: 'Causa: permiso denegado al escribir (faltan capabilities en el despliegue)',
-    reason: 'permiso denegado al escribir (faltan capabilities en el despliegue)',
+    label: 'Causa: permiso denegado al escribir (faltan capacidades en el despliegue)',
+    reason: 'permiso denegado al escribir (faltan capacidades en el despliegue)',
     className: 'bg-warning-bg text-warning-fg border border-warning-line',
   },
   no_baseline_content: {
@@ -37,8 +37,8 @@ const ACTION_ERROR_META: Record<string, ActionErrorMeta> = {
     className: 'bg-danger-bg text-danger-fg border border-danger-line',
   },
   no_baseline_metadata: {
-    label: 'Causa: falta metadata de baseline (modo/dueño/grupo)',
-    reason: 'falta metadata de baseline (modo/dueño/grupo)',
+    label: 'Causa: faltan los metadatos del baseline (modo/dueño/grupo)',
+    reason: 'faltan los metadatos del baseline (modo/dueño/grupo)',
     className: 'bg-danger-bg text-danger-fg border border-danger-line',
   },
   file_not_found: {

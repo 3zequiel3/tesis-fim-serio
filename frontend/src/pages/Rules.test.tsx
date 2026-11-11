@@ -143,7 +143,7 @@ describe('Rules — US-15 creación', () => {
     await user.click(screen.getByRole('button', { name: 'Nueva regla' }))
 
     expect(screen.getByRole('heading', { name: 'Nueva regla' })).toBeInTheDocument()
-    await user.type(screen.getByLabelText(/^Pattern/), '!/etc/motd')
+    await user.type(screen.getByLabelText(/^Patrón/), '!/etc/motd')
     await user.selectOptions(screen.getByLabelText('Severidad'), 'critical')
     await user.selectOptions(screen.getByLabelText('Acción'), 'auto_restore')
     await user.click(screen.getByRole('button', { name: 'Crear regla' }))
@@ -181,12 +181,12 @@ describe('Rules — rechazos del backend con la forma real', () => {
     renderWithProviders(<Rules />, { route: '/rules' })
 
     await user.click(await screen.findByRole('button', { name: 'Nueva regla' }))
-    await user.type(screen.getByLabelText(/^Pattern/), 'etc/**')
+    await user.type(screen.getByLabelText(/^Patrón/), 'etc/**')
     await user.click(screen.getByRole('button', { name: 'Crear regla' }))
 
     const message = await screen.findByText('El patrón debe ser una ruta absoluta (empezar con /).')
     expect(message).toHaveAttribute('id', 'rule-pattern-error')
-    expect(screen.getByLabelText(/^Pattern/)).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText(/^Patrón/)).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('heading', { name: 'Nueva regla' })).toBeInTheDocument()
     expect(screen.queryByText(/\[object Object\]/)).toBeNull()
   })

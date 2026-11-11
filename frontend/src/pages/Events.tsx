@@ -9,6 +9,9 @@ import { DataState } from '@/components/ui/DataState'
 import { Pagination } from '@/components/ui/Pagination'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { inputClassName } from '@/components/ui/Field'
+import { Button } from '@/components/ui/Button'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { SlidersHorizontal } from 'lucide-react'
 import { parseEventFilters, serializeEventFilters } from '@/utils/eventFilters'
 import type { EventFilters } from '@/api/events'
 
@@ -38,6 +41,9 @@ export function Events() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = parseEventFilters(searchParams)
   const canMutate = useCan()
+  // ≤ 768 px: the filter panel is collapsed behind a toggle; on desktop it is always open.
+  const isDesktop = useMediaQuery('(min-width: 769px)')
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const { data, isLoading, isFetching, error, refetch } = useEvents(filters)
   const items = useMemo(() => data?.items ?? [], [data])
@@ -161,6 +167,16 @@ export function Events() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const showSuperseded = !!filters.include_superseded
 
+  const activeFilterCount =
+    (filters.status?.length ?? 0) +
+    (filters.severity?.length ?? 0) +
+    (filters.quarantine_state?.length ?? 0) +
+    (filters.path_prefix ? 1 : 0) +
+    (filters.date_from ? 1 : 0) +
+    (filters.date_to ? 1 : 0) +
+    (filters.include_superseded ? 1 : 0)
+  const showFilters = isDesktop || filtersOpen
+
   const checkLabel = 'flex cursor-pointer items-center gap-2 text-text'
 
   return (
@@ -171,8 +187,27 @@ export function Events() {
         {isFetching && !isLoading && <span className="text-xs text-text-muted">Actualizando...</span>}
       </div>
 
+      {!isDesktop && (
+        <Button
+          aria-expanded={filtersOpen}
+          aria-controls="events-filters"
+          onClick={() => setFiltersOpen((open) => !open)}
+          className="w-full justify-between"
+        >
+          <span className="inline-flex items-center gap-2">
+            <SlidersHorizontal aria-hidden="true" size={16} />
+            Filtros ({activeFilterCount})
+          </span>
+          <span className="text-xs font-normal text-text-muted">{filtersOpen ? 'Ocultar' : 'Mostrar'}</span>
+        </Button>
+      )}
+
       {/* Panel de filtros */}
-      <div className="space-y-4 rounded-panel border border-line bg-surface-raised p-4">
+      <div
+        id="events-filters"
+        hidden={!showFilters}
+        className="space-y-4 rounded-panel border border-line bg-surface-raised p-4"
+      >
         {/* Filtro por estado */}
         <fieldset>
           <legend className="mb-1.5 text-xs font-semibold text-text-muted">Estado</legend>
@@ -234,7 +269,7 @@ export function Events() {
           {/* Filtro por path */}
           <div>
             <label htmlFor="filter-path" className="mb-1 block text-xs font-semibold text-text-muted">
-              Prefijo de path
+              Prefijo de ruta
             </label>
             <input
               id="filter-path"

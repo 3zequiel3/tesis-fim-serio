@@ -200,7 +200,7 @@ describe('Dashboard — US-05: estado general del sistema', () => {
     renderWithProviders(<Dashboard />)
     await screen.findByRole('heading', { name: /eventos por estado/i })
 
-    expect(within(statCard('Pending (todos)')).getByText('7')).toBeInTheDocument()
+    expect(within(statCard('Pendientes (todos)')).getByText('7')).toBeInTheDocument()
   })
 
   it('muestra el estado de conectividad de los agentes registrados', async () => {
@@ -210,10 +210,10 @@ describe('Dashboard — US-05: estado general del sistema', () => {
     renderWithProviders(<Dashboard />)
     await screen.findByRole('heading', { name: /^agentes$/i })
 
-    expect(within(statCard('Online')).getByText('2')).toBeInTheDocument()
-    expect(within(statCard('Offline')).getByText('1')).toBeInTheDocument()
-    expect(within(statCard('Draining')).getByText('1')).toBeInTheDocument()
-    expect(within(statCard('Dead')).getByText('1')).toBeInTheDocument()
+    expect(within(statCard('En línea')).getByText('2')).toBeInTheDocument()
+    expect(within(statCard('Sin conexión')).getByText('1')).toBeInTheDocument()
+    expect(within(statCard('Drenando')).getByText('1')).toBeInTheDocument()
+    expect(within(statCard('Caído')).getByText('1')).toBeInTheDocument()
   })
 
   it('destaca visualmente los pending critical/high cuando existen', async () => {
@@ -222,8 +222,8 @@ describe('Dashboard — US-05: estado general del sistema', () => {
     renderWithProviders(<Dashboard />)
     await screen.findByRole('heading', { name: /eventos por estado/i })
 
-    const critical = statCard('Pending critical + high')
-    const plain = statCard('Pending (todos)')
+    const critical = statCard('Pendientes críticos + altos')
+    const plain = statCard('Pendientes (todos)')
 
     expect(within(critical).getByText('3')).toBeInTheDocument()
     // El realce es puramente visual: la tarjeta se diferencia del resto.
@@ -238,7 +238,7 @@ describe('Dashboard — US-05: estado general del sistema', () => {
     renderWithProviders(<Dashboard />)
     await screen.findByRole('heading', { name: /eventos por estado/i })
 
-    const card = statCard('Pending critical + high')
+    const card = statCard('Pendientes críticos + altos')
     const href = card.getAttribute('href')
     expect(href).toBeTruthy()
 
@@ -261,8 +261,8 @@ describe('Dashboard — US-05: estado general del sistema', () => {
     renderWithProviders(<Dashboard />)
     await screen.findByRole('heading', { name: /eventos por estado/i })
 
-    const critical = statCard('Pending critical + high')
-    const plain = statCard('Pending (todos)')
+    const critical = statCard('Pendientes críticos + altos')
+    const plain = statCard('Pendientes (todos)')
 
     expect(within(critical).getByText('0')).toBeInTheDocument()
     expect(critical.className).toBe(plain.className)

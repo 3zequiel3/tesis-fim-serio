@@ -89,7 +89,7 @@ describe('Events — filtro de ruta con debounce (M9)', () => {
     await waitFor(() => expect(resolvers['']).toBeDefined())
     await act(async () => resolvers['']?.(page([])))
 
-    const input = screen.getByLabelText('Prefijo de path')
+    const input = screen.getByLabelText('Prefijo de ruta')
     await user.type(input, '/et')
     await waitFor(() => expect(resolvers['/et']).toBeDefined())
     await user.type(input, 'c/ssh')
@@ -109,7 +109,7 @@ describe('Events — filtro de ruta con debounce (M9)', () => {
     renderWithProviders(<Events />, { route: '/events' })
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
 
-    await user.type(screen.getByLabelText('Prefijo de path'), '/etc')
+    await user.type(screen.getByLabelText('Prefijo de ruta'), '/etc')
     // Within the 300 ms window, the operator also ticks a status.
     await user.click(screen.getByRole('checkbox', { name: 'pending' }))
 
@@ -154,5 +154,54 @@ describe('Events — proceso desconocido en la tabla (D11)', () => {
     apiGet.mockResolvedValue(page([makeItem(1)]))
     renderWithProviders(<Events />, { route: '/events' })
     expect(await screen.findByText(/desconocido \(pid desconocido, uid 0\)/)).toBeInTheDocument()
+  })
+})
+
+// Polish (6.5): at 768 px or less the filter panel hides behind a toggle with the active count.
+describe('Events — panel de filtros en pantallas angostas', () => {
+  function mockWidth(px: number) {
+    window.matchMedia = ((query: string) => {
+      const min = /min-width:\s*(\d+)px/.exec(query)
+      return {
+        matches: min ? px >= Number(min[1]) : false,
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }
+    }) as unknown as typeof window.matchMedia
+  }
+
+  beforeEach(() => apiGet.mockResolvedValue(page([])))
+
+  it('a 375 px arranca cerrado, muestra la cantidad de filtros activos y se abre con el botón', async () => {
+    mockWidth(375)
+    const user = userEvent.setup()
+    renderWithProviders(<Events />, { route: '/events?status=pending&severity=critical' })
+
+    const toggle = screen.getByRole('button', { name: /Filtros \(2\)/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('checkbox', { name: 'critical' })).toBeNull()
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('checkbox', { name: 'critical' })).toBeChecked()
+
+    await user.click(toggle)
+    expect(screen.queryByRole('checkbox', { name: 'critical' })).toBeNull()
+  })
+
+  it('el contador cuenta ruta, fechas y superseded además de las casillas', () => {
+    mockWidth(375)
+    renderWithProviders(<Events />, {
+      route: '/events?status=pending&path_prefix=/etc&date_from=2026-01-01T00:00&include_superseded=true',
+    })
+    expect(screen.getByRole('button', { name: /Filtros \(4\)/ })).toBeInTheDocument()
+  })
+
+  it('en escritorio el panel está siempre abierto y no hay botón', () => {
+    mockWidth(1280)
+    renderWithProviders(<Events />, { route: '/events' })
+    expect(screen.queryByRole('button', { name: /Filtros/ })).toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'critical' })).toBeInTheDocument()
   })
 })

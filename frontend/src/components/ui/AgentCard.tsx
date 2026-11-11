@@ -233,7 +233,7 @@ function WatchPathsEditor({
           disabled={isSaving || isDraining || wouldBeEmpty}
           title={isDraining ? DRAINING_TOOLTIP : undefined}
         >
-          {isSaving ? 'Guardando...' : 'Guardar paths'}
+          {isSaving ? 'Guardando...' : 'Guardar rutas'}
         </Button>
         <Button
           variant="ghost"
@@ -275,7 +275,7 @@ function RescanSection({
           sentido elegir si hay más de un path configurado. */}
       {agent.watch_paths.length > 1 && (
         <div>
-          <span className="text-xs font-semibold text-text-muted">Paths a re-escanear</span>
+          <span className="text-xs font-semibold text-text-muted">Rutas a re-escanear</span>
           <ul className="mt-1 space-y-0.5">
             {agent.watch_paths.map((p) => (
               <li key={p} className="flex items-center gap-2">
@@ -359,7 +359,7 @@ export function AgentCard({
       {/* Queue pressure */}
       <div>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
-          <span className="text-xs text-text-muted">Queue pressure</span>
+          <span className="text-xs text-text-muted">Presión de cola</span>
           <span className="flex flex-wrap items-center gap-2 text-xs">
             <span className="tabular-nums text-text">{pressurePct}%</span>
             <DiscardedEventsIndicator count={agent.discarded_events} />
@@ -400,7 +400,7 @@ export function AgentCard({
       {/* Watch paths */}
       <div>
         <div className="mb-1 flex items-center justify-between">
-          <span className="text-xs font-semibold text-text-muted">Watch paths</span>
+          <span className="text-xs font-semibold text-text-muted">Rutas vigiladas</span>
           {!editingPaths && (
             <Can>
               <button
@@ -427,7 +427,7 @@ export function AgentCard({
         ) : (
           <ul className="space-y-0.5">
             {agent.watch_paths.length === 0 ? (
-              <li className="text-xs italic text-text-muted">Sin paths configurados</li>
+              <li className="text-xs italic text-text-muted">Sin rutas configuradas</li>
             ) : (
               agent.watch_paths.map((p) => (
                 <li key={p} className="flex min-w-0 items-center gap-2">

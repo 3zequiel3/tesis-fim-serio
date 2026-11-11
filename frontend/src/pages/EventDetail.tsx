@@ -240,18 +240,18 @@ export function EventDetail() {
           </span>
         </FieldCard>
 
-        <FieldCard label="Versión de optimistic lock">
+        <FieldCard label="Versión (bloqueo optimista)">
           <span className="font-mono">{event.version}</span>
         </FieldCard>
 
         <FieldCard label="Fecha de creación">{formatAbsolute(event.created_at)}</FieldCard>
         <FieldCard label="Detectado">{formatAbsolute(event.detected_at)}</FieldCard>
-        <FieldCard label="Recibido por backend">{formatAbsolute(event.received_at)}</FieldCard>
+        <FieldCard label="Recibido por el servidor">{formatAbsolute(event.received_at)}</FieldCard>
 
         {event.resolved_at && <FieldCard label="Resuelto">{formatAbsolute(event.resolved_at)}</FieldCard>}
 
         {event.resolved_by != null && (
-          <FieldCard label="Resuelto por (user ID)">{event.resolved_by}</FieldCard>
+          <FieldCard label="Resuelto por (ID de usuario)">{event.resolved_by}</FieldCard>
         )}
       </dl>
 
@@ -279,7 +279,7 @@ export function EventDetail() {
       )}
 
       <section className="space-y-3 rounded-panel border border-line bg-surface-raised p-4">
-        <h2 className="font-semibold text-text">Diff de contenido</h2>
+        <h2 className="font-semibold text-text">Diferencias de contenido</h2>
         {/* US-09: DiffViewer detecta el modo (texto/binario/no disponible) a partir de estas props. */}
         <DiffViewer
           diffText={event.diff_text}

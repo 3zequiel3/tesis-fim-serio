@@ -112,7 +112,7 @@ describe('Agents — errores del backend con la forma real (A7, D91/RN-185)', ()
     renderWithProviders(<Agents />, { route: '/agents' })
 
     await user.click(await screen.findByRole('button', { name: /editar/i }))
-    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    await user.click(screen.getByRole('button', { name: /guardar rutas/i }))
 
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith('Error al guardar configuración: La ruta está repetida.'),
@@ -120,7 +120,7 @@ describe('Agents — errores del backend con la forma real (A7, D91/RN-185)', ()
     const second = screen.getAllByText('/var')[0].closest('li')!
     expect(within(second).getByRole('alert')).toHaveTextContent('La ruta está repetida.')
     // The editor stays open with the admin's work.
-    expect(screen.getByRole('button', { name: /guardar paths/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /guardar rutas/i })).toBeInTheDocument()
   })
 
   it('un 404 con detail string y un detail con lista nunca producen [object Object]', async () => {

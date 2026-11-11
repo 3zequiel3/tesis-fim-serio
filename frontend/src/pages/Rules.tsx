@@ -118,7 +118,7 @@ export function Rules() {
   const columns: Column<Rule>[] = [
     {
       key: 'pattern',
-      header: 'Pattern',
+      header: 'Patrón',
       primary: true,
       cell: (rule) => <span className="font-mono text-text [overflow-wrap:anywhere]">{rule.pattern}</span>,
     },
@@ -136,11 +136,11 @@ export function Rules() {
     },
     {
       key: 'sync',
-      header: 'Sync',
+      header: 'Sincronización',
       cell: (rule) =>
         syncPendingIds.has(rule.id) ? (
           <span className="inline-flex items-center rounded-control bg-warning-bg px-2 py-0.5 text-xs font-semibold text-warning-fg">
-            sync pendiente
+            sincronización pendiente
           </span>
         ) : (
           <span className="inline-flex items-center rounded-control bg-success-bg px-2 py-0.5 text-xs font-semibold text-success-fg">
@@ -229,7 +229,7 @@ export function Rules() {
         loadingLabel="Cargando reglas..."
         isEmpty={!rules || rules.length === 0}
         emptyTitle="No hay reglas configuradas."
-        emptyHint="Sin reglas, todo cambio genera sólo una alerta."
+        emptyHint="Sin reglas, todo cambio genera solo una alerta."
         emptyAction={
           <Can>
             <Button variant="primary" onClick={openCreate}>

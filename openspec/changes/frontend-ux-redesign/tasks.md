@@ -66,6 +66,7 @@
 - [x] 6.2 Revisar a 375 px, 768 px y 1.280 px cada página con rutas de 200 caracteres; corregir todo desborde horizontal del documento.
 - [x] 6.3 Verificación visual en navegador real (servidor de desarrollo con mocks o pila aislada) en ambos temas: capturas de Dashboard, Eventos, detalle, Agentes y Reglas; ajustar lo que no siga la dirección de D-1 y anotar en la change lo revisado.
   - Revisado con Chromium (Playwright) contra el servidor de desarrollo y la API simulada con `page.route`, en 1.280 px y 375 px, tema oscuro y claro, las nueve páginas (Login, Dashboard, Eventos, detalle, cadena, Agentes, Reglas, Alertas, Alertas fallidas): 36 capturas, sin desborde horizontal del documento (`scrollWidth <= clientWidth`) ni errores de página, con rutas de 200 caracteres. La ruta como título del detalle, la barra proporcional del Dashboard y los badges de estado siguen D-1; no hizo falta retocar tokens.
+- [x] 6.5 Pulido: en pantallas de 768 px o menos el panel de filtros de Eventos queda plegado tras el botón «Filtros (N)» (N = filtros activos; abierto siempre en escritorio) y la copia visible queda en español con acentos («Pendientes críticos + altos», «Versión (bloqueo optimista)», «Rutas vigiladas», «Patrón»…), conservando el léxico canónico de RN-71 dentro de los badges. Con tests.
 - [ ] 6.4 Si es barato: un caso de Playwright que verifica `scrollWidth <= clientWidth` a 375 px en `/events` y el cambio de tema.
 
 ## 7. Cierre

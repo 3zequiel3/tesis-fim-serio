@@ -74,7 +74,7 @@ export function EventsTable({ items, selected, onSelectionChange, selectable = t
       : []),
     {
       key: 'path',
-      header: 'Path',
+      header: 'Ruta',
       primary: true,
       cell: (item) => {
         const processContext = processContextLabel(item)

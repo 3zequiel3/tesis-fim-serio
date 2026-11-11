@@ -14,10 +14,10 @@ interface RuleFormProps {
 }
 
 const SEVERITY_OPTIONS: { value: RuleSeverity; label: string }[] = [
-  { value: 'critical', label: 'Critical' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  { value: 'critical', label: 'critical' },
+  { value: 'high', label: 'high' },
+  { value: 'medium', label: 'medium' },
+  { value: 'low', label: 'low' },
 ]
 
 const ACTION_OPTIONS: { value: RuleAction; label: string }[] = [
@@ -35,7 +35,7 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading, patternServerErr
 
   function validate(): boolean {
     if (!pattern.trim()) {
-      setPatternError('El pattern no puede estar vacío')
+      setPatternError('El patrón no puede estar vacío')
       return false
     }
     setPatternError(null)
@@ -54,7 +54,7 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading, patternServerErr
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="rule-pattern" className="mb-1 block font-semibold text-text">
-          Pattern <span aria-hidden="true" className="text-danger-fg">*</span>
+          Patrón <span aria-hidden="true" className="text-danger-fg">*</span>
         </label>
         <input
           type="text"

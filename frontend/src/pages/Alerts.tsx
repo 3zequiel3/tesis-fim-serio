@@ -43,7 +43,7 @@ const COLUMNS: Column<Alert>[] = [
   { key: 'id', header: 'ID', cell: (a) => <span className="tabular-nums text-text-muted">{a.id}</span> },
   {
     key: 'path',
-    header: 'Path',
+    header: 'Ruta',
     primary: true,
     cell: (a) => (
       // US-19: la alerta es navegable hacia el detalle del evento asociado.
