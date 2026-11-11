@@ -1,19 +1,36 @@
 import { create } from 'zustand'
 import { loginApi, logoutApi, refreshApi } from '@/api/auth'
 import type { LoginCredentials, AuthUser } from '@/api/auth'
+import { queryClient } from '@/api/queryClient'
 
 // NUNCA usar persist middleware — el access token solo vive en RAM (RN-96, D-FE-2)
+
+/** Why the local session ended (design D-5). Drives the notice shown at /login. */
+export type SessionEndReason = 'logout' | 'expired' | 'password_changed'
+
+export const SESSION_EXPIRED_NOTICE = 'Tu sesión venció. Ingresá de nuevo.'
+export const PASSWORD_CHANGED_NOTICE = 'Contraseña actualizada. Ingresá con la contraseña nueva.'
 
 export interface AuthState {
   accessToken: string | null
   user: AuthUser | null
+  /** True only while a login request is in flight. A token renewal never sets it. */
   isLoading: boolean
+  /** Set by endSession(); the router guard reads it to pick the notice for /login. */
+  endedReason: SessionEndReason | null
 
   // Acciones
   setToken: (token: string, user: AuthUser | null) => void
   login: (credentials: LoginCredentials) => Promise<void>
   logout: () => Promise<boolean>
+  /**
+   * Renews the access token. It never touches `isLoading`: ProtectedRoute and
+   * every page keep their state while a (proactive) renewal runs (B4).
+   */
   refreshToken: () => Promise<void>
+  /** Clears the store AND the query cache, so no data outlives the session (M1). */
+  endSession: (reason: SessionEndReason) => void
+  clearEndedReason: () => void
 }
 
 const REFRESH_EARLY_MS = 60_000
@@ -61,7 +78,14 @@ function scheduleRefresh(token: string) {
   // local concede acceso: la autorización sigue dependiendo del backend.
   refreshTimer = setTimeout(() => {
     refreshTimer = null
-    void useAuthStore.getState().refreshToken().catch(() => undefined)
+    // A failed proactive renewal means the session is gone: end it with the
+    // «expired» notice instead of leaving a ghost session.
+    useAuthStore
+      .getState()
+      .refreshToken()
+      .catch(() => {
+        useAuthStore.getState().endSession('expired')
+      })
   }, delay)
 }
 
@@ -69,6 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,
   isLoading: false,
+  endedReason: null,
 
   setToken(token: string, user: AuthUser | null) {
     scheduleRefresh(token)
@@ -80,17 +105,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data = await loginApi(credentials)
       scheduleRefresh(data.access_token)
-      set({ accessToken: data.access_token, user: data.user, isLoading: false })
+      set({
+        accessToken: data.access_token,
+        user: data.user,
+        isLoading: false,
+        endedReason: null,
+      })
     } catch (err) {
       set({ isLoading: false })
       throw err
     }
   },
 
+  endSession(reason: SessionEndReason) {
+    cancelScheduledRefresh()
+    queryClient.clear()
+    set({ accessToken: null, user: null, isLoading: false, endedReason: reason })
+  },
+
+  clearEndedReason() {
+    set({ endedReason: null })
+  },
+
   async logout() {
     const accessToken = get().accessToken
-    cancelScheduledRefresh()
-    set({ accessToken: null, user: null, isLoading: false })
+    get().endSession('logout')
     if (!accessToken) return true
     try {
       await logoutApi(accessToken)
@@ -103,19 +142,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   async refreshToken() {
-    set({ isLoading: true })
     try {
       const data = await refreshApi()
       scheduleRefresh(data.access_token)
-      set({
-        accessToken: data.access_token,
-        user: data.user,
-        isLoading: false,
-      })
+      set({ accessToken: data.access_token, user: data.user })
     } catch (err) {
       // Un refresh expirado, revocado o fallido no deja una sesión fantasma.
-      // ProtectedRoute observa la pérdida del token y navega a login.
-      await get().logout()
+      // El llamador decide el aviso: la verificación inicial sin cookie vuelve
+      // a /login sin aviso; la renovación en segundo plano usa «expired».
+      cancelScheduledRefresh()
+      set({ accessToken: null, user: null })
       throw err
     }
   },

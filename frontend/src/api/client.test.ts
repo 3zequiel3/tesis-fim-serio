@@ -25,6 +25,7 @@ vi.mock('@/api/auth', () => ({
 }))
 
 import { useAuthStore } from '@/stores/auth.store'
+import { queryClient } from '@/api/queryClient'
 import './client'
 
 const user = {
@@ -56,5 +57,20 @@ describe('apiClient — US-03 renovación transparente', () => {
     expect(apiRequest).toHaveBeenCalledTimes(1)
     expect(apiRequest).toHaveBeenCalledWith(originalRequest)
     expect(originalRequest.headers.Authorization).toBe(`Bearer ${rotated}`)
+  })
+
+  it('si el refresh también falla termina la sesión como vencida y vacía la caché', async () => {
+    refreshApi.mockRejectedValue(new Error('refresh revoked'))
+    queryClient.setQueryData(['events'], { items: [] })
+    const rejectInterceptor = responseUse.mock.calls[0][1]
+
+    await expect(rejectInterceptor({
+      response: { status: 401 },
+      config: { url: '/events', headers: {} },
+    })).rejects.toThrow('refresh revoked')
+
+    expect(useAuthStore.getState().accessToken).toBeNull()
+    expect(useAuthStore.getState().endedReason).toBe('expired')
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
   })
 })

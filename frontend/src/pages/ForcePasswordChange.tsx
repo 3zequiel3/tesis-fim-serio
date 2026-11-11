@@ -1,16 +1,29 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
-import { useAuthStore } from '@/stores/auth.store'
+import { Check, Circle } from 'lucide-react'
 import { changePasswordApi } from '@/api/auth'
+import { apiErrorMessage } from '@/api/errors'
+import { Button } from '@/components/ui/Button'
+import { Field, inputClassName } from '@/components/ui/Field'
+import { PASSWORD_CHANGED_NOTICE, useAuthStore } from '@/stores/auth.store'
 
 const UPPERCASE_RE = /\p{Lu}/u
 const LOWERCASE_RE = /\p{Ll}/u
 const DIGIT_RE = /\p{Nd}/u
 
+function Requirement({ met, children }: { met: boolean; children: string }) {
+  return (
+    <li className={`flex items-center gap-2 ${met ? 'text-success-fg' : 'text-text-muted'}`}>
+      {met ? <Check aria-hidden="true" size={14} /> : <Circle aria-hidden="true" size={14} />}
+      {children}
+      <span className="sr-only">{met ? ' (cumplido)' : ' (pendiente)'}</span>
+    </li>
+  )
+}
+
 export function ForcePasswordChange() {
   const accessToken = useAuthStore((s) => s.accessToken)
-  const refreshToken = useAuthStore((s) => s.refreshToken)
+  const endSession = useAuthStore((s) => s.endSession)
   const navigate = useNavigate()
 
   const [currentPassword, setCurrentPassword] = useState('')
@@ -35,6 +48,9 @@ export function ForcePasswordChange() {
     if (!DIGIT_RE.test(newPassword)) {
       return 'La nueva contraseña debe tener al menos un número.'
     }
+    if (newPassword === currentPassword) {
+      return 'La nueva contraseña debe ser distinta de la actual.'
+    }
     if (newPassword !== confirmPassword) {
       return 'Las contraseñas no coinciden.'
     }
@@ -43,6 +59,7 @@ export function ForcePasswordChange() {
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (isSubmitting) return
     setError(null)
 
     const validationError = validate()
@@ -62,39 +79,27 @@ export function ForcePasswordChange() {
         { current_password: currentPassword, new_password: newPassword },
         accessToken,
       )
-      // Refresh para obtener token sin scope restrictivo
-      await refreshToken()
-      navigate('/', { replace: true })
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail as string | undefined
-        setError(detail ?? 'Error al cambiar la contraseña. Intentá de nuevo.')
-      } else {
-        setError('Error de conexión. Verificá tu red.')
-      }
-    } finally {
+      setError(apiErrorMessage(err, 'Error al cambiar la contraseña. Intentá de nuevo.'))
       setIsSubmitting(false)
+      return
     }
+    // D89/RN-183: the backend already revoked every token of this user, so
+    // there is nothing to refresh. End the local session and ask for a new login.
+    endSession('password_changed')
+    navigate('/login', { replace: true, state: { notice: PASSWORD_CHANGED_NOTICE } })
   }
 
   return (
-    <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-8">
-      <div className="mb-8 text-center">
-        <h1 className="text-xl font-bold text-white">Cambio de contraseña requerido</h1>
-        <p className="mt-2 text-sm text-gray-500">
-          Tu contraseña debe actualizarse antes de continuar. Elegí una contraseña que cumpla
-          los requisitos.
-        </p>
-      </div>
+    <div className="rounded-panel border border-line bg-surface-raised p-8">
+      <h1 className="text-xl font-semibold text-text">Cambio de contraseña requerido</h1>
+      <p className="mb-6 mt-2 text-text-muted">
+        Tu contraseña debe actualizarse antes de continuar. Elegí una contraseña que cumpla los
+        requisitos.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-        <div>
-          <label
-            htmlFor="current_password"
-            className="block text-sm font-medium text-gray-300 mb-1.5"
-          >
-            Contraseña actual
-          </label>
+        <Field id="current_password" label="Contraseña actual">
           <input
             id="current_password"
             type="password"
@@ -103,52 +108,38 @@ export function ForcePasswordChange() {
             required
             autoComplete="current-password"
             autoFocus
-            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60"
+            className={inputClassName}
             disabled={isSubmitting}
           />
-        </div>
+        </Field>
 
         <div>
-          <label
-            htmlFor="new_password"
-            className="block text-sm font-medium text-gray-300 mb-1.5"
-          >
-            Nueva contraseña
-          </label>
-          <input
-            id="new_password"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-            minLength={12}
-            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60"
-            disabled={isSubmitting}
-          />
-          <ul className="mt-1.5 text-xs text-gray-500 space-y-0.5">
-            <li className={newPassword.length >= 12 ? 'text-green-500' : undefined}>
-              Mínimo 12 caracteres
-            </li>
-            <li className={UPPERCASE_RE.test(newPassword) ? 'text-green-500' : undefined}>
-              Al menos 1 mayúscula
-            </li>
-            <li className={LOWERCASE_RE.test(newPassword) ? 'text-green-500' : undefined}>
-              Al menos 1 minúscula
-            </li>
-            <li className={DIGIT_RE.test(newPassword) ? 'text-green-500' : undefined}>
-              Al menos 1 número
-            </li>
+          <Field id="new_password" label="Nueva contraseña">
+            <input
+              id="new_password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+              minLength={12}
+              className={inputClassName}
+              disabled={isSubmitting}
+            />
+          </Field>
+          <ul className="mt-2 space-y-0.5 text-xs">
+            <Requirement met={newPassword.length >= 12}>Mínimo 12 caracteres</Requirement>
+            <Requirement met={UPPERCASE_RE.test(newPassword)}>Al menos 1 mayúscula</Requirement>
+            <Requirement met={LOWERCASE_RE.test(newPassword)}>Al menos 1 minúscula</Requirement>
+            <Requirement met={DIGIT_RE.test(newPassword)}>Al menos 1 número</Requirement>
           </ul>
         </div>
 
-        <div>
-          <label
-            htmlFor="confirm_password"
-            className="block text-sm font-medium text-gray-300 mb-1.5"
-          >
-            Confirmar contraseña
-          </label>
+        <Field
+          id="confirm_password"
+          label="Confirmar contraseña"
+          error={confirmPassword && newPassword !== confirmPassword ? 'Las contraseñas no coinciden.' : null}
+        >
           <input
             id="confirm_password"
             type="password"
@@ -156,37 +147,23 @@ export function ForcePasswordChange() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             autoComplete="new-password"
-            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60"
+            className={inputClassName}
             disabled={isSubmitting}
           />
-          {confirmPassword && newPassword !== confirmPassword && (
-            <p className="mt-1 text-xs text-red-400">Las contraseñas no coinciden.</p>
-          )}
-        </div>
+        </Field>
 
         {error && (
           <div
             role="alert"
-            className="text-sm text-red-300 bg-red-950 border border-red-800 rounded-md px-3 py-2"
+            className="rounded-control border border-danger-line bg-danger-bg px-3 py-2 text-danger-fg"
           >
             {error}
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full py-2.5 px-4 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-        >
-          {isSubmitting ? (
-            <>
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Guardando...
-            </>
-          ) : (
-            'Cambiar contraseña'
-          )}
-        </button>
+        <Button type="submit" variant="primary" className="w-full" loading={isSubmitting}>
+          {isSubmitting ? 'Guardando...' : 'Cambiar contraseña'}
+        </Button>
       </form>
     </div>
   )

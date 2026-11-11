@@ -89,7 +89,9 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        useAuthStore.getState().logout()
+        // D-5: an expired session empties the store and the query cache and lands
+        // on /login with the «Tu sesión venció» notice (the route guard reads it).
+        useAuthStore.getState().endSession('expired')
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

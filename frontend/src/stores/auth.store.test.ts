@@ -13,6 +13,7 @@ vi.mock('@/api/auth', () => ({
 }))
 
 import { useAuthStore } from './auth.store'
+import { queryClient } from '@/api/queryClient'
 
 const user = {
   id: 1,
@@ -134,5 +135,46 @@ describe('auth store — US-01 access token nunca en storage persistente (W9)', 
     expect(useAuthStore.getState().accessToken).not.toBeNull()
     expect(setItemSpy).not.toHaveBeenCalled()
     setItemSpy.mockRestore()
+  })
+})
+
+describe('auth store — M1 la sesión no deja datos en caché', () => {
+  beforeEach(() => {
+    logoutApi.mockReset()
+    logoutApi.mockResolvedValue(undefined)
+    queryClient.clear()
+  })
+
+  it('logout() vacía la caché de consultas además del store', async () => {
+    useAuthStore.setState({ accessToken: 'tok', user })
+    queryClient.setQueryData(['events', { page: 1 }], { items: [{ id: 1 }] })
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
+
+    await useAuthStore.getState().logout()
+
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(useAuthStore.getState().accessToken).toBeNull()
+  })
+
+  it('endSession vacía store y caché y recuerda el motivo', () => {
+    useAuthStore.setState({ accessToken: 'tok', user })
+    queryClient.setQueryData(['rules'], [])
+
+    useAuthStore.getState().endSession('password_changed')
+
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(useAuthStore.getState().user).toBeNull()
+    expect(useAuthStore.getState().endedReason).toBe('password_changed')
+  })
+
+  it('refreshToken() nunca marca isLoading (B4)', async () => {
+    let resolve!: (v: unknown) => void
+    refreshApi.mockReturnValue(new Promise((r) => (resolve = r)))
+    const p = useAuthStore.getState().refreshToken()
+    expect(useAuthStore.getState().isLoading).toBe(false)
+    resolve({ access_token: 'header.e30=.sig', token_type: 'bearer', user })
+    await p
+    expect(useAuthStore.getState().isLoading).toBe(false)
+    useAuthStore.getState().endSession('logout')
   })
 })
