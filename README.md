@@ -487,10 +487,17 @@ Ingresar con `ADMIN_USERNAME` y `ADMIN_PASSWORD` del `.env`. El sistema exige
 cambiar la contraseña en el primer login.
 
 > **Hay rate limit en el login y es comportamiento esperado.** Tras **5 intentos
-> fallidos** dentro de una ventana de **900 segundos** (15 minutos), el backend
-> responde **429** con `Too many login attempts. Try again later.` (valores por
-> defecto `rate_limit_login_attempts` / `rate_limit_login_window_seconds` en
-> `backend/app/core/config.py`). No es una falla de la instalación: hay que
+> fallidos** del mismo usuario desde la misma IP dentro de una ventana fija de
+> **900 segundos** (15 minutos), el backend responde **429** con
+> `Demasiados intentos fallidos. Esperá unos minutos e intentá de nuevo.` y un
+> header `Retry-After` con los segundos que faltan. Cuentan **sólo los intentos
+> fallidos**: un login correcto no suma y reinicia el contador. La IP es la del
+> cliente real: el backend lee `X-Forwarded-For` únicamente cuando la conexión
+> llega desde una red de `TRUSTED_PROXY_CIDRS` (los `docker-compose` la fijan a los
+> rangos privados de Docker; default del backend: loopback), así que una persona
+> que falla desde otra IP no bloquea a las demás. Valores por defecto
+> `rate_limit_login_attempts` / `rate_limit_login_window_seconds` en
+> `backend/app/core/config.py`. No es una falla de la instalación: hay que
 > esperar a que la ventana se libere. Evitar probar contraseñas a repetición
 > mientras se diagnostica otra cosa, porque bloquea el diagnóstico real.
 
@@ -1290,16 +1297,19 @@ docker compose -f docker-compose.yml -f docker-compose.tls.yml --profile app up 
 ### F.6 — El login de la consola devuelve 429
 
 **Síntoma.** Después de varios intentos, el login responde `429` con
-`Too many login attempts. Try again later.`
+`Demasiados intentos fallidos. Esperá unos minutos e intentá de nuevo.`
 
 **Causa.** **Es comportamiento esperado, no una falla de la instalación.** El
-backend limita a **5 intentos** de login por ventana de **900 segundos**
-(`rate_limit_login_attempts` / `rate_limit_login_window_seconds` en
-`backend/app/core/config.py`).
+backend limita a **5 intentos fallidos** por usuario e IP real del cliente en una
+ventana fija de **900 segundos** (`rate_limit_login_attempts` /
+`rate_limit_login_window_seconds` en `backend/app/core/config.py`). Un login
+correcto no cuenta. Si el backend corre detrás de un proxy que no está en
+`TRUSTED_PROXY_CIDRS`, todos los clientes comparten la IP del proxy y cinco
+fallos de cualquiera bloquean el usuario para todos.
 
-**Solución.** Esperar a que la ventana se libere. Si se está diagnosticando otra
-cosa, dejar de probar credenciales: cada intento extiende el bloqueo y oculta el
-problema real.
+**Solución.** Esperar a que la ventana se libere (el header `Retry-After` indica
+cuánto falta). Un intento bloqueado no extiende la espera. Si el backend está
+detrás de un proxy propio, agregar su red a `TRUSTED_PROXY_CIDRS`.
 
 ### F.7 — El login de la consola devuelve 403
 
