@@ -1441,6 +1441,44 @@ Reglas: RN-181 (ampliada), D76/RN-170 (enmienda condicional de la fase B), D42/R
 
 ---
 
+### Change 71 — `backend-input-validation-hardening`
+
+**Capa**: backend · **Depende de**: ninguna (rama `devel`, descendiente de `v5.1-tesis`) · **Paralelizable con**: ninguna que toque `backend/app/modules/rules/`, `backend/app/modules/agents/service.py`, `backend/app/modules/auth/router.py`, `backend/app/modules/users/router.py` o `backend/app/core/rate_limit.py` · **Origen**: revisiones del 2026-11-11 (estática, automática y E2E en navegador real sobre una pila aislada) para la presentación y demo técnica del proyecto; el Capítulo 5 de la tesis sigue atado a `v5.1-tesis` · **Decisiones**: D89/RN-183, D90/RN-184, D91/RN-185, D92/RN-186
+
+> **Nota**: verificado contra `devel` `30efcaf`. `validate_pattern` (`rules/service.py:109`) sólo exige un glob no vacío: acepta `relative/path`, `/etc/[`, `../../etc/passwd`, 5.000 caracteres y saltos de línea. `AgentConfigRequest.watch_paths` (`agents/models.py:154`) acepta cualquier lista, incluida la vacía. `path_prefix` usa `startswith` sin `autoescape` (`events/router.py:169`): `%` devuelve todo. El login incrementa el contador antes de verificar y cuenta los éxitos (`core/rate_limit.py:44`), con la IP del contenedor `nginx` (`auth/router.py:99`): seis pedidos de cualquier origen bloquean al `admin`. `change-password` acepta la contraseña actual como nueva y responde en inglés.
+
+Capacidades:
+- **Validación de rutas** (`core/path_validation.py`) para `pattern` de reglas y `watch_paths`: absoluta, sin `..`, sin control, ≤ 1.024 caracteres, glob bien formado; 1–64 rutas sin duplicados; `422` con `{code, message}`.
+- **`path_prefix` literal** (`autoescape=True`).
+- **Rate limit del login sobre intentos fallidos**, reinicio en éxito, IP real detrás de `TRUSTED_PROXY_CIDRS`; `429` con `Retry-After` igual al TTL restante.
+- **Cambio de contraseña**: rechaza la reutilización (`password_reuse`); mensajes en español con `{code, message}`; conserva la revocación de la sesión.
+- **Contrato de error** `{"detail": ...}` documentado y cubierto por tests.
+
+Reglas: RN-183, RN-184, RN-185, RN-186 (nuevas); RN-08, RN-58 y W5/RN-88 (refinadas); D36/RN-130 (preservada).
+
+**Done**: cada defecto tiene un test que falla sin el arreglo; las filas existentes no se revalidan; la suite de backend pasa (línea base 1.106 tests: 1.102 pasan y 4 se omiten); `scripts/check_spec_integrity.py` pasa.
+
+---
+
+### Change 72 — `frontend-ux-redesign`
+
+**Capa**: frontend (+ un campo de lectura en backend) · **Depende de**: 71 (`backend-input-validation-hardening`: códigos de error de reglas, rutas vigiladas, login y cambio de contraseña) · **Paralelizable con**: ninguna que toque `frontend/` o `backend/app/modules/events/router.py` · **Origen**: revisiones del 2026-11-11 (estática, automática y E2E en navegador real sobre una pila aislada) para la presentación y demo técnica del proyecto; el Capítulo 5 de la tesis sigue atado a `v5.1-tesis` · **Decisiones**: D93/RN-187; consume D89/RN-183, D90/RN-184 y D91/RN-185
+
+> **Nota**: verificado contra `devel` `30efcaf`. Defectos funcionales: `ForcePasswordChange.tsx` llama a `refreshToken()` tras un cambio que revocó la sesión (B1/D1); `useEventActions.ts:70` lee `data.code` y `useAgents.ts:55` lee `body.count` cuando el backend los anida en `detail` (B2, B3/D4); la renovación proactiva usa `isLoading` y `ProtectedRoute` desmonta la app (B4); `EventDetail`/`EventChain` quedan en «Cargando...» ante errores no 404 o `/events/abc` (B5/D2); Aprobar se ofrece para `alert_only` (`EventDetail.tsx:72`, B6/D8); el Dashboard cuenta `superseded` sin `include_superseded` (B7/D6); `FailedAlerts` sin enlace al evento, `last_error`, `retry_count` ni «Reintentar todos» (B8/D13); `ack_status` no se reconsulta y el motivo del fallo no llega (`PublishedCommand.error` no se expone; D3/M3/D11); el editor de rutas guarda una lista vacía (D12b); además M1, M4–M9, A7, D15 y D16. Calidad: un único chunk de 515 kB, sin ESLint, y `pnpm audit --prod` con 11 hallazgos `high` (`axios` 1.18.0, `follow-redirects` 1.16.0, `react-router` 7.18.0).
+
+Capacidades:
+- **Sistema visual propio** con tokens en `@theme`, tema claro y oscuro con conmutador (respeta `prefers-color-scheme`), tipografías empaquetadas, badge único para el léxico de RN-71.
+- **Estados explícitos** de carga, vacío y error con reintento en toda vista; modales accesibles; layout responsivo (menú a ≤ 768 px, sin desborde a 375 px).
+- **Arreglos funcionales** B1–B8, D1–D16, M1–M9 y A7, cada uno con un test que falla sin el arreglo y mocks con la forma real `{"detail": ...}`.
+- **`EventOut.ack_error`** en backend para mostrar el motivo de un comando fallido.
+- **Calidad**: división por ruta, ESLint con script `lint`, dependencias actualizadas y `pnpm audit --prod` sin `high`/`critical`.
+
+Reglas: RN-187 (nueva); RN-71, RN-29, RN-44, D30/RN-124, D64/RN-158 y D70/RN-164 (preservadas).
+
+**Done**: los 298 tests existentes pasan (sólo se adaptan los que mockeaban una forma de error que el backend no emite, con nota en cada uno); cada arreglo tiene su test; `pnpm lint`, `pnpm typecheck`, `pnpm build` y `pnpm audit --prod --audit-level high` pasan; el chunk inicial queda por debajo de 250 kB; la suite de backend pasa; `scripts/check_spec_integrity.py` pasa.
+
+---
+
 ---
 
 ## Decisiones de implementación cerradas — Abril 2026

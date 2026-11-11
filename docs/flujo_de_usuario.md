@@ -1140,6 +1140,6 @@ Los botones de re-scan / guardar config quedan disabled con tooltip explicativo.
 - Password nuevo (>= 12 caracteres, al menos 1 mayúscula, 1 minúscula, 1 número).
 - Confirmación del nuevo.
 
-Al completar exitosamente, el backend marca `must_change_password = false` y emite nuevos tokens con scope completo. Hasta que no se cambie, cualquier intento de navegar a otra ruta redirige de vuelta al formulario.
+Al completar exitosamente, el backend marca `must_change_password = false` y revoca la sesión; el frontend lleva a `/login` con el aviso de contraseña actualizada y el admin ingresa con la contraseña nueva, que no puede ser igual a la actual (D89/RN-183). Hasta que no se cambie, cualquier intento de navegar a otra ruta redirige de vuelta al formulario.
 **Motivación**: Password del seed en `.env` no es secreto a largo plazo (está en archivos de config, git history, CI/CD).
 **Aplicación**: `pages/Login.tsx` (redirect), `pages/ForcePasswordChange.tsx`, router guards.

@@ -520,7 +520,8 @@
 - [ ] El formulario de cambio pide: password actual, password nuevo (>= 12 caracteres, al menos 1 mayúscula, 1 minúscula, 1 número), confirmación.
 - [ ] El backend valida la contraseña actual y las reglas de complejidad antes de aceptar.
 - [ ] La nueva contraseña se hashea con Argon2id con parámetros C9.
-- [ ] Al completar el cambio exitosamente, el backend marca `must_change_password = false` y emite nuevos tokens con scope completo.
+- [ ] Al completar el cambio exitosamente, el backend marca `must_change_password = false` y revoca la sesión (access y refresh token); el frontend lleva a `/login` con el aviso de contraseña actualizada y el admin ingresa con la contraseña nueva (D89/RN-183).
+- [ ] El backend rechaza una contraseña nueva igual a la actual (D89/RN-183).
 - [ ] Cualquier intento de navegar a otra ruta mientras `must_change_password = true` redirige de vuelta al formulario.
 - [ ] Si el admin cierra el navegador sin completar, el próximo login vuelve a exigir el cambio.
 - [ ] La operación se registra en `audit_log` (W18).
