@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
+import { mockApiError } from '@/test/mockApiError'
+import { signInAs, signOut } from '@/test/signIn'
 import type { Rule } from '@/api/rules'
 
 const { apiGet, apiPost, apiPut, apiDelete } = vi.hoisted(() => ({
@@ -34,6 +36,10 @@ const rule: Rule = {
 }
 
 const RULESET_VERSION = 12
+
+// D93/RN-187: mutation controls are shown only to `admin`.
+beforeEach(() => signInAs('admin'))
+afterEach(() => signOut())
 
 describe('Rules — US-16 edición y US-17 eliminación', () => {
   beforeEach(() => {
@@ -149,5 +155,58 @@ describe('Rules — US-15 creación', () => {
         action: 'auto_restore',
       })
     )
+  })
+})
+
+// D91/RN-185 + D90/RN-184: the backend rejects a bad pattern with a nested detail.
+describe('Rules — rechazos del backend con la forma real', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiPost.mockReset()
+    apiGet.mockImplementation((url: string) =>
+      url === '/rules/version'
+        ? Promise.resolve({ data: { version: RULESET_VERSION } })
+        : Promise.resolve({ data: [rule] }),
+    )
+  })
+
+  it('un 422 pattern_not_absolute se muestra junto al campo y el formulario sigue abierto', async () => {
+    apiPost.mockRejectedValue(
+      mockApiError(422, {
+        code: 'pattern_not_absolute',
+        message: 'El patrón debe ser una ruta absoluta (empezar con /).',
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<Rules />, { route: '/rules' })
+
+    await user.click(await screen.findByRole('button', { name: 'Nueva regla' }))
+    await user.type(screen.getByLabelText(/^Pattern/), 'etc/**')
+    await user.click(screen.getByRole('button', { name: 'Crear regla' }))
+
+    const message = await screen.findByText('El patrón debe ser una ruta absoluta (empezar con /).')
+    expect(message).toHaveAttribute('id', 'rule-pattern-error')
+    expect(screen.getByLabelText(/^Pattern/)).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('heading', { name: 'Nueva regla' })).toBeInTheDocument()
+    expect(screen.queryByText(/\[object Object\]/)).toBeNull()
+  })
+
+  it('un viewer no ve «Nueva regla», «Editar» ni «Eliminar»', async () => {
+    signInAs('viewer')
+    renderWithProviders(<Rules />, { route: '/rules' })
+    await screen.findByText(rule.pattern)
+    expect(screen.queryByRole('button', { name: 'Nueva regla' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Eliminar' })).toBeNull()
+  })
+
+  it('GET /rules con 500 muestra el error con «Reintentar»', async () => {
+    apiGet.mockImplementation((url: string) =>
+      url === '/rules/version'
+        ? Promise.resolve({ data: { version: RULESET_VERSION } })
+        : Promise.reject(mockApiError(500, 'boom')),
+    )
+    renderWithProviders(<Rules />, { route: '/rules' })
+    expect(await screen.findByRole('button', { name: 'Reintentar' })).toBeInTheDocument()
   })
 })

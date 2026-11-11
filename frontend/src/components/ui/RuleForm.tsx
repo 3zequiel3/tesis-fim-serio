@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
+import { inputClassName } from '@/components/ui/Field'
 import type { Rule, RuleSeverity, RuleAction, CreateRulePayload, UpdateRulePayload } from '@/api/rules'
 
 interface RuleFormProps {
@@ -7,6 +9,8 @@ interface RuleFormProps {
   onSubmit: (payload: CreateRulePayload | UpdateRulePayload) => void
   onCancel: () => void
   isLoading?: boolean
+  /** Backend `pattern_*` rejection (D91/RN-185), shown next to the field. */
+  patternServerError?: string | null
 }
 
 const SEVERITY_OPTIONS: { value: RuleSeverity; label: string }[] = [
@@ -23,19 +27,11 @@ const ACTION_OPTIONS: { value: RuleAction; label: string }[] = [
   { value: 'alert_only', label: 'Solo alerta' },
 ]
 
-export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps) {
+export function RuleForm({ rule, onSubmit, onCancel, isLoading, patternServerError }: RuleFormProps) {
   const [pattern, setPattern] = useState(rule?.pattern ?? '')
   const [severity, setSeverity] = useState<RuleSeverity>(rule?.severity ?? 'medium')
   const [action, setAction] = useState<RuleAction>(rule?.action ?? 'alert_only')
   const [patternError, setPatternError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (rule) {
-      setPattern(rule.pattern)
-      setSeverity(rule.severity)
-      setAction(rule.action)
-    }
-  }, [rule])
 
   function validate(): boolean {
     if (!pattern.trim()) {
@@ -52,16 +48,13 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
     onSubmit({ pattern: pattern.trim(), severity, action })
   }
 
-  const inputCls =
-    'w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary'
-  const selectCls =
-    'w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary'
+  const shownError = patternError ?? patternServerError ?? null
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="rule-pattern" className="block text-xs text-gray-400 mb-1">
-          Pattern <span aria-hidden="true" className="text-red-400">*</span>
+        <label htmlFor="rule-pattern" className="mb-1 block font-semibold text-text">
+          Pattern <span aria-hidden="true" className="text-danger-fg">*</span>
         </label>
         <input
           type="text"
@@ -72,22 +65,22 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
             if (patternError) setPatternError(null)
           }}
           placeholder="/etc/**"
-          className={`${inputCls} ${patternError ? 'border-red-500' : ''}`}
-          aria-invalid={patternError ? 'true' : 'false'}
-          aria-describedby={patternError ? 'rule-pattern-error' : undefined}
+          className={`${inputClassName} font-mono ${shownError ? '!border-danger-line' : ''}`}
+          aria-invalid={shownError ? 'true' : 'false'}
+          aria-describedby={shownError ? 'rule-pattern-error' : undefined}
         />
-        {patternError && (
-          <p id="rule-pattern-error" className="mt-1 text-xs text-red-400">{patternError}</p>
+        {shownError && (
+          <p id="rule-pattern-error" className="mt-1 text-xs text-danger-fg">{shownError}</p>
         )}
       </div>
 
       <div>
-        <label htmlFor="rule-severity" className="block text-xs text-gray-400 mb-1">Severidad</label>
+        <label htmlFor="rule-severity" className="mb-1 block font-semibold text-text">Severidad</label>
         <select
           id="rule-severity"
           value={severity}
           onChange={(e) => setSeverity(e.target.value as RuleSeverity)}
-          className={selectCls}
+          className={inputClassName}
         >
           {SEVERITY_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -98,12 +91,12 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
       </div>
 
       <div>
-        <label htmlFor="rule-action" className="block text-xs text-gray-400 mb-1">Acción</label>
+        <label htmlFor="rule-action" className="mb-1 block font-semibold text-text">Acción</label>
         <select
           id="rule-action"
           value={action}
           onChange={(e) => setAction(e.target.value as RuleAction)}
-          className={selectCls}
+          className={inputClassName}
         >
           {ACTION_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -114,21 +107,12 @@ export function RuleForm({ rule, onSubmit, onCancel, isLoading }: RuleFormProps)
       </div>
 
       <div className="flex items-center justify-end gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isLoading}
-          className="px-4 py-1.5 text-sm text-gray-300 hover:text-white disabled:opacity-40"
-        >
+        <Button onClick={onCancel} disabled={isLoading}>
           Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-sm rounded disabled:opacity-40"
-        >
+        </Button>
+        <Button type="submit" variant="primary" loading={isLoading}>
           {isLoading ? 'Guardando...' : rule ? 'Guardar cambios' : 'Crear regla'}
-        </button>
+        </Button>
       </div>
     </form>
   )
