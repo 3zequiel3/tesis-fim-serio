@@ -25,6 +25,7 @@ from app.modules.agents.models import Agent, AgentStatus
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import User
 from app.modules.rules.models import PublishedCommand, Rule, RuleAction, RuleSeverity, RulesetVersion
+from app.core.path_validation import PathValidationError
 from app.modules.rules.service import (
     SEVERITY_ORDER,
     create_rule,
@@ -109,12 +110,16 @@ class TestValidatePattern:
         validate_pattern("/proc/[0-9]*")  # no lanza
 
     def test_empty_string_raises(self):
-        with pytest.raises(ValueError, match="empty"):
+        # D91/RN-185: the message is now Spanish with a stable code (was "pattern must not be empty").
+        with pytest.raises(PathValidationError) as exc:
             validate_pattern("")
+        assert exc.value.code == "pattern_empty"
 
     def test_whitespace_only_raises(self):
-        with pytest.raises(ValueError, match="empty"):
+        # D91/RN-185: stable code instead of the English "pattern must not be empty" text.
+        with pytest.raises(PathValidationError) as exc:
             validate_pattern("   ")
+        assert exc.value.code == "pattern_empty"
 
     def test_valid_negated_pattern(self):
         """US-15 criterio 2: patrón con prefijo `!` (negación) es un glob válido."""
@@ -471,11 +476,14 @@ class TestWriteOperations:
             session, mock_valkey, admin_user.id,
             {"pattern": "/etc/dup/*", "severity": "high", "action": "alert_only"},
         )
-        with pytest.raises(ValueError, match="duplicate"):
+        # D91/RN-185: the duplicate is a PathValidationError("pattern_duplicate")
+        # (was ValueError "duplicate pattern: ..."); it is still a ValueError.
+        with pytest.raises(PathValidationError, match="Ya existe") as exc:
             create_rule(
                 session, mock_valkey, admin_user.id,
                 {"pattern": "/etc/dup/*", "severity": "low", "action": "alert_only"},
             )
+        assert exc.value.code == "pattern_duplicate"
         # No se creó una segunda regla.
         assert len(session.exec(select(Rule)).all()) == 1
 

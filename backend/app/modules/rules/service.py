@@ -35,6 +35,7 @@ from sqlalchemy import update as sa_update
 from sqlmodel import Session, select
 from valkey.exceptions import ValkeyError
 
+from app.core.path_validation import PathValidationError, validate_rule_pattern
 from app.core.streams import SCHEMA_VERSION, STREAM_COMMANDS, sign_payload
 from app.modules.agents.models import Agent
 from app.modules.agents.secret_wrap import unwrap_agent_secret
@@ -108,16 +109,18 @@ def severity_from_rules(path: str, rules: Sequence[Rule]) -> RuleSeverity:
 
 def validate_pattern(pattern: str) -> None:
     """
-    Valida que pattern sea un glob fnmatch compilable y no vacío (RN-08, RN-58).
-    Lanza ValueError si inválido — el router lo mapea a 422.
+    Valida un `pattern` de regla (RN-08, RN-58, D91/RN-185): glob bien formado
+    y ruta absoluta sin `..`, sin caracteres de control y de largo acotado.
+    Lanza `PathValidationError` (subclase de ValueError) con código estable;
+    el router lo traduce a 422 `{code, message}`.
     """
-    if not pattern or not pattern.strip():
-        raise ValueError("pattern must not be empty")
-    try:
-        regex = fnmatch.translate(pattern)
-        re.compile(regex)
-    except Exception as exc:
-        raise ValueError(f"invalid glob pattern: {exc}") from exc
+    validate_rule_pattern(pattern)
+
+
+def _duplicate_pattern_error() -> PathValidationError:
+    return PathValidationError(
+        "pattern_duplicate", "Ya existe una regla con ese patrón."
+    )
 
 
 # ── Counter de versión ────────────────────────────────────────────────────────
@@ -324,7 +327,7 @@ def create_rule(
     # US-15 criterio 5: el patrón no puede estar duplicado.
     existing = session.exec(select(Rule).where(Rule.pattern == pattern)).first()
     if existing is not None:
-        raise ValueError(f"duplicate pattern: {pattern}")
+        raise _duplicate_pattern_error()
 
     rule = Rule(
         pattern=pattern,
@@ -365,6 +368,13 @@ def update_rule(
     action_val: str = data.get("action", rule.action.value)
 
     validate_pattern(pattern)
+
+    # D91/RN-185: el duplicado también se rechaza al editar, excluyendo la propia regla.
+    clash = session.exec(
+        select(Rule).where(Rule.pattern == pattern, Rule.id != rule_id)
+    ).first()
+    if clash is not None:
+        raise _duplicate_pattern_error()
 
     rule.pattern = pattern
     rule.severity = RuleSeverity(severity_val)

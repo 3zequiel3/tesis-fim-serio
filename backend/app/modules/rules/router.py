@@ -20,6 +20,7 @@ from sqlmodel import Session
 
 from app.core.database import get_session
 from app.core.deps import require_admin, require_full_access
+from app.core.path_validation import PathValidationError
 from app.core.valkey import get_valkey_client
 from app.modules.auth.models import User
 from app.modules.rules.models import RuleAction, RuleSeverity
@@ -85,6 +86,10 @@ async def create_rule_endpoint(
             admin.id,  # type: ignore[arg-type]
             {"pattern": body.pattern, "severity": body.severity.value, "action": body.action.value},
         )
+    except PathValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.to_detail()
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     return RuleOut.model_validate(rule)
@@ -141,6 +146,10 @@ async def update_rule_endpoint(
         )
     except HTTPException:
         raise
+    except PathValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.to_detail()
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     return RuleOut.model_validate(rule)

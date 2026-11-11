@@ -407,3 +407,136 @@ async def test_get_rules_version_returns_current_counter(monkeypatch) -> None:
     assert isinstance(body["version"], int)
     if create_resp.status_code == 201:
         assert body["version"] >= 1
+
+
+# ── D91/RN-185: validación de pattern con códigos {code, message} ─────────────
+
+
+def _rule_body(pattern: str) -> dict[str, str]:
+    return {"pattern": pattern, "severity": "high", "action": "alert_only"}
+
+
+def _rule_state() -> tuple[int, int, int]:
+    """(rules, ruleset_version, rule_sync commands) straight from the DB."""
+    from sqlmodel import Session, func, select
+
+    from app.core.database import engine
+    from app.modules.rules.models import PublishedCommand, Rule
+    from app.modules.rules.service import get_ruleset_version
+
+    with Session(engine) as s:
+        rules = s.exec(select(func.count()).select_from(Rule)).one()
+        cmds = s.exec(
+            select(func.count()).select_from(PublishedCommand).where(PublishedCommand.command_type == "rule_sync")
+        ).one()
+        return rules, get_ruleset_version(s), cmds
+
+
+@pytest.fixture
+def _agent_row(_db_isolation):
+    """An agent with a secret, so an accepted write WOULD enqueue a rule_sync command."""
+    import os
+
+    from sqlmodel import Session
+
+    from app.core.database import engine
+    from app.modules.agents.models import Agent, AgentStatus
+
+    with Session(engine) as s:
+        s.add(Agent(agent_id="agent-rules-001", status=AgentStatus.online, shared_secret_hex=os.urandom(32).hex()))
+        s.commit()
+
+
+_REJECTED_PATTERNS = [
+    ("", "pattern_empty"),
+    ("relative/path", "pattern_not_absolute"),
+    ("!tmp/*", "pattern_not_absolute"),
+    ("/etc/../../etc/passwd", "pattern_parent_segment"),
+    ("/etc/a\nb", "pattern_control_char"),
+    ("/" + "a" * 1024, "pattern_too_long"),
+    ("/etc/[", "pattern_invalid_glob"),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("pattern", "code"), _REJECTED_PATTERNS, ids=[c for _, c in _REJECTED_PATTERNS])
+async def test_post_rules_rejects_bad_pattern_with_code_and_persists_nothing(
+    authenticated_client, _agent_row, pattern, code
+) -> None:
+    ac, token = authenticated_client
+    before = _rule_state()
+    resp = await ac.post("/rules", json=_rule_body(pattern), headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert set(detail) == {"code", "message"}
+    assert detail["code"] == code
+    assert detail["message"]
+    assert _rule_state() == before
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("pattern", "code"), _REJECTED_PATTERNS, ids=[c for _, c in _REJECTED_PATTERNS])
+async def test_put_rules_rejects_bad_pattern_and_keeps_the_rule(authenticated_client, _agent_row, pattern, code) -> None:
+    ac, token = authenticated_client
+    headers = {"Authorization": f"Bearer {token}"}
+    created = await ac.post("/rules", json=_rule_body("/etc/original/*"), headers=headers)
+    assert created.status_code == 201
+    rule_id = created.json()["id"]
+    before = _rule_state()
+
+    resp = await ac.put(f"/rules/{rule_id}", json=_rule_body(pattern), headers=headers)
+
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert set(detail) == {"code", "message"}
+    assert detail["code"] == code
+    assert _rule_state() == before
+    assert (await ac.get(f"/rules/{rule_id}", headers=headers)).json()["pattern"] == "/etc/original/*"
+
+
+@pytest.mark.asyncio
+async def test_post_rules_duplicate_pattern_has_code(authenticated_client) -> None:
+    ac, token = authenticated_client
+    headers = {"Authorization": f"Bearer {token}"}
+    assert (await ac.post("/rules", json=_rule_body("/etc/dup/*"), headers=headers)).status_code == 201
+    before = _rule_state()
+    resp = await ac.post("/rules", json=_rule_body("/etc/dup/*"), headers=headers)
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "pattern_duplicate"
+    assert set(resp.json()["detail"]) == {"code", "message"}
+    assert _rule_state() == before
+
+
+@pytest.mark.asyncio
+async def test_put_rules_duplicate_against_another_rule(authenticated_client) -> None:
+    ac, token = authenticated_client
+    headers = {"Authorization": f"Bearer {token}"}
+    await ac.post("/rules", json=_rule_body("/etc/a/*"), headers=headers)
+    other = await ac.post("/rules", json=_rule_body("/etc/b/*"), headers=headers)
+    before = _rule_state()
+    resp = await ac.put(f"/rules/{other.json()['id']}", json=_rule_body("/etc/a/*"), headers=headers)
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "pattern_duplicate"
+    assert _rule_state() == before
+
+
+@pytest.mark.asyncio
+async def test_put_rules_keeping_own_pattern_is_ok(authenticated_client) -> None:
+    ac, token = authenticated_client
+    headers = {"Authorization": f"Bearer {token}"}
+    created = await ac.post("/rules", json=_rule_body("/etc/self/*"), headers=headers)
+    resp = await ac.put(
+        f"/rules/{created.json()['id']}",
+        json={"pattern": "/etc/self/*", "severity": "critical", "action": "quarantine"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["severity"] == "critical"
+
+
+@pytest.mark.asyncio
+async def test_post_rules_negated_pattern_is_validated_without_the_prefix(authenticated_client) -> None:
+    ac, token = authenticated_client
+    headers = {"Authorization": f"Bearer {token}"}
+    assert (await ac.post("/rules", json=_rule_body("!/var/log/*.log"), headers=headers)).status_code == 201
+    assert (await ac.post("/rules", json=_rule_body("/etc/a..b"), headers=headers)).status_code == 201
