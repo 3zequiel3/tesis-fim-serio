@@ -11,9 +11,9 @@ export interface QuarantineStateMeta {
 }
 
 const QUARANTINE_STATE_META: Record<Exclude<QuarantineState, 'none'>, QuarantineStateMeta> = {
-  quarantined: { label: 'quarantined', className: 'bg-transparent text-violet-300 border border-violet-500 border-dashed' },
-  released: { label: 'released', className: 'bg-transparent text-sky-300 border border-sky-500 border-dashed' },
-  discarded: { label: 'discarded', className: 'bg-transparent text-gray-400 border border-gray-500 border-dashed' },
+  quarantined: { label: 'quarantined', className: 'bg-transparent text-status-quarantined-fg border border-status-quarantined border-dashed' },
+  released: { label: 'released', className: 'bg-transparent text-info-fg border border-info-line border-dashed' },
+  discarded: { label: 'discarded', className: 'bg-transparent text-neutral-fg border border-neutral-line border-dashed' },
 }
 
 /**

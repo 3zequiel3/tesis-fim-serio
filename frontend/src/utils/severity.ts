@@ -22,8 +22,8 @@ export interface SeverityMeta {
 }
 
 const NEUTRAL_META: SeverityMeta = {
-  textClass: 'text-gray-400',
-  bandClass: 'border-l-gray-600',
+  textClass: 'text-neutral-fg',
+  bandClass: 'border-l-neutral-line',
   rank: 0,
 }
 
@@ -34,10 +34,10 @@ const NEUTRAL_META: SeverityMeta = {
 // orange-400) — rojo contra naranja es el par exacto que un deuteranope no
 // separa por tono solo (WCAG 1.4.1).
 const SEVERITY_META: Record<string, SeverityMeta> = {
-  critical: { textClass: 'text-red-400', bandClass: 'border-l-red-600', rank: 4 },
-  high: { textClass: 'text-orange-400', bandClass: 'border-l-orange-400', rank: 3 },
-  medium: { textClass: 'text-yellow-400', bandClass: 'border-l-yellow-400', rank: 2 },
-  low: { textClass: 'text-blue-400', bandClass: 'border-l-blue-400', rank: 1 },
+  critical: { textClass: 'text-sev-critical-fg', bandClass: 'border-l-sev-critical-band', rank: 4 },
+  high: { textClass: 'text-sev-high-fg', bandClass: 'border-l-sev-high-band', rank: 3 },
+  medium: { textClass: 'text-sev-medium-fg', bandClass: 'border-l-sev-medium-band', rank: 2 },
+  low: { textClass: 'text-sev-low-fg', bandClass: 'border-l-sev-low-band', rank: 1 },
 }
 
 /**

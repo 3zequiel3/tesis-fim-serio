@@ -12,7 +12,7 @@ export interface ActionFailedMeta {
 
 const ACTION_FAILED_META: ActionFailedMeta = {
   label: 'Remediación fallida',
-  className: 'bg-red-950 text-red-300 border border-red-800',
+  className: 'bg-danger-bg text-danger-fg border border-danger-line',
 }
 
 /**

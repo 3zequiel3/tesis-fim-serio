@@ -2,6 +2,21 @@ import type { EventFilters } from '@/api/events'
 
 const DEFAULT_PAGE = 1
 const DEFAULT_PAGE_SIZE = 50
+// Page sizes the backend accepts; anything else falls back to the default.
+const ALLOWED_PAGE_SIZES = [10, 25, 50, 100]
+
+/**
+ * Sanitizes `page` and `page_size` from the URL (D93/RN-187): the URL is
+ * untrusted input, so a non-numeric, fractional or < 1 page becomes 1 and
+ * NaN never reaches the backend.
+ */
+export function parsePageParams(sp: URLSearchParams): { page: number; page_size: number } {
+  const rawPage = Number(sp.get('page'))
+  const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : DEFAULT_PAGE
+  const rawSize = Number(sp.get('page_size'))
+  const page_size = ALLOWED_PAGE_SIZES.includes(rawSize) ? rawSize : DEFAULT_PAGE_SIZE
+  return { page, page_size }
+}
 
 /**
  * Parsea los filtros de eventos desde URLSearchParams.
@@ -32,8 +47,7 @@ export function parseEventFilters(sp: URLSearchParams): EventFilters {
     date_from: sp.get('date_from') ?? undefined,
     date_to: sp.get('date_to') ?? undefined,
     include_superseded: includeSuperseded,
-    page: sp.get('page') ? Number(sp.get('page')) : DEFAULT_PAGE,
-    page_size: DEFAULT_PAGE_SIZE,
+    ...parsePageParams(sp),
   }
 }
 
@@ -57,6 +71,6 @@ export function serializeEventFilters(f: EventFilters): URLSearchParams {
   if (f.date_to) sp.set('date_to', f.date_to)
   if (f.include_superseded) sp.set('include_superseded', 'true')
   if (f.page && f.page > DEFAULT_PAGE) sp.set('page', String(f.page))
-  // page_size se omite: siempre DEFAULT_PAGE_SIZE, el backend usa su default
+  if (f.page_size && f.page_size !== DEFAULT_PAGE_SIZE) sp.set('page_size', String(f.page_size))
   return sp
 }

@@ -10,10 +10,10 @@ export interface AckStatusMeta {
 }
 
 const ACK_STATUS_META: Record<CommandAckStatus, AckStatusMeta> = {
-  pending: { label: 'Ejecución: pendiente', className: 'bg-yellow-950 text-yellow-400 border border-yellow-800' },
-  acked: { label: 'Ejecución: confirmada', className: 'bg-emerald-950 text-emerald-400 border border-emerald-800' },
-  failed: { label: 'Ejecución: falló', className: 'bg-red-950 text-red-400 border border-red-800' },
-  timeout: { label: 'Ejecución: vencida', className: 'bg-gray-800 text-gray-400 border border-gray-600' },
+  pending: { label: 'Ejecución: pendiente', className: 'bg-warning-bg text-warning-fg border border-warning-line' },
+  acked: { label: 'Ejecución: confirmada', className: 'bg-success-bg text-success-fg border border-success-line' },
+  failed: { label: 'Ejecución: falló', className: 'bg-danger-bg text-danger-fg border border-danger-line' },
+  timeout: { label: 'Ejecución: vencida', className: 'bg-neutral-bg text-neutral-fg border border-neutral-line' },
 }
 
 /**

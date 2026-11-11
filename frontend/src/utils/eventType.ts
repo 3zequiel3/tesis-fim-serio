@@ -20,7 +20,7 @@ const EVENT_TYPE_GAP_META: Record<string, EventTypeGapMeta> = {
     cause:
       'El kernel desbordó su cola de eventos fanotify y descartó cambios entre ' +
       'la última lectura y ésta — no se sabe qué archivos cambiaron durante esa ventana.',
-    className: 'bg-amber-900 text-amber-300 border border-amber-800',
+    className: 'bg-warning-bg text-warning-fg border border-warning-line',
   },
 }
 
@@ -42,6 +42,6 @@ export function getEventTypeGapMeta(eventType: string): EventTypeGapMeta {
   return {
     label: humanized || eventType,
     cause: `Evento sin ruta de tipo "${eventType}".`,
-    className: 'bg-gray-800 text-gray-300 border border-gray-600',
+    className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
   }
 }

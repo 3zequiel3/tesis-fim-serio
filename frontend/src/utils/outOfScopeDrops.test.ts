@@ -49,9 +49,9 @@ describe('getOutOfScopeDropsMeta', () => {
     const positive = getOutOfScopeDropsMeta(2748492)
     const unknown = getOutOfScopeDropsMeta(null)
     for (const meta of [zero, positive, unknown]) {
-      expect(meta.className).not.toContain('red')
-      expect(meta.className).not.toContain('amber')
-      expect(meta.className).not.toContain('yellow')
+      expect(meta.className).not.toContain('danger')
+      expect(meta.className).not.toContain('warning')
+      expect(meta.className).not.toContain('warning')
     }
   })
 
@@ -70,7 +70,7 @@ describe('getOutOfScopeDropsMeta', () => {
     const outOfScope = getOutOfScopeDropsMeta(5)
     const discarded = getDiscardedEventsMeta(5)
     expect(outOfScope.className).not.toBe(discarded.className)
-    expect(discarded.className).toContain('red')
-    expect(outOfScope.className).not.toContain('red')
+    expect(discarded.className).toContain('danger')
+    expect(outOfScope.className).not.toContain('danger')
   })
 })

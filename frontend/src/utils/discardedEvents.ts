@@ -21,14 +21,14 @@ const UNKNOWN_META: DiscardedEventsMeta = {
   state: 'unknown',
   label: '—',
   title: 'El agente no reportó descartes locales (versión anterior a esta funcionalidad, o sin heartbeat aún)',
-  className: 'bg-gray-800 text-gray-500 border border-gray-700',
+  className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
 }
 
 const ZERO_META: DiscardedEventsMeta = {
   state: 'zero',
   label: '0',
   title: 'Sin eventos descartados localmente',
-  className: 'bg-gray-800 text-gray-400 border border-gray-600',
+  className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
 }
 
 /**
@@ -45,7 +45,7 @@ export function getDiscardedEventsMeta(count: number | null | undefined): Discar
       state: 'positive',
       label: String(count),
       title: `${count} evento(s) descartado(s) localmente: el transporte agotó los reintentos o recibió un rechazo terminal del backend sin poder entregarlos`,
-      className: 'bg-red-950 text-red-300 border border-red-800',
+      className: 'bg-danger-bg text-danger-fg border border-danger-line',
     }
   }
   return ZERO_META

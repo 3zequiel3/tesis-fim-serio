@@ -20,17 +20,17 @@ const WATCH_PATH_STATUS_META: Record<string, WatchPathStatusMeta> = {
   read_only_mount: {
     label: 'Solo detección',
     title: 'Monitoreado, no remediable: el path está en un mount de solo lectura del despliegue',
-    className: 'bg-amber-950 text-amber-300 border border-amber-800',
+    className: 'bg-warning-bg text-warning-fg border border-warning-line',
   },
   permission_denied: {
     label: 'Solo detección',
     title: 'Monitoreado, no remediable: permiso denegado al escribir en este path',
-    className: 'bg-amber-950 text-amber-300 border border-amber-800',
+    className: 'bg-warning-bg text-warning-fg border border-warning-line',
   },
   missing: {
     label: 'No existe',
     title: 'El path no existe en el host del agente',
-    className: 'bg-gray-700 text-gray-300 border border-gray-600',
+    className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
   },
 }
 
@@ -46,7 +46,7 @@ export function getWatchPathStatusMeta(status: string | undefined): WatchPathSta
     WATCH_PATH_STATUS_META[status] ?? {
       label: status,
       title: status,
-      className: 'bg-gray-700 text-gray-300 border border-gray-600',
+      className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
     }
   )
 }

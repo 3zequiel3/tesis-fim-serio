@@ -24,7 +24,7 @@ describe('getDiscardedEventsMeta', () => {
     const meta = getDiscardedEventsMeta(4)
     expect(meta.state).toBe('positive')
     expect(meta.label).toBe('4')
-    expect(meta.className).toContain('red')
+    expect(meta.className).toContain('danger')
   })
 
   it('el estado positivo usa una clase visualmente distinta del estado sano', () => {

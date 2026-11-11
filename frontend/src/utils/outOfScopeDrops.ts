@@ -29,14 +29,14 @@ const UNKNOWN_META: OutOfScopeDropsMeta = {
   state: 'unknown',
   label: '—',
   title: 'El agente no reportó descartes fuera de scope (versión anterior a esta funcionalidad, o sin heartbeat aún)',
-  className: 'bg-gray-800 text-gray-500 border border-gray-700',
+  className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
 }
 
 const ZERO_META: OutOfScopeDropsMeta = {
   state: 'zero',
   label: '0',
   title: 'Sin descartes fuera de scope',
-  className: 'bg-gray-800 text-gray-400 border border-gray-600',
+  className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
 }
 
 /**
@@ -55,7 +55,7 @@ export function getOutOfScopeDropsMeta(count: number | null | undefined): OutOfS
       state: 'positive',
       label: String(count),
       title: `${count} descarte(s) fuera de scope: esperado — la marca de fanotify cubre el filesystem completo, así que toda escritura ajena a los watch_paths se descarta. Es evidencia de que el filtro de scope está funcionando, no un problema.`,
-      className: 'bg-gray-800 text-gray-400 border border-gray-600',
+      className: 'bg-neutral-bg text-neutral-fg border border-neutral-line',
     }
   }
   return ZERO_META

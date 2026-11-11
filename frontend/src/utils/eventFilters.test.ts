@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseEventFilters, serializeEventFilters } from './eventFilters'
+import { parseEventFilters, parsePageParams, serializeEventFilters } from './eventFilters'
 
 describe('parseEventFilters', () => {
   it('retorna defaults cuando el URLSearchParams está vacío', () => {
@@ -138,5 +138,33 @@ describe('round-trip parse/serialize', () => {
 
     expect(reparsed.status).toEqual(['superseded'])
     expect(reparsed.include_superseded).toBe(true)
+  })
+})
+
+// M7 (D93/RN-187): the URL is untrusted input; NaN must never reach the backend.
+describe('parsePageParams', () => {
+  const parse = (qs: string) => parsePageParams(new URLSearchParams(qs))
+
+  it.each(['page=abc', 'page=-3', 'page=0', 'page=2.5', 'page=', 'page=NaN', 'page=Infinity'])(
+    'sanitizes %s to page 1',
+    (qs) => {
+      expect(parse(qs).page).toBe(1)
+    },
+  )
+
+  it('keeps a valid page', () => {
+    expect(parse('page=7').page).toBe(7)
+  })
+
+  it('falls back to 50 for a page_size that is not allowed', () => {
+    expect(parse('page_size=abc').page_size).toBe(50)
+    expect(parse('page_size=100000').page_size).toBe(50)
+    expect(parse('page_size=25').page_size).toBe(25)
+  })
+
+  it('parseEventFilters never produces NaN', () => {
+    const f = parseEventFilters(new URLSearchParams('page=abc&page_size=-1'))
+    expect(f.page).toBe(1)
+    expect(f.page_size).toBe(50)
   })
 })

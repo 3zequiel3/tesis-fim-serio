@@ -14,10 +14,11 @@ describe('getSeverityMeta', () => {
   })
 
   it('las clases de texto son idénticas a las que las tres pantallas migradas producían antes (Alerts.tsx:29-32)', () => {
-    expect(getSeverityMeta('critical').textClass).toBe('text-red-400')
-    expect(getSeverityMeta('high').textClass).toBe('text-orange-400')
-    expect(getSeverityMeta('medium').textClass).toBe('text-yellow-400')
-    expect(getSeverityMeta('low').textClass).toBe('text-blue-400')
+  // D93/RN-187: classes are state tokens now (danger/warning), not palette names.
+  expect(getSeverityMeta('critical').textClass).toBe('text-sev-critical-fg')
+    expect(getSeverityMeta('high').textClass).toBe('text-sev-high-fg')
+    expect(getSeverityMeta('medium').textClass).toBe('text-sev-medium-fg')
+    expect(getSeverityMeta('low').textClass).toBe('text-sev-low-fg')
   })
 
   it('un valor fuera de los cuatro niveles degrada a un tratamiento neutro en vez de lanzar', () => {
