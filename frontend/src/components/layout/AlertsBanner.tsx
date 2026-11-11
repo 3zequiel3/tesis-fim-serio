@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { BellRing } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { apiClient } from '@/api/client'
 
@@ -21,13 +22,16 @@ export function AlertsBanner() {
   return (
     <div
       role="alert"
-      className="bg-yellow-400 text-yellow-900 text-center text-sm font-medium py-2 px-4"
+      className="flex items-center justify-center gap-2 border-b border-warning-line bg-warning-bg px-4 py-2 text-center font-semibold text-warning-fg"
     >
-      Notificaciones pendientes: {count} alerta{count !== 1 ? 's' : ''}{' '}
-      {count !== 1 ? 'no pudieron ser enviadas' : 'no pudo ser enviada'} —{' '}
-      <Link to="/alerts/failed" className="underline font-semibold hover:text-yellow-800">
-        revisar
-      </Link>
+      <BellRing aria-hidden="true" size={18} className="shrink-0" />
+      <span>
+        Notificaciones pendientes: {count} alerta{count !== 1 ? 's' : ''}{' '}
+        {count !== 1 ? 'no pudieron ser enviadas' : 'no pudo ser enviada'} —{' '}
+        <Link to="/alerts/failed" className="underline hover:opacity-80">
+          revisar
+        </Link>
+      </span>
     </div>
   )
 }

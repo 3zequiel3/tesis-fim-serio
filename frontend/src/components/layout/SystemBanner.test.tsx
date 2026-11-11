@@ -57,7 +57,8 @@ describe('SystemBanner — US-05: banner rojo de degradacion', () => {
     const banner = await screen.findByRole('alert')
     expect(banner).toHaveTextContent(/sistema degradado/i)
     expect(banner).toHaveTextContent(/valkey/)
-    expect(banner.className).toMatch(/bg-red-/)
+    // D93/RN-187: banners use the state tokens of the active theme, not palette colors.
+    expect(banner.className).toMatch(/bg-danger-/)
   })
 
   it('trata al subsistema de agentes como degradado cuando su status no es ok', async () => {
@@ -189,5 +190,44 @@ describe('SystemBanner — US-28: banner de degradacion del sistema', () => {
     // absoluto cubriendo la pantalla; este vive en el flujo normal.
     expect(banner.className).not.toMatch(/\b(fixed|absolute)\b/)
     expect(banner).not.toHaveAttribute('aria-modal')
+  })
+})
+
+// D93/RN-187 (frontend-shell): the banner reports its own query failing.
+describe('SystemBanner — la consulta de salud falla', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+  })
+
+  it('muestra «No se puede consultar el estado del sistema.» ante un 502 y se recupera con la siguiente respuesta', async () => {
+    const { mockApiError } = await import('@/test/mockApiError')
+    apiGet.mockRejectedValue(mockApiError(502, 'Bad Gateway'))
+
+    const { queryClient } = renderWithProviders(<SystemBanner />)
+
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent('No se puede consultar el estado del sistema.')
+
+    mockHealth()
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['health'] })
+    })
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
+  it('no sigue mostrando como vigente el último resultado degradado cuando la consulta falla', async () => {
+    const { mockApiError } = await import('@/test/mockApiError')
+    mockHealth({ valkey: 'down' })
+    const { queryClient } = renderWithProviders(<SystemBanner />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/valkey/)
+
+    apiGet.mockRejectedValue(mockApiError(502, 'Bad Gateway'))
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['health'] })
+    })
+
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent('No se puede consultar el estado del sistema.')
+    expect(banner).not.toHaveTextContent(/valkey/)
   })
 })

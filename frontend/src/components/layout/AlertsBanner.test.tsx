@@ -40,7 +40,8 @@ describe('AlertsBanner — US-29/US-05: banner amarillo de la DLQ', () => {
 
     const banner = await screen.findByRole('alert')
     expect(banner).toHaveTextContent('Notificaciones pendientes: 4 alertas no pudieron ser enviadas')
-    expect(banner.className).toMatch(/bg-yellow-/)
+    // D93/RN-187: warning tone token, not a palette color.
+    expect(banner.className).toMatch(/bg-warning-/)
   })
 
   it('usa el singular cuando count=1', async () => {

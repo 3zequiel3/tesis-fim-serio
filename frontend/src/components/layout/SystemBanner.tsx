@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { AlertTriangle, X } from 'lucide-react'
 import { apiClient } from '@/api/client'
 
 interface HealthResponse {
@@ -18,7 +19,7 @@ const MONITORED: Array<keyof Omit<HealthResponse, 'checked_at'>> = [
 ]
 
 export function SystemBanner() {
-  const { data } = useQuery<HealthResponse>({
+  const { data, isError } = useQuery<HealthResponse>({
     queryKey: ['health'],
     queryFn: () => apiClient.get<HealthResponse>('/health/components').then((r) => r.data),
     refetchInterval: 10_000,
@@ -49,7 +50,9 @@ export function SystemBanner() {
     }
   }, [data])
 
-  const downComponents = data
+  // D93/RN-187: when the health query itself fails, the last result is NOT
+  // current any more; say so instead of hiding or keeping the stale answer.
+  const downComponents = data && !isError
     ? MONITORED.filter((name) => {
         const value = data[name]
         if (name === 'agents') return (value as { status: string }).status !== 'ok'
@@ -57,14 +60,27 @@ export function SystemBanner() {
       })
     : []
 
+  if (isError) {
+    return (
+      <div
+        role="alert"
+        className="flex items-center justify-center gap-2 border-b border-warning-line bg-warning-bg px-4 py-2 text-center font-semibold text-warning-fg"
+      >
+        <AlertTriangle aria-hidden="true" size={18} className="shrink-0" />
+        No se puede consultar el estado del sistema.
+      </div>
+    )
+  }
+
   if (downComponents.length === 0) return null
   if (data && dismissedFor === data.checked_at) return null
 
   return (
     <div
       role="alert"
-      className="bg-red-600 text-white text-center text-sm font-medium py-2 px-4 flex items-center justify-center gap-3"
+      className="flex flex-wrap items-center justify-center gap-3 bg-danger-solid px-4 py-2 text-center font-semibold text-on-danger"
     >
+      <AlertTriangle aria-hidden="true" size={18} className="shrink-0" />
       <span>
         Sistema degradado —{' '}
         {downComponents
@@ -79,8 +95,9 @@ export function SystemBanner() {
         type="button"
         aria-label="Cerrar aviso de degradación"
         onClick={() => data && setDismissedFor(data.checked_at)}
-        className="text-white/80 hover:text-white font-bold px-1"
+        className="inline-flex items-center gap-1 rounded-control px-2 py-0.5 hover:bg-black/20"
       >
+        <X aria-hidden="true" size={14} />
         Cerrar
       </button>
     </div>
