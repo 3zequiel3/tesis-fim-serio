@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { ModalDialog } from '@/components/ui/ModalDialog'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 import type { EventListItem, EventFilters } from '@/api/events'
 import type { BulkResult, RejectAction } from '@/api/actions'
 import { useEventActions } from '@/hooks/useEventActions'
+import { PathLabel } from '@/components/ui/PathLabel'
 
 interface BulkActionBarProps {
   selected: Set<number>
@@ -82,64 +84,52 @@ export function BulkActionBar({ selected, items, onSelectionChange }: BulkAction
 
   if (selected.size === 0 && result == null) return null
 
+  const radioLabel = 'flex items-center gap-2 text-text'
+
   return (
     <>
       {/* Barra de acciones bulk */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-blue-950 border border-blue-800 rounded text-sm">
-          <span className="text-blue-300 font-medium">
+        <div className="flex flex-wrap items-center gap-3 rounded-panel border border-accent bg-accent-soft px-4 py-2">
+          <span className="font-semibold text-accent-soft-text">
             {selected.size} evento{selected.size !== 1 ? 's' : ''} seleccionado{selected.size !== 1 ? 's' : ''}
           </span>
-          <div className="flex gap-2 ml-auto">
-            <button
-              onClick={() => setModal('approve')}
-              disabled={isPending}
-              className="px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded text-xs font-medium disabled:opacity-50"
-            >
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="primary" size="sm" onClick={() => setModal('approve')} disabled={isPending}>
               Aprobar seleccionados
-            </button>
-            <button
-              onClick={() => setModal('reject')}
-              disabled={isPending}
-              className="px-3 py-1.5 bg-danger hover:bg-danger-hover text-white rounded text-xs font-medium disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => setModal('reject')} disabled={isPending}>
               Rechazar seleccionados
-            </button>
-            <button
-              onClick={() => onSelectionChange(new Set())}
-              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs"
-            >
+            </Button>
+            <Button size="sm" onClick={() => onSelectionChange(new Set())}>
               Limpiar selección
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {result && (
-        <section className="px-4 py-3 bg-gray-800 border border-gray-700 rounded text-sm" aria-live="polite">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-gray-200">
+        <section className="rounded-panel border border-line bg-surface-raised px-4 py-3" aria-live="polite">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-text">
               Resultado: {result.rows.filter((row) => row.succeeded).length} {result.verb},{' '}
               {result.rows.filter((row) => !row.succeeded).length} fallidos
             </p>
-            <button
-              type="button"
+            <Button
+              size="sm"
               aria-expanded={resultExpanded}
               aria-controls="bulk-result-details"
               onClick={() => setResultExpanded((expanded) => !expanded)}
-              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-xs"
             >
               {resultExpanded ? 'Ocultar detalle del resultado' : 'Ver detalle del resultado'}
-            </button>
+            </Button>
           </div>
           {resultExpanded && (
             <ul id="bulk-result-details" className="mt-3 space-y-2">
               {result.rows.map((row) => (
-                <li key={row.eventId} className="flex items-start justify-between gap-4 text-xs">
-                  <span className="font-mono text-gray-300 break-all">
-                    {row.path ?? `Evento #${row.eventId} sin path`}
-                  </span>
-                  <span className={row.succeeded ? 'text-green-400' : 'text-red-400'}>
+                <li key={row.eventId} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 text-xs">
+                  <PathLabel path={row.path ?? `Evento #${row.eventId} sin path`} />
+                  <span className={row.succeeded ? 'text-success-fg' : 'text-danger-fg'}>
                     {row.succeeded ? 'Correcto' : `Falló: ${row.reason}`}
                   </span>
                 </li>
@@ -151,100 +141,87 @@ export function BulkActionBar({ selected, items, onSelectionChange }: BulkAction
 
       {/* Modal de confirmación de bulk approve */}
       {modal === 'approve' && (
-        <ModalDialog labelledBy="bulk-approve-title" onClose={() => setModal(null)} panelClassName="p-6 max-w-md w-full mx-4">
-          <h2 id="bulk-approve-title" className="text-lg font-semibold text-white mb-3">
-            Confirmar aprobación masiva
-          </h2>
-          <p className="text-gray-300 text-sm mb-2">
-            Se van a aprobar{' '}
-            <span className="font-bold text-white">{selected.size}</span> evento{selected.size !== 1 ? 's' : ''}:
+        <Modal title="Confirmar aprobación masiva" onClose={() => setModal(null)} busy={isPending}>
+          <p className="mb-2 text-text">
+            Se van a aprobar <span className="font-bold">{selected.size}</span> evento
+            {selected.size !== 1 ? 's' : ''}:
           </p>
-          <ul className="text-xs font-mono text-gray-400 mb-2 space-y-0.5 max-h-40 overflow-y-auto">
-            {previewPaths.map((item) => (
-              <li key={item.eventId} className="truncate">• {item.label}</li>
-            ))}
-          </ul>
-          {extraCount > 0 && (
-            <p className="text-xs text-gray-500 mb-3">... y {extraCount} más</p>
-          )}
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setModal(null)}
-              disabled={isPending}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm"
-            >
+          <PreviewList items={previewPaths} extraCount={extraCount} />
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setModal(null)} disabled={isPending}>
               Cancelar
-            </button>
-            <button
-              onClick={handleBulkApprove}
-              disabled={isPending}
-              className="px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded text-sm font-medium disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="primary" onClick={handleBulkApprove} loading={isPending}>
               {isPending ? 'Procesando...' : 'Aprobar'}
-            </button>
+            </Button>
           </div>
-        </ModalDialog>
+        </Modal>
       )}
 
       {/* Modal de confirmación de bulk reject */}
       {modal === 'reject' && (
-        <ModalDialog labelledBy="bulk-reject-title" onClose={() => setModal(null)} panelClassName="p-6 max-w-md w-full mx-4">
-          <h2 id="bulk-reject-title" className="text-lg font-semibold text-white mb-3">
-            Confirmar rechazo masivo
-          </h2>
-          <p className="text-gray-300 text-sm mb-2">
-            Se van a rechazar{' '}
-            <span className="font-bold text-white">{selected.size}</span> evento{selected.size !== 1 ? 's' : ''}:
+        <Modal title="Confirmar rechazo masivo" onClose={() => setModal(null)} busy={isPending}>
+          <p className="mb-2 text-text">
+            Se van a rechazar <span className="font-bold">{selected.size}</span> evento
+            {selected.size !== 1 ? 's' : ''}:
           </p>
-          <ul className="text-xs font-mono text-gray-400 mb-3 space-y-0.5 max-h-40 overflow-y-auto">
-            {previewPaths.map((item) => (
-              <li key={item.eventId} className="truncate">• {item.label}</li>
-            ))}
-          </ul>
-          {extraCount > 0 && (
-            <p className="text-xs text-gray-500 mb-3">... y {extraCount} más</p>
-          )}
+          <PreviewList items={previewPaths} extraCount={extraCount} />
           <fieldset className="mb-4">
-            <legend className="text-sm text-gray-300 mb-2">Acción para todos:</legend>
-            <label className="flex items-center gap-2 text-sm text-gray-300 mb-1">
+            <legend className="mb-2 font-semibold text-text">Acción para todos:</legend>
+            <label className={`${radioLabel} mb-1`}>
               <input
                 type="radio"
                 name="bulkRejectAction"
                 value="restore"
                 checked={rejectAction === 'restore'}
                 onChange={() => setRejectAction('restore')}
+                className="accent-accent"
               />
               Restaurar archivo
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className={radioLabel}>
               <input
                 type="radio"
                 name="bulkRejectAction"
                 value="quarantine"
                 checked={rejectAction === 'quarantine'}
                 onChange={() => setRejectAction('quarantine')}
+                className="accent-accent"
               />
               Poner en cuarentena
             </label>
           </fieldset>
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setModal(null)}
-              disabled={isPending}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm"
-            >
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setModal(null)} disabled={isPending}>
               Cancelar
-            </button>
-            <button
-              onClick={handleBulkReject}
-              disabled={isPending}
-              className="px-4 py-2 bg-danger hover:bg-danger-hover text-white rounded text-sm font-medium disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="danger" onClick={handleBulkReject} loading={isPending}>
               {isPending ? 'Procesando...' : 'Rechazar'}
-            </button>
+            </Button>
           </div>
-        </ModalDialog>
+        </Modal>
       )}
+    </>
+  )
+}
+
+function PreviewList({
+  items,
+  extraCount,
+}: {
+  items: { eventId: number; label: string }[]
+  extraCount: number
+}) {
+  return (
+    <>
+      <ul className="mb-2 max-h-40 space-y-0.5 overflow-y-auto font-mono text-xs text-text-muted">
+        {items.map((item) => (
+          <li key={item.eventId} className="[overflow-wrap:anywhere]">
+            • {item.label}
+          </li>
+        ))}
+      </ul>
+      {extraCount > 0 && <p className="mb-3 text-xs text-text-muted">... y {extraCount} más</p>}
     </>
   )
 }

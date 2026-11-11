@@ -55,6 +55,10 @@ export interface EventListItem {
   resolved_at: string | null
   resolved_by: number | null
   ack_status?: CommandAckStatus | null
+  // D93/RN-187: motivo del fallo del mismo comando que da `ack_status` (código
+  // del agente, p. ej. `no_restorable_content`, truncado a 200 caracteres). Sólo
+  // viene con `ack_status = failed`; null/ausente en el resto o con un backend anterior.
+  ack_error?: string | null
   // D82/RN-176: opcional por tolerancia hacia adelante (un backend anterior no
   // lo envía); ausente se trata igual que `none`.
   quarantine_state?: QuarantineState

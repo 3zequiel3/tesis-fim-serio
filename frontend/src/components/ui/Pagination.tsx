@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { inputClassName } from '@/components/ui/Field'
 
 interface PaginationProps {
   currentPage: number
@@ -40,10 +41,10 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
 
   const pageNumbers = computePageWindow(currentPage, totalPages)
   const buttonClass =
-    'px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed'
+    'rounded-control border border-line-strong bg-surface-raised px-3 py-1.5 text-text hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40'
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm text-gray-300">
+    <div className="flex flex-wrap items-center gap-2 text-text">
       <button
         type="button"
         onClick={() => onPageChange(1)}
@@ -68,7 +69,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
           onClick={() => onPageChange(n)}
           aria-current={n === currentPage ? 'page' : undefined}
           className={`${buttonClass} tabular-nums ${
-            n === currentPage ? 'bg-primary text-white border-primary' : ''
+            n === currentPage ? '!border-accent !bg-accent !text-on-accent' : ''
           }`}
         >
           {n}
@@ -99,7 +100,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
         propio (con el rango exacto) nunca se muestra.
       */}
       <form onSubmit={handleGoToPage} noValidate className="flex items-center gap-1.5">
-        <label htmlFor="go-to-page-input" className="text-xs text-gray-400">
+        <label htmlFor="go-to-page-input" className="text-xs text-text-muted">
           Ir a página
         </label>
         <input
@@ -109,7 +110,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
           max={totalPages}
           value={goToPageInput}
           onChange={(e) => setGoToPageInput(e.target.value)}
-          className="w-16 px-2 py-1 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
+          className={`${inputClassName} !w-20 !py-1`}
         />
         <button type="submit" className={buttonClass}>
           Ir
@@ -117,7 +118,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
       </form>
 
       {error && (
-        <span role="alert" className="text-xs text-red-400">
+        <span role="alert" className="text-xs text-danger-fg">
           {error}
         </span>
       )}

@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useEvents } from '@/hooks/useEvents'
+import { Can, useCan } from '@/hooks/useCan'
 import { EventsTable } from '@/components/ui/EventsTable'
 import { BulkActionBar } from '@/components/ui/BulkActionBar'
-import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { DataState } from '@/components/ui/DataState'
 import { Pagination } from '@/components/ui/Pagination'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { inputClassName } from '@/components/ui/Field'
 import { parseEventFilters, serializeEventFilters } from '@/utils/eventFilters'
 import type { EventFilters } from '@/api/events'
 
@@ -33,28 +36,73 @@ const ALL_QUARANTINE_STATES = ['quarantined', 'released', 'discarded'] as const
 export function Events() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = parseEventFilters(searchParams)
-  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const canMutate = useCan()
 
-  // Limpiar selección cuando cambian los filtros o la página
-  useEffect(() => {
-    setSelected(new Set())
-  }, [searchParams.toString()])
+  const { data, isLoading, isFetching, error, refetch } = useEvents(filters)
+  const items = useMemo(() => data?.items ?? [], [data])
 
-  const { data, isLoading, isFetching, isError, refetch } = useEvents(filters)
+  // Selection (M9): it belongs to the current filters/page, and it only keeps ids
+  // that are in the list on screen, so a refresh can never leave stale ids behind.
+  const selectionKey = searchParams.toString()
+  const [selection, setSelection] = useState<{ key: string; ids: Set<number> }>({
+    key: selectionKey,
+    ids: new Set(),
+  })
+  const visibleIds = useMemo(() => new Set(items.map((item) => item.id)), [items])
+  const selected = useMemo(
+    () =>
+      selection.key === selectionKey
+        ? new Set([...selection.ids].filter((id) => visibleIds.has(id)))
+        : new Set<number>(),
+    [selection, selectionKey, visibleIds],
+  )
+  const setSelected: Dispatch<SetStateAction<Set<number>>> = useCallback(
+    (action) => {
+      setSelection((prev) => {
+        const base =
+          prev.key === selectionKey ? new Set([...prev.ids].filter((id) => visibleIds.has(id))) : new Set<number>()
+        return { key: selectionKey, ids: typeof action === 'function' ? action(base) : action }
+      })
+    },
+    [selectionKey, visibleIds],
+  )
 
   // Debounce para path_prefix
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [pathInput, setPathInput] = useState(filters.path_prefix ?? '')
+  const urlPath = filters.path_prefix ?? ''
+  const [pathInput, setPathInput] = useState(urlPath)
+  // Back/forward or a shared link changed the URL: show it in the input.
+  const [syncedUrlPath, setSyncedUrlPath] = useState(urlPath)
+  if (syncedUrlPath !== urlPath) {
+    setSyncedUrlPath(urlPath)
+    setPathInput(urlPath)
+  }
+
+  const cancelDebounce = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = null
+  }, [])
+  useEffect(() => cancelDebounce, [cancelDebounce])
+
+  // M9: always merge into the CURRENT params, never into the ones captured by the
+  // render that scheduled the change. React Router's functional `setSearchParams`
+  // reads the params of the render that created it, so the debounce timer goes
+  // through a ref that always holds the latest instance. A debounced path update
+  // used to overwrite a status toggled in the meantime.
+  const setParamsRef = useRef(setSearchParams)
+  useEffect(() => {
+    setParamsRef.current = setSearchParams
+  })
 
   function updateFilter(updates: Partial<EventFilters>) {
-    const newFilters: EventFilters = { ...filters, ...updates, page: 1 }
-    setSearchParams(serializeEventFilters(newFilters))
+    setParamsRef.current((prev) => serializeEventFilters({ ...parseEventFilters(prev), ...updates, page: 1 }))
   }
 
   function handlePathChange(value: string) {
     setPathInput(value)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+    cancelDebounce()
     debounceRef.current = setTimeout(() => {
+      debounceRef.current = null
       updateFilter({ path_prefix: value || undefined })
     }, 300)
   }
@@ -92,8 +140,7 @@ export function Events() {
   }
 
   function handlePageChange(newPage: number) {
-    const newFilters = { ...filters, page: newPage }
-    setSearchParams(serializeEventFilters(newFilters))
+    setSearchParams((prev) => serializeEventFilters({ ...parseEventFilters(prev), page: newPage }))
   }
 
   const total = data?.total ?? 0
@@ -102,60 +149,60 @@ export function Events() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const showSuperseded = !!filters.include_superseded
 
+  const checkLabel = 'flex cursor-pointer items-center gap-2 text-text'
+
   return (
     <div className="space-y-4">
       {/* Encabezado */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-white">Eventos</h1>
-        {isFetching && !isLoading && (
-          <span className="text-xs text-gray-500">Actualizando...</span>
-        )}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-text">Eventos</h1>
+        {isFetching && !isLoading && <span className="text-xs text-text-muted">Actualizando...</span>}
       </div>
 
       {/* Panel de filtros */}
-      <div className="bg-gray-800 border border-gray-700 rounded p-4 space-y-3">
+      <div className="space-y-4 rounded-panel border border-line bg-surface-raised p-4">
         {/* Filtro por estado */}
-        <div>
-          <p className="text-xs text-gray-400 mb-1.5">Estado</p>
-          <div className="flex flex-wrap gap-2">
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-semibold text-text-muted">Estado</legend>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
             {ALL_STATUSES.map((s) => (
-              <label key={s} className="flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer">
+              <label key={s} className={checkLabel}>
                 <input
                   type="checkbox"
                   checked={(filters.status ?? []).includes(s)}
                   onChange={() => handleStatusToggle(s)}
-                  className="rounded"
+                  className="size-4 accent-accent"
                 />
-                <span className="font-mono text-xs">{s}</span>
+                <StatusBadge status={s} />
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Filtro por severidad (D34/RN-128) */}
-        <div>
-          <p className="text-xs text-gray-400 mb-1.5">Severidad</p>
-          <div className="flex flex-wrap gap-2">
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-semibold text-text-muted">Severidad</legend>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
             {ALL_SEVERITIES.map((s) => (
-              <label key={s} className="flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer">
+              <label key={s} className={checkLabel}>
                 <input
                   type="checkbox"
                   checked={(filters.severity ?? []).includes(s)}
                   onChange={() => handleSeverityToggle(s)}
-                  className="rounded"
+                  className="size-4 accent-accent"
                 />
                 <span className="font-mono text-xs">{s}</span>
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Filtro por cuarentena (D82/RN-176) */}
-        <div>
-          <p className="text-xs text-gray-400 mb-1.5">Cuarentena</p>
-          <div className="flex flex-wrap gap-2">
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-semibold text-text-muted">Cuarentena</legend>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
             {ALL_QUARANTINE_STATES.map((s) => (
-              <label key={s} className="flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer">
+              <label key={s} className={checkLabel}>
                 <input
                   type="checkbox"
                   checked={(filters.quarantine_state ?? []).includes(s)}
@@ -163,52 +210,61 @@ export function Events() {
                   // `quarantined` también es un estado del evento (selector de
                   // arriba): el nombre accesible los distingue.
                   aria-label={`Cuarentena ${s}`}
-                  className="rounded"
+                  className="size-4 accent-accent"
                 />
                 <span className="font-mono text-xs">{s}</span>
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {/* Filtro por path */}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Prefijo de path</label>
+            <label htmlFor="filter-path" className="mb-1 block text-xs font-semibold text-text-muted">
+              Prefijo de path
+            </label>
             <input
+              id="filter-path"
               type="text"
               value={pathInput}
               onChange={(e) => handlePathChange(e.target.value)}
               placeholder="/etc/..."
-              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"
+              className={`${inputClassName} font-mono`}
             />
           </div>
 
           {/* Fecha desde */}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Desde</label>
+            <label htmlFor="filter-from" className="mb-1 block text-xs font-semibold text-text-muted">
+              Desde
+            </label>
             <input
+              id="filter-from"
               type="datetime-local"
               value={filters.date_from ?? ''}
               onChange={(e) => updateFilter({ date_from: e.target.value || undefined })}
-              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
+              className={inputClassName}
             />
           </div>
 
           {/* Fecha hasta */}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Hasta</label>
+            <label htmlFor="filter-to" className="mb-1 block text-xs font-semibold text-text-muted">
+              Hasta
+            </label>
             <input
+              id="filter-to"
               type="datetime-local"
               value={filters.date_to ?? ''}
               onChange={(e) => updateFilter({ date_to: e.target.value || undefined })}
-              className="w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
+              className={inputClassName}
             />
           </div>
         </div>
 
         {/* Toggle superseded */}
-        <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+        <label className={checkLabel}>
           <input
             type="checkbox"
             checked={showSuperseded}
@@ -227,44 +283,45 @@ export function Events() {
               }
               updateFilter({ include_superseded: true })
             }}
-            className="rounded"
+            className="size-4 accent-accent"
           />
           Mostrar eventos superseded
         </label>
       </div>
 
       {/* Permanece montada después de la acción para conservar su resumen. */}
-      <BulkActionBar
-        selected={selected}
-        items={data?.items ?? []}
-        filters={filters}
-        onSelectionChange={setSelected}
-      />
-
-      {/* Tabla de eventos */}
-      {isLoading ? (
-        <div className="py-12 text-center text-gray-500">Cargando eventos...</div>
-      ) : isError ? (
-        <QueryErrorState resource="los eventos" onRetry={() => refetch()} />
-      ) : (
-        <EventsTable
-          items={data?.items ?? []}
+      <Can>
+        <BulkActionBar
           selected={selected}
+          items={items}
+          filters={filters}
           onSelectionChange={setSelected}
         />
-      )}
+      </Can>
+
+      {/* Tabla de eventos */}
+      <DataState
+        isLoading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+        resource="los eventos"
+        loadingLabel="Cargando eventos..."
+      >
+        <EventsTable
+          items={items}
+          selected={selected}
+          onSelectionChange={setSelected}
+          selectable={canMutate}
+        />
+      </DataState>
 
       {/* Paginación (US-26: navegación numerada + "ir a página") */}
-      {!isLoading && total > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-400">
+      {!isLoading && !error && total > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-text-muted">
           <span>
             Mostrando {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, total)} de {total} eventos
           </span>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
         </div>
       )}
     </div>

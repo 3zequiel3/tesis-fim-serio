@@ -1,9 +1,21 @@
 import { Link } from 'react-router-dom'
 import type { EventDetail } from '@/api/events'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { formatAbsolute } from '@/utils/timeDisplay'
 
 interface EventTimelineProps {
   event: EventDetail
+}
+
+// Marker color per state, from the same solid tokens the dashboard bar uses.
+const MARKER: Record<string, string> = {
+  pending: 'bg-status-pending',
+  approved: 'bg-status-approved',
+  rejected: 'bg-status-rejected',
+  superseded: 'bg-status-superseded',
+  auto_restored: 'bg-status-auto_restored',
+  quarantined: 'bg-status-quarantined',
+  alert_only: 'bg-status-alert_only',
 }
 
 /**
@@ -15,18 +27,18 @@ interface EventTimelineProps {
  */
 export function EventTimeline({ event }: EventTimelineProps) {
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-gray-300">Cadena de eventos</h3>
-      <ol className="relative border-l border-gray-600 ml-2 space-y-3">
+    <div className="space-y-3">
+      <h3 className="font-semibold text-text">Cadena de eventos</h3>
+      <ol className="relative ml-2 space-y-4 border-l border-line-strong">
         {/* Evento padre, si existe */}
         {event.parent_event_id != null && (
           <li className="ml-4">
-            <span className="absolute -left-1.5 w-3 h-3 rounded-full bg-gray-500 border border-gray-600" />
-            <p className="text-xs text-gray-400">
+            <span className="absolute -left-1.5 size-3 rounded-full border border-line-strong bg-surface-raised" />
+            <p className="text-text-muted">
               Evento anterior:{' '}
               <Link
                 to={`/events/${event.parent_event_id}`}
-                className="text-blue-400 hover:text-blue-300 underline"
+                className="font-semibold text-accent underline"
                 aria-label={`Ver evento padre #${event.parent_event_id}`}
               >
                 #{event.parent_event_id}
@@ -38,52 +50,19 @@ export function EventTimeline({ event }: EventTimelineProps) {
         {/* Evento actual */}
         <li className="ml-4">
           <span
-            className={`absolute -left-1.5 w-3 h-3 rounded-full border ${
-              event.status === 'superseded'
-                ? 'bg-gray-600 border-gray-500'
-                : event.status === 'pending'
-                  ? 'bg-yellow-500 border-yellow-400'
-                  : event.status === 'approved'
-                    ? 'bg-green-500 border-green-400'
-                    : event.status === 'rejected'
-                      ? 'bg-red-500 border-red-400'
-                      : 'bg-blue-500 border-blue-400'
-            }`}
+            className={`absolute -left-1.5 size-3 rounded-full ${MARKER[event.status] ?? 'bg-status-superseded'}`}
           />
-          <div className="text-xs space-y-0.5">
-            <p className="font-medium text-gray-200">
-              #{event.id}{' '}
-              <StatusBadge status={event.status} />
+          <div className="space-y-1">
+            <p className="flex items-center gap-2 font-semibold text-text">
+              #{event.id} <StatusBadge status={event.status} />
             </p>
-            <p className="text-gray-400">
-              Detectado: {formatAbsolute(event.detected_at)}
-            </p>
+            <p className="text-text-muted">Detectado: {formatAbsolute(event.detected_at)}</p>
             {event.resolved_at && (
-              <p className="text-gray-400">
-                Resuelto: {formatAbsolute(event.resolved_at)}
-              </p>
+              <p className="text-text-muted">Resuelto: {formatAbsolute(event.resolved_at)}</p>
             )}
           </div>
         </li>
       </ol>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const classes: Record<string, string> = {
-    pending: 'bg-yellow-900 text-yellow-300',
-    approved: 'bg-green-900 text-green-300',
-    rejected: 'bg-red-900 text-red-300',
-    superseded: 'bg-gray-700 text-gray-400',
-    auto_restored: 'bg-blue-900 text-blue-300',
-    quarantined: 'bg-orange-900 text-orange-300',
-    alert_only: 'bg-purple-900 text-purple-300',
-  }
-  const cls = classes[status] ?? 'bg-gray-700 text-gray-300'
-  return (
-    <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-mono ${cls}`}>
-      {status}
-    </span>
   )
 }

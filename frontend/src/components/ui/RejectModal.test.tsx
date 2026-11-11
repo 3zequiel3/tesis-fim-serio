@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { RejectModal } from './RejectModal'
 import type { EventListItem } from '@/api/events'
 
@@ -85,5 +87,43 @@ describe('RejectModal — US-12 C10 (baseline_status)', () => {
 
     expect(screen.getByLabelText(/Restaurar archivo/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Poner en cuarentena/)).toBeInTheDocument()
+  })
+})
+
+// M8 (D93/RN-187): the modal starts from its initial state on every opening and
+// tolerates a detection gap (null path).
+describe('RejectModal — reinicio y path nulo (M8)', () => {
+  it('al reabrirse vuelve a «Restaurar archivo» aunque se haya elegido cuarentena antes', async () => {
+    const user = userEvent.setup()
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Reabrir</button>
+          <RejectModal event={makeEvent()} open={open} onClose={() => setOpen(false)} onConfirm={vi.fn()} />
+        </>
+      )
+    }
+    render(<Harness />)
+
+    await user.click(screen.getByLabelText(/Poner en cuarentena/))
+    expect(screen.getByLabelText(/Poner en cuarentena/)).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(screen.getByRole('button', { name: 'Reabrir' }))
+
+    expect(screen.getByLabelText(/Restaurar archivo/)).toBeChecked()
+    expect(screen.getByLabelText(/Poner en cuarentena/)).not.toBeChecked()
+  })
+
+  it('con path nulo muestra «ruta desconocida» en vez de un título vacío', () => {
+    render(
+      <RejectModal
+        event={makeEvent({ path: null, event_type: 'detection_gap' })}
+        open
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('ruta desconocida')).toBeInTheDocument()
   })
 })

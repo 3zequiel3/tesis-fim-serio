@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
+import { signInAs, signOut } from '@/test/signIn'
 import { Events } from './Events'
 
 // D34/RN-128: activar un checkbox de severidad deja el parámetro en la URL
@@ -22,6 +23,10 @@ function lastEventsRequestParams(): Record<string, unknown> | undefined {
   const last = calls[calls.length - 1]
   return last?.[1]?.params
 }
+
+// D93/RN-187: mutation controls are shown only to `admin`; these suites exercise them.
+beforeEach(() => signInAs('admin'))
+afterEach(() => signOut())
 
 describe('Events — filtro por severidad (8.6)', () => {
   beforeEach(() => {

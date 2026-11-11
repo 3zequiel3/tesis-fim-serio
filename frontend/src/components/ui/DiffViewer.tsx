@@ -1,4 +1,5 @@
-import ReactDiffViewer from 'react-diff-viewer-continued'
+import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
+import { useTheme } from '@/hooks/useTheme'
 
 interface DiffViewerProps {
   diffText?: string | null
@@ -68,37 +69,73 @@ function parseUnifiedDiff(diffText: string): { fileHeaders: string[]; hunks: Hun
   return { fileHeaders, hunks }
 }
 
+// Reads a design token of the ACTIVE theme (globals.css). The library takes
+// plain color strings, so the CSS variable is resolved here; the fallback only
+// matters where there is no stylesheet (tests).
+function token(name: string, fallback: string): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return value || fallback
+}
+
+function diffStyles(isDark: boolean) {
+  const palette = {
+    diffViewerBackground: token('--color-surface-raised', isDark ? '#1b2532' : '#ffffff'),
+    diffViewerColor: token('--color-text', isDark ? '#e4e9ef' : '#18222e'),
+    addedBackground: token('--color-success-bg', isDark ? '#15352a' : '#d9f1e4'),
+    addedColor: token('--color-text', isDark ? '#e4e9ef' : '#18222e'),
+    removedBackground: token('--color-danger-bg', isDark ? '#3d1f1f' : '#fadada'),
+    removedColor: token('--color-text', isDark ? '#e4e9ef' : '#18222e'),
+    // Whole words, not letters: a stronger tint of the same line color.
+    wordAddedBackground: token('--color-success-line', isDark ? '#25604a' : '#9fd2b8'),
+    wordRemovedBackground: token('--color-danger-line', isDark ? '#6e3330' : '#e3aaa5'),
+    addedGutterBackground: token('--color-success-bg', isDark ? '#15352a' : '#d9f1e4'),
+    removedGutterBackground: token('--color-danger-bg', isDark ? '#3d1f1f' : '#fadada'),
+    gutterBackground: token('--color-surface', isDark ? '#141c26' : '#f2f4f7'),
+    gutterBackgroundDark: token('--color-surface', isDark ? '#141c26' : '#f2f4f7'),
+    gutterColor: token('--color-text-muted', isDark ? '#93a1b1' : '#56636f'),
+    codeFoldBackground: token('--color-surface', isDark ? '#141c26' : '#f2f4f7'),
+    codeFoldGutterBackground: token('--color-surface', isDark ? '#141c26' : '#f2f4f7'),
+    codeFoldContentColor: token('--color-text-muted', isDark ? '#93a1b1' : '#56636f'),
+    emptyLineBackground: token('--color-surface', isDark ? '#141c26' : '#f2f4f7'),
+  }
+  return { variables: { dark: palette, light: palette } }
+}
+
 function TextDiff({ diffText }: { diffText: string }) {
+  const { theme } = useTheme()
   const wasTruncated = diffText.includes(DIFF_TRUNCATION_MARKER)
   const { fileHeaders, hunks } = parseUnifiedDiff(diffText)
 
   return (
     <div className="text-sm" data-testid="content-diff">
       {wasTruncated && (
-        <p className="mb-2 text-xs text-amber-300" role="status">
+        <p className="mb-2 text-xs text-warning-fg" role="status">
           Diff truncado por el límite de seguridad del backend.
         </p>
       )}
       <div aria-label="Patch unificado" className="space-y-4">
         {fileHeaders.map((line) => (
-          <p key={line} className="font-mono text-xs text-gray-500">
+          <p key={line} className="font-mono text-xs text-text-muted">
             {line}
           </p>
         ))}
         {hunks.length === 0 ? (
-          <pre className="font-mono text-xs whitespace-pre-wrap break-all text-gray-200 overflow-x-auto">
+          <pre className="font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere] text-text overflow-x-auto">
             {diffText}
           </pre>
         ) : (
           hunks.map((hunk, i) => (
             <div key={i}>
-              <p className="font-mono text-xs text-gray-500 mb-1">{hunk.header}</p>
+              <p className="font-mono text-xs text-text-muted mb-1">{hunk.header}</p>
               <div className="overflow-x-auto">
                 <ReactDiffViewer
                   oldValue={hunk.oldValue}
                   newValue={hunk.newValue}
                   splitView
-                  useDarkTheme
+                  useDarkTheme={theme === 'dark'}
+                  // D93/RN-187: highlight whole words, not characters.
+                  compareMethod={DiffMethod.WORDS_WITH_SPACE}
+                  styles={diffStyles(theme === 'dark')}
                 />
               </div>
             </div>
@@ -125,29 +162,29 @@ function BinaryComparison({
   return (
     <div className="space-y-3 text-sm" data-testid="binary-diff">
       <div className="flex items-center gap-2">
-        <span className={hashesDiffer ? 'text-red-400' : 'text-green-400'} aria-hidden="true">
+        <span className={hashesDiffer ? 'text-danger-fg' : 'text-success-fg'} aria-hidden="true">
           {hashesDiffer ? '✗' : '✓'}
         </span>
-        <span className="text-gray-300">
+        <span className="text-text">
           {hashesDiffer ? 'Los hashes difieren' : 'Los hashes coinciden'}
         </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <p className="text-xs text-gray-500 mb-1">Hash anterior</p>
-          <p className="font-mono text-xs break-all text-gray-300">
+          <p className="text-xs text-text-muted mb-1">Hash anterior</p>
+          <p className="font-mono text-xs [overflow-wrap:anywhere] text-text">
             {hashBefore ?? 'sin baseline'}
           </p>
-          <p className="text-xs text-gray-500 mt-2 mb-1">Hex dump (primeros bytes)</p>
-          <pre className="font-mono text-xs whitespace-pre-wrap break-all text-gray-400 bg-gray-900 rounded p-2 overflow-x-auto">
+          <p className="text-xs text-text-muted mt-2 mb-1">Hex dump (primeros bytes)</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere] text-text-muted bg-surface rounded-control p-2 overflow-x-auto">
             {hexDumpBefore ?? 'contenido anterior no disponible'}
           </pre>
         </div>
         <div>
-          <p className="text-xs text-gray-500 mb-1">Hash actual</p>
-          <p className="font-mono text-xs break-all text-red-400">{hashAfter ?? '—'}</p>
-          <p className="text-xs text-gray-500 mt-2 mb-1">Hex dump (primeros bytes)</p>
-          <pre className="font-mono text-xs whitespace-pre-wrap break-all text-gray-200 bg-gray-900 rounded p-2 overflow-x-auto">
+          <p className="text-xs text-text-muted mb-1">Hash actual</p>
+          <p className="font-mono text-xs [overflow-wrap:anywhere] text-danger-fg">{hashAfter ?? '—'}</p>
+          <p className="text-xs text-text-muted mt-2 mb-1">Hex dump (primeros bytes)</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere] text-text bg-surface rounded-control p-2 overflow-x-auto">
             {hexDumpAfter ?? 'no disponible'}
           </pre>
         </div>
@@ -189,7 +226,7 @@ export function DiffViewer({
     )
   }
   return (
-    <p className="text-sm text-gray-500 italic">
+    <p className="text-sm text-text-muted italic">
       Diff textual no disponible para este evento.
     </p>
   )

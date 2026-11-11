@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getEventChain, type EventChainResponse } from '@/api/events'
+import { readApiError } from '@/api/errors'
 
 // US-10: cadena de eventos del mismo path. `id` puede ser cualquier evento
 // de la cadena (el backend resuelve el path desde ese evento y devuelve
@@ -11,5 +12,11 @@ export function useEventChain(id: number | null | undefined) {
     queryKey: ['event-chain', id],
     queryFn: () => getEventChain(id as number),
     enabled: id != null,
+    retry: (failureCount, error) => {
+      const { status } = readApiError(error)
+      if (status >= 400 && status < 500) return false
+      return failureCount < 1
+    },
+    retryDelay: 300,
   })
 }

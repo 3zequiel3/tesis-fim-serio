@@ -1,5 +1,12 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { Unlink } from 'lucide-react'
 import { useEventChain } from '@/hooks/useEventChain'
+import { useEventId } from '@/hooks/useEventId'
+import { readApiError } from '@/api/errors'
+import { DataState } from '@/components/ui/DataState'
+import { EventNotFound } from '@/components/ui/EventNotFound'
+import { PathLabel } from '@/components/ui/PathLabel'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { formatAbsolute } from '@/utils/timeDisplay'
 
 /**
@@ -9,99 +16,77 @@ import { formatAbsolute } from '@/utils/timeDisplay'
  * (criterio 4).
  */
 export function EventChain() {
-  const { id } = useParams<{ id: string }>()
-  const eventId = id ? Number(id) : null
+  const eventId = useEventId()
+  const { data: chain, isLoading, error, refetch } = useEventChain(eventId)
 
-  const { data: chain, isLoading, error } = useEventChain(eventId)
-
-  const is404 =
-    error != null &&
-    (error as { response?: { status?: number } })?.response?.status === 404
-
-  if (is404) {
-    return (
-      <div className="max-w-2xl mx-auto py-16 text-center">
-        <p className="text-2xl font-semibold text-gray-400">Evento no encontrado</p>
-        <Link to="/events" className="mt-4 inline-block text-blue-400 hover:text-blue-300 text-sm">
-          Volver a eventos
-        </Link>
-      </div>
-    )
-  }
-
-  if (isLoading || !chain) {
-    return <div className="py-16 text-center text-gray-500">Cargando cadena de eventos...</div>
+  // D93/RN-187: an invalid id or a 404 is «not found»; any other error is an
+  // error state with retry, never an endless «Cargando...».
+  if (eventId === null || (error != null && readApiError(error).status === 404)) {
+    return <EventNotFound eventId={eventId} />
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-6 px-4 space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex items-center gap-2">
-        <Link to={`/events/${eventId}`} className="text-gray-500 hover:text-gray-300 text-sm">
+        <Link to={`/events/${eventId}`} className="text-text-muted hover:text-text">
           Evento #{eventId}
         </Link>
-        <span className="text-gray-600">/</span>
-        <span className="text-gray-300 text-sm">Cadena</span>
+        <span className="text-text-muted">/</span>
+        <span className="text-text">Cadena</span>
       </div>
 
-      <h1 className="text-lg font-semibold text-white break-all">
-        Cadena de eventos — {chain.path ?? '(sin path)'}
-      </h1>
+      <DataState
+        isLoading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+        resource="la cadena de eventos"
+        loadingLabel="Cargando cadena de eventos..."
+      >
+        {chain && (
+          <>
+            <h1 className="text-xl font-semibold text-text [overflow-wrap:anywhere]">
+              Cadena de eventos — {chain.path ?? '(sin path)'}
+            </h1>
 
-      <ol className="space-y-2">
-        {chain.items.map((item) => (
-          <li
-            key={item.id}
-            data-testid="chain-item"
-            className={`flex items-center justify-between gap-3 rounded border p-3 ${
-              item.id === eventId
-                ? 'bg-gray-800 border-blue-700'
-                : 'bg-gray-800 border-gray-700'
-            }`}
-          >
-            <div className="flex items-center gap-2 text-sm">
-              {item.status === 'superseded' && (
-                <span
-                  data-testid="broken-chain-icon"
-                  title="Evento superseded — reemplazado por uno más reciente"
-                  aria-label="cadena rota"
+            <ol className="mt-4 space-y-2">
+              {chain.items.map((item) => (
+                <li
+                  key={item.id}
+                  data-testid="chain-item"
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-panel border bg-surface-raised p-3 ${
+                    item.id === eventId ? 'border-accent' : 'border-line'
+                  }`}
                 >
-                  ⛓️‍💥
-                </span>
-              )}
-              <span className="font-mono text-gray-200">#{item.id}</span>
-              <StatusBadge status={item.status} />
-              {item.parent_event_id != null && (
-                <span className="text-xs text-gray-500">padre: #{item.parent_event_id}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-500">{formatAbsolute(item.created_at)}</span>
-              <Link
-                to={`/events/${item.id}`}
-                className="text-blue-400 hover:text-blue-300 underline text-xs"
-              >
-                Ver #{item.id}
-              </Link>
-            </div>
-          </li>
-        ))}
-      </ol>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {item.status === 'superseded' && (
+                      <span
+                        data-testid="broken-chain-icon"
+                        title="Evento superseded — reemplazado por uno más reciente"
+                        aria-label="cadena rota"
+                        className="text-text-muted"
+                      >
+                        <Unlink aria-hidden="true" size={16} />
+                      </span>
+                    )}
+                    <span className="font-mono font-semibold text-text">#{item.id}</span>
+                    <StatusBadge status={item.status} />
+                    {item.parent_event_id != null && (
+                      <span className="text-xs text-text-muted">padre: #{item.parent_event_id}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-muted">{formatAbsolute(item.created_at)}</span>
+                    <Link to={`/events/${item.id}`} className="text-xs font-semibold text-accent underline">
+                      Ver #{item.id}
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            {chain.items.length === 0 && <PathLabel path={chain.path} />}
+          </>
+        )}
+      </DataState>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const classes: Record<string, string> = {
-    pending: 'bg-yellow-900 text-yellow-300 border-yellow-800',
-    approved: 'bg-green-900 text-green-300 border-green-800',
-    rejected: 'bg-red-900 text-red-300 border-red-800',
-    superseded: 'bg-gray-700 text-gray-400 border-gray-600',
-    auto_restored: 'bg-blue-900 text-blue-300 border-blue-800',
-    quarantined: 'bg-orange-900 text-orange-300 border-orange-800',
-    alert_only: 'bg-purple-900 text-purple-300 border-purple-800',
-  }
-  const cls = classes[status] ?? 'bg-gray-700 text-gray-300 border-gray-600'
-  return (
-    <span className={`px-1.5 py-0.5 rounded border text-xs font-mono ${cls}`}>{status}</span>
   )
 }

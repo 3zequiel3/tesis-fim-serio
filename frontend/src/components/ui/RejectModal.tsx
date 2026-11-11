@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ModalDialog } from '@/components/ui/ModalDialog'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 import type { EventListItem } from '@/api/events'
 import type { RejectAction } from '@/api/actions'
 
@@ -19,65 +20,65 @@ interface RejectModalProps {
  * `onConfirm` sigue enviando `action: 'restore'` (no-op server-side sobre
  * baseline absent, RN-74/actions/service.py:309-339) para no introducir una
  * tercera forma de payload.
+ *
+ * M8 (D93/RN-187): the state lives in `RejectModalBody`, which only exists
+ * while the modal is open, so every opening starts from the initial state.
  */
-export function RejectModal({ event, open, onClose, onConfirm, isPending = false }: RejectModalProps) {
+export function RejectModal(props: RejectModalProps) {
+  if (!props.open) return null
+  return <RejectModalBody {...props} />
+}
+
+function RejectModalBody({ event, onClose, onConfirm, isPending = false }: RejectModalProps) {
   const [action, setAction] = useState<RejectAction>('restore')
   const baselineAbsent = event.baseline_status === 'absent'
 
-  if (!open) return null
-
   return (
-    <ModalDialog labelledBy="reject-modal-title" onClose={onClose} panelClassName="p-6 max-w-sm w-full mx-4">
-      <h2 id="reject-modal-title" className="text-lg font-semibold text-white mb-2">Rechazar evento</h2>
-      <p className="text-xs font-mono text-gray-400 mb-4 break-all">{event.path}</p>
+    <Modal title="Rechazar evento" onClose={onClose} busy={isPending} widthClassName="max-w-md">
+      {/* D50/RN-144: a detection gap has no path. */}
+      <p className="mb-4 break-all font-mono text-xs text-text-muted">{event.path ?? 'ruta desconocida'}</p>
 
       {baselineAbsent ? (
-        <p className="mb-4 text-sm text-yellow-300 bg-yellow-950 border border-yellow-800 rounded px-3 py-2">
+        <p className="mb-4 rounded-control border border-warning-line bg-warning-bg px-3 py-2 text-warning-fg">
           No hay archivo a restaurar (baseline ausente). Confirmar rechazará el evento sin acción
           en filesystem.
         </p>
       ) : (
         <fieldset className="mb-4">
-          <legend className="text-sm text-gray-300 mb-2">Acción sobre el archivo:</legend>
-          <label className="flex items-center gap-2 text-sm text-gray-300 mb-1 cursor-pointer">
+          <legend className="mb-2 font-semibold text-text">Acción sobre el archivo:</legend>
+          <label className="mb-1 flex cursor-pointer items-center gap-2 text-text">
             <input
               type="radio"
               name="rejectAction"
               value="restore"
               checked={action === 'restore'}
               onChange={() => setAction('restore')}
+              className="accent-accent"
             />
             Restaurar archivo (volver al baseline)
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-2 text-text">
             <input
               type="radio"
               name="rejectAction"
               value="quarantine"
               checked={action === 'quarantine'}
               onChange={() => setAction('quarantine')}
+              className="accent-accent"
             />
             Poner en cuarentena
           </label>
         </fieldset>
       )}
 
-      <div className="flex gap-2 justify-end">
-        <button
-          onClick={onClose}
-          disabled={isPending}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm"
-        >
+      <div className="flex justify-end gap-2">
+        <Button onClick={onClose} disabled={isPending}>
           Cancelar
-        </button>
-        <button
-          onClick={() => onConfirm(action)}
-          disabled={isPending}
-          className="px-4 py-2 bg-danger hover:bg-danger-hover text-white rounded text-sm font-medium disabled:opacity-50"
-        >
+        </Button>
+        <Button variant="danger" onClick={() => onConfirm(action)} loading={isPending}>
           {isPending ? 'Procesando...' : 'Confirmar rechazo'}
-        </button>
+        </Button>
       </div>
-    </ModalDialog>
+    </Modal>
   )
 }

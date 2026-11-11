@@ -1,28 +1,42 @@
-import { useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useState, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
 import { useEvent } from '@/hooks/useEvent'
 import { useEventActions } from '@/hooks/useEventActions'
 import { useEventChain } from '@/hooks/useEventChain'
+import { useEventId } from '@/hooks/useEventId'
+import { Can } from '@/hooks/useCan'
+import { readApiError } from '@/api/errors'
 import { EventTimeline } from '@/components/ui/EventTimeline'
 import { DiffViewer } from '@/components/ui/DiffViewer'
 import { RejectModal } from '@/components/ui/RejectModal'
 import { ReleaseQuarantineModal } from '@/components/ui/ReleaseQuarantineModal'
+import { Button } from '@/components/ui/Button'
+import { DataState } from '@/components/ui/DataState'
+import { EventNotFound } from '@/components/ui/EventNotFound'
+import { HashChip } from '@/components/ui/HashChip'
+import { PathLabel } from '@/components/ui/PathLabel'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import {
+  ActionFailedBadge,
+  AckStatusBadge,
+  OfflineDetectionBadge,
+  QuarantineStateBadge,
+  SymlinkBadge,
+} from '@/components/ui/EventIndicators'
 import type { RejectAction, ReleaseMode } from '@/api/actions'
-import { getAckStatusMeta } from '@/utils/ackStatus'
-import { getQuarantineStateMeta } from '@/utils/quarantineState'
-import { getActionFailedMeta } from '@/utils/actionFailed'
-import { getActionErrorMeta } from '@/utils/actionError'
+import type { EventDetail as EventDetailData } from '@/api/events'
+import { getActionErrorMeta, getAckErrorReason } from '@/utils/actionError'
 import { getEventTypeGapMeta } from '@/utils/eventType'
 import { getSeverityMeta } from '@/utils/severity'
 import { formatAbsolute } from '@/utils/timeDisplay'
-import type { CommandAckStatus, QuarantineState } from '@/api/events'
+import { formatExe, formatPid, formatUid } from '@/utils/process'
 
 export function EventDetail() {
-  const { id } = useParams<{ id: string }>()
-  const eventId = id ? Number(id) : null
+  const eventId = useEventId()
   const navigate = useNavigate()
 
-  const { data: event, isLoading, error } = useEvent(eventId)
+  const { data: event, isLoading, error, refetch, pollingStopped, restartPolling } = useEvent(eventId)
   const {
     approveMutation,
     rejectMutation,
@@ -41,50 +55,41 @@ export function EventDetail() {
   const chainPosition = eventId != null ? chainItems.findIndex((item) => item.id === eventId) : -1
   const belongsToChain = chainPosition >= 0 && chainItems.length > 1
 
-  // Manejo de 404
-  const is404 =
-    error != null &&
-    (error as { response?: { status?: number } })?.response?.status === 404
-
-  if (is404) {
-    return (
-      <div className="max-w-2xl mx-auto py-16 text-center">
-        <p className="text-2xl font-semibold text-gray-400">Evento no encontrado</p>
-        <p className="text-sm text-gray-500 mt-2">
-          El evento #{eventId} no existe o fue eliminado.
-        </p>
-        <Link to="/events" className="mt-4 inline-block text-blue-400 hover:text-blue-300 text-sm">
-          Volver a eventos
-        </Link>
-      </div>
-    )
+  // D93/RN-187: `/events/abc` and a 404 are «not found»; nothing is requested for a bad id.
+  if (eventId === null || (error != null && readApiError(error).status === 404)) {
+    return <EventNotFound eventId={eventId} />
   }
 
-  if (isLoading || !event) {
+  if (error != null || isLoading || !event) {
     return (
-      <div className="py-16 text-center text-gray-500">
-        Cargando evento...
-      </div>
+      <DataState
+        isLoading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+        resource="el evento"
+        loadingLabel="Cargando evento..."
+      >
+        {null}
+      </DataState>
     )
   }
 
   const isPending = approveMutation.isPending || rejectMutation.isPending
-  const canApprove = event.status === 'pending' || event.status === 'alert_only'
+  // B6: the backend only resolves `pending` events (alert_only is informational).
+  const canApprove = event.status === 'pending'
 
   function handleApprove() {
-    if (!event) return
     approveMutation.mutate({
-      event_id: event.id,
-      version: event.version,
+      event_id: event!.id,
+      version: event!.version,
       confirm_absent: needsAbsentConfirmation || undefined,
     })
   }
 
   function handleRejectConfirm(action: RejectAction) {
-    if (!event) return
     rejectMutation.mutate(
-      { event_id: event.id, version: event.version, action },
-      { onSuccess: () => setRejectModalOpen(false) }
+      { event_id: event!.id, version: event!.version, action },
+      { onSuccess: () => setRejectModalOpen(false) },
     )
   }
 
@@ -95,47 +100,39 @@ export function EventDetail() {
   const releaseInFlight = event.ack_status === 'pending'
 
   function handleReleaseConfirm(mode: ReleaseMode, reason: string) {
-    if (!event) return
     releaseQuarantineMutation.mutate(
-      { event_id: event.id, mode, reason },
+      { event_id: event!.id, mode, reason },
       { onSuccess: () => setReleaseModalOpen(false) },
     )
   }
 
+  const gapMeta = event.path === null ? getEventTypeGapMeta(event.event_type) : null
+
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       {/* Encabezado */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Link to="/events" className="text-gray-500 hover:text-gray-300 text-sm">
-              Eventos
-            </Link>
-            <span className="text-gray-600">/</span>
-            <span className="text-gray-300 text-sm">#{event.id}</span>
-          </div>
-          {/* D51/RN-145 (D-10 del design): cuando path es nulo se sustituye
-              la fila de ruta por el tipo de evento y su causa — sin guiones
-              ni celdas vacías. Ramifica sobre path === null, ya resuelto por
-              event_type dentro de getEventTypeGapMeta. */}
-          {event.path !== null ? (
-            <h1 className="text-lg font-semibold text-white break-all">
-              {event.path}
-            </h1>
-          ) : (
-            <div>
-              <h1 className="text-lg font-semibold text-amber-300">
-                {getEventTypeGapMeta(event.event_type).label}
-              </h1>
-              <p className="text-sm text-gray-400 mt-1">
-                {getEventTypeGapMeta(event.event_type).cause}
-              </p>
-            </div>
-          )}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Link to="/events" className="text-text-muted hover:text-text">
+            Eventos
+          </Link>
+          <span className="text-text-muted">/</span>
+          <span className="text-text">#{event.id}</span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <SymlinkBadge isSymlink={event.is_symlink} />
+        {/* D51/RN-145: without a path the title is the event type and its cause. */}
+        {gapMeta ? (
+          <div>
+            <h1 className="text-xl font-semibold text-warning-fg">{gapMeta.label}</h1>
+            <p className="mt-1 text-text-muted">{gapMeta.cause}</p>
+          </div>
+        ) : (
+          <h1 className="m-0">
+            <PathLabel path={event.path} variant="title" />
+          </h1>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={event.status} />
+          <SymlinkBadge isSymlink={event.is_symlink} target={event.symlink_target} />
           <OfflineDetectionBadge detectedOffline={event.detected_offline} />
           <ActionFailedBadge actionFailed={event.action_failed} />
           <AckStatusBadge ackStatus={event.ack_status} />
@@ -146,118 +143,99 @@ export function EventDetail() {
       {/* Metadato de symlink (D33/RN-127): solo se muestra cuando is_symlink es true */}
       {event.is_symlink && (
         <FieldCard label="Destino del symlink">
-          <span className="font-mono text-xs break-all text-cyan-300">
+          <span className="font-mono text-xs [overflow-wrap:anywhere]">
             {event.symlink_target ?? '(desconocido)'}
           </span>
         </FieldCard>
       )}
 
-      {/* Causa del fallo de remediación (D36/RN-130, C41): califica al
-          indicador de action_failed que introdujo C40. Permite distinguir un
-          problema de despliegue (path no escribible) de un problema de datos
-          (baseline ausente/incompleto). No se muestra en la tabla — es
-          información de segundo nivel del detalle. */}
+      {/* Causa del fallo de remediación (D36/RN-130): distingue un problema de
+          despliegue de un problema de datos. Segundo nivel: no va en la tabla. */}
       <ActionErrorNote cause={event.action_error} />
 
-      {/* Acciones (solo si está pendiente o alert_only) */}
+      <CommandExecution event={event} pollingStopped={pollingStopped} onRefresh={restartPolling} />
+
+      {/* Acciones (solo pending y solo admin) */}
       {canApprove && (
-        <div className="flex gap-2">
-          {needsAbsentConfirmation ? (
-            <div className="flex items-center gap-3 p-3 bg-yellow-950 border border-yellow-800 rounded text-sm">
-              <span className="text-yellow-300">
-                El archivo ya no existe. Aprobar = la ausencia es el nuevo estado válido del
-                baseline.
-              </span>
-              <button
-                onClick={handleApprove}
-                disabled={isPending}
-                className="px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded text-xs font-medium disabled:opacity-50"
-              >
-                Confirmar
-              </button>
-              <button
-                onClick={clearAbsentConfirmation}
-                className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs"
-              >
-                Cancelar
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                onClick={handleApprove}
-                disabled={isPending}
-                className="px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded text-sm font-medium disabled:opacity-50"
-              >
-                {approveMutation.isPending ? 'Aprobando...' : 'Aprobar'}
-              </button>
-              <button
-                onClick={() => setRejectModalOpen(true)}
-                disabled={isPending}
-                className="px-4 py-2 bg-danger hover:bg-danger-hover text-white rounded text-sm font-medium disabled:opacity-50"
-              >
-                Rechazar
-              </button>
-            </>
-          )}
-        </div>
+        <Can>
+          <div className="flex flex-wrap gap-2">
+            {needsAbsentConfirmation ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-panel border border-warning-line bg-warning-bg p-3">
+                <span className="text-warning-fg">
+                  El archivo ya no existe. Aprobar = la ausencia es el nuevo estado válido del
+                  baseline.
+                </span>
+                <Button variant="primary" size="sm" onClick={handleApprove} disabled={isPending}>
+                  Confirmar
+                </Button>
+                <Button size="sm" onClick={clearAbsentConfirmation}>
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button variant="primary" onClick={handleApprove} loading={approveMutation.isPending} disabled={isPending}>
+                  {approveMutation.isPending ? 'Aprobando...' : 'Aprobar'}
+                </Button>
+                <Button variant="danger" onClick={() => setRejectModalOpen(true)} disabled={isPending}>
+                  Rechazar
+                </Button>
+              </>
+            )}
+          </div>
+        </Can>
       )}
 
       {/* Liberación de cuarentena (D83/RN-177): sólo con quarantine_state
-          quarantined; deshabilitada con un comando pendiente. */}
+          quarantined y sólo admin; deshabilitada con un comando pendiente. */}
       {canRelease && (
-        <div className="flex gap-2">
-          <button
-            onClick={() => setReleaseModalOpen(true)}
-            disabled={releaseInFlight || releaseQuarantineMutation.isPending}
-            title={releaseInFlight ? 'Hay un comando en curso para este evento' : undefined}
-            className="px-4 py-2 bg-violet-700 hover:bg-violet-600 text-white rounded text-sm font-medium disabled:opacity-50"
-          >
-            Liberar cuarentena
-          </button>
-        </div>
+        <Can>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setReleaseModalOpen(true)}
+              disabled={releaseInFlight || releaseQuarantineMutation.isPending}
+              title={releaseInFlight ? 'Hay un comando en curso para este evento' : undefined}
+            >
+              Liberar cuarentena
+            </Button>
+          </div>
+        </Can>
       )}
 
-      {/* US-10: posición en la cadena + acceso a la vista completa. Solo se
-          muestra cuando el evento comparte path con al menos otro evento —
-          una cadena de un solo elemento no es una cadena. */}
+      {/* US-10: posición en la cadena + acceso a la vista completa. Solo cuando
+          el evento comparte path con al menos otro: una cadena de uno no es cadena. */}
       {belongsToChain && (
-        <div className="flex items-center gap-3 text-sm bg-gray-800 border border-gray-700 rounded p-3">
-          <span className="text-gray-300">
+        <div className="flex flex-wrap items-center gap-3 rounded-panel border border-line bg-surface-raised p-3">
+          <span className="text-text">
             Posición {chainPosition + 1} de {chainItems.length} en la cadena
           </span>
-          <Link
-            to={`/events/${eventId}/chain`}
-            className="text-blue-400 hover:text-blue-300 underline text-xs"
-          >
+          <Link to={`/events/${eventId}/chain`} className="text-xs font-semibold text-accent underline">
             Ver cadena completa
           </Link>
         </div>
       )}
 
       {/* Detalles del evento */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <FieldCard label="Hash detectado">
           {event.hash_detected ? (
-            <span className="font-mono text-xs break-all text-red-400">
-              {event.hash_detected}
-            </span>
+            <div className="space-y-1">
+              <HashChip hash={event.hash_detected} />
+              <p className="font-mono text-xs text-text-muted [overflow-wrap:anywhere]">{event.hash_detected}</p>
+            </div>
           ) : (
-            <span className="text-gray-500 text-xs italic">
-              Archivo ausente (no en baseline)
-            </span>
+            <span className="text-xs italic text-text-muted">Archivo ausente (no en baseline)</span>
           )}
         </FieldCard>
 
-        {/* US-08 criterio 2: "tipo de acción" — derivado por el backend 1:1
-            desde status (events/service.py::derive_action_type), no una
-            columna nueva. */}
+        {/* US-08 criterio 2: "tipo de acción" — derivado por el backend 1:1 desde status. */}
         <FieldCard label="Tipo de acción">
           <span className="font-mono text-xs">{event.action_type}</span>
         </FieldCard>
 
         <FieldCard label="Severidad">
-          <span className={`font-mono text-xs ${getSeverityMeta(event.severity).textClass}`}>
+          <span className={`font-mono text-xs font-semibold ${getSeverityMeta(event.severity).textClass}`}>
             {event.severity}
           </span>
         </FieldCard>
@@ -266,63 +244,43 @@ export function EventDetail() {
           <span className="font-mono">{event.version}</span>
         </FieldCard>
 
-        <FieldCard label="Fecha de creación">
-          {formatAbsolute(event.created_at)}
-        </FieldCard>
+        <FieldCard label="Fecha de creación">{formatAbsolute(event.created_at)}</FieldCard>
+        <FieldCard label="Detectado">{formatAbsolute(event.detected_at)}</FieldCard>
+        <FieldCard label="Recibido por backend">{formatAbsolute(event.received_at)}</FieldCard>
 
-        <FieldCard label="Detectado">
-          {formatAbsolute(event.detected_at)}
-        </FieldCard>
-
-        <FieldCard label="Recibido por backend">
-          {formatAbsolute(event.received_at)}
-        </FieldCard>
-
-        {event.resolved_at && (
-          <FieldCard label="Resuelto">
-            {formatAbsolute(event.resolved_at)}
-          </FieldCard>
-        )}
+        {event.resolved_at && <FieldCard label="Resuelto">{formatAbsolute(event.resolved_at)}</FieldCard>}
 
         {event.resolved_by != null && (
-          <FieldCard label="Resuelto por (user ID)">
-            {event.resolved_by}
-          </FieldCard>
+          <FieldCard label="Resuelto por (user ID)">{event.resolved_by}</FieldCard>
         )}
-      </div>
+      </dl>
 
       {/* Contexto de proceso */}
-      {(event.process_pid != null || event.process_uid != null || event.process_exe) && (
-        <section className="bg-gray-800 border border-gray-700 rounded p-4 space-y-2">
-          <h2 className="text-sm font-semibold text-gray-300">Proceso que generó el evento</h2>
-          <dl className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-            {event.process_pid != null && (
+      {(event.process_pid != null || event.process_uid != null || event.process_exe != null) && (
+        <section className="space-y-2 rounded-panel border border-line bg-surface-raised p-4">
+          <h2 className="font-semibold text-text">Proceso que generó el evento</h2>
+          <dl className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <dt className="text-xs text-text-muted">PID</dt>
+              <dd className="font-mono">{formatPid(event.process_pid)}</dd>
+            </div>
+            {formatUid(event.process_uid) != null && (
               <div>
-                <dt className="text-gray-500 text-xs">PID</dt>
-                <dd className="font-mono text-gray-200">{event.process_pid}</dd>
+                <dt className="text-xs text-text-muted">UID</dt>
+                <dd className="font-mono">{formatUid(event.process_uid)}</dd>
               </div>
             )}
-            {event.process_uid != null && (
-              <div>
-                <dt className="text-gray-500 text-xs">UID</dt>
-                <dd className="font-mono text-gray-200">{event.process_uid}</dd>
-              </div>
-            )}
-            {event.process_exe && (
-              <div>
-                <dt className="text-gray-500 text-xs">Ejecutable</dt>
-                <dd className="font-mono text-xs text-gray-200 break-all">{event.process_exe}</dd>
-              </div>
-            )}
+            <div>
+              <dt className="text-xs text-text-muted">Ejecutable</dt>
+              <dd className="font-mono text-xs [overflow-wrap:anywhere]">{formatExe(event.process_exe)}</dd>
+            </div>
           </dl>
         </section>
       )}
 
-      <section className="bg-gray-800 border border-gray-700 rounded p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300">Diff de contenido</h2>
-        {/* US-09: DiffViewer detecta automáticamente el modo (texto/binario/
-            no disponible) a partir de estas props — EventDetail ya no
-            decide qué rama mostrar. */}
+      <section className="space-y-3 rounded-panel border border-line bg-surface-raised p-4">
+        <h2 className="font-semibold text-text">Diff de contenido</h2>
+        {/* US-09: DiffViewer detecta el modo (texto/binario/no disponible) a partir de estas props. */}
         <DiffViewer
           diffText={event.diff_text}
           isBinary={event.is_binary}
@@ -333,22 +291,16 @@ export function EventDetail() {
         />
       </section>
 
-      {/* Timeline */}
-      <section className="bg-gray-800 border border-gray-700 rounded p-4">
+      <section className="rounded-panel border border-line bg-surface-raised p-4">
         <EventTimeline event={event} />
       </section>
 
-      {/* Botón volver */}
       <div>
-        <button
-          onClick={() => navigate(-1)}
-          className="text-sm text-gray-400 hover:text-gray-200"
-        >
+        <Button variant="ghost" onClick={() => navigate(-1)}>
           Volver
-        </button>
+        </Button>
       </div>
 
-      {/* Modal de rechazo */}
       <RejectModal
         event={event}
         open={rejectModalOpen}
@@ -357,127 +309,72 @@ export function EventDetail() {
         isPending={rejectMutation.isPending}
       />
 
-      {/* Modal de liberación de cuarentena */}
-      {releaseModalOpen && (
-        // Montado sólo mientras está abierto: modo y motivo no sobreviven al cierre.
-        <ReleaseQuarantineModal
-          path={event.path}
-          open
-          onClose={() => setReleaseModalOpen(false)}
-          onConfirm={handleReleaseConfirm}
-          isPending={releaseQuarantineMutation.isPending}
-        />
-      )}
+      <ReleaseQuarantineModal
+        path={event.path}
+        open={releaseModalOpen}
+        onClose={() => setReleaseModalOpen(false)}
+        onConfirm={handleReleaseConfirm}
+        isPending={releaseQuarantineMutation.isPending}
+      />
     </div>
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const classes: Record<string, string> = {
-    pending: 'bg-yellow-900 text-yellow-300 border-yellow-800',
-    approved: 'bg-green-900 text-green-300 border-green-800',
-    rejected: 'bg-red-900 text-red-300 border-red-800',
-    superseded: 'bg-gray-700 text-gray-400 border-gray-600',
-    auto_restored: 'bg-blue-900 text-blue-300 border-blue-800',
-    quarantined: 'bg-orange-900 text-orange-300 border-orange-800',
-    alert_only: 'bg-purple-900 text-purple-300 border-purple-800',
-  }
-  const cls = classes[status] ?? 'bg-gray-700 text-gray-300 border-gray-600'
+// Outcome of the last command (D30/RN-124, D93/RN-187). Shown only when there is one.
+function CommandExecution({
+  event,
+  pollingStopped,
+  onRefresh,
+}: {
+  event: EventDetailData
+  pollingStopped: boolean
+  onRefresh: () => void
+}) {
+  if (!event.ack_status) return null
+  const reason = event.ack_status === 'failed' ? getAckErrorReason(event.ack_error) : null
+
   return (
-    <span className={`shrink-0 px-2.5 py-1 rounded border text-sm font-mono ${cls}`}>
-      {status}
-    </span>
+    <section aria-label="Ejecución del comando" className="space-y-2 rounded-panel border border-line bg-surface-raised p-3">
+      {event.ack_status === 'pending' && !pollingStopped && (
+        <p className="text-text-muted" role="status">
+          Esperando la confirmación del agente...
+        </p>
+      )}
+      {event.ack_status === 'pending' && pollingStopped && (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-text-muted">
+            El comando sigue pendiente. El backend lo marca como vencido a los 5 minutos.
+          </p>
+          <Button size="sm" onClick={onRefresh}>
+            <RefreshCw aria-hidden="true" size={14} />
+            Actualizar
+          </Button>
+        </div>
+      )}
+      {event.ack_status === 'acked' && <p className="text-success-fg">El agente confirmó la ejecución.</p>}
+      {event.ack_status === 'timeout' && (
+        <p className="text-text-muted">El agente no confirmó a tiempo: el comando venció.</p>
+      )}
+      {reason && (
+        <p className="text-danger-fg">{reason.startsWith('Motivo:') ? reason : `Motivo: ${reason}`}</p>
+      )}
+    </section>
   )
 }
 
-// Indicador de symlink-as-object (D33/RN-127, C39). Se omite por completo
-// cuando el evento es sobre un archivo regular — no altera el render existente.
-function SymlinkBadge({ isSymlink }: { isSymlink: boolean }) {
-  if (!isSymlink) return null
-  return (
-    <span className="shrink-0 px-2.5 py-1 rounded border text-xs font-mono uppercase bg-cyan-900 text-cyan-300 border-cyan-800">
-      symlink
-    </span>
-  )
-}
-
-// Indicator for changes found by the agent's start-up reconcile (D80/RN-174).
-// Rendered only for `true`; false, null and absent render nothing. Styled apart
-// from ActionFailedBadge: this one qualifies *when* the change was detected,
-// it does not signal a failure.
-function OfflineDetectionBadge({ detectedOffline }: { detectedOffline?: boolean | null }) {
-  if (detectedOffline !== true) return null
-  return (
-    <span
-      className="shrink-0 px-2.5 py-1 rounded border text-xs font-mono bg-indigo-900 text-indigo-300 border-indigo-800"
-      title="El cambio ocurrió con el agente detenido. La fecha de detección es el instante en que el agente lo detectó al arrancar, no cuando ocurrió."
-    >
-      detectado offline
-    </span>
-  )
-}
-
-// Indicador de remediación fallida (D35/RN-129, C40). Califica al status:
-// un pending con action_failed=true significa que el archivo sigue
-// adulterado Y la remediación automática ya falló. Se omite por completo
-// cuando action_failed es false.
-function ActionFailedBadge({ actionFailed }: { actionFailed: boolean }) {
-  const meta = getActionFailedMeta(actionFailed)
-  if (!meta) return null
-  return (
-    <span className={`shrink-0 px-2.5 py-1 rounded border text-xs font-mono ${meta.className}`}>
-      {meta.label}
-    </span>
-  )
-}
-
-// Indicador secundario de estado de EJECUCIÓN del comando asociado
-// (D30/RN-124, C36). Visualmente distinto de StatusBadge; se omite si no
-// hay comando confirmable asociado al evento (RN-72 intacto).
-function AckStatusBadge({ ackStatus }: { ackStatus?: CommandAckStatus | null }) {
-  const meta = getAckStatusMeta(ackStatus)
-  if (!meta) return null
-  return (
-    <span className={`shrink-0 px-2.5 py-1 rounded border text-xs font-mono ${meta.className}`}>
-      {meta.label}
-    </span>
-  )
-}
-
-// Resultado FÍSICO de la cuarentena (D82/RN-176). No es un estado del evento:
-// StatusBadge sigue mostrando `rejected` para un rechazo con cuarentena. Se
-// omite con `none` o cuando el campo falta (backend anterior).
-function QuarantineStateBadge({ state }: { state?: QuarantineState }) {
-  const meta = getQuarantineStateMeta(state)
-  if (!meta) return null
-  return (
-    <span
-      data-testid="quarantine-state-badge"
-      className={`shrink-0 px-2.5 py-1 rounded text-xs font-mono ${meta.className}`}
-    >
-      {meta.label}
-    </span>
-  )
-}
-
-// Causa del fallo de remediación (D36/RN-130, C41). Prosa, no el literal
-// crudo salvo que el valor sea desconocido (getActionErrorMeta hace el
-// fallback). Se omite por completo cuando no hay causa.
+// Causa del fallo de remediación (D36/RN-130). Prosa, no el literal crudo salvo
+// que el valor sea desconocido (getActionErrorMeta hace el fallback).
 function ActionErrorNote({ cause }: { cause?: string | null }) {
   const meta = getActionErrorMeta(cause)
   if (!meta) return null
-  return (
-    <div className={`px-3 py-2 rounded border text-sm ${meta.className}`}>
-      {meta.label}
-    </div>
-  )
+  return <div className={`rounded-control px-3 py-2 ${meta.className}`}>{meta.label}</div>
 }
 
-function FieldCard({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldCard({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded p-3">
-      <dt className="text-xs text-gray-500 mb-1">{label}</dt>
-      <dd className="text-sm text-gray-200">{children}</dd>
+    <div className="rounded-panel border border-line bg-surface-raised p-3">
+      <dt className="mb-1 text-xs text-text-muted">{label}</dt>
+      <dd className="text-text">{children}</dd>
     </div>
   )
 }

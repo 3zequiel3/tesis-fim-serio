@@ -5,10 +5,15 @@ import { renderWithProviders } from '@/test/renderWithProviders'
 const { warning } = vi.hoisted(() => ({ warning: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { warning } }))
 
-const { fetchStreamTicket } = vi.hoisted(() => ({ fetchStreamTicket: vi.fn() }))
+const { fetchStreamTicket, getEvents } = vi.hoisted(() => ({ fetchStreamTicket: vi.fn(), getEvents: vi.fn() }))
+vi.mock('@/api/events', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/events')>()),
+  getEvents,
+}))
 vi.mock('@/api/alerts', () => ({ fetchStreamTicket }))
 
 import { useAlertsSSE } from './useAlertsSSE'
+import { useEvents } from './useEvents'
 import { useAuthStore } from '@/stores/auth.store'
 
 class FakeEventSource {
@@ -312,5 +317,46 @@ describe('useAlertsSSE — ticket SSE de un solo uso (D64/RN-158)', () => {
     // viva para cerrar de nuevo, y el timer pendiente no dispara un connect().
     expect(fetchStreamTicket).toHaveBeenCalledTimes(1)
     expect(FakeEventSource.instances).toHaveLength(1)
+  })
+})
+
+// M5 (D93/RN-187): an alert from the SSE feed refreshes the event list.
+function EventsAndSSEHarness() {
+  useAlertsSSE()
+  useEvents({ page: 1 })
+  return null
+}
+
+describe('useAlertsSSE — la lista de eventos se refresca (M5)', () => {
+  beforeEach(() => {
+    FakeEventSource.instances = []
+    fetchStreamTicket.mockReset()
+    getEvents.mockReset()
+    getEvents.mockResolvedValue({ total: 0, page: 1, page_size: 50, items: [] })
+    vi.stubGlobal('EventSource', FakeEventSource)
+    useAuthStore.setState({
+      accessToken: 'access-token-1',
+      user: { id: 1, username: 'admin', role: 'admin', must_change_password: false },
+      isLoading: false,
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    useAuthStore.setState({ accessToken: null, user: null, isLoading: false })
+  })
+
+  it('un mensaje del SSE vuelve a consultar GET /events con los filtros vigentes', async () => {
+    fetchStreamTicket.mockResolvedValue({ ticket: 'tkt-1', expires_in: 30 })
+    renderWithProviders(<EventsAndSSEHarness />)
+    await waitFor(() => expect(getEvents).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1))
+
+    act(() => {
+      FakeEventSource.instances[0].emit('alert', JSON.stringify({ id: 1, event_id: 7, severity: 'high' }))
+    })
+
+    await waitFor(() => expect(getEvents).toHaveBeenCalledTimes(2))
+    expect(getEvents).toHaveBeenLastCalledWith({ page: 1 })
   })
 })

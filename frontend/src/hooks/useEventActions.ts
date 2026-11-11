@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import axios from 'axios'
+import { apiErrorMessage, readApiError } from '@/api/errors'
 import {
   approve,
   reject,
@@ -21,25 +21,11 @@ import {
  * que mantuvo el bulk-reject roto en silencio toda la vida del proyecto
  * (D-5 del design de frontend-severity-triage).
  */
-function bulkActionErrorMessage(err: unknown, verb: string): string | null {
-  if (!axios.isAxiosError(err)) return null
-  if (err.response?.status === 422) {
+function bulkActionErrorMessage(err: unknown, verb: string): string {
+  if (readApiError(err).status === 422) {
     return `Petición de ${verb} rechazada por el servidor (cuerpo inválido)`
   }
   return `Error al ${verb} en lote`
-}
-
-/**
- * `code` de un 409 de liberación de cuarentena. El backend lo envía en
- * `detail.code` (HTTPException); se acepta también `code` plano.
- */
-function releaseConflictCode(err: unknown): string | undefined {
-  if (!axios.isAxiosError(err)) return undefined
-  const data = err.response?.data as
-    | { code?: string; detail?: { code?: string } | string }
-    | undefined
-  if (data && typeof data.detail === 'object' && data.detail?.code) return data.detail.code
-  return data?.code
 }
 
 interface UseEventActionsOptions {
@@ -59,21 +45,19 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   }
 
   function handleActionError(err: unknown) {
-    if (!axios.isAxiosError(err)) return
-    const status = err.response?.status
+    // D90/RN-184: the code lives in `detail.code`; readApiError is the only reader.
+    const { status, code } = readApiError(err)
     if (status === 409) {
       toast.error('Este evento ya fue resuelto o reemplazado. Refrescando lista...')
       invalidateEvent()
       return
     }
-    if (status === 422) {
-      const data = err.response?.data as { code?: string } | undefined
-      if (data?.code === 'absent_confirmation_required') {
-        setNeedsAbsentConfirmation(true)
-        return
-      }
+    if (status === 422 && code === 'absent_confirmation_required') {
+      setNeedsAbsentConfirmation(true)
+      return
     }
-    toast.error('Error al procesar la acción')
+    // D90/RN-184: the backend message when there is one, never `[object Object]`.
+    toast.error(apiErrorMessage(err, 'Error al procesar la acción'))
   }
 
   const approveMutation = useMutation({
@@ -89,7 +73,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   const rejectMutation = useMutation({
     mutationFn: (params: RejectParams) => reject(params),
     onError: handleActionError,
-    onSuccess: (result) => {
+    onSuccess: (result, variables) => {
       invalidateEvent()
       // US-12 (D-8): condición de carrera entre el baseline_status leído al
       // abrir el modal y el estado real al confirmar — el backend responde
@@ -98,7 +82,13 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
       if (result.baseline_absent) {
         toast.info('El baseline ya no tiene archivo: el rechazo no ejecutó ninguna acción.')
       } else {
-        toast.success('Evento rechazado')
+        // D93/RN-187: the 200 only means the command was queued; the agent's
+        // outcome arrives later as the execution indicator (ack_status).
+        toast.success(
+          variables.action === 'quarantine'
+            ? 'Rechazo registrado; cuarentena solicitada'
+            : 'Rechazo registrado; restauración solicitada',
+        )
       }
     },
   })
@@ -109,8 +99,8 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
     mutationFn: ({ event_id, mode, reason }: ReleaseQuarantineParams) =>
       releaseQuarantine(event_id, { mode, reason }),
     onError: (err: unknown) => {
-      if (axios.isAxiosError(err) && err.response?.status === 409) {
-        const code = releaseConflictCode(err)
+      const { status, code } = readApiError(err)
+      if (status === 409) {
         if (code === 'release_in_progress') {
           toast.error('Ya hay una liberación de cuarentena en curso para este evento.')
         } else if (code === 'quarantine_not_releasable') {
@@ -132,8 +122,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   const bulkApproveMutation = useMutation({
     mutationFn: (eventIds: number[]) => bulkApprove(eventIds),
     onError: (err: unknown) => {
-      const message = bulkActionErrorMessage(err, 'aprobar')
-      if (message) toast.error(message)
+      toast.error(bulkActionErrorMessage(err, 'aprobar'))
     },
     onSuccess: (result) => {
       const ok = result.succeeded.length
@@ -150,8 +139,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
   const bulkRejectMutation = useMutation({
     mutationFn: ({ eventIds, action }: { eventIds: number[]; action: RejectAction }) => bulkReject(eventIds, action),
     onError: (err: unknown) => {
-      const message = bulkActionErrorMessage(err, 'rechazar')
-      if (message) toast.error(message)
+      toast.error(bulkActionErrorMessage(err, 'rechazar'))
     },
     onSuccess: (result) => {
       const ok = result.succeeded.length

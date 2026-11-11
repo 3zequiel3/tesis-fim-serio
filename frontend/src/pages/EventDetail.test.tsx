@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Routes, Route } from 'react-router-dom'
 import { renderWithProviders } from '@/test/renderWithProviders'
+import { signInAs, signOut } from '@/test/signIn'
 import { EventDetail } from './EventDetail'
 import type { EventDetail as EventDetailData } from '@/api/events'
 
@@ -90,6 +91,10 @@ function renderDetail(id: number) {
     { route: `/events/${id}` }
   )
 }
+
+// D93/RN-187: mutation controls are shown only to `admin`; these suites exercise them.
+beforeEach(() => signInAs('admin'))
+afterEach(() => signOut())
 
 describe('EventDetail — evento sin ruta (D51/RN-145)', () => {
   beforeEach(() => {
@@ -358,7 +363,9 @@ describe('EventDetail — US-11 (toast 409 y aviso de archivo ausente)', () => {
   it('approve con 422 absent_confirmation_required muestra el aviso literal; Confirmar reenvía con confirm_absent:true', async () => {
     mockDetailAndChain(makeEvent({ id: 53, status: 'pending', version: 3 }))
     apiPost.mockRejectedValueOnce(
-      axiosErrorWithStatus(422, { code: 'absent_confirmation_required' })
+      // Corrected by frontend-ux-redesign (D90/RN-184): the backend sends
+      // {"detail": {"code": ...}}, never a flat {code}. The flat mock hid B2.
+      axiosErrorWithStatus(422, { detail: { code: 'absent_confirmation_required' } })
     )
     const user = userEvent.setup()
 
@@ -387,7 +394,9 @@ describe('EventDetail — US-11 (toast 409 y aviso de archivo ausente)', () => {
   it('Cancelar oculta el aviso de archivo ausente sin enviar una nueva request', async () => {
     mockDetailAndChain(makeEvent({ id: 54, status: 'pending' }))
     apiPost.mockRejectedValueOnce(
-      axiosErrorWithStatus(422, { code: 'absent_confirmation_required' })
+      // Corrected by frontend-ux-redesign (D90/RN-184): the backend sends
+      // {"detail": {"code": ...}}, never a flat {code}. The flat mock hid B2.
+      axiosErrorWithStatus(422, { detail: { code: 'absent_confirmation_required' } })
     )
     const user = userEvent.setup()
 
@@ -442,7 +451,7 @@ describe('EventDetail — US-12 (toast baseline_absent en reject)', () => {
     expect(toastSuccess).not.toHaveBeenCalled()
   })
 
-  it('reject sin baseline_absent muestra el toast de éxito actual', async () => {
+  it('reject sin baseline_absent informa «restauración solicitada», no un éxito prematuro (D93/RN-187)', async () => {
     mockDetailAndChain(makeEvent({ id: 61, status: 'pending' }))
     apiPost.mockResolvedValue({
       data: { event_id: 61, status: 'rejected', baseline_absent: false },
@@ -454,7 +463,10 @@ describe('EventDetail — US-12 (toast baseline_absent en reject)', () => {
     await user.click(await screen.findByRole('button', { name: 'Rechazar' }))
     await user.click(await screen.findByRole('button', { name: 'Confirmar rechazo' }))
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Evento rechazado'))
+    // Changed by frontend-ux-redesign: the 200 only means the command was queued.
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Rechazo registrado; restauración solicitada'),
+    )
     expect(toastInfo).not.toHaveBeenCalled()
   })
 })

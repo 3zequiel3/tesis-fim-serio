@@ -27,13 +27,15 @@ export function PathLabel({ path, variant = 'inline', className = '' }: PathLabe
     return <span className={`font-mono text-text-muted ${size} ${className}`}>—</span>
   }
   const { dir, name } = splitPath(path)
+  // The full path is exposed once, as plain text, to assistive tech and to
+  // text search; the split styling is decoration only.
   return (
-    <span
-      title={path}
-      className={`font-mono [overflow-wrap:anywhere] ${size} ${className}`}
-    >
-      <span className="text-text-muted">{dir}</span>
-      <span className={`${nameWeight} text-text`}>{name}</span>
+    <span title={path} className={`font-mono [overflow-wrap:anywhere] ${size} ${className}`}>
+      <span className="sr-only">{path}</span>
+      <span aria-hidden="true">
+        <span className="text-text-muted">{dir}</span>
+        <span className={`${nameWeight} text-text`}>{name}</span>
+      </span>
     </span>
   )
 }

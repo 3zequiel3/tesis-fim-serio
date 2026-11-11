@@ -40,6 +40,11 @@ describe('PathLabel and HashChip', () => {
     expect(splitPath('file')).toEqual({ dir: '', name: 'file' })
   })
 
+  it('exposes the full path once as text while styling the split', () => {
+    render(<PathLabel path="/etc/ssh/sshd_config" />)
+    expect(screen.getByText('/etc/ssh/sshd_config')).toBeInTheDocument()
+  })
+
   it('renders a dash for a null path instead of crashing', () => {
     render(<PathLabel path={null} />)
     expect(screen.getByText('—')).toBeInTheDocument()

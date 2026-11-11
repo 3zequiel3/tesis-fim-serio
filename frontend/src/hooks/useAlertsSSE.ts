@@ -31,8 +31,8 @@ const FAILED_ALERTS_COUNT_QUERY_KEY = ['alerts', 'failed', 'count']
  * el intento de refresh) o falta de permisos (403), el hook deja de
  * reintentar.
  *
- * Cada alerta nueva dispara un toast e invalida las queries `['alerts']`,
- * `['dashboard']` y `['alerts', 'failed', 'count']`; una reapertura exitosa
+ * Cada alerta nueva dispara un toast e invalida las queries `['events']`,
+ * `['event']`, `['alerts']`, `['dashboard']` y `['alerts', 'failed', 'count']`; una reapertura exitosa
  * (no la primera) invalida las mismas queries para reflejar cambios
  * ocurridos durante el corte.
  *
@@ -58,6 +58,10 @@ export function useAlertsSSE() {
     const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
     function invalidateAlertQueries() {
+      // D93/RN-187: a new alert usually means a new event; keep the event list
+      // and any open detail current.
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['event'] })
       queryClient.invalidateQueries({ queryKey: ['alerts'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: FAILED_ALERTS_COUNT_QUERY_KEY })
