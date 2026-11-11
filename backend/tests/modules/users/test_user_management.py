@@ -353,3 +353,19 @@ def test_seed_admin_sin_warning_cuando_admin_password_vacio(monkeypatch: pytest.
     auth_service.seed_admin()
 
     mock_warning.assert_not_called()
+
+
+async def test_post_users_sin_complejidad_retorna_422_con_codigo(admin_client: AsyncClient) -> None:
+    """D89/RN-183: el alta de admins aplica la política de RN-100 con mensaje en español."""
+    token = await _login_admin(admin_client)
+    token = await _change_password(admin_client, token)
+
+    resp = await admin_client.post(
+        "/users",
+        json={"email": "nocomplex@fim.example", "password": "alllowercase1234"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "password_policy"
+    assert "mayúscula" in resp.json()["detail"]["message"]

@@ -171,15 +171,29 @@ def test_password_policy_error_password_valida():
 def test_password_policy_error_corta():
     from app.core.security import password_policy_error
 
-    assert password_policy_error("Short1x") is not None
+    err = password_policy_error("Short1x")
+    assert err is not None
+    assert err[0] == "password_policy"
+    assert "12 caracteres" in err[1]
+
+
+def test_password_policy_error_evalua_el_largo_antes_que_la_complejidad():
+    from app.core.security import password_policy_error
+
+    # Short AND without uppercase/digit: the length message wins.
+    assert "12 caracteres" in password_policy_error("short")[1]
 
 
 def test_password_policy_error_sin_mayuscula():
     from app.core.security import password_policy_error
 
+    # D89/RN-183: password_policy_error returns (code, message) with a Spanish message
+    # (it used to return an English string).
     err = password_policy_error("lowercase123andmore")
     assert err is not None
-    assert "uppercase" in err.lower() or "mayúscula" in err.lower() or "mayuscula" in err.lower()
+    code, message = err
+    assert code == "password_policy"
+    assert "mayúscula" in message
 
 
 def test_password_policy_error_sin_minuscula():
@@ -187,6 +201,7 @@ def test_password_policy_error_sin_minuscula():
 
     err = password_policy_error("UPPERCASE123ANDMORE")
     assert err is not None
+    assert "minúscula" in err[1]
 
 
 def test_password_policy_error_sin_digito():
@@ -194,6 +209,7 @@ def test_password_policy_error_sin_digito():
 
     err = password_policy_error("NoDigitsHereAtAllXX")
     assert err is not None
+    assert "dígito" in err[1]
 
 
 def test_password_policy_error_mayuscula_ene_con_tilde_es_valida():
@@ -327,35 +343,201 @@ async def test_login_error_es_identico_para_password_mala_y_usuario_inexistente(
     assert bad_password.status_code == 401
     assert unknown_user.status_code == 401
     assert bad_password.json() == unknown_user.json()
-    assert bad_password.json()["detail"] == "Incorrect username or password"
+    # D92/RN-186 + D90/RN-184: now {code, message} in Spanish (was the English string
+    # "Incorrect username or password"); the equality above is what matters.
+    assert bad_password.json()["detail"]["code"] == "invalid_credentials"
     # El mensaje tampoco nombra al usuario probado.
     assert "nosuchuser" not in unknown_user.text
-    assert os.environ["ADMIN_USERNAME"] not in bad_password.json()["detail"]
+    assert os.environ["ADMIN_USERNAME"] not in bad_password.json()["detail"]["message"]
 
 
-# ─── Tests: rate limit login ─────────────────────────────────────────────────
+# ─── Tests: rate limit login (D92/RN-186) ────────────────────────────────────
 
-async def test_rate_limit_login_6to_intento_retorna_429(_patch_async_valkey, auth_client):
-    """
-    Cuando el counter de Valkey supera LOGIN_MAX_ATTEMPTS (5),
-    el endpoint debe devolver 429 con Retry-After.
 
-    check_login_rate_limit usa el cliente async (get_async_valkey_client),
-    mockeado por el fixture autouse _patch_async_valkey del conftest.
-    """
-    _patch_async_valkey.incr.return_value = 6  # simula 6to intento
+class _FakeAsyncValkey:
+    """Minimal in-memory async Valkey: the login limiter's get/incr/expire/ttl/delete."""
 
-    resp = await _login(auth_client)
+    def __init__(self) -> None:
+        self.data: dict[str, int] = {}
+        self.ttls: dict[str, int] = {}
+
+    async def get(self, key):
+        return str(self.data[key]).encode() if key in self.data else None
+
+    async def incr(self, key):
+        self.data[key] = self.data.get(key, 0) + 1
+        return self.data[key]
+
+    async def expire(self, key, seconds, nx=False):
+        if key not in self.data:
+            return False
+        if nx and key in self.ttls:
+            return False
+        self.ttls[key] = seconds
+        return True
+
+    async def ttl(self, key):
+        if key not in self.data:
+            return -2
+        return self.ttls.get(key, -1)
+
+    async def delete(self, *keys):
+        for key in keys:
+            self.data.pop(key, None)
+            self.ttls.pop(key, None)
+        return 1
+
+    async def exists(self, *keys):
+        return 0  # token blacklist: nothing is revoked
+
+    async def aclose(self):
+        return None
+
+
+@pytest.fixture
+def login_valkey(_patch_async_valkey):
+    import app.core.valkey as _valkey_mod
+
+    fake = _FakeAsyncValkey()
+    _valkey_mod._async_client = fake  # restored by the autouse _patch_async_valkey teardown
+    return fake
+
+
+_BAD = "ThisIsNotThePassword1!"
+_IP_A = {"X-Forwarded-For": "203.0.113.7"}
+_IP_B = {"X-Forwarded-For": "198.51.100.9"}
+
+
+async def _login_from(client, headers, password=None, username=None):
+    creds = _admin_creds()
+    return await client.post(
+        "/auth/login",
+        json={
+            "username": username or creds["username"],
+            "password": password or creds["password"],
+        },
+        headers=headers,
+    )
+
+
+def _login_key(ip: str) -> str:
+    return f"fim:rl:login:{os.environ['ADMIN_USERNAME']}:{ip}"
+
+
+async def test_login_exitosos_no_cuentan_ni_crean_key(login_valkey, auth_client):
+    for _ in range(10):
+        resp = await _login_from(auth_client, _IP_A)
+        assert resp.status_code == 200
+    assert login_valkey.data == {}
+
+
+async def test_login_exito_reinicia_el_contador(login_valkey, auth_client):
+    for _ in range(4):
+        assert (await _login_from(auth_client, _IP_A, password=_BAD)).status_code == 401
+    assert (await _login_from(auth_client, _IP_A)).status_code == 200
+    assert _login_key("203.0.113.7") not in login_valkey.data
+    for _ in range(4):
+        assert (await _login_from(auth_client, _IP_A, password=_BAD)).status_code == 401
+
+
+async def test_login_6to_intento_con_password_correcta_es_429_con_retry_after_igual_al_ttl(
+    login_valkey, auth_client
+):
+    for _ in range(5):
+        assert (await _login_from(auth_client, _IP_A, password=_BAD)).status_code == 401
+    key = _login_key("203.0.113.7")
+    assert login_valkey.ttls[key] == 900
+    login_valkey.ttls[key] = 421  # TTL restante simulado
+
+    resp = await _login_from(auth_client, _IP_A)  # contraseña CORRECTA
+
     assert resp.status_code == 429
-    assert "Retry-After" in resp.headers
+    assert resp.json()["detail"]["code"] == "login_rate_limited"
+    assert resp.json()["detail"]["message"]
+    assert resp.headers["Retry-After"] == "421"
+    # Un intento bloqueado no suma ni evalúa la contraseña.
+    assert login_valkey.data[key] == 5
 
 
-async def test_rate_limit_login_5_intentos_pasan(_patch_async_valkey, auth_client):
-    _patch_async_valkey.incr.return_value = 5  # exactamente en el límite, no supera
+async def test_login_retry_after_minimo_1(login_valkey, auth_client):
+    for _ in range(5):
+        await _login_from(auth_client, _IP_A, password=_BAD)
+    login_valkey.ttls[_login_key("203.0.113.7")] = 0
+    resp = await _login_from(auth_client, _IP_A)
+    assert resp.status_code == 429
+    assert resp.headers["Retry-After"] == "1"
 
-    resp = await _login(auth_client)
-    # No debe ser 429 (puede ser 200 o 401 según credenciales)
-    assert resp.status_code != 429
+
+async def test_login_cinco_fallos_de_una_ip_no_bloquean_otra(login_valkey, auth_client):
+    for _ in range(5):
+        await _login_from(auth_client, _IP_A, password=_BAD)
+    assert (await _login_from(auth_client, _IP_A)).status_code == 429
+
+    resp = await _login_from(auth_client, _IP_B)
+
+    assert resp.status_code == 200
+
+
+async def test_login_key_sin_ttl_se_repara_al_consultar(login_valkey, auth_client):
+    key = _login_key("203.0.113.7")
+    login_valkey.data[key] = 5  # key bloqueante sin TTL (EXPIRE perdido)
+    resp = await _login_from(auth_client, _IP_A)
+    assert resp.status_code == 429
+    assert login_valkey.ttls[key] == 900
+    assert resp.headers["Retry-After"] == "900"
+
+
+async def test_login_password_incorrecta_es_401_con_codigo(login_valkey, auth_client):
+    resp = await _login_from(auth_client, _IP_A, password=_BAD)
+    assert resp.status_code == 401
+    assert resp.headers["WWW-Authenticate"] == "Bearer"
+    assert resp.json()["detail"]["code"] == "invalid_credentials"
+    assert resp.json()["detail"]["message"] == "Usuario o contraseña incorrectos."
+
+
+async def test_login_cuenta_deshabilitada_es_403_con_codigo(login_valkey, auth_client):
+    from sqlmodel import Session, select
+
+    from app.core.database import engine
+    from app.modules.auth.models import User
+
+    with Session(engine) as s:
+        user = s.exec(select(User).where(User.username == os.environ["ADMIN_USERNAME"])).one()
+        user.is_active = False
+        s.add(user)
+        s.commit()
+
+    resp = await _login_from(auth_client, _IP_A)
+
+    assert resp.status_code == 403
+    assert resp.json()["detail"]["code"] == "account_disabled"
+    assert resp.json()["detail"]["message"]
+
+
+async def test_login_ttl_presente_tras_un_fallo_con_count_mayor_a_1(login_valkey, auth_client):
+    for _ in range(3):
+        await _login_from(auth_client, _IP_A, password=_BAD)
+    key = _login_key("203.0.113.7")
+    assert login_valkey.data[key] == 3
+    assert login_valkey.ttls[key] > 0
+
+
+async def test_login_usuario_inexistente_tambien_cuenta(login_valkey, auth_client):
+    resp = await _login_from(auth_client, _IP_A, username="nosuchuser", password=_BAD)
+    assert resp.status_code == 401
+    assert login_valkey.data["fim:rl:login:nosuchuser:203.0.113.7"] == 1
+
+
+async def test_login_audit_log_usa_la_ip_real(login_valkey, auth_client):
+    from sqlmodel import Session, select
+
+    from app.modules.audit.models import AuditLog
+    from app.core.database import engine
+
+    assert (await _login_from(auth_client, _IP_A)).status_code == 200
+    with Session(engine) as s:
+        entry = s.exec(select(AuditLog).where(AuditLog.action == "login")).one()
+    assert entry.detail == "ip=203.0.113.7" or "ip=203.0.113.7" in str(entry.detail)
 
 
 # ─── Tests: refresh ──────────────────────────────────────────────────────────
@@ -681,7 +863,7 @@ async def test_change_password_short_retorna_422(auth_client):
     ],
 )
 async def test_change_password_sin_complejidad_retorna_422(auth_client, new_password):
-    """US-27/RN-100: 422 con detail string, sin tocar password_hash."""
+    """US-27/RN-100: 422 con detail {code, message} (D89/RN-183; antes un string), sin tocar password_hash."""
     from app.core.database import engine
     from sqlmodel import Session, select
 
@@ -692,7 +874,10 @@ async def test_change_password_sin_complejidad_retorna_422(auth_client, new_pass
         auth_client, current_password=os.environ["ADMIN_PASSWORD"], new_password=new_password
     )
     assert resp.status_code == 422
-    assert isinstance(resp.json()["detail"], str)
+    detail = resp.json()["detail"]
+    assert detail["code"] == "password_policy"
+    assert detail["message"]
+    assert "Password must" not in detail["message"]  # Spanish, not the former English text
 
     with Session(engine) as session:
         user = session.exec(
@@ -723,6 +908,9 @@ async def test_change_password_current_password_incorrecto_scope_forzado_retorna
     """US-27 D-2: scope password_change_only también exige current_password correcto."""
     resp = await _change_password_with_scope(auth_client, current_password="not-the-seed-pwd")
     assert resp.status_code == 401
+    # D89/RN-183: {code, message} in Spanish (was "Incorrect current password").
+    assert resp.json()["detail"]["code"] == "current_password_invalid"
+    assert resp.json()["detail"]["message"]
     await _assert_seed_hash_unchanged()
 
 
@@ -809,6 +997,79 @@ async def test_change_password_current_password_incorrecto_scope_normal_retorna_
             select(User).where(User.username == os.environ["ADMIN_USERNAME"])
         ).one()
         assert verify_password(_NEW_ADMIN_PASSWORD, user.password_hash)
+
+
+async def test_change_password_igual_a_la_actual_es_422_password_reuse(auth_client):
+    """D89/RN-183: new_password == contraseña vigente → 422, hash intacto, token aún válido."""
+    resp = await _change_password_with_scope(
+        auth_client,
+        current_password=os.environ["ADMIN_PASSWORD"],
+        new_password=os.environ["ADMIN_PASSWORD"],
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "password_reuse"
+    assert resp.json()["detail"]["message"]
+    await _assert_seed_hash_unchanged()  # hash intacto y must_change_password sigue True
+
+
+async def test_change_password_reuse_no_revoca_el_token(auth_client):
+    login_resp = await _login(auth_client)
+    headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+    same = {
+        "current_password": os.environ["ADMIN_PASSWORD"],
+        "new_password": os.environ["ADMIN_PASSWORD"],
+    }
+    assert (await auth_client.post("/users/change-password", json=same, headers=headers)).status_code == 422
+
+    # The same token is still valid: a correct change goes through.
+    ok = await auth_client.post(
+        "/users/change-password",
+        json={"current_password": os.environ["ADMIN_PASSWORD"], "new_password": _NEW_ADMIN_PASSWORD},
+        headers=headers,
+    )
+    assert ok.status_code == 200
+
+
+async def test_change_password_politica_se_evalua_antes_que_la_reutilizacion(auth_client):
+    """A weak password equal to the current one gets the policy message first."""
+    from app.core.database import engine
+    from sqlmodel import Session, select
+
+    from app.core.security import hash_password
+    from app.modules.auth.models import User
+
+    with Session(engine) as session:
+        user = session.exec(select(User).where(User.username == os.environ["ADMIN_USERNAME"])).one()
+        user.password_hash = hash_password("weakpassword")
+        session.add(user)
+        session.commit()
+    login_resp = await _login(auth_client, password="weakpassword")
+    resp = await auth_client.post(
+        "/users/change-password",
+        json={"current_password": "weakpassword", "new_password": "weakpassword"},
+        headers={"Authorization": f"Bearer {login_resp.json()['access_token']}"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "password_policy"
+
+
+async def test_change_password_200_sin_access_token_y_refresh_anterior_es_401(
+    blacklist_client,
+):
+    """D89/RN-183: el cambio no emite tokens; el refresh previo queda revocado."""
+    login_resp = await _login(blacklist_client)
+    resp = await blacklist_client.post(
+        "/users/change-password",
+        json={"current_password": os.environ["ADMIN_PASSWORD"], "new_password": _NEW_ADMIN_PASSWORD},
+        headers={"Authorization": f"Bearer {login_resp.json()['access_token']}"},
+        cookies=login_resp.cookies,
+    )
+    assert resp.status_code == 200
+    assert "access_token" not in resp.json()
+    assert resp.json() == {"message": "password_changed"}
+
+    refresh = await blacklist_client.post("/auth/refresh", cookies=login_resp.cookies)
+    assert refresh.status_code == 401
 
 
 async def test_change_password_mayuscula_no_ascii_cuenta(auth_client):

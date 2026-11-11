@@ -17,7 +17,8 @@ from app.core.audit import write_audit_log
 from app.core.config import settings
 from app.core.database import get_session
 from app.core.deps import get_current_user
-from app.core.rate_limit import check_login_rate_limit
+from app.core.client_ip import client_ip
+from app.core.rate_limit import clear_login_attempts, login_retry_after, record_failed_login
 from app.core.security import (
     BLACKLIST_PREFIX,
     REFRESH_TOKEN_EXPIRE_DAYS,
@@ -96,18 +97,39 @@ async def login(
     response: Response,
     session: Session = Depends(get_session),
 ) -> LoginResponse:
-    ip = request.client.host if request.client else "unknown"
-    await check_login_rate_limit(body.username, ip)
+    ip = client_ip(request)
+
+    # D92/RN-186: el bloqueo se evalúa ANTES de verificar la contraseña.
+    retry_after = await login_retry_after(body.username, ip)
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "login_rate_limited",
+                "message": "Demasiados intentos fallidos. Esperá unos minutos e intentá de nuevo.",
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
 
     user = session.exec(select(User).where(User.username == body.username)).first()
     if user is None or not verify_password(body.password, user.password_hash):
+        await record_failed_login(body.username, ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail={
+                "code": "invalid_credentials",
+                "message": "Usuario o contraseña incorrectos.",
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "account_disabled", "message": "La cuenta está deshabilitada."},
+        )
+
+    # Credenciales correctas: reinicia el contador (un éxito nunca incrementa).
+    await clear_login_attempts(body.username, ip)
 
     jti_access = str(uuid4())
     jti_refresh = str(uuid4())

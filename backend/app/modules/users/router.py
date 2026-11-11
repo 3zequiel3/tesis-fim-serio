@@ -60,14 +60,30 @@ async def change_password(
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect current password",
+            detail={
+                "code": "current_password_invalid",
+                "message": "La contraseña actual es incorrecta.",
+            },
         )
 
     policy_error = password_policy_error(body.new_password)
     if policy_error:
+        code, message = policy_error
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=policy_error,
+            detail={"code": code, "message": message},
+        )
+
+    # D89/RN-183: la contraseña nueva no puede ser la vigente. Se evalúa DESPUÉS de
+    # la política (una contraseña débil recibe primero el mensaje de política) y
+    # ANTES de hashear la nueva; no toca password_hash ni revoca tokens.
+    if verify_password(body.new_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "password_reuse",
+                "message": "La contraseña nueva tiene que ser distinta de la actual.",
+            },
         )
 
     user.password_hash = hash_password(body.new_password)
@@ -135,6 +151,15 @@ async def create_user(
 ) -> CreateUserResponse:
     """Crea un admin adicional. Escribe audit_log con action='user_created'. (RN-45)"""
     import sqlalchemy.exc
+
+    # D89/RN-183: el alta usa la misma política (RN-100) y los mismos mensajes en español.
+    policy_error = password_policy_error(body.password)
+    if policy_error:
+        code, message = policy_error
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": code, "message": message},
+        )
 
     new_user = User(
         username=body.email,

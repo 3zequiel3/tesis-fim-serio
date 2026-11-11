@@ -88,6 +88,8 @@ services:
 
   backend:
     environment:
+      # D92/RN-186: mismo valor que docker-compose.yml.
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       VALKEY_URL: >-
         valkeys://valkey:6380?ssl_certfile=/certs/backend-valkey.pem&ssl_keyfile=/certs/backend-valkey-key.pem&ssl_ca_certs=/certs/ca.pem&ssl_check_hostname=true
 

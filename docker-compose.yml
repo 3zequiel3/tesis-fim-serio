@@ -275,6 +275,9 @@ services:
       # backend_secrets and the backend loads it read-only at startup.
       AGENT_SECRET_WRAP_KEY_PATH: ${AGENT_SECRET_WRAP_KEY_PATH:-/secrets/agent-secret-wrap.key}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1}
+      # D92/RN-186: redes cuyo X-Forwarded-For se acepta para resolver la IP real del
+      # cliente en el login (el nginx del frontend llega con una IP del bridge de Docker).
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       # Notificaciones (D43/RN-137). NINGUNA de estas variables lleva default.
       #
       # El default anterior era `${N8N_WEBHOOK_URL:-http://n8n:5678/healthz}`:

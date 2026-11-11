@@ -11,13 +11,16 @@ conexiones (fail-fast por diseño — D-CHANGE-04).
 """
 
 from collections.abc import Mapping
-from typing import Literal
+from ipaddress import IPv4Network, IPv6Network, ip_network
+from typing import Annotated, Literal
 
 from pydantic import Field
 from pydantic import PostgresDsn
 from pydantic import SecretStr
+from pydantic import field_validator
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
+from pydantic_settings import NoDecode
 from pydantic_settings import SettingsConfigDict
 
 # Conexiones reservadas para consumidores que NO pasan por ningún executor de
@@ -94,6 +97,14 @@ class Settings(BaseSettings):
     rate_limit_login_attempts: int = 5          # intentos máximos por ventana (LOGIN_MAX_ATTEMPTS)
     rate_limit_login_window_seconds: int = 900  # ventana login en segundos
     rate_limit_api_per_minute: int = 100        # req/min por user_id autenticado
+
+    # D92/RN-186: redes cuyo `X-Forwarded-For` se acepta para resolver la IP real
+    # del cliente (core/client_ip.py). CSV en la variable TRUSTED_PROXY_CIDRS.
+    # Default: loopback. Los compose lo fijan a los rangos privados de Docker.
+    # NoDecode: pydantic-settings no intenta parsear el CSV como JSON.
+    trusted_proxy_cidrs: Annotated[list[IPv4Network | IPv6Network], NoDecode] = Field(
+        default_factory=lambda: [ip_network("127.0.0.1/32"), ip_network("::1/128")]
+    )
 
     # Ingest rate limit (RN-88, D7; D85/RN-179) — token bucket per agent_id in
     # the consumer of the `events` stream. Sustained regime: 100 events/min
@@ -241,6 +252,25 @@ class Settings(BaseSettings):
     # log por notificación bajo saturación sería la misma amplificación que
     # la advertencia existe para reportar.
     notify_backlog_warning_threshold: int = Field(default=200, ge=1)
+
+    @field_validator("trusted_proxy_cidrs", mode="before")
+    @classmethod
+    def _parse_trusted_proxy_cidrs(cls, value):
+        """CSV -> lista de redes; el mensaje nombra la entrada inválida (D92/RN-186)."""
+        if not isinstance(value, str):
+            return value
+        networks = []
+        for raw in value.split(","):
+            entry = raw.strip()
+            if not entry:
+                continue
+            try:
+                networks.append(ip_network(entry, strict=False))
+            except ValueError as exc:
+                raise ValueError(
+                    f"TRUSTED_PROXY_CIDRS: entrada inválida {entry!r} (se espera una red IP, p. ej. 10.0.0.0/8)"
+                ) from exc
+        return networks
 
     @model_validator(mode="after")
     def _validate_db_executors_within_pool(self) -> "Settings":

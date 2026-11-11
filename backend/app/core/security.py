@@ -82,22 +82,24 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def password_policy_error(password: str) -> str | None:
+def password_policy_error(password: str) -> tuple[str, str] | None:
     """Validate password against RN-100: length first, then complexity.
 
-    Returns None if the password satisfies the policy, or a message naming
-    the first unmet requirement otherwise. Character classes are evaluated
-    per-character with Unicode-aware predicates (str.isupper/islower/isdecimal)
-    so letters like 'Ñ' or 'á' count in their class.
+    Returns None if the password satisfies the policy, or a `(code, message)`
+    pair otherwise (D89/RN-183, D90/RN-184): `code` is always `password_policy`
+    and `message` is Spanish text naming the first unmet requirement. Character
+    classes are evaluated per-character with Unicode-aware predicates
+    (str.isupper/islower/isdecimal) so letters like 'Ñ' or 'á' count in their
+    class.
     """
     if len(password) < 12:
-        return "Password must be at least 12 characters"
+        return ("password_policy", "La contraseña debe tener al menos 12 caracteres.")
     if not any(c.isupper() for c in password):
-        return "Password must contain at least one uppercase letter"
+        return ("password_policy", "La contraseña debe incluir al menos una letra mayúscula.")
     if not any(c.islower() for c in password):
-        return "Password must contain at least one lowercase letter"
+        return ("password_policy", "La contraseña debe incluir al menos una letra minúscula.")
     if not any(c.isdecimal() for c in password):
-        return "Password must contain at least one digit"
+        return ("password_policy", "La contraseña debe incluir al menos un dígito.")
     return None
 
 
