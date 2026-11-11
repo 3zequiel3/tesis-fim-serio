@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useRules, useRulesetVersion, useCreateRule, useUpdateRule, useDeleteRule } from '@/hooks/useRules'
-import { Can } from '@/hooks/useCan'
+import { Can } from '@/components/ui/Can'
 import { readApiError, apiErrorMessage } from '@/api/errors'
 import { RuleForm } from '@/components/ui/RuleForm'
 import { Modal } from '@/components/ui/Modal'
@@ -82,7 +82,7 @@ export function Rules() {
       })
     } else if (formMode === 'edit' && editingRule) {
       updateMutation.mutate(
-        { id: editingRule.id, payload: payload as UpdateRulePayload },
+        { id: editingRule.id, payload },
         {
           onSuccess: () => {
             toast.success('Regla actualizada')

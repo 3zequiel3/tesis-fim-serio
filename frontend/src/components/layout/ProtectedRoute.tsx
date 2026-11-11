@@ -28,7 +28,7 @@ export function ProtectedRoute() {
   useEffect(() => {
     if (accessToken) return
     let active = true
-    refreshToken()
+    void refreshToken()
       .catch(() => undefined)
       .finally(() => {
         if (active) setChecked(true)
@@ -46,7 +46,7 @@ export function ProtectedRoute() {
     if (checked && !accessToken) {
       const notice = endedReason === 'expired' ? SESSION_EXPIRED_NOTICE : undefined
       clearEndedReason()
-      navigate('/login', { state: { from: location, notice }, replace: true })
+      void navigate('/login', { state: { from: location, notice }, replace: true })
     }
   }, [accessToken, checked, endedReason, clearEndedReason, location, navigate])
 

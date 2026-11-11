@@ -87,7 +87,7 @@ export function ForcePasswordChange() {
     // D89/RN-183: the backend already revoked every token of this user, so
     // there is nothing to refresh. End the local session and ask for a new login.
     endSession('password_changed')
-    navigate('/login', { replace: true, state: { notice: PASSWORD_CHANGED_NOTICE } })
+    void navigate('/login', { replace: true, state: { notice: PASSWORD_CHANGED_NOTICE } })
   }
 
   return (

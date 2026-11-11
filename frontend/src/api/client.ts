@@ -19,6 +19,10 @@ let pendingQueue: Array<{
   reject: (err: unknown) => void
 }> = []
 
+function toError(reason: unknown): Error {
+  return reason instanceof Error ? reason : new Error(String(reason))
+}
+
 function processQueue(error: unknown, token: string | null) {
   pendingQueue.forEach(({ resolve, reject }) => {
     if (error) {
@@ -44,7 +48,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: unknown) => {
     if (!axios.isAxiosError(error)) {
-      return Promise.reject(error)
+      return Promise.reject(toError(error))
     }
 
     const originalRequest = error.config as typeof error.config & {
@@ -92,7 +96,7 @@ apiClient.interceptors.response.use(
         // D-5: an expired session empties the store and the query cache and lands
         // on /login with the «Tu sesión venció» notice (the route guard reads it).
         useAuthStore.getState().endSession('expired')
-        return Promise.reject(refreshError)
+        return Promise.reject(toError(refreshError))
       } finally {
         isRefreshing = false
       }

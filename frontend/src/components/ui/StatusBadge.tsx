@@ -1,5 +1,6 @@
 import { ArrowRightLeft, Bell, Check, CircleHelp, Clock, Lock, RotateCcw, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import type { EventStatus } from '@/api/events'
 
 // The only renderer of the seven RN-71 states (D93/RN-187): color + icon +
 // canonical snake_case text, so state is never conveyed by color alone.
@@ -10,7 +11,8 @@ interface StatusStyle {
   className: string
 }
 
-const STATUS_STYLES: Record<string, StatusStyle> = {
+// Typed by EventStatus: adding a state to RN-71 fails to compile until it has a style.
+const STATUS_STYLES: Record<EventStatus, StatusStyle> = {
   pending: { Icon: Clock, className: 'bg-status-pending-bg text-status-pending-fg' },
   approved: { Icon: Check, className: 'bg-status-approved-bg text-status-approved-fg' },
   rejected: { Icon: X, className: 'bg-status-rejected-bg text-status-rejected-fg' },
@@ -23,7 +25,7 @@ const STATUS_STYLES: Record<string, StatusStyle> = {
 const UNKNOWN_STYLE: StatusStyle = { Icon: CircleHelp, className: 'bg-neutral-bg text-neutral-fg' }
 
 export function StatusBadge({ status, className = '' }: { status: string; className?: string }) {
-  const { Icon, className: tone } = STATUS_STYLES[status] ?? UNKNOWN_STYLE
+  const { Icon, className: tone } = (STATUS_STYLES as Record<string, StatusStyle>)[status] ?? UNKNOWN_STYLE
   return (
     <span
       data-status={status}
@@ -34,5 +36,3 @@ export function StatusBadge({ status, className = '' }: { status: string; classN
     </span>
   )
 }
-
-export const KNOWN_STATUSES = Object.keys(STATUS_STYLES)

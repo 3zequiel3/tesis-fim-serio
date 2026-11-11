@@ -4,12 +4,9 @@ import { apiClient } from '@/api/client'
 
 export type RejectAction = 'restore' | 'quarantine'
 
-export type BulkFailReason =
-  | 'conflict'
-  | 'absent_confirmation_required'
-  | 'not_found'
-  | 'forbidden'
-  | string
+// Known reasons: 'conflict', 'absent_confirmation_required', 'not_found', 'forbidden'.
+// The backend may add others, so the type is an open string.
+export type BulkFailReason = string
 
 export interface BulkFailedItem {
   event_id: number

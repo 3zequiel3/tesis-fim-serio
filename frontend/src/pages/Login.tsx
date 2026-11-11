@@ -61,7 +61,7 @@ export function Login() {
 
     try {
       await login({ username, password })
-      navigate(postLoginTarget(state?.from), { replace: true })
+      void navigate(postLoginTarget(state?.from), { replace: true })
     } catch (err) {
       const apiError = readApiError(err)
       if (apiError.status === 429) {

@@ -25,8 +25,8 @@ export function useCreateRule() {
   return useMutation({
     mutationFn: (payload: CreateRulePayload) => createRule(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: RULES_KEY })
-      qc.invalidateQueries({ queryKey: RULESET_VERSION_KEY })
+      void qc.invalidateQueries({ queryKey: RULES_KEY })
+      void qc.invalidateQueries({ queryKey: RULESET_VERSION_KEY })
     },
   })
 }
@@ -37,8 +37,8 @@ export function useUpdateRule() {
     mutationFn: ({ id, payload }: { id: number; payload: UpdateRulePayload }) =>
       updateRule(id, payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: RULES_KEY })
-      qc.invalidateQueries({ queryKey: RULESET_VERSION_KEY })
+      void qc.invalidateQueries({ queryKey: RULES_KEY })
+      void qc.invalidateQueries({ queryKey: RULESET_VERSION_KEY })
     },
   })
 }
@@ -48,8 +48,8 @@ export function useDeleteRule() {
   return useMutation({
     mutationFn: (id: number) => deleteRule(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: RULES_KEY })
-      qc.invalidateQueries({ queryKey: RULESET_VERSION_KEY })
+      void qc.invalidateQueries({ queryKey: RULES_KEY })
+      void qc.invalidateQueries({ queryKey: RULESET_VERSION_KEY })
     },
   })
 }

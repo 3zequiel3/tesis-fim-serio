@@ -26,8 +26,8 @@ export function useUpdateAgentConfig() {
     mutationFn: ({ id, config }: { id: string; config: AgentConfig }) =>
       updateAgentConfig(id, config),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: AGENTS_KEY })
-      qc.invalidateQueries({ queryKey: ['agents', id] })
+      void qc.invalidateQueries({ queryKey: AGENTS_KEY })
+      void qc.invalidateQueries({ queryKey: ['agents', id] })
     },
   })
 }
@@ -60,8 +60,8 @@ export function useRescanAgent() {
       }
     },
     onSuccess: (_result, { id }) => {
-      qc.invalidateQueries({ queryKey: AGENTS_KEY })
-      qc.invalidateQueries({ queryKey: ['agents', id] })
+      void qc.invalidateQueries({ queryKey: AGENTS_KEY })
+      void qc.invalidateQueries({ queryKey: ['agents', id] })
     },
   })
 }

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
 
 /**
@@ -8,9 +7,4 @@ import { useAuthStore } from '@/stores/auth.store'
  */
 export function useCan(): boolean {
   return useAuthStore((s) => s.user?.role === 'admin')
-}
-
-/** Renders its children only for users who can mutate. */
-export function Can({ children }: { children: ReactNode }) {
-  return useCan() ? <>{children}</> : null
 }

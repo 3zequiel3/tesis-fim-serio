@@ -6,6 +6,10 @@ export const THEME_STORAGE_KEY = 'fim.theme'
 
 const listeners = new Set<() => void>()
 
+function serverTheme(): Theme {
+  return 'dark'
+}
+
 function currentTheme(): Theme {
   return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
 }
@@ -29,7 +33,7 @@ export function applyTheme(theme: Theme) {
 }
 
 export function useTheme() {
-  const theme = useSyncExternalStore(subscribe, currentTheme, () => 'dark' as Theme)
+  const theme = useSyncExternalStore(subscribe, currentTheme, serverTheme)
   const toggle = useCallback(() => {
     applyTheme(currentTheme() === 'dark' ? 'light' : 'dark')
   }, [])

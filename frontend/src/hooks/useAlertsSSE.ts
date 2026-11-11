@@ -60,11 +60,11 @@ export function useAlertsSSE() {
     function invalidateAlertQueries() {
       // D93/RN-187: a new alert usually means a new event; keep the event list
       // and any open detail current.
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-      queryClient.invalidateQueries({ queryKey: ['event'] })
-      queryClient.invalidateQueries({ queryKey: ['alerts'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      queryClient.invalidateQueries({ queryKey: FAILED_ALERTS_COUNT_QUERY_KEY })
+      void queryClient.invalidateQueries({ queryKey: ['events'] })
+      void queryClient.invalidateQueries({ queryKey: ['event'] })
+      void queryClient.invalidateQueries({ queryKey: ['alerts'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      void queryClient.invalidateQueries({ queryKey: FAILED_ALERTS_COUNT_QUERY_KEY })
     }
 
     function scheduleReconnect() {
@@ -111,7 +111,7 @@ export function useAlertsSSE() {
       es.addEventListener('alert', (e: MessageEvent) => {
         let alert: { id?: number; event_id?: number; severity?: string } = {}
         try {
-          alert = JSON.parse(e.data) as typeof alert
+          alert = JSON.parse(String(e.data)) as typeof alert
           const severity = alert.severity ?? 'nueva'
           const eventRef = alert.event_id ? ` — evento #${alert.event_id}` : ''
           toast.warning(`Alerta ${severity}${eventRef}`)

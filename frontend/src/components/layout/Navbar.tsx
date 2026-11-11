@@ -23,7 +23,7 @@ export function Navbar({ onOpenMenu }: NavbarProps) {
     if (!revoked) {
       toast.error('La sesión local se cerró, pero no se pudo confirmar la revocación en el servidor')
     }
-    navigate('/login', { replace: true })
+    void navigate('/login', { replace: true })
   }
 
   return (
@@ -49,7 +49,7 @@ export function Navbar({ onOpenMenu }: NavbarProps) {
         <ThemeToggle />
         {user && <span className="hidden font-semibold text-text sm:inline">{user.username}</span>}
         <button
-          onClick={handleLogout}
+          onClick={() => void handleLogout()}
           aria-label="Cerrar sesión"
           className="inline-flex items-center gap-2 rounded-control border border-line-strong px-3 py-1.5 text-text hover:bg-surface-hover"
           type="button"

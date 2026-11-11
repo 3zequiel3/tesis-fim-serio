@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { useAuthStore } from '@/stores/auth.store'
-import { Can, useCan } from './useCan'
+import { Can } from '@/components/ui/Can'
+import { useCan } from './useCan'
 
 function setRole(role: string | null) {
   useAuthStore.setState({

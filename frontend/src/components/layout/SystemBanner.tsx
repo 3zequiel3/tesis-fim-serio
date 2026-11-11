@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, X } from 'lucide-react'
 import { apiClient } from '@/api/client'
@@ -30,25 +30,26 @@ export function SystemBanner() {
   // saludable de cada componente, no el del poll actual (que, mientras el
   // banner esta visible, es siempre un poll degradado). Se guarda por
   // componente para que un componente que se recupera no pise el timestamp
-  // de otro que sigue caido.
-  const lastHealthyAtRef = useRef<Partial<Record<string, string>>>({})
+  // de otro que sigue caido. Se actualiza al recibir un poll nuevo (estado
+  // derivado durante el render, sin ref ni efecto).
+  const [lastHealthyAt, setLastHealthyAt] = useState<Partial<Record<string, string>>>({})
+  const [seenCheckedAt, setSeenCheckedAt] = useState<string | null>(null)
+  if (data && !isError && data.checked_at !== seenCheckedAt) {
+    const next = { ...lastHealthyAt }
+    for (const name of MONITORED) {
+      const value = data[name]
+      const status = name === 'agents' ? (value as { status: string }).status : (value as string)
+      if (status === 'ok') next[name] = data.checked_at
+    }
+    setSeenCheckedAt(data.checked_at)
+    setLastHealthyAt(next)
+  }
 
   // US-28 criterio 4: cerrable manualmente, pero reaparece en el siguiente
   // poll si la condicion persiste. Se guarda el `checked_at` del poll que el
   // usuario cerro; en cuanto llega un poll con un `checked_at` distinto, el
   // banner vuelve a evaluarse desde cero.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!data) return
-    for (const name of MONITORED) {
-      const value = data[name]
-      const status = name === 'agents' ? (value as { status: string }).status : (value as string)
-      if (status === 'ok') {
-        lastHealthyAtRef.current[name] = data.checked_at
-      }
-    }
-  }, [data])
 
   // D93/RN-187: when the health query itself fails, the last result is NOT
   // current any more; say so instead of hiding or keeping the stale answer.
@@ -85,7 +86,7 @@ export function SystemBanner() {
         Sistema degradado —{' '}
         {downComponents
           .map((name) => {
-            const lastHealthy = lastHealthyAtRef.current[name]
+            const lastHealthy = lastHealthyAt[name]
             return lastHealthy ? `${name} (última vez saludable: ${lastHealthy})` : name
           })
           .join(', ')}{' '}

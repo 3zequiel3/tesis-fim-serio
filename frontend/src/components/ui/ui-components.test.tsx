@@ -5,11 +5,14 @@ import { describe, expect, it, vi } from 'vitest'
 import { mockApiError } from '@/test/mockApiError'
 import { Button } from './Button'
 import { DataState } from './DataState'
-import { HashChip, formatHash } from './HashChip'
+import { HashChip } from './HashChip'
+import { formatHash } from '@/utils/hash'
 import { Modal } from './Modal'
-import { PathLabel, splitPath } from './PathLabel'
+import { PathLabel } from './PathLabel'
+import { splitPath } from '@/utils/pathSplit'
 import { ResponsiveTable } from './ResponsiveTable'
-import { KNOWN_STATUSES, StatusBadge } from './StatusBadge'
+import { StatusBadge } from './StatusBadge'
+import { EVENT_STATUS_VALUES as KNOWN_STATUSES } from '@/utils/eventStatus'
 
 describe('StatusBadge', () => {
   it.each(KNOWN_STATUSES)('shows the canonical text and an icon for %s', (status) => {
@@ -21,7 +24,7 @@ describe('StatusBadge', () => {
   })
 
   it('covers exactly the seven RN-71 states', () => {
-    expect(KNOWN_STATUSES.sort()).toEqual(
+    expect([...KNOWN_STATUSES].sort()).toEqual(
       ['alert_only', 'approved', 'auto_restored', 'pending', 'quarantined', 'rejected', 'superseded'].sort(),
     )
   })

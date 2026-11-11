@@ -39,9 +39,9 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
 
   function invalidateEvent() {
     if (eventId != null) {
-      queryClient.invalidateQueries({ queryKey: ['event', eventId] })
+      void queryClient.invalidateQueries({ queryKey: ['event', eventId] })
     }
-    queryClient.invalidateQueries({ queryKey: ['events'] })
+    void queryClient.invalidateQueries({ queryKey: ['events'] })
   }
 
   function handleActionError(err: unknown) {
@@ -132,7 +132,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
       } else {
         toast.warning(`${ok} aprobado${ok !== 1 ? 's' : ''}, ${fail} fallido${fail !== 1 ? 's' : ''}`)
       }
-      queryClient.invalidateQueries({ queryKey: ['events'] })
+      void queryClient.invalidateQueries({ queryKey: ['events'] })
     },
   })
 
@@ -149,7 +149,7 @@ export function useEventActions({ eventId }: UseEventActionsOptions = {}) {
       } else {
         toast.warning(`${ok} rechazado${ok !== 1 ? 's' : ''}, ${fail} fallido${fail !== 1 ? 's' : ''}`)
       }
-      queryClient.invalidateQueries({ queryKey: ['events'] })
+      void queryClient.invalidateQueries({ queryKey: ['events'] })
     },
   })
 

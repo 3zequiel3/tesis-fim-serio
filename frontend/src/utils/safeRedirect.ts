@@ -9,7 +9,7 @@ interface FromLike {
 
 function isInternalPath(path: string): boolean {
   // `//host` and `/\host` are protocol-relative URLs that browsers treat as external.
-  return /^\/(?![/\\])/.test(path) && !/[\u0000-\u001f]/.test(path)
+  return /^\/(?![/\\])/.test(path) && ![...path].some((ch) => (ch.codePointAt(0) ?? 0) < 0x20)
 }
 
 export function postLoginTarget(from: unknown): string {

@@ -18,7 +18,7 @@ interface NavGroup {
 }
 
 // RN-187: Supervisión (Dashboard, Eventos, Alertas) and Configuración (Reglas, Agentes).
-export const NAV_GROUPS: NavGroup[] = [
+const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Supervisión',
     items: [

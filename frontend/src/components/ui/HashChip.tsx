@@ -1,14 +1,9 @@
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
+import { formatHash } from '@/utils/hash'
 
 // First 8 hex in two groups of 4 (`a3f9 1c02`); the full hash is in `title`
 // and copied to the clipboard on click (design D-1).
-
-export function formatHash(hash: string): string {
-  const hex = hash.replace(/^[a-z0-9]+:/i, '')
-  const head = hex.slice(0, 8)
-  return head.length > 4 ? `${head.slice(0, 4)} ${head.slice(4)}` : head
-}
 
 export function HashChip({ hash, className = '' }: { hash: string | null | undefined; className?: string }) {
   const [copied, setCopied] = useState(false)

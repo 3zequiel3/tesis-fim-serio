@@ -22,8 +22,8 @@ export function useRetryAlert() {
   return useMutation({
     mutationFn: (id: number) => retryAlert(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['alerts', 'failed'] })
-      qc.invalidateQueries({ queryKey: ['alerts'] })
+      void qc.invalidateQueries({ queryKey: ['alerts', 'failed'] })
+      void qc.invalidateQueries({ queryKey: ['alerts'] })
     },
   })
 }
@@ -33,8 +33,8 @@ export function useDiscardAlert() {
   return useMutation({
     mutationFn: (id: number) => discardAlert(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['alerts', 'failed'] })
-      qc.invalidateQueries({ queryKey: ['alerts'] })
+      void qc.invalidateQueries({ queryKey: ['alerts', 'failed'] })
+      void qc.invalidateQueries({ queryKey: ['alerts'] })
     },
   })
 }

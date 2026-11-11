@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Hourglass } from 'lucide-react'
-import { Can } from '@/hooks/useCan'
+import { Can } from '@/components/ui/Can'
 import { Button } from '@/components/ui/Button'
 import { inputClassName } from '@/components/ui/Field'
 import {

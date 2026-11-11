@@ -23,7 +23,9 @@ interface DialogBehaviorOptions {
  */
 export function useDialogBehavior({ panelRef, portalRef, initialFocusRef, onClose, busy = false }: DialogBehaviorOptions) {
   const stateRef = useRef({ onClose, busy })
-  stateRef.current = { onClose, busy }
+  useEffect(() => {
+    stateRef.current = { onClose, busy }
+  })
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null

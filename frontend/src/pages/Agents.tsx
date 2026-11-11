@@ -30,7 +30,7 @@ export function Agents() {
   // el backend devuelve 409 con la cantidad de eventos `pending` bajo esos
   // paths si los hay, y recién ahí se muestra el diálogo de confirmación
   // (RescanConfirmModal) antes de proceder con force=true.
-  async function handleRescan(agentId: string, paths: string[]) {
+  function handleRescan(agentId: string, paths: string[]) {
     setRescanningId(agentId)
     rescan.mutate(
       { id: agentId, force: false, paths },
