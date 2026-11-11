@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
+import { mockApiError } from '@/test/mockApiError'
+import { signInAs, signOut } from '@/test/signIn'
 import { Agents } from './Agents'
 import type { Agent } from '@/api/agents'
 
@@ -44,6 +46,10 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
   }
 }
 
+// D93/RN-187: Editar and Rescan are shown only to `admin`.
+beforeEach(() => signInAs('admin'))
+afterEach(() => signOut())
+
 describe('Agents — confirmación visual del rescan (US-22)', () => {
   beforeEach(() => {
     apiGet.mockReset()
@@ -67,10 +73,10 @@ describe('Agents — confirmación visual del rescan (US-22)', () => {
 
   it('rescan con 409 abre el modal de confirmación y, al confirmar, muestra el rescan forzado', async () => {
     const user = userEvent.setup()
-    const conflictError = {
-      isAxiosError: true,
-      response: { status: 409, data: { code: 'pending_events_exist', count: 3 } },
-    }
+    // Corrected by frontend-ux-redesign (D90/RN-184): the backend sends
+    // {"detail": {"code", "count"}}. The flat {code, count} mock hid B3 (the
+    // dialog always said 0 pending events).
+    const conflictError = mockApiError(409, { code: 'pending_events_exist', count: 3 })
     apiPost.mockRejectedValueOnce(conflictError)
     apiPost.mockResolvedValueOnce({ data: undefined })
 
@@ -79,11 +85,61 @@ describe('Agents — confirmación visual del rescan (US-22)', () => {
     const rescanButton = await screen.findByRole('button', { name: 'Rescan' })
     await user.click(rescanButton)
 
-    expect(await screen.findByText('Confirmar rescan forzado')).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: 'Confirmar rescan forzado' })
+    expect(within(dialog).getByText('3')).toBeInTheDocument()
 
     const confirmButton = screen.getByRole('button', { name: 'Forzar rescan' })
     await user.click(confirmButton)
 
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Rescan forzado iniciado'))
+  })
+})
+
+describe('Agents — errores del backend con la forma real (A7, D91/RN-185)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+    apiPost.mockReset()
+    toastSuccess.mockReset()
+    toastError.mockReset()
+  })
+
+  it('un 422 con detail objeto muestra su message y, si trae index, queda junto a esa entrada', async () => {
+    apiGet.mockResolvedValue({ data: { items: [makeAgent({ watch_paths: ['/etc', '/var'] })], total: 1 } })
+    apiPost.mockRejectedValue(
+      mockApiError(422, { code: 'watch_path_duplicate', message: 'La ruta está repetida.', index: 1 }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<Agents />, { route: '/agents' })
+
+    await user.click(await screen.findByRole('button', { name: /editar/i }))
+    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Error al guardar configuración: La ruta está repetida.'),
+    )
+    const second = screen.getAllByText('/var')[0].closest('li')!
+    expect(within(second).getByRole('alert')).toHaveTextContent('La ruta está repetida.')
+    // The editor stays open with the admin's work.
+    expect(screen.getByRole('button', { name: /guardar paths/i })).toBeInTheDocument()
+  })
+
+  it('un 404 con detail string y un detail con lista nunca producen [object Object]', async () => {
+    apiGet.mockResolvedValue({ data: { items: [makeAgent()], total: 1 } })
+    apiPost.mockRejectedValueOnce(mockApiError(404, 'agent not found'))
+    const user = userEvent.setup()
+    renderWithProviders(<Agents />, { route: '/agents' })
+
+    await user.click(await screen.findByRole('button', { name: 'Rescan' }))
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Error al iniciar rescan: agent not found'))
+
+    apiPost.mockRejectedValueOnce(mockApiError(422, [{ loc: ['body'], msg: 'Field required', type: 'missing' }]))
+    await user.click(screen.getByRole('button', { name: 'Rescan' }))
+    await waitFor(() => expect(toastError).toHaveBeenLastCalledWith('Error al iniciar rescan: Field required'))
+  })
+
+  it('GET /agents con 500 muestra el error con «Reintentar»', async () => {
+    apiGet.mockRejectedValue(mockApiError(500, 'boom'))
+    renderWithProviders(<Agents />, { route: '/agents' })
+    expect(await screen.findByRole('button', { name: 'Reintentar' }, { timeout: 3000 })).toBeInTheDocument()
   })
 })

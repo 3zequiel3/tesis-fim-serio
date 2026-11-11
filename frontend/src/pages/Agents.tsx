@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import axios from 'axios'
+import { apiErrorMessage, readApiError } from '@/api/errors'
 import { useAgents, useUpdateAgentConfig, useRescanAgent } from '@/hooks/useAgents'
 import { AgentCard } from '@/components/ui/AgentCard'
 import { RescanConfirmModal } from '@/components/ui/RescanConfirmModal'
-import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { DataState } from '@/components/ui/DataState'
+import type { ConfigSaveError } from '@/components/ui/AgentCard'
 
 export function Agents() {
-  const { data: agents, isLoading, isError, refetch } = useAgents()
+  const { data: agents, isLoading, error, refetch } = useAgents()
   const updateConfig = useUpdateAgentConfig()
   const rescan = useRescanAgent()
 
@@ -21,6 +22,8 @@ export function Agents() {
   // IDs que están actualmente en rescan
   const [rescanningId, setRescanningId] = useState<string | null>(null)
   const [savingConfigId, setSavingConfigId] = useState<string | null>(null)
+  // Rejection of the last watch_paths save, shown next to the entry it names (D91/RN-185).
+  const [configError, setConfigError] = useState<{ agentId: string; error: ConfigSaveError } | null>(null)
 
   // US-22: `paths` son los watch_paths seleccionados en AgentCard para este
   // rescan (por defecto, todos). Antes de ejecutar, se intenta sin forzar —
@@ -43,10 +46,7 @@ export function Agents() {
           }
         },
         onError: (err) => {
-          const msg = axios.isAxiosError(err)
-            ? err.response?.data?.detail ?? err.message
-            : String(err)
-          toast.error(`Error al iniciar rescan: ${msg}`)
+          toast.error(`Error al iniciar rescan: ${apiErrorMessage(err, 'no se pudo iniciar')}`)
           setRescanningId(null)
         },
       }
@@ -66,10 +66,7 @@ export function Agents() {
           setRescanningId(null)
         },
         onError: (err) => {
-          const msg = axios.isAxiosError(err)
-            ? err.response?.data?.detail ?? err.message
-            : String(err)
-          toast.error(`Error al forzar rescan: ${msg}`)
+          toast.error(`Error al forzar rescan: ${apiErrorMessage(err, 'no se pudo forzar')}`)
           setRescanModal(null)
           setRescanningId(null)
         },
@@ -77,33 +74,42 @@ export function Agents() {
     )
   }
 
-  function handleConfigSave(agentId: string, paths: string[]) {
+  // Resolves false on failure so the editor stays open with the error (D91/RN-185).
+  function handleConfigSave(agentId: string, paths: string[]): Promise<boolean> {
     setSavingConfigId(agentId)
-    updateConfig.mutate(
-      { id: agentId, config: { watch_paths: paths } },
-      {
-        onSuccess: () => {
-          toast.success('Configuración guardada')
-          setSavingConfigId(null)
+    setConfigError(null)
+    return new Promise((resolve) => {
+      updateConfig.mutate(
+        { id: agentId, config: { watch_paths: paths } },
+        {
+          onSuccess: () => {
+            toast.success('Configuración guardada')
+            setSavingConfigId(null)
+            resolve(true)
+          },
+          onError: (err) => {
+            const { message, data } = readApiError(err)
+            const text = message || 'no se pudo guardar'
+            setConfigError({
+              agentId,
+              error: { message: text, index: typeof data.index === 'number' ? data.index : undefined },
+            })
+            toast.error(`Error al guardar configuración: ${text}`)
+            setSavingConfigId(null)
+            resolve(false)
+          },
         },
-        onError: (err) => {
-          const msg = axios.isAxiosError(err)
-            ? err.response?.data?.detail ?? err.message
-            : String(err)
-          toast.error(`Error al guardar configuración: ${msg}`)
-          setSavingConfigId(null)
-        },
-      }
-    )
+      )
+    })
   }
 
   return (
     <div className="space-y-4">
       {/* Encabezado */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-white">Agentes FIM</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-text">Agentes FIM</h1>
         {agents && (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-text-muted">
             {agents.length} agente{agents.length !== 1 ? 's' : ''} registrado{agents.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -120,29 +126,30 @@ export function Agents() {
         />
       )}
 
-      {/* Lista de agentes */}
-      {isLoading ? (
-        <div className="py-12 text-center text-gray-500">Cargando agentes...</div>
-      ) : isError ? (
-        <QueryErrorState resource="los agentes" onRetry={() => refetch()} />
-      ) : !agents || agents.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">
-          <p className="text-sm">No hay agentes registrados.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {agents.map((agent) => (
+      <DataState
+        isLoading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+        resource="los agentes"
+        loadingLabel="Cargando agentes..."
+        isEmpty={!agents || agents.length === 0}
+        emptyTitle="No hay agentes registrados."
+        emptyHint="Instalá el agente en un host Linux y registralo para empezar a vigilar archivos."
+      >
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+          {agents?.map((agent) => (
             <AgentCard
               key={agent.agent_id}
               agent={agent}
               onConfigSave={handleConfigSave}
+              configError={configError?.agentId === agent.agent_id ? configError.error : null}
               onRescan={handleRescan}
               isSavingConfig={savingConfigId === agent.agent_id}
               isRescanning={rescanningId === agent.agent_id}
             />
           ))}
         </div>
-      )}
+      </DataState>
     </div>
   )
 }

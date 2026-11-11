@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
+import { signInAs, signOut } from '@/test/signIn'
 import { AgentCard } from './AgentCard'
 import type { Agent } from '@/api/agents'
 
@@ -28,6 +29,10 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
 }
 
 const noop = () => undefined
+
+// D93/RN-187: Editar and Rescan are shown only to `admin`.
+beforeEach(() => signInAs('admin'))
+afterEach(() => signOut())
 
 describe('AgentCard — transcurrido desde el último latido (8.4)', () => {
   afterEach(() => {
@@ -135,9 +140,8 @@ describe('AgentCard — descartes fuera de scope (D69/RN-163)', () => {
     )
     const indicator = screen.getByText(/Fuera de scope: 2748492/)
     expect(indicator).toBeInTheDocument()
-    expect(indicator.className).not.toContain('red')
-    expect(indicator.className).not.toContain('yellow')
-    expect(indicator.className).not.toContain('amber')
+    expect(indicator.className).not.toContain('danger')
+    expect(indicator.className).not.toContain('warning')
   })
 
   it('cero se renderiza como cero', () => {
@@ -168,8 +172,9 @@ describe('AgentCard — descartes fuera de scope (D69/RN-163)', () => {
     expect(discarded).toBeInTheDocument()
     expect(outOfScope).toBeInTheDocument()
     expect(discarded.className).not.toBe(outOfScope.className)
-    expect(discarded.className).toContain('red')
-    expect(outOfScope.className).not.toContain('red')
+    // D93/RN-187: tone tokens (danger) instead of palette names.
+    expect(discarded.className).toContain('danger')
+    expect(outOfScope.className).not.toContain('danger')
   })
 })
 
@@ -448,9 +453,10 @@ describe('AgentCard — US-21 ruleset aplicado y realce de estados no-ok', () =>
   })
 
   it.each([
-    ['dead', 'bg-red-800'],
-    ['draining', 'bg-yellow-700'],
-    ['offline', 'bg-gray-600'],
+    // D93/RN-187: state tone tokens instead of palette classes.
+    ['dead', 'bg-danger-bg'],
+    ['draining', 'bg-warning-bg'],
+    ['offline', 'bg-neutral-bg'],
   ] as const)('realza el estado no-ok %s con su color propio', (status, colorClass) => {
     renderWithProviders(
       <AgentCard agent={makeAgent({ status })} onConfigSave={noop} onRescan={noop} />
@@ -464,8 +470,98 @@ describe('AgentCard — US-21 ruleset aplicado y realce de estados no-ok', () =>
       <AgentCard agent={makeAgent({ status: 'online' })} onConfigSave={noop} onRescan={noop} />
     )
     const badge = screen.getByText('online', { selector: 'span' })
-    expect(badge.className).not.toContain('bg-red-800')
-    expect(badge.className).not.toContain('bg-yellow-700')
+    expect(badge.className).not.toContain('bg-danger-bg')
+    expect(badge.className).not.toContain('bg-warning-bg')
   })
 })
 
+// D12b (D91/RN-185): the watch paths editor never loses or invents entries.
+describe('AgentCard — editor de rutas seguro (D12b)', () => {
+  async function openEditor(agent: Agent, onConfigSave = vi.fn()) {
+    const user = userEvent.setup()
+    renderWithProviders(<AgentCard agent={agent} onConfigSave={onConfigSave} onRescan={noop} />)
+    await user.click(screen.getByRole('button', { name: /editar/i }))
+    return { user, onConfigSave }
+  }
+
+  it('una ruta escrita sin «Agregar» se incluye al guardar', async () => {
+    const { user, onConfigSave } = await openEditor(makeAgent({ watch_paths: ['/etc'] }))
+    await user.type(screen.getByPlaceholderText('/ruta/nueva'), '/var/www')
+    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    expect(onConfigSave).toHaveBeenCalledWith('agent-tz-test', ['/etc', '/var/www'])
+  })
+
+  it('quitar la última ruta deshabilita guardar y explica por qué, sin enviar nada', async () => {
+    const { user, onConfigSave } = await openEditor(makeAgent({ watch_paths: ['/etc'] }))
+    await user.click(screen.getByRole('button', { name: /quitar/i }))
+    expect(screen.getByRole('button', { name: /guardar paths/i })).toBeDisabled()
+    expect(screen.getByText('El agente necesita al menos una ruta vigilada.')).toBeInTheDocument()
+    expect(onConfigSave).not.toHaveBeenCalled()
+  })
+
+  it('una ruta escrita inválida bloquea el guardado con un mensaje en línea', async () => {
+    const { user, onConfigSave } = await openEditor(makeAgent({ watch_paths: ['/etc'] }))
+    await user.type(screen.getByPlaceholderText('/ruta/nueva'), 'var/www')
+    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    expect(screen.getByText(/debe ser absoluta/)).toBeInTheDocument()
+    expect(onConfigSave).not.toHaveBeenCalled()
+  })
+
+  it('una ruta repetida con barra final se rechaza antes de enviar', async () => {
+    const { user, onConfigSave } = await openEditor(makeAgent({ watch_paths: ['/etc'] }))
+    await user.type(screen.getByPlaceholderText('/ruta/nueva'), '/etc/')
+    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    expect(screen.getByText(/repetida/)).toBeInTheDocument()
+    expect(onConfigSave).not.toHaveBeenCalled()
+  })
+
+  it('el rechazo del backend se muestra junto a la entrada que nombra detail.index y el editor sigue abierto', async () => {
+    const onConfigSave = vi.fn().mockResolvedValue(false)
+    const user = userEvent.setup()
+    renderWithProviders(
+      <AgentCard
+        agent={makeAgent({ watch_paths: ['/etc', '/var'] })}
+        onConfigSave={onConfigSave}
+        configError={{ message: 'La ruta está repetida (con o sin la barra final).', index: 1 }}
+        onRescan={noop}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /editar/i }))
+    const second = screen.getAllByText('/var')[0].closest('li')!
+    expect(within(second).getByRole('alert')).toHaveTextContent('repetida')
+    await user.click(screen.getByRole('button', { name: /guardar paths/i }))
+    expect(screen.getByRole('button', { name: /guardar paths/i })).toBeInTheDocument()
+  })
+
+  it('un usuario que no es admin no ve «Editar» ni «Rescan»', () => {
+    signInAs('viewer')
+    renderWithProviders(<AgentCard agent={makeAgent()} onConfigSave={noop} onRescan={noop} />)
+    expect(screen.queryByRole('button', { name: /editar/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /rescan/i })).toBeNull()
+  })
+})
+
+// M4 (D93/RN-187): the rescan selection can never silently mean «everything».
+describe('AgentCard — selección de rescan segura (M4)', () => {
+  it('sin ninguna ruta seleccionada «Rescan» queda deshabilitado y no envía nada', async () => {
+    const onRescan = vi.fn()
+    const user = userEvent.setup()
+    renderWithProviders(
+      <AgentCard agent={makeAgent({ watch_paths: ['/etc', '/srv'] })} onConfigSave={noop} onRescan={onRescan} />,
+    )
+    await user.click(screen.getByRole('checkbox', { name: '/etc' }))
+    await user.click(screen.getByRole('checkbox', { name: '/srv' }))
+    expect(screen.getByRole('button', { name: /^rescan$/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /^rescan$/i }))
+    expect(onRescan).not.toHaveBeenCalled()
+  })
+
+  it('la selección sigue a los watch_paths actuales: una ruta nueva aparece seleccionada', () => {
+    const { rerender } = renderWithProviders(
+      <AgentCard agent={makeAgent({ watch_paths: ['/etc', '/var'] })} onConfigSave={noop} onRescan={noop} />,
+    )
+    rerender(<AgentCard agent={makeAgent({ watch_paths: ['/etc', '/var', '/srv'] })} onConfigSave={noop} onRescan={noop} />)
+    expect(screen.getByRole('checkbox', { name: '/srv' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: '/etc' })).toBeChecked()
+  })
+})

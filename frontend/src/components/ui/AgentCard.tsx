@@ -1,13 +1,35 @@
 import { useState } from 'react'
+import { Hourglass } from 'lucide-react'
+import { Can } from '@/hooks/useCan'
+import { Button } from '@/components/ui/Button'
+import { inputClassName } from '@/components/ui/Field'
+import {
+  EMPTY_LIST_MESSAGE,
+  canonicalWatchPath,
+  describeWatchPath,
+  validateWatchPaths,
+} from '@/utils/watchPaths'
 import type { Agent } from '@/api/agents'
 import { getWatchPathStatusMeta } from '@/utils/watchPathStatus'
 import { getDiscardedEventsMeta } from '@/utils/discardedEvents'
 import { getOutOfScopeDropsMeta } from '@/utils/outOfScopeDrops'
 import { formatAbsolute, formatRelative } from '@/utils/timeDisplay'
 
+/** A backend rejection of the watch_paths save, shown next to the entry it names (D91/RN-185). */
+export interface ConfigSaveError {
+  message: string
+  /** Index into the list that was sent. */
+  index?: number
+}
+
 interface AgentCardProps {
   agent: Agent
-  onConfigSave: (id: string, paths: string[]) => void
+  /**
+   * Resolves `false` when the save failed (the editor then stays open with the
+   * error); anything else closes the editor.
+   */
+  onConfigSave: (id: string, paths: string[]) => void | boolean | Promise<boolean | void>
+  configError?: ConfigSaveError | null
   // US-22: `rescanPaths` son los paths seleccionados para el rescan — todos
   // los watch_paths por defecto (comportamiento previo).
   onRescan: (id: string, rescanPaths: string[]) => void
@@ -20,11 +42,11 @@ interface AgentCardProps {
 const DRAINING_TOOLTIP = 'No disponible durante shutdown graceful'
 
 const STATUS_STYLES: Record<Agent['status'], string> = {
-  online: 'bg-green-700 text-green-200',
-  offline: 'bg-gray-600 text-gray-300',
-  draining: 'bg-yellow-700 text-yellow-200',
-  dead: 'bg-red-800 text-red-200',
-  revoked: 'bg-red-900 text-red-300',
+  online: 'bg-success-bg text-success-fg',
+  offline: 'bg-neutral-bg text-neutral-fg',
+  draining: 'bg-warning-bg text-warning-fg',
+  dead: 'bg-danger-bg text-danger-fg',
+  revoked: 'bg-danger-bg text-danger-fg',
 }
 
 // D36/RN-130 (C41): indicador por path de que la remediación automática no
@@ -39,7 +61,7 @@ function WatchPathStatusIndicator({ status }: { status: string | undefined }) {
   return (
     <span
       title={meta.title}
-      className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${meta.className}`}
+      className={`shrink-0 rounded-control px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap ${meta.className}`}
     >
       {meta.label}
     </span>
@@ -57,7 +79,7 @@ function DiscardedEventsIndicator({ count }: { count: number | null | undefined 
   return (
     <span
       title={meta.title}
-      className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap ${meta.className}`}
+      className={`shrink-0 rounded-control px-1.5 py-0.5 text-xs font-semibold tabular-nums whitespace-nowrap ${meta.className}`}
     >
       Descartes: {meta.label}
     </span>
@@ -75,235 +97,186 @@ function OutOfScopeDropsIndicator({ count }: { count: number | null | undefined 
   return (
     <span
       title={meta.title}
-      className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap ${meta.className}`}
+      className={`shrink-0 rounded-control px-1.5 py-0.5 text-xs font-semibold tabular-nums whitespace-nowrap ${meta.className}`}
     >
       Fuera de scope: {meta.label}
     </span>
   )
 }
 
-export function AgentCard({
+function WatchPathsEditor({
   agent,
-  onConfigSave,
-  onRescan,
-  isSavingConfig,
-  isRescanning,
-}: AgentCardProps) {
-  const isDraining = agent.status === 'draining'
-  const [editingPaths, setEditingPaths] = useState(false)
+  isSaving,
+  isDraining,
+  configError,
+  onSave,
+  onClose,
+}: {
+  agent: Agent
+  isSaving?: boolean
+  isDraining: boolean
+  configError?: ConfigSaveError | null
+  onSave: AgentCardProps['onConfigSave']
+  onClose: () => void
+}) {
   const [paths, setPaths] = useState<string[]>(agent.watch_paths)
   const [newPath, setNewPath] = useState('')
-  // US-22: paths seleccionados para el próximo rescan — todos por defecto.
-  const [rescanPaths, setRescanPaths] = useState<string[]>(agent.watch_paths)
+  const [typedError, setTypedError] = useState<string | null>(null)
+  const [listIssue, setListIssue] = useState<{ message: string; index?: number } | null>(null)
 
-  const pressurePct = Math.round((agent.queue_pressure ?? 0) * 100)
-  // W3/RN-84, D72/RN-166: banner de alerta específico del agente cuando la
-  // cola local supera el 80% de presión. El umbral se calcula en el agente,
-  // no acá: el banner depende únicamente del flag `queue_pressure_high`. Sin
-  // respaldo por umbral en el cliente para agentes que no envían la clave
-  // (D72/RN-166) — reintroduciría la divergencia que esta decisión cierra.
-  const showQueuePressureBanner = agent.queue_pressure_high === true
-
-  function toggleRescanPath(path: string) {
-    setRescanPaths((prev) =>
-      prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
-    )
-  }
+  const typed = newPath.trim()
+  // D12b: the editor never sends an empty list.
+  const wouldBeEmpty = paths.length === 0 && typed === ''
 
   function handleAddPath() {
-    const trimmed = newPath.trim()
-    if (trimmed && !paths.includes(trimmed)) {
-      setPaths([...paths, trimmed])
+    if (!typed) return
+    const problem = describeWatchPath(typed)
+    if (problem) {
+      setTypedError(problem)
+      return
     }
+    if (paths.some((p) => canonicalWatchPath(p) === canonicalWatchPath(typed))) {
+      setTypedError('La ruta está repetida (con o sin la barra final).')
+      return
+    }
+    setPaths([...paths, typed])
     setNewPath('')
+    setTypedError(null)
+    setListIssue(null)
+  }
+
+  async function handleSave() {
+    setTypedError(null)
+    setListIssue(null)
+    // A path typed but not added with «Agregar» is part of what the admin sees as the list.
+    let next = paths
+    if (typed) {
+      const problem = describeWatchPath(typed)
+      if (problem) {
+        setTypedError(problem)
+        return
+      }
+      next = [...paths, typed]
+    }
+    const issue = validateWatchPaths(next)
+    if (issue) {
+      if (issue.index != null && issue.index >= paths.length) setTypedError(issue.message)
+      else setListIssue(issue)
+      return
+    }
+    const result = await onSave(agent.agent_id, next)
+    if (result !== false) onClose()
   }
 
   function handleRemovePath(path: string) {
     setPaths(paths.filter((p) => p !== path))
+    setListIssue(null)
   }
 
-  function handleSavePaths() {
-    onConfigSave(agent.agent_id, paths)
-    setEditingPaths(false)
-  }
-
-  function handleCancelEdit() {
-    setPaths(agent.watch_paths)
-    setEditingPaths(false)
-    setNewPath('')
-  }
+  const serverIndex = configError?.index
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          {/* No hay `hostname` en el backend (RN-71 / C35 FIX-03) — agent_id es la identidad, como en core/health.py:97 */}
-          <p className="text-sm font-semibold text-white font-mono">{agent.agent_id}</p>
-        </div>
-        <span
-          className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_STYLES[agent.status]}`}
-        >
-          {agent.status}
-        </span>
+    <div className="space-y-2">
+      <ul className="space-y-1">
+        {paths.map((p, i) => {
+          const inline =
+            listIssue?.index === i ? listIssue.message : serverIndex === i ? configError?.message : null
+          return (
+            <li key={p} className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="flex-1 font-mono text-xs [overflow-wrap:anywhere]">{p}</span>
+                <Button variant="ghost" size="sm" onClick={() => handleRemovePath(p)}>
+                  Quitar
+                </Button>
+              </div>
+              {inline && <p role="alert" className="text-xs text-danger-fg">{inline}</p>}
+            </li>
+          )
+        })}
+      </ul>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={newPath}
+          onChange={(e) => {
+            setNewPath(e.target.value)
+            setTypedError(null)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              handleAddPath()
+            }
+          }}
+          placeholder="/ruta/nueva"
+          aria-label="Ruta nueva"
+          aria-invalid={typedError ? 'true' : undefined}
+          className={`${inputClassName} !py-1 font-mono text-xs`}
+        />
+        <Button size="sm" onClick={handleAddPath}>
+          Agregar
+        </Button>
       </div>
-
-      {/* US-30 (RN-93/W17): indicador distintivo de drenaje graceful — el
-          agente sigue publicando su cola local (queue_size) mientras drena;
-          se muestra "Drenando N eventos" con un ícono, no solo el badge de
-          estado. N desconocido (agente que aún no reportó heartbeat en este
-          ciclo) se muestra como 0 en vez de omitir el indicador. */}
-      {isDraining && (
-        <div className="flex items-center gap-1.5 text-xs text-yellow-300 bg-yellow-900/30 border border-yellow-700 rounded px-2 py-1">
-          <span aria-hidden="true">⏳</span>
-          <span>Drenando {agent.queue_size ?? 0} eventos</span>
-        </div>
+      {typedError && <p role="alert" className="text-xs text-danger-fg">{typedError}</p>}
+      {wouldBeEmpty && <p role="alert" className="text-xs text-warning-fg">{EMPTY_LIST_MESSAGE}</p>}
+      {configError && (serverIndex == null || serverIndex >= paths.length) && (
+        <p role="alert" className="text-xs text-danger-fg">{configError.message}</p>
       )}
-
-      {/* Queue pressure */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-gray-400">Queue pressure</span>
-          <span className="flex items-center gap-2 text-xs">
-            <span className="text-gray-300 tabular-nums">{pressurePct}%</span>
-            <DiscardedEventsIndicator count={agent.discarded_events} />
-            <OutOfScopeDropsIndicator count={agent.out_of_scope_drops} />
-          </span>
-        </div>
-        <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${
-              pressurePct > 80
-                ? 'bg-red-500'
-                : pressurePct > 50
-                ? 'bg-yellow-500'
-                : 'bg-green-500'
-            }`}
-            style={{ width: `${pressurePct}%` }}
-          />
-        </div>
-        {/* W3/RN-84: banner específico del agente cuando la cola local supera
-            el 80% — distinto de la barra de color, que ya existía. */}
-        {showQueuePressureBanner && (
-          <div
-            role="alert"
-            className="mt-1.5 text-xs text-red-200 bg-red-900/40 border border-red-700 rounded px-2 py-1"
-          >
-            Cola local por encima del 80% — riesgo de pérdida de eventos.
-          </div>
-        )}
-        {/* US-21: cola local reportada por el agente (distinto de la presión
-            en bytes). null/undefined = el agente nunca reportó heartbeat. */}
-        <p className="mt-1 text-[11px] text-gray-500">
-          Cola local: {agent.queue_size ?? '—'} eventos
-        </p>
+      {listIssue && listIssue.index == null && (
+        <p role="alert" className="text-xs text-danger-fg">{listIssue.message}</p>
+      )}
+      <div className="flex gap-2">
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => void handleSave()}
+          disabled={isSaving || isDraining || wouldBeEmpty}
+          title={isDraining ? DRAINING_TOOLTIP : undefined}
+        >
+          {isSaving ? 'Guardando...' : 'Guardar paths'}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+        >
+          Cancelar
+        </Button>
       </div>
+    </div>
+  )
+}
 
-      {/* Last seen — D39/RN-133: forma relativa + absoluta con zona visible
-          (frontend-agents spec). El transcurrido nunca es negativo: un
-          heartbeat futuro (reloj del agente desincronizado, RN-90/RN-131)
-          se rotula como tal en vez de restar en negativo. */}
-      <p className="text-xs text-gray-500" title={formatAbsolute(agent.last_heartbeat, { nullLabel: 'nunca' })}>
-        Visto {formatRelative(agent.last_heartbeat, { nullLabel: 'nunca' })}
-        {agent.last_heartbeat && (
-          <span className="ml-2 text-gray-600">
-            ({formatAbsolute(agent.last_heartbeat)})
-          </span>
-        )}
-        {agent.ruleset_version_applied != null && (
-          <span className="ml-2">· ruleset v{agent.ruleset_version_applied}</span>
-        )}
-      </p>
+// M4: this component is remounted (key = the watch paths) whenever the agent's
+// paths change, so the selection is always rebuilt from the current list and
+// never keeps a path that no longer exists.
+function RescanSection({
+  agent,
+  isDraining,
+  isRescanning,
+  onRescan,
+}: {
+  agent: Agent
+  isDraining: boolean
+  isRescanning?: boolean
+  onRescan: AgentCardProps['onRescan']
+}) {
+  const [rescanPaths, setRescanPaths] = useState<string[]>(agent.watch_paths)
 
-      {/* Watch paths */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-gray-400">Watch paths</span>
-          {!editingPaths && (
-            <button
-              onClick={() => setEditingPaths(true)}
-              disabled={isDraining}
-              title={isDraining ? DRAINING_TOOLTIP : undefined}
-              className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Editar
-            </button>
-          )}
-        </div>
+  function toggleRescanPath(path: string) {
+    setRescanPaths((prev) => (prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]))
+  }
 
-        {editingPaths ? (
-          <div className="space-y-2">
-            <ul className="space-y-1">
-              {paths.map((p) => (
-                <li key={p} className="flex items-center gap-2">
-                  <span className="flex-1 text-xs font-mono text-gray-300 truncate">{p}</span>
-                  <button
-                    onClick={() => handleRemovePath(p)}
-                    className="text-xs text-red-400 hover:text-red-300 shrink-0"
-                  >
-                    Quitar
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newPath}
-                onChange={(e) => setNewPath(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddPath()}
-                placeholder="/ruta/nueva"
-                className="flex-1 px-2 py-1 text-xs bg-gray-900 border border-gray-600 rounded text-gray-200 placeholder-gray-600 focus:outline-none focus:border-primary"
-              />
-              <button
-                onClick={handleAddPath}
-                className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded"
-              >
-                Agregar
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleSavePaths}
-                disabled={isSavingConfig || isDraining}
-                title={isDraining ? DRAINING_TOOLTIP : undefined}
-                className="px-3 py-1 text-xs bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {isSavingConfig ? 'Guardando...' : 'Guardar paths'}
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                className="px-3 py-1 text-xs text-gray-400 hover:text-gray-200"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        ) : (
-          <ul className="space-y-0.5">
-            {agent.watch_paths.length === 0 ? (
-              <li className="text-xs text-gray-600 italic">Sin paths configurados</li>
-            ) : (
-              agent.watch_paths.map((p) => (
-                <li key={p} className="flex items-center gap-2 min-w-0">
-                  <span className="flex-1 text-xs font-mono text-gray-400 truncate">{p}</span>
-                  <WatchPathStatusIndicator
-                    status={agent.watch_path_status?.[p]}
-                  />
-                </li>
-              ))
-            )}
-          </ul>
-        )}
-      </div>
+  const noneSelected = agent.watch_paths.length > 0 && rescanPaths.length === 0
 
-      {/* US-22: selección de paths específicos para el rescan — todos los
-          watch_paths seleccionados por defecto (comportamiento previo). Solo
-          tiene sentido elegir si hay más de un path configurado. */}
+  return (
+    <>
+      {/* US-22: selección de paths específicos para el rescan. Sólo tiene
+          sentido elegir si hay más de un path configurado. */}
       {agent.watch_paths.length > 1 && (
         <div>
-          <span className="text-xs text-gray-400">Paths a re-escanear</span>
-          <ul className="space-y-0.5 mt-1">
+          <span className="text-xs font-semibold text-text-muted">Paths a re-escanear</span>
+          <ul className="mt-1 space-y-0.5">
             {agent.watch_paths.map((p) => (
               <li key={p} className="flex items-center gap-2">
                 <input
@@ -313,31 +286,169 @@ export function AgentCard({
                   onChange={() => toggleRescanPath(p)}
                   disabled={isDraining}
                   aria-label={p}
-                  className="shrink-0"
+                  className="size-4 shrink-0 accent-accent"
                 />
                 <label
                   htmlFor={`rescan-path-${agent.agent_id}-${p}`}
-                  className="text-xs font-mono text-gray-400 truncate"
+                  className="font-mono text-xs text-text-muted [overflow-wrap:anywhere]"
                 >
                   {p}
                 </label>
               </li>
             ))}
           </ul>
+          {noneSelected && (
+            <p className="mt-1 text-xs text-warning-fg">Elegí al menos una ruta para re-escanear.</p>
+          )}
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex gap-2 pt-1">
-        <button
+        <Button
+          className="flex-1"
           onClick={() => onRescan(agent.agent_id, rescanPaths)}
-          disabled={isDraining || isRescanning}
+          disabled={isDraining || isRescanning || noneSelected}
           title={isDraining ? DRAINING_TOOLTIP : undefined}
-          className="flex-1 px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded border border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isRescanning ? 'Rescaneando...' : 'Rescan'}
-        </button>
+        </Button>
       </div>
+    </>
+  )
+}
+
+export function AgentCard({
+  agent,
+  onConfigSave,
+  configError,
+  onRescan,
+  isSavingConfig,
+  isRescanning,
+}: AgentCardProps) {
+  const isDraining = agent.status === 'draining'
+  const [editingPaths, setEditingPaths] = useState(false)
+
+  const pressurePct = Math.round((agent.queue_pressure ?? 0) * 100)
+  // W3/RN-84, D72/RN-166: banner de alerta específico del agente cuando la
+  // cola local supera el 80% de presión. El umbral se calcula en el agente,
+  // no acá: el banner depende únicamente del flag `queue_pressure_high`. Sin
+  // respaldo por umbral en el cliente para agentes que no envían la clave
+  // (D72/RN-166) — reintroduciría la divergencia que esta decisión cierra.
+  const showQueuePressureBanner = agent.queue_pressure_high === true
+
+  return (
+    <div className="space-y-3 rounded-panel border border-line bg-surface-raised p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        {/* No hay `hostname` en el backend (RN-71 / C35 FIX-03) — agent_id es la identidad, como en core/health.py:97 */}
+        <p className="font-mono font-semibold text-text [overflow-wrap:anywhere]">{agent.agent_id}</p>
+        <span className={`shrink-0 rounded-control px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[agent.status]}`}>
+          {agent.status}
+        </span>
+      </div>
+
+      {/* US-30 (RN-93/W17): indicador distintivo de drenaje graceful. N desconocido
+          se muestra como 0 en vez de omitir el indicador. */}
+      {isDraining && (
+        <div className="flex items-center gap-1.5 rounded-control border border-warning-line bg-warning-bg px-2 py-1 text-xs text-warning-fg">
+          <Hourglass aria-hidden="true" size={14} />
+          <span>Drenando {agent.queue_size ?? 0} eventos</span>
+        </div>
+      )}
+
+      {/* Queue pressure */}
+      <div>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
+          <span className="text-xs text-text-muted">Queue pressure</span>
+          <span className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="tabular-nums text-text">{pressurePct}%</span>
+            <DiscardedEventsIndicator count={agent.discarded_events} />
+            <OutOfScopeDropsIndicator count={agent.out_of_scope_drops} />
+          </span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+          <div
+            className={`h-full rounded-full transition-all ${
+              pressurePct > 80 ? 'bg-status-rejected' : pressurePct > 50 ? 'bg-status-pending' : 'bg-status-approved'
+            }`}
+            style={{ width: `${pressurePct}%` }}
+          />
+        </div>
+        {/* W3/RN-84: banner específico del agente cuando la cola local supera el 80%. */}
+        {showQueuePressureBanner && (
+          <div
+            role="alert"
+            className="mt-1.5 rounded-control border border-danger-line bg-danger-bg px-2 py-1 text-xs text-danger-fg"
+          >
+            Cola local por encima del 80% — riesgo de pérdida de eventos.
+          </div>
+        )}
+        {/* US-21: cola local reportada por el agente. null/undefined = nunca reportó heartbeat. */}
+        <p className="mt-1 text-xs text-text-muted">Cola local: {agent.queue_size ?? '—'} eventos</p>
+      </div>
+
+      {/* Last seen — D39/RN-133: forma relativa + absoluta con zona visible. El
+          transcurrido nunca es negativo: un heartbeat futuro se rotula como tal. */}
+      <p className="text-xs text-text-muted" title={formatAbsolute(agent.last_heartbeat, { nullLabel: 'nunca' })}>
+        Visto {formatRelative(agent.last_heartbeat, { nullLabel: 'nunca' })}
+        {agent.last_heartbeat && <span className="ml-2">({formatAbsolute(agent.last_heartbeat)})</span>}
+        {agent.ruleset_version_applied != null && (
+          <span className="ml-2">· ruleset v{agent.ruleset_version_applied}</span>
+        )}
+      </p>
+
+      {/* Watch paths */}
+      <div>
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-xs font-semibold text-text-muted">Watch paths</span>
+          {!editingPaths && (
+            <Can>
+              <button
+                onClick={() => setEditingPaths(true)}
+                disabled={isDraining}
+                title={isDraining ? DRAINING_TOOLTIP : undefined}
+                className="text-xs font-semibold text-accent hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Editar
+              </button>
+            </Can>
+          )}
+        </div>
+
+        {editingPaths ? (
+          <WatchPathsEditor
+            agent={agent}
+            isSaving={isSavingConfig}
+            isDraining={isDraining}
+            configError={configError}
+            onSave={onConfigSave}
+            onClose={() => setEditingPaths(false)}
+          />
+        ) : (
+          <ul className="space-y-0.5">
+            {agent.watch_paths.length === 0 ? (
+              <li className="text-xs italic text-text-muted">Sin paths configurados</li>
+            ) : (
+              agent.watch_paths.map((p) => (
+                <li key={p} className="flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 flex-1 font-mono text-xs text-text [overflow-wrap:anywhere]">{p}</span>
+                  <WatchPathStatusIndicator status={agent.watch_path_status?.[p]} />
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+      </div>
+
+      <Can>
+        <RescanSection
+          key={agent.watch_paths.join('\n')}
+          agent={agent}
+          isDraining={isDraining}
+          isRescanning={isRescanning}
+          onRescan={onRescan}
+        />
+      </Can>
     </div>
   )
 }

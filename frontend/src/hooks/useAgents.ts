@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
+import { readApiError } from '@/api/errors'
 import { getAgents, getAgent, updateAgentConfig, triggerRescan } from '@/api/agents'
-import type { AgentConfig, RescanConflictError } from '@/api/agents'
+import type { AgentConfig } from '@/api/agents'
 
 const AGENTS_KEY = ['agents'] as const
 
@@ -51,9 +51,10 @@ export function useRescanAgent() {
         await triggerRescan(id, force, paths)
         return { success: true }
       } catch (err) {
-        if (axios.isAxiosError(err) && err.response?.status === 409) {
-          const body = err.response.data as RescanConflictError
-          return { success: false, conflictCount: body.count }
+        // D90/RN-184: the count lives in `detail.count`, next to `detail.code`.
+        const { status, code, data } = readApiError(err)
+        if (status === 409 && code === 'pending_events_exist') {
+          return { success: false, conflictCount: typeof data.count === 'number' ? data.count : 0 }
         }
         throw err
       }
