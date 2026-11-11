@@ -10,7 +10,8 @@ export interface Alert {
   event_id: number
   severity: AlertSeverity
   status: AlertStatus
-  channel: string
+  // null while no channel has delivered it (D93/RN-187: «sin canal entregado»).
+  channel: string | null
   created_at: string
   delivered_at: string | null
   failed_at: string | null
@@ -19,6 +20,9 @@ export interface Alert {
   // acción tomada todavía, p. ej. status=pending).
   path: string | null
   action_taken: string | null
+  // DLQ context (RN-103): how many delivery attempts failed and the last reason.
+  retry_count?: number
+  last_error?: string | null
 }
 
 export interface AlertFilters {

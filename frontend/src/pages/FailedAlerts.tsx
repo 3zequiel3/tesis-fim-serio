@@ -1,41 +1,48 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import axios from 'axios'
+import { useQueryClient } from '@tanstack/react-query'
 import { useFailedAlerts, useRetryAlert, useDiscardAlert } from '@/hooks/useAlerts'
-import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { Can } from '@/hooks/useCan'
+import { retryAlert } from '@/api/alerts'
+import { apiErrorMessage } from '@/api/errors'
+import { Button } from '@/components/ui/Button'
+import { DataState } from '@/components/ui/DataState'
+import { ResponsiveTable, type Column } from '@/components/ui/ResponsiveTable'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import { getSeverityMeta } from '@/utils/severity'
 import type { Alert } from '@/api/alerts'
 
+const MAX_ERROR_CHARS = 60
+
+function truncate(text: string): string {
+  return text.length > MAX_ERROR_CHARS ? `${text.slice(0, MAX_ERROR_CHARS)}…` : text
+}
+
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export function FailedAlerts() {
-  const { data: alerts, isLoading, isError, refetch } = useFailedAlerts()
+  const queryClient = useQueryClient()
+  const { data: alerts, isLoading, error, refetch } = useFailedAlerts()
   const retryMutation = useRetryAlert()
   const discardMutation = useDiscardAlert()
 
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [discardingId, setDiscardingId] = useState<number | null>(null)
   const [bulkRetrying, setBulkRetrying] = useState(false)
+  const [retryAllSummary, setRetryAllSummary] = useState<string | null>(null)
 
   function toggleSelect(id: number) {
     setSelected((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
 
   function toggleSelectAll(items: Alert[]) {
-    if (selected.size === items.length) {
-      setSelected(new Set())
-    } else {
-      setSelected(new Set(items.map((a) => a.id)))
-    }
+    setSelected(selected.size === items.length ? new Set() : new Set(items.map((a) => a.id)))
   }
 
   function handleRetry(id: number) {
@@ -49,10 +56,7 @@ export function FailedAlerts() {
         })
       },
       onError: (err) => {
-        const msg = axios.isAxiosError(err)
-          ? err.response?.data?.detail ?? err.message
-          : String(err)
-        toast.error(`Error al reintentar alerta ${id}: ${msg}`)
+        toast.error(`Error al reintentar alerta ${id}: ${apiErrorMessage(err, 'no se pudo reintentar')}`)
       },
     })
   }
@@ -68,13 +72,38 @@ export function FailedAlerts() {
         retryMutation
           .mutateAsync(id)
           .then(() => succeeded++)
-          .catch(() => failed++)
-      )
+          .catch(() => failed++),
+      ),
     )
     setBulkRetrying(false)
     setSelected(new Set())
     if (succeeded > 0) toast.success(`${succeeded} alerta${succeeded !== 1 ? 's' : ''} reintentada${succeeded !== 1 ? 's' : ''}`)
     if (failed > 0) toast.error(`${failed} alerta${failed !== 1 ? 's' : ''} fallaron`)
+  }
+
+  // D93/RN-187 (B8): retries every listed alert, one after another so the
+  // delivery channel is not hit in parallel, then reports the outcome.
+  async function handleRetryAll(items: Alert[]) {
+    setBulkRetrying(true)
+    setRetryAllSummary(null)
+    let succeeded = 0
+    let failed = 0
+    for (const alert of items) {
+      try {
+        await retryAlert(alert.id)
+        succeeded++
+      } catch {
+        failed++
+      }
+    }
+    setBulkRetrying(false)
+    setSelected(new Set())
+    const summary = `Reintento terminado: ${succeeded} correcta${succeeded !== 1 ? 's' : ''}, ${failed} fallida${failed !== 1 ? 's' : ''}.`
+    setRetryAllSummary(summary)
+    if (failed === 0) toast.success(summary)
+    else toast.warning(summary)
+    // Refreshes the list and, through the shared prefix, the banner count.
+    await queryClient.invalidateQueries({ queryKey: ['alerts'] })
   }
 
   function handleDiscard(id: number) {
@@ -89,144 +118,180 @@ export function FailedAlerts() {
         })
       },
       onError: (err) => {
-        const msg = axios.isAxiosError(err)
-          ? err.response?.data?.detail ?? err.message
-          : String(err)
-        toast.error(`Error al descartar alerta ${id}: ${msg}`)
+        toast.error(`Error al descartar alerta ${id}: ${apiErrorMessage(err, 'no se pudo descartar')}`)
         setDiscardingId(null)
       },
     })
   }
 
-  const allSelected = alerts && alerts.length > 0 && selected.size === alerts.length
+  const allSelected = !!alerts && alerts.length > 0 && selected.size === alerts.length
+
+  const columns: Column<Alert>[] = [
+    {
+      key: 'select',
+      header: 'Seleccionar',
+      hideHeader: true,
+      className: 'w-10',
+      cell: (a) => (
+        <Can>
+          <input
+            type="checkbox"
+            checked={selected.has(a.id)}
+            onChange={() => toggleSelect(a.id)}
+            aria-label={`Seleccionar alerta ${a.id}`}
+            className="size-4 accent-accent"
+          />
+        </Can>
+      ),
+    },
+    { key: 'id', header: 'ID', cell: (a) => <span className="tabular-nums text-text-muted">{a.id}</span> },
+    {
+      key: 'event',
+      header: 'Evento',
+      primary: true,
+      cell: (a) => (
+        <Link to={`/events/${a.event_id}`} className="font-semibold text-accent underline">
+          Evento #{a.event_id}
+        </Link>
+      ),
+    },
+    {
+      key: 'severity',
+      header: 'Severidad',
+      cell: (a) => <span className={`font-semibold ${getSeverityMeta(a.severity).textClass}`}>{a.severity}</span>,
+    },
+    {
+      key: 'channel',
+      header: 'Canal',
+      cell: (a) => (
+        <span className={a.channel ? 'font-mono text-xs text-text-muted' : 'text-xs italic text-text-muted'}>
+          {a.channel ?? 'sin canal entregado'}
+        </span>
+      ),
+    },
+    {
+      key: 'retries',
+      header: 'Reintentos',
+      cell: (a) => <span className="tabular-nums text-text-muted">{a.retry_count ?? 0}</span>,
+    },
+    {
+      key: 'error',
+      header: 'Último error',
+      cell: (a) =>
+        a.last_error ? (
+          <span title={a.last_error} className="font-mono text-xs text-danger-fg [overflow-wrap:anywhere]">
+            {truncate(a.last_error)}
+          </span>
+        ) : (
+          <span className="text-text-muted">—</span>
+        ),
+    },
+    {
+      key: 'failed',
+      header: 'Fallada',
+      cell: (a) => <span className="text-xs text-text-muted">{formatAbsolute(a.failed_at, { nullLabel: '—' })}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      hideHeader: true,
+      cell: (a) => (
+        <Can>
+          {discardingId === a.id ? (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-text-muted">¿Descartar?</span>
+              <Button variant="danger" size="sm" onClick={() => handleDiscard(a.id)} disabled={discardMutation.isPending}>
+                Confirmar
+              </Button>
+              <Button size="sm" onClick={() => setDiscardingId(null)}>
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 sm:justify-end">
+              <Button size="sm" onClick={() => handleRetry(a.id)} disabled={retryMutation.isPending || bulkRetrying}>
+                Reintentar
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setDiscardingId(a.id)}>
+                Descartar
+              </Button>
+            </div>
+          )}
+        </Can>
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-4">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-white">Alertas fallidas</h1>
-        {alerts && alerts.length > 0 && (
-          <span className="text-xs text-gray-500">
-            {alerts.length} alerta{alerts.length !== 1 ? 's' : ''}
-          </span>
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-text">Alertas fallidas</h1>
+        <div className="flex items-center gap-3">
+          {alerts && alerts.length > 0 && (
+            <span className="text-xs text-text-muted">
+              {alerts.length} alerta{alerts.length !== 1 ? 's' : ''}
+            </span>
+          )}
+          {alerts && alerts.length > 0 && (
+            <Can>
+              <Button variant="primary" onClick={() => void handleRetryAll(alerts)} loading={bulkRetrying}>
+                Reintentar todas
+              </Button>
+            </Can>
+          )}
+        </div>
       </div>
 
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div className="flex items-center gap-4 bg-gray-800 border border-gray-700 rounded px-4 py-2.5">
-          <span className="text-sm text-gray-300">
-            {selected.size} seleccionada{selected.size !== 1 ? 's' : ''}
-          </span>
-          <button
-            onClick={handleBulkRetry}
-            disabled={bulkRetrying}
-            className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-sm rounded disabled:opacity-40"
-          >
-            {bulkRetrying ? 'Reintentando...' : 'Reintentar seleccionadas'}
-          </button>
-          <button
-            onClick={() => setSelected(new Set())}
-            className="text-xs text-gray-400 hover:text-gray-200"
-          >
-            Limpiar selección
-          </button>
-        </div>
+      {retryAllSummary && (
+        <p role="status" className="rounded-control border border-line bg-surface-raised px-3 py-2 text-text">
+          {retryAllSummary}
+        </p>
       )}
 
-      {/* Tabla */}
-      {isLoading ? (
-        <div className="py-12 text-center text-gray-500">Cargando alertas fallidas...</div>
-      ) : isError ? (
-        <QueryErrorState resource="las alertas fallidas" onRetry={() => refetch()} />
-      ) : !alerts || alerts.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">
-          <p className="text-sm">No hay alertas fallidas.</p>
-        </div>
-      ) : (
-        <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-700 text-xs text-gray-400">
-                <th className="px-3 py-2.5">
-                  <input
-                    type="checkbox"
-                    checked={!!allSelected}
-                    onChange={() => toggleSelectAll(alerts)}
-                    className="rounded"
-                  />
-                </th>
-                <th className="text-left px-4 py-2.5">ID</th>
-                <th className="text-left px-4 py-2.5">Severidad</th>
-                <th className="text-left px-4 py-2.5">Canal</th>
-                <th className="text-left px-4 py-2.5">Fallada</th>
-                <th className="px-4 py-2.5" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {alerts.map((alert) => (
-                <tr
-                  key={alert.id}
-                  className={`hover:bg-gray-750 ${selected.has(alert.id) ? 'bg-blue-950/20' : ''}`}
-                >
-                  <td className="px-3 py-2.5 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(alert.id)}
-                      onChange={() => toggleSelect(alert.id)}
-                      className="rounded"
-                    />
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-400 tabular-nums">{alert.id}</td>
-                  <td className={`px-4 py-2.5 font-medium ${getSeverityMeta(alert.severity).textClass}`}>
-                    {alert.severity}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-400 font-mono text-xs">{alert.channel}</td>
-                  <td className="px-4 py-2.5 text-gray-400 text-xs">
-                    {formatAbsolute(alert.failed_at, { nullLabel: '—' })}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {discardingId === alert.id ? (
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="text-gray-400">¿Descartar?</span>
-                        <button
-                          onClick={() => handleDiscard(alert.id)}
-                          disabled={discardMutation.isPending}
-                          className="text-red-400 hover:text-red-300 disabled:opacity-40"
-                        >
-                          Confirmar
-                        </button>
-                        <button
-                          onClick={() => setDiscardingId(null)}
-                          className="text-gray-500 hover:text-gray-300"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3 justify-end">
-                        <button
-                          onClick={() => handleRetry(alert.id)}
-                          disabled={retryMutation.isPending}
-                          className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-40"
-                        >
-                          Reintentar
-                        </button>
-                        <button
-                          onClick={() => setDiscardingId(alert.id)}
-                          className="text-xs text-red-400 hover:text-red-300"
-                        >
-                          Descartar
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {selected.size > 0 && (
+        <Can>
+          <div className="flex flex-wrap items-center gap-4 rounded-panel border border-accent bg-accent-soft px-4 py-2.5">
+            <span className="font-semibold text-accent-soft-text">
+              {selected.size} seleccionada{selected.size !== 1 ? 's' : ''}
+            </span>
+            <Button variant="primary" size="sm" onClick={() => void handleBulkRetry()} disabled={bulkRetrying}>
+              {bulkRetrying ? 'Reintentando...' : 'Reintentar seleccionadas'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+              Limpiar selección
+            </Button>
+          </div>
+        </Can>
       )}
+
+      <DataState
+        isLoading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+        resource="las alertas fallidas"
+        loadingLabel="Cargando alertas fallidas..."
+        isEmpty={!alerts || alerts.length === 0}
+        emptyTitle="No hay alertas fallidas."
+        emptyHint="Las notificaciones que no se puedan entregar aparecen acá para reintentarlas."
+      >
+        {alerts && (
+          <>
+            <Can>
+              <label className="mb-2 flex w-fit cursor-pointer items-center gap-2 text-xs text-text-muted">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => toggleSelectAll(alerts)}
+                  aria-label="Seleccionar todas"
+                  className="size-4 accent-accent"
+                />
+                Seleccionar todas
+              </label>
+            </Can>
+            <ResponsiveTable caption="Alertas fallidas" columns={columns} rows={alerts} getRowKey={(a) => a.id} />
+          </>
+        )}
+      </DataState>
     </div>
   )
 }

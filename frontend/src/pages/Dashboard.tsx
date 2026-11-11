@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
 import { useDashboard } from '@/hooks/useDashboard'
-import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { DataState } from '@/components/ui/DataState'
+import { PathLabel } from '@/components/ui/PathLabel'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { getSeverityMeta } from '@/utils/severity'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import type { EventStatus } from '@/api/events'
 import type { AgentStatus } from '@/api/agents'
@@ -8,20 +11,8 @@ import type { AgentStatus } from '@/api/agents'
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // C1/RN-71: minúsculas snake_case en toda la UI, con excepción única para
-// botones de acción — una etiqueta de tarjeta no lo es. Reemplaza
-// EVENT_STATUS_LABELS (que rotulaba `Pending`, `Auto-restored`, `Alert only`
-// mientras la tabla de eventos ya renderiza el valor canónico) por el valor
-// canónico mismo, para que las dos pantallas nombren el mismo estado igual.
-
-const EVENT_STATUS_COLORS: Record<EventStatus, string> = {
-  pending: 'text-yellow-400',
-  approved: 'text-green-400',
-  rejected: 'text-red-400',
-  superseded: 'text-gray-500',
-  auto_restored: 'text-blue-400',
-  quarantined: 'text-orange-400',
-  alert_only: 'text-purple-400',
-}
+// botones de acción — una etiqueta de contador no lo es. La etiqueta ES el
+// valor canónico, igual que en la tabla de eventos.
 
 const AGENT_STATUS_LABELS: Record<AgentStatus, string> = {
   online: 'Online',
@@ -31,56 +22,13 @@ const AGENT_STATUS_LABELS: Record<AgentStatus, string> = {
   revoked: 'Revoked',
 }
 
-const AGENT_STATUS_COLORS: Record<AgentStatus, string> = {
-  online: 'text-green-400',
-  offline: 'text-gray-500',
-  draining: 'text-yellow-400',
-  dead: 'text-red-400',
-  revoked: 'text-red-500',
+const AGENT_STATUS_TONE: Record<AgentStatus, string> = {
+  online: 'text-success-fg',
+  offline: 'text-neutral-fg',
+  draining: 'text-warning-fg',
+  dead: 'text-danger-fg',
+  revoked: 'text-danger-fg',
 }
-
-// ─── Sub-componentes ──────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  colorClass,
-  emphasis,
-  to,
-}: {
-  label: string
-  value: number
-  colorClass?: string
-  emphasis?: boolean
-  /** Destino opcional (5.1 del design): sin él la tarjeta queda inerte, como
-   * agentes e infraestructura, que no tienen lista prefiltrada a la que ir. */
-  to?: string
-}) {
-  const className = `bg-gray-800 border rounded-lg p-4 flex flex-col gap-1 ${
-    emphasis ? 'border-red-600 bg-red-950/30' : 'border-gray-700'
-  }`
-
-  const content = (
-    <>
-      <span className={`text-2xl font-bold tabular-nums ${colorClass ?? 'text-white'}`}>
-        {value}
-      </span>
-      <span className={`text-xs ${emphasis ? 'text-red-300' : 'text-gray-400'}`}>{label}</span>
-    </>
-  )
-
-  if (to) {
-    return (
-      <Link to={to} className={`${className} hover:border-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary`}>
-        {content}
-      </Link>
-    )
-  }
-
-  return <div className={className}>{content}</div>
-}
-
-// ─── Página ───────────────────────────────────────────────────────────────────
 
 const EVENT_STATUSES: EventStatus[] = [
   'pending',
@@ -94,128 +42,207 @@ const EVENT_STATUSES: EventStatus[] = [
 
 const AGENT_STATUSES: AgentStatus[] = ['online', 'offline', 'draining', 'dead', 'revoked']
 
+// `superseded` está excluido del listado por default (RN-22/RN-98): sin
+// `include_superseded=true` el enlace llevaría a una lista vacía.
+function eventsLink(status: EventStatus): string {
+  return status === 'superseded'
+    ? `/events?status=${status}&include_superseded=true`
+    : `/events?status=${status}`
+}
+
+// ─── Sub-componentes ──────────────────────────────────────────────────────────
+
+function Metric({
+  label,
+  value,
+  tone,
+  emphasis,
+  to,
+}: {
+  label: string
+  value: number
+  tone?: string
+  emphasis?: boolean
+  /** Destino opcional: sin él el indicador queda inerte (agentes sin lista prefiltrada). */
+  to?: string
+}) {
+  const className = `flex items-baseline justify-between gap-3 rounded-panel border px-4 py-3 ${
+    emphasis ? 'border-danger-line bg-danger-bg' : 'border-line bg-surface-raised'
+  }`
+  const content = (
+    <>
+      <span className={emphasis ? 'text-danger-fg' : 'text-text-muted'}>{label}</span>
+      <span className={`text-xl font-semibold tabular-nums ${tone ?? 'text-text'}`}>{value}</span>
+    </>
+  )
+  if (to) {
+    return (
+      <Link to={to} className={`${className} hover:border-line-strong`}>
+        {content}
+      </Link>
+    )
+  }
+  return <div className={className}>{content}</div>
+}
+
+/**
+ * Proportional bar of events by state (design D-1): each segment is a link to
+ * the filtered list and carries its state color; the legend below spells the
+ * numbers out, so the bar never relies on color alone.
+ */
+// Tailwind only generates utilities for class names it can read literally.
+const SEGMENT_BG: Record<EventStatus, string> = {
+  pending: 'bg-status-pending',
+  approved: 'bg-status-approved',
+  rejected: 'bg-status-rejected',
+  superseded: 'bg-status-superseded',
+  auto_restored: 'bg-status-auto_restored',
+  quarantined: 'bg-status-quarantined',
+  alert_only: 'bg-status-alert_only',
+}
+
+function StatusBar({ counts }: { counts: Record<EventStatus, number> }) {
+  const total = EVENT_STATUSES.reduce((sum, s) => sum + (counts[s] ?? 0), 0)
+  if (total === 0) {
+    return <p className="rounded-panel border border-dashed border-line-strong px-4 py-6 text-center text-text-muted">Todavía no hay eventos registrados.</p>
+  }
+  return (
+    <div
+      role="group"
+      aria-label="Proporción de eventos por estado"
+      className="flex h-4 w-full overflow-hidden rounded-control border border-line bg-surface"
+    >
+      {EVENT_STATUSES.filter((s) => (counts[s] ?? 0) > 0).map((s) => (
+        <Link
+          key={s}
+          to={eventsLink(s)}
+          title={`${s}: ${counts[s]}`}
+          aria-label={`Ver eventos ${s}`}
+          style={{ width: `${((counts[s] ?? 0) / total) * 100}%` }}
+          className={`min-w-1 ${SEGMENT_BG[s]} border-r border-surface last:border-r-0 hover:opacity-80`}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ─── Página ───────────────────────────────────────────────────────────────────
+
 export function Dashboard() {
-  const { data, isLoading, isError, refetch, dataUpdatedAt } = useDashboard()
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useDashboard()
 
   // D39/RN-133: pasa por el helper compartido como el resto de la consola —
   // ningún componente formatea un instante por su cuenta (frontend-time-display).
   const lastUpdate = dataUpdatedAt ? formatAbsolute(dataUpdatedAt) : null
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Encabezado */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-white">Dashboard</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-2xl font-semibold text-text">Dashboard</h1>
         {lastUpdate && (
-          <span className="text-xs text-gray-500">
-            Actualizado {lastUpdate} · polling cada 30s
-          </span>
+          <span className="text-xs text-text-muted">Actualizado {lastUpdate} · polling cada 30s</span>
         )}
       </div>
 
-      {isLoading ? (
-        <div className="py-12 text-center text-gray-500">Cargando dashboard...</div>
-      ) : isError ? (
-        <QueryErrorState resource="el dashboard" onRetry={() => refetch()} />
-      ) : (
-        <>
-          {/* Sección: Pending crítico/alto — énfasis visual diferenciado */}
-          <section>
-            <h2 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">
-              Pending criticos y altos
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <StatCard
-                label="Pending (todos)"
-                value={data?.eventsByStatus.pending ?? 0}
-                colorClass="text-yellow-400"
-                to="/events?status=pending"
-              />
-              <StatCard
-                label="Pending critical + high"
-                value={data?.pendingCriticalHigh ?? 0}
-                colorClass="text-red-400"
-                emphasis={(data?.pendingCriticalHigh ?? 0) > 0}
-                to="/events?status=pending&severity=critical&severity=high"
-              />
-            </div>
-          </section>
-
-          {/* Sección: Eventos por estado */}
-          <section>
-            <h2 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">
-              Eventos por estado
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {EVENT_STATUSES.map((s) => (
-                <StatCard
-                  key={s}
-                  label={s}
-                  value={data?.eventsByStatus[s] ?? 0}
-                  colorClass={EVENT_STATUS_COLORS[s]}
-                  // `superseded` está excluido del listado por default (RN-22/RN-98):
-                  // sin `include_superseded=true` el enlace llevaría a una lista
-                  // vacía (:5.4).
-                  to={
-                    s === 'superseded'
-                      ? `/events?status=${s}&include_superseded=true`
-                      : `/events?status=${s}`
-                  }
-                />
-              ))}
-            </div>
-          </section>
-
-          {/* Sección: Agentes por estado */}
-          <section>
-            <h2 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">
-              Agentes
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {AGENT_STATUSES.map((s) => (
-                <StatCard
-                  key={s}
-                  label={AGENT_STATUS_LABELS[s]}
-                  value={data?.agentsByStatus[s] ?? 0}
-                  colorClass={AGENT_STATUS_COLORS[s]}
-                />
-              ))}
-            </div>
-          </section>
-
-          {/* Sección: Estado de infraestructura */}
-          <section>
-            <h2 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">
-              Infraestructura
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {data?.health &&
-                Object.entries(data.health).map(([name, status]) => (
-                  <div
-                    key={name}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-3 flex items-center gap-2"
+      <DataState
+        isLoading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+        resource="el dashboard"
+        loadingLabel="Cargando dashboard..."
+      >
+        {/* Sección: lo que el operador tiene que mirar */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-text">Pending criticos y altos</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Metric
+              label="Pending (todos)"
+              value={data?.eventsByStatus.pending ?? 0}
+              to="/events?status=pending"
+            />
+            <Metric
+              label="Pending critical + high"
+              value={data?.pendingCriticalHigh ?? 0}
+              tone={(data?.pendingCriticalHigh ?? 0) > 0 ? 'text-danger-fg' : undefined}
+              emphasis={(data?.pendingCriticalHigh ?? 0) > 0}
+              to="/events?status=pending&severity=critical&severity=high"
+            />
+          </div>
+          {(data?.pendingCriticalHighItems.length ?? 0) > 0 && (
+            <ul aria-label="Pendientes críticos y altos más recientes" className="divide-y divide-line rounded-panel border border-line bg-surface-raised">
+              {data?.pendingCriticalHighItems.map((item) => (
+                <li key={item.id}>
+                  <Link
+                    to={`/events/${item.id}`}
+                    className={`flex flex-wrap items-center gap-x-3 gap-y-1 border-l-4 px-4 py-2 hover:bg-surface-hover ${getSeverityMeta(item.severity).bandClass}`}
                   >
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        status === 'ok' ? 'bg-green-500' : 'bg-red-500'
-                      }`}
-                    />
-                    <div>
-                      <p className="text-xs font-medium text-gray-200 capitalize">{name}</p>
-                      <p
-                        className={`text-xs ${
-                          status === 'ok' ? 'text-green-400' : 'text-red-400'
-                        }`}
-                      >
-                        {status}
-                      </p>
-                    </div>
+                    <span className="min-w-0 flex-1">
+                      <PathLabel path={item.path} />
+                    </span>
+                    <span className={`font-mono text-xs font-semibold ${getSeverityMeta(item.severity).textClass}`}>{item.severity}</span>
+                    <StatusBadge status={item.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Sección: Eventos por estado */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-text">Eventos por estado</h2>
+          <StatusBar counts={data?.eventsByStatus ?? ({} as Record<EventStatus, number>)} />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {EVENT_STATUSES.map((s) => (
+              <Metric
+                key={s}
+                label={s}
+                value={data?.eventsByStatus[s] ?? 0}
+                to={eventsLink(s)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Sección: Agentes por estado */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-text">Agentes</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {AGENT_STATUSES.map((s) => (
+              <Metric
+                key={s}
+                label={AGENT_STATUS_LABELS[s]}
+                value={data?.agentsByStatus[s] ?? 0}
+                tone={AGENT_STATUS_TONE[s]}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Sección: Estado de infraestructura */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-text">Infraestructura</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {data?.health &&
+              Object.entries(data.health).map(([name, status]) => (
+                <div
+                  key={name}
+                  className="flex items-center gap-2 rounded-panel border border-line bg-surface-raised p-3"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`size-2 shrink-0 rounded-full ${status === 'ok' ? 'bg-status-approved' : 'bg-status-rejected'}`}
+                  />
+                  <div>
+                    <p className="font-semibold capitalize text-text">{name}</p>
+                    <p className={status === 'ok' ? 'text-success-fg' : 'text-danger-fg'}>{status}</p>
                   </div>
-                ))}
-            </div>
-          </section>
-        </>
-      )}
+                </div>
+              ))}
+          </div>
+        </section>
+      </DataState>
     </div>
   )
 }

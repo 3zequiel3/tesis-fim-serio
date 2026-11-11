@@ -1,17 +1,23 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAlerts } from '@/hooks/useAlerts'
-import { QueryErrorState } from '@/components/ui/QueryErrorState'
+import { DataState } from '@/components/ui/DataState'
+import { PathLabel } from '@/components/ui/PathLabel'
+import { Button } from '@/components/ui/Button'
+import { inputClassName } from '@/components/ui/Field'
+import { ResponsiveTable, type Column } from '@/components/ui/ResponsiveTable'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import { getSeverityMeta } from '@/utils/severity'
-import type { AlertFilters, AlertStatus, AlertSeverity } from '@/api/alerts'
+import type { Alert, AlertFilters, AlertStatus, AlertSeverity } from '@/api/alerts'
 
 // ─── URL param helpers ────────────────────────────────────────────────────────
 
 function parseAlertFilters(sp: URLSearchParams): AlertFilters {
+  const rawPage = Number(sp.get('page'))
   return {
     status: (sp.get('status') as AlertStatus) || undefined,
     severity: (sp.get('severity') as AlertSeverity) || undefined,
-    page: sp.get('page') ? Number(sp.get('page')) : 1,
+    // Same sanitizing as the events list (M7): the URL is untrusted.
+    page: Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1,
     size: 50,
   }
 }
@@ -24,28 +30,60 @@ function serializeAlertFilters(f: AlertFilters): URLSearchParams {
   return sp
 }
 
-// ─── Helpers visuales ────────────────────────────────────────────────────────
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'text-yellow-400',
-  delivered: 'text-green-400',
-  failed: 'text-red-400',
+const STATUS_TONE: Record<string, string> = {
+  pending: 'text-warning-fg',
+  delivered: 'text-success-fg',
+  failed: 'text-danger-fg',
 }
-
-// ─── Página ───────────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS: AlertStatus[] = ['pending', 'delivered', 'failed']
 const SEVERITY_OPTIONS: AlertSeverity[] = ['critical', 'high', 'medium', 'low']
+
+const COLUMNS: Column<Alert>[] = [
+  { key: 'id', header: 'ID', cell: (a) => <span className="tabular-nums text-text-muted">{a.id}</span> },
+  {
+    key: 'path',
+    header: 'Path',
+    primary: true,
+    cell: (a) => (
+      // US-19: la alerta es navegable hacia el detalle del evento asociado.
+      <Link to={`/events/${a.event_id}`} className="hover:underline">
+        {a.path ? <PathLabel path={a.path} /> : '—'}
+      </Link>
+    ),
+  },
+  {
+    key: 'severity',
+    header: 'Severidad',
+    cell: (a) => (
+      <span className={`font-semibold ${getSeverityMeta(a.severity).textClass}`}>{a.severity}</span>
+    ),
+  },
+  { key: 'action', header: 'Acción', cell: (a) => <span className="font-mono text-xs text-text-muted">{a.action_taken ?? '—'}</span> },
+  {
+    key: 'status',
+    header: 'Estado',
+    cell: (a) => <span className={`font-semibold ${STATUS_TONE[a.status] ?? 'text-text'}`}>{a.status}</span>,
+  },
+  { key: 'channel', header: 'Canal', cell: (a) => <span className="font-mono text-xs text-text-muted">{a.channel ?? 'sin canal entregado'}</span> },
+  { key: 'created', header: 'Creada', cell: (a) => <span className="text-xs text-text-muted">{formatAbsolute(a.created_at)}</span> },
+  {
+    key: 'delivered',
+    header: 'Entregada',
+    cell: (a) => <span className="text-xs text-text-muted">{formatAbsolute(a.delivered_at, { nullLabel: '—' })}</span>,
+  },
+]
+
+// ─── Página ───────────────────────────────────────────────────────────────────
 
 export function Alerts() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filters = parseAlertFilters(searchParams)
 
-  const { data, isLoading, isFetching, isError, refetch } = useAlerts(filters)
+  const { data, isLoading, isFetching, error, refetch } = useAlerts(filters)
 
   function updateFilter(updates: Partial<AlertFilters>) {
-    const newFilters = { ...filters, ...updates, page: 1 }
-    setSearchParams(serializeAlertFilters(newFilters))
+    setSearchParams(serializeAlertFilters({ ...filters, ...updates, page: 1 }))
   }
 
   function handlePageChange(newPage: number) {
@@ -59,24 +97,26 @@ export function Alerts() {
 
   return (
     <div className="space-y-4">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-white">Alertas</h1>
-        {isFetching && !isLoading && (
-          <span className="text-xs text-gray-500">Actualizando...</span>
-        )}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-text">Alertas</h1>
+        <div className="flex items-center gap-3">
+          {isFetching && !isLoading && <span className="text-xs text-text-muted">Actualizando...</span>}
+          <Link to="/alerts/failed" className="font-semibold text-accent underline">
+            Ver alertas fallidas
+          </Link>
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="bg-gray-800 border border-gray-700 rounded p-4 flex flex-wrap gap-4">
+      <div className="flex flex-wrap gap-4 rounded-panel border border-line bg-surface-raised p-4">
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Estado</label>
+          <label htmlFor="alert-status" className="mb-1 block text-xs font-semibold text-text-muted">
+            Estado
+          </label>
           <select
+            id="alert-status"
             value={filters.status ?? ''}
-            onChange={(e) =>
-              updateFilter({ status: (e.target.value as AlertStatus) || undefined })
-            }
-            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
+            onChange={(e) => updateFilter({ status: (e.target.value as AlertStatus) || undefined })}
+            className={inputClassName}
           >
             <option value="">Todos</option>
             {STATUS_OPTIONS.map((s) => (
@@ -86,15 +126,15 @@ export function Alerts() {
             ))}
           </select>
         </div>
-
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Severidad</label>
+          <label htmlFor="alert-severity" className="mb-1 block text-xs font-semibold text-text-muted">
+            Severidad
+          </label>
           <select
+            id="alert-severity"
             value={filters.severity ?? ''}
-            onChange={(e) =>
-              updateFilter({ severity: (e.target.value as AlertSeverity) || undefined })
-            }
-            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-primary"
+            onChange={(e) => updateFilter({ severity: (e.target.value as AlertSeverity) || undefined })}
+            className={inputClassName}
           >
             <option value="">Todas</option>
             {SEVERITY_OPTIONS.map((s) => (
@@ -106,89 +146,39 @@ export function Alerts() {
         </div>
       </div>
 
-      {/* Tabla */}
-      {isLoading ? (
-        <div className="py-12 text-center text-gray-500">Cargando alertas...</div>
-      ) : isError ? (
-        <QueryErrorState resource="las alertas" onRetry={() => refetch()} />
-      ) : !data || data.items.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">
-          <p className="text-sm">No hay alertas con los filtros seleccionados.</p>
-        </div>
-      ) : (
-        <div className="bg-gray-800 border border-gray-700 rounded overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-700 text-xs text-gray-400">
-                <th className="text-left px-4 py-2.5">ID</th>
-                <th className="text-left px-4 py-2.5">Path</th>
-                <th className="text-left px-4 py-2.5">Severidad</th>
-                <th className="text-left px-4 py-2.5">Acción</th>
-                <th className="text-left px-4 py-2.5">Estado</th>
-                <th className="text-left px-4 py-2.5">Canal</th>
-                <th className="text-left px-4 py-2.5">Creada</th>
-                <th className="text-left px-4 py-2.5">Entregada</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {data.items.map((alert) => (
-                <tr key={alert.id} className="hover:bg-gray-750">
-                  <td className="px-4 py-2.5 text-gray-400 tabular-nums">{alert.id}</td>
-                  <td className="px-4 py-2.5">
-                    {/* US-19: la alerta es navegable hacia el detalle del
-                        evento asociado — mismo patrón que EventsTable. */}
-                    <Link
-                      to={`/events/${alert.event_id}`}
-                      className="font-mono text-xs text-blue-400 hover:text-blue-300 break-all"
-                    >
-                      {alert.path ?? '—'}
-                    </Link>
-                  </td>
-                  <td className={`px-4 py-2.5 font-medium ${getSeverityMeta(alert.severity).textClass}`}>
-                    {alert.severity}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-400 font-mono text-xs">
-                    {alert.action_taken ?? '—'}
-                  </td>
-                  <td className={`px-4 py-2.5 font-medium ${STATUS_COLORS[alert.status] ?? 'text-gray-300'}`}>
-                    {alert.status}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-400 font-mono text-xs">{alert.channel}</td>
-                  <td className="px-4 py-2.5 text-gray-400 text-xs">{formatAbsolute(alert.created_at)}</td>
-                  <td className="px-4 py-2.5 text-gray-400 text-xs">
-                    {formatAbsolute(alert.delivered_at, { nullLabel: '—' })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataState
+        isLoading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+        resource="las alertas"
+        loadingLabel="Cargando alertas..."
+        isEmpty={!data || data.items.length === 0}
+        emptyTitle="No hay alertas con los filtros seleccionados."
+        emptyHint="Cuando un cambio dispare una alerta, la vas a ver acá."
+      >
+        <ResponsiveTable
+          caption="Alertas"
+          columns={COLUMNS}
+          rows={data?.items ?? []}
+          getRowKey={(a) => a.id}
+        />
+      </DataState>
 
-      {/* Paginación */}
-      {!isLoading && total > 0 && (
-        <div className="flex items-center justify-between text-sm text-gray-400">
+      {!isLoading && !error && total > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-text-muted">
           <span>
             {(currentPage - 1) * size + 1}–{Math.min(currentPage * size, total)} de {total}
           </span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
+            <Button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage <= 1}>
               Anterior
-            </button>
+            </Button>
             <span className="tabular-nums">
               Página {currentPage} de {totalPages}
             </span>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
+            <Button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages}>
               Siguiente
-            </button>
+            </Button>
           </div>
         </div>
       )}

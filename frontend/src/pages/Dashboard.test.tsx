@@ -228,7 +228,8 @@ describe('Dashboard — US-05: estado general del sistema', () => {
     expect(within(critical).getByText('3')).toBeInTheDocument()
     // El realce es puramente visual: la tarjeta se diferencia del resto.
     expect(critical.className).not.toBe(plain.className)
-    expect(critical.className).toMatch(/red/)
+    // D93/RN-187: the emphasis is the danger tone token, not a palette color.
+    expect(critical.className).toMatch(/danger/)
   })
 
   it('la tarjeta de pending critical/high enlaza a la lista prefiltrada con los dos severity presentes (8.4)', async () => {
@@ -276,5 +277,86 @@ describe('Dashboard — US-05: estado general del sistema', () => {
     expect(within(statCard('valkey')).getByText('down')).toBeInTheDocument()
     expect(within(statCard('agents')).getByText('degraded')).toBeInTheDocument()
     expect(within(statCard('postgres')).getByText('ok')).toBeInTheDocument()
+  })
+})
+
+// B7 (D93/RN-187): the backend excludes superseded events unless asked, so the
+// counter was always 0 without include_superseded=true.
+describe('Dashboard — contador superseded real (B7)', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+  })
+
+  it('pide los superseded con include_superseded=true y muestra su conteo', async () => {
+    mockBackend({ eventCounts: { superseded: 4 } })
+
+    renderWithProviders(<Dashboard />)
+    await screen.findByRole('heading', { name: /eventos por estado/i })
+
+    const supersededCall = apiGet.mock.calls.find(
+      ([url, config]: [string, GetConfig]) =>
+        url === '/events' &&
+        !(config?.params instanceof URLSearchParams) &&
+        (config?.params as Record<string, unknown>).status === 'superseded',
+    )
+    expect(supersededCall?.[1]?.params).toEqual({ status: 'superseded', page_size: 1, include_superseded: true })
+    expect(within(statCard('superseded')).getByText('4')).toBeInTheDocument()
+  })
+
+  it('los demás estados no piden include_superseded', async () => {
+    mockBackend()
+
+    renderWithProviders(<Dashboard />)
+    await screen.findByRole('heading', { name: /eventos por estado/i })
+
+    const others = apiGet.mock.calls.filter(
+      ([url, config]: [string, GetConfig]) =>
+        url === '/events' &&
+        !(config?.params instanceof URLSearchParams) &&
+        (config?.params as Record<string, unknown>).status !== 'superseded',
+    )
+    expect(others.length).toBe(6)
+    for (const [, config] of others) {
+      expect((config as { params: Record<string, unknown> }).params.include_superseded).toBeUndefined()
+    }
+  })
+
+  it('el enlace del contador superseded lleva include_superseded=true', async () => {
+    mockBackend()
+
+    renderWithProviders(<Dashboard />)
+    await screen.findByRole('heading', { name: /eventos por estado/i })
+
+    const href = statCard('superseded').getAttribute('href')!
+    const sp = new URLSearchParams(href.split('?')[1])
+    expect(sp.get('status')).toBe('superseded')
+    expect(sp.get('include_superseded')).toBe('true')
+  })
+})
+
+describe('Dashboard — lista de pendientes críticos y altos', () => {
+  beforeEach(() => {
+    apiGet.mockReset()
+  })
+
+  it('muestra los eventos críticos y altos pendientes con enlace a su detalle', async () => {
+    mockBackend({ pendingCriticalHigh: 1 })
+    const base = apiGet.getMockImplementation()!
+    apiGet.mockImplementation((url: string, config: GetConfig) => {
+      if (url === '/events' && config?.params instanceof URLSearchParams) {
+        return Promise.resolve({
+          data: {
+            total: 1,
+            items: [{ id: 9, path: '/etc/shadow', severity: 'critical', status: 'pending' }],
+          },
+        })
+      }
+      return base(url, config)
+    })
+
+    renderWithProviders(<Dashboard />)
+    const list = await screen.findByRole('list', { name: /pendientes críticos y altos/i })
+    expect(within(list).getByRole('link')).toHaveAttribute('href', '/events/9')
+    expect(within(list).getByText('/etc/shadow')).toBeInTheDocument()
   })
 })
