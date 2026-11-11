@@ -129,3 +129,102 @@ def test_event_uses_most_recent_published_command(session, agent):
     out = _to_event_out(event, ack_map)
 
     assert out.ack_status == "acked", "debe reflejar el PublishedCommand más reciente (mayor id)"
+
+
+# ── D93/RN-187: EventOut.ack_error ───────────────────────────────────────────
+
+
+def _make_command(session: Session, agent_id: str, event_id: int, ack_status: str, error: str | None):
+    cmd = PublishedCommand(
+        command_type="restore_file",
+        target_agent_id=agent_id,
+        event_id=event_id,
+        command_id=f"cmd-ack-error-{uuid.uuid4().hex[:8]}",
+        ack_status=ack_status,
+        error=error,
+        ruleset_version=0,
+        status="published",
+        published_at=datetime.now(timezone.utc),
+    )
+    session.add(cmd)
+    session.commit()
+    return cmd
+
+
+def test_failed_command_exposes_its_reason_as_ack_error(session, agent):
+    event = _make_event(session, agent.agent_id, "evt-ack-error-001")
+    _make_command(session, agent.agent_id, event.id, "failed", "no_restorable_content")
+
+    out = _to_event_out(event, _get_ack_status_map(session, [event.id]))
+
+    assert out.ack_status == "failed"
+    assert out.ack_error == "no_restorable_content"
+
+
+def test_acked_command_has_no_ack_error(session, agent):
+    event = _make_event(session, agent.agent_id, "evt-ack-error-002")
+    _make_command(session, agent.agent_id, event.id, "acked", None)
+
+    out = _to_event_out(event, _get_ack_status_map(session, [event.id]))
+
+    assert out.ack_status == "acked"
+    assert out.ack_error is None
+
+
+@pytest.mark.parametrize("ack_status", ["pending", "timeout"])
+def test_only_a_failed_command_exposes_a_reason(session, agent, ack_status):
+    # A stale `error` on a command that is not `failed` must not leak into the API.
+    event = _make_event(session, agent.agent_id, f"evt-ack-error-{ack_status}")
+    _make_command(session, agent.agent_id, event.id, ack_status, "leftover")
+
+    out = _to_event_out(event, _get_ack_status_map(session, [event.id]))
+
+    assert out.ack_status == ack_status
+    assert out.ack_error is None
+
+
+def test_event_without_command_has_null_ack_error(session, agent):
+    event = _make_event(session, agent.agent_id, "evt-ack-error-004")
+
+    out = _to_event_out(event, _get_ack_status_map(session, [event.id]))
+
+    assert out.ack_status is None
+    assert out.ack_error is None
+
+
+def test_long_reason_is_truncated_to_200_characters(session, agent):
+    event = _make_event(session, agent.agent_id, "evt-ack-error-005")
+    _make_command(session, agent.agent_id, event.id, "failed", "x" * 500)
+
+    out = _to_event_out(event, _get_ack_status_map(session, [event.id]))
+
+    assert out.ack_error == "x" * 200
+
+
+def test_ack_lookup_issues_one_query_regardless_of_page_size(session, agent):
+    from sqlalchemy import event as sa_event
+
+    events = [_make_event(session, agent.agent_id, f"evt-ack-error-n{i}") for i in range(50)]
+    for ev in events:
+        _make_command(session, agent.agent_id, ev.id, "failed", "write_failed")
+
+    # Commits expire the instances: reload them (and their ids) before counting, so
+    # only the ack lookup itself is measured.
+    for ev in events:
+        session.refresh(ev)
+    event_ids = [ev.id for ev in events]
+    statements: list[str] = []
+
+    def count(conn, cursor, statement, params, context, executemany):
+        statements.append(statement)
+
+    sa_event.listen(engine, "before_cursor_execute", count)
+    try:
+        ack_map = _get_ack_status_map(session, event_ids)
+        for ev in events:
+            _to_event_out(ev, ack_map)
+    finally:
+        sa_event.remove(engine, "before_cursor_execute", count)
+
+    assert len(statements) == 1, "ack_status and ack_error must come from the same single query"
+    assert all(ack_map[i] == ("failed", "write_failed") for i in event_ids)

@@ -68,6 +68,9 @@ class EventOut(BaseModel):
     # C36 (D30/RN-124): estado de ejecución del comando asociado, indicador
     # secundario — NO forma parte de la máquina de estados del evento (RN-72).
     ack_status: str | None = None
+    # D93/RN-187: motivo del fallo del mismo comando que da `ack_status`, truncado
+    # a ACK_ERROR_MAX_LENGTH. Sólo con `ack_status == "failed"`; null en el resto.
+    ack_error: str | None = None
     # D33/RN-127 (C39): metadato de symlink-as-object, columnas directas de Event.
     is_symlink: bool = False
     symlink_target: str | None = None
@@ -299,11 +302,20 @@ def _as_utc_instant(value: datetime) -> datetime:
 # ── Helpers — indicador secundario de ejecución (C36, D30/RN-124) ───────────────
 
 
-def _get_ack_status_map(session: Session, event_ids: list[int]) -> dict[int, str]:
+# D93/RN-187: el motivo de un comando fallido se expone truncado para acotar
+# el tamaño de cada EventOut (el campo `error` del comando no tiene tope propio).
+ACK_ERROR_MAX_LENGTH = 200
+
+AckInfo = tuple[str, str | None]
+
+
+def _get_ack_status_map(session: Session, event_ids: list[int]) -> dict[int, AckInfo]:
     """
-    Retorna {event_id: ack_status} usando el PublishedCommand más reciente
-    (mayor id) asociado a cada evento, con ack_status no nulo. No altera
-    Event ni su máquina de estados (RN-72) — es un lookup de solo lectura.
+    Retorna {event_id: (ack_status, error)} usando el PublishedCommand más
+    reciente (mayor id) asociado a cada evento, con ack_status no nulo. Una sola
+    consulta alimenta `ack_status` y `ack_error` (D93/RN-187: sin consulta extra
+    por evento). No altera Event ni su máquina de estados (RN-72) — es un lookup
+    de solo lectura.
     """
     if not event_ids:
         return {}
@@ -312,32 +324,44 @@ def _get_ack_status_map(session: Session, event_ids: list[int]) -> dict[int, str
         .where(PublishedCommand.event_id.in_(event_ids))  # type: ignore[union-attr]
         .order_by(PublishedCommand.id.desc())
     ).all()
-    result: dict[int, str] = {}
+    result: dict[int, AckInfo] = {}
     for row in rows:
         if row.event_id is not None and row.event_id not in result and row.ack_status is not None:
-            result[row.event_id] = row.ack_status
+            result[row.event_id] = (row.ack_status, row.error)
     return result
+
+
+def _apply_ack(out: EventOut, event: Event, ack_map: dict[int, AckInfo]) -> None:
+    info = ack_map.get(event.id) if event.id is not None else None
+    if info is None:
+        out.ack_status = None
+        out.ack_error = None
+        return
+    ack_status, error = info
+    out.ack_status = ack_status
+    # Sólo un fallo tiene motivo que mostrar; un `error` residual en otro estado no se expone.
+    out.ack_error = error[:ACK_ERROR_MAX_LENGTH] if ack_status == "failed" and error else None
 
 
 def _to_event_out(
     event: Event,
-    ack_map: dict[int, str],
+    ack_map: dict[int, AckInfo],
     quarantine_state: QuarantineState | None = None,
 ) -> EventOut:
     out = EventOut.model_validate(event)
-    out.ack_status = ack_map.get(event.id) if event.id is not None else None
+    _apply_ack(out, event, ack_map)
     out.quarantine_state = quarantine_state or QuarantineState.none
     return out
 
 
 def _to_event_detail_out(
     event: Event,
-    ack_map: dict[int, str],
+    ack_map: dict[int, AckInfo],
     baseline_status: str | None = None,
     quarantine_state: QuarantineState | None = None,
 ) -> EventDetailOut:
     out = EventDetailOut.model_validate(event)
-    out.ack_status = ack_map.get(event.id) if event.id is not None else None
+    _apply_ack(out, event, ack_map)
     out.action_type = derive_action_type(event.status)
     out.baseline_status = baseline_status
     out.quarantine_state = quarantine_state or QuarantineState.none
