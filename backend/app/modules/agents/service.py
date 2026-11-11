@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
+from app.core.path_validation import validate_watch_paths
 from app.core.pki import issue_certificate
 from app.modules.agents.secret_wrap import wrap_agent_secret
 from app.modules.agents.models import (
@@ -161,6 +162,11 @@ def update_agent_config(
     from app.modules.agents.streams import enqueue_update_config
     from app.modules.audit.models import AuditLog
     from app.modules.rules.service import increment_ruleset_version, publish_pending_commands
+
+    # D91/RN-185: validar ANTES de cualquier escritura, incremento de
+    # ruleset_version o encolado de comando. La existencia de la ruta NO se
+    # verifica acá (la reporta el agente en watch_path_status, D36/RN-130).
+    validate_watch_paths(watch_paths)
 
     agent = db.get(Agent, agent_id)
     if agent is None:

@@ -19,6 +19,7 @@ from sqlmodel import Session
 from app.core.audit import write_audit_log
 from app.core.database import get_session
 from app.core.deps import require_admin
+from app.core.path_validation import PathValidationError
 from app.core.config import settings
 from app.core.pki import (
     PEER_CERT_SCOPE_KEY,
@@ -201,13 +202,19 @@ async def update_config(
     _admin=Depends(require_admin),
 ) -> AgentResponse:
     """Actualiza watch_paths del agente (replace-all) y publica update_config."""
-    return update_agent_config(
-        db=session,
-        valkey_client=valkey_client,
-        agent_id=agent_id,
-        watch_paths=req.watch_paths,
-        user_id=_admin.id,
-    )
+    try:
+        return update_agent_config(
+            db=session,
+            valkey_client=valkey_client,
+            agent_id=agent_id,
+            watch_paths=req.watch_paths,
+            user_id=_admin.id,
+        )
+    except PathValidationError as exc:
+        # D91/RN-185, D90/RN-184: 422 con {code, message, index?}.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.to_detail()
+        ) from exc
 
 
 @router.post("/agents/{agent_id}/rescan", status_code=status.HTTP_200_OK)

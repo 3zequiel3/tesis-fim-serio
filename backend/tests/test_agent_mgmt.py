@@ -650,7 +650,9 @@ def test_audit_log_detail_is_valid_json_with_quotes_and_backslashes(
     from app.modules.agents.service import update_agent_config
 
     agent, _ = agent_with_secret
-    tricky_paths = ['/etc/"quoted"/dir', "C:\\Windows\\System32", "/var/log/back\\slash"]
+    # D91/RN-185: paths must be absolute now, so the former "C:\\Windows\\System32"
+    # entry became "/mnt/C:\\Windows\\System32" (the point is the quotes and backslashes).
+    tricky_paths = ['/etc/"quoted"/dir', "/mnt/C:\\Windows\\System32", "/var/log/back\\slash"]
 
     update_agent_config(
         db=session,
