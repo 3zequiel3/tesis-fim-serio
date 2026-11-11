@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useEvents } from '@/hooks/useEvents'
-import { Can, useCan } from '@/hooks/useCan'
+import { useCan } from '@/hooks/useCan'
+import { Can } from '@/components/ui/Can'
 import { EventsTable } from '@/components/ui/EventsTable'
 import { BulkActionBar } from '@/components/ui/BulkActionBar'
 import { DataState } from '@/components/ui/DataState'
@@ -71,11 +72,14 @@ export function Events() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const urlPath = filters.path_prefix ?? ''
   const [pathInput, setPathInput] = useState(urlPath)
-  // Back/forward or a shared link changed the URL: show it in the input.
+  // Back/forward or a shared link changed the URL: show it in the input. A value
+  // this component committed itself is never written back: while the operator keeps
+  // typing, a slow URL update must not overwrite what is already in the box.
   const [syncedUrlPath, setSyncedUrlPath] = useState(urlPath)
+  const [committedPath, setCommittedPath] = useState(urlPath)
   if (syncedUrlPath !== urlPath) {
     setSyncedUrlPath(urlPath)
-    setPathInput(urlPath)
+    if (urlPath !== committedPath) setPathInput(urlPath)
   }
 
   const cancelDebounce = useCallback(() => {
@@ -85,17 +89,24 @@ export function Events() {
   useEffect(() => cancelDebounce, [cancelDebounce])
 
   // M9: always merge into the CURRENT params, never into the ones captured by the
-  // render that scheduled the change. React Router's functional `setSearchParams`
-  // reads the params of the render that created it, so the debounce timer goes
-  // through a ref that always holds the latest instance. A debounced path update
-  // used to overwrite a status toggled in the meantime.
-  const setParamsRef = useRef(setSearchParams)
+  // render that scheduled the change. React Router applies a navigation in a
+  // transition, so `searchParams` can lag behind a change that was just made (a
+  // debounced path commit followed at once by a status toggle). `latestParams`
+  // is updated synchronously on every change we make and re-synced from the URL
+  // whenever it really changes (back/forward, a shared link).
+  const latestParams = useRef(searchParams)
   useEffect(() => {
-    setParamsRef.current = setSearchParams
-  })
+    latestParams.current = searchParams
+  }, [searchParams])
+
+  function applyFilters(compute: (current: EventFilters) => EventFilters) {
+    const next = serializeEventFilters(compute(parseEventFilters(latestParams.current)))
+    latestParams.current = next
+    setSearchParams(next)
+  }
 
   function updateFilter(updates: Partial<EventFilters>) {
-    setParamsRef.current((prev) => serializeEventFilters({ ...parseEventFilters(prev), ...updates, page: 1 }))
+    applyFilters((current) => ({ ...current, ...updates, page: 1 }))
   }
 
   function handlePathChange(value: string) {
@@ -103,6 +114,7 @@ export function Events() {
     cancelDebounce()
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null
+      setCommittedPath(value)
       updateFilter({ path_prefix: value || undefined })
     }, 300)
   }
@@ -140,7 +152,7 @@ export function Events() {
   }
 
   function handlePageChange(newPage: number) {
-    setSearchParams((prev) => serializeEventFilters({ ...parseEventFilters(prev), page: newPage }))
+    applyFilters((current) => ({ ...current, page: newPage }))
   }
 
   const total = data?.total ?? 0

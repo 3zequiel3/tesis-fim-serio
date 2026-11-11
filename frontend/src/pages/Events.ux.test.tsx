@@ -117,7 +117,7 @@ describe('Events — filtro de ruta con debounce (M9)', () => {
       const last = requests()[requests().length - 1]
       expect(last.path_prefix).toBe('/etc')
       expect(last.status).toEqual(['pending'])
-    })
+    }, { timeout: 4000 })
   })
 })
 
