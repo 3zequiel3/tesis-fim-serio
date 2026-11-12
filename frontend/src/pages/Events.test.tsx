@@ -51,7 +51,7 @@ describe('Events — filtro por severidad (8.6)', () => {
 
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
 
-    const criticalCheckbox = screen.getByRole('checkbox', { name: 'critical' })
+    const criticalCheckbox = screen.getByRole('checkbox', { name: 'Crítica critical' })
     expect(criticalCheckbox).not.toBeChecked()
 
     await user.click(criticalCheckbox)
@@ -66,7 +66,7 @@ describe('Events — filtro por severidad (8.6)', () => {
 
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
 
-    const criticalCheckbox = screen.getByRole('checkbox', { name: 'critical' })
+    const criticalCheckbox = screen.getByRole('checkbox', { name: 'Crítica critical' })
     expect(criticalCheckbox).toBeChecked()
     expect(lastEventsRequestParams()?.severity).toEqual(['critical'])
 
@@ -88,14 +88,14 @@ describe('Events — filtro por cuarentena (D82/RN-176)', () => {
     renderWithProviders(<Events />, { route: '/events' })
 
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
-    await user.click(screen.getByRole('checkbox', { name: 'Cuarentena quarantined' }))
-    await user.click(screen.getByRole('checkbox', { name: 'Cuarentena released' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Cuarentena: En cuarentena quarantined' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Cuarentena: Liberado released' }))
 
     await waitFor(() =>
       expect(lastEventsRequestParams()?.quarantine_state).toEqual(['quarantined', 'released']),
     )
-    expect(screen.getByRole('checkbox', { name: 'Cuarentena quarantined' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Cuarentena released' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena: En cuarentena quarantined' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena: Liberado released' })).toBeChecked()
     // El selector de estado del evento no se tocó.
     expect(statusCheckbox('quarantined')).not.toBeChecked()
   })
@@ -106,9 +106,9 @@ describe('Events — filtro por cuarentena (D82/RN-176)', () => {
     })
 
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
-    expect(screen.getByRole('checkbox', { name: 'Cuarentena quarantined' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Cuarentena released' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Cuarentena discarded' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena: En cuarentena quarantined' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena: Liberado released' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Cuarentena: Descartado discarded' })).not.toBeChecked()
     expect(lastEventsRequestParams()?.quarantine_state).toEqual(['quarantined', 'released'])
   })
 })
@@ -124,7 +124,7 @@ describe('Events — US-31 toggle superseded', () => {
     renderWithProviders(<Events />, { route: '/events' })
 
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
-    const toggle = screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })
+    const toggle = screen.getByRole('checkbox', { name: 'Mostrar eventos reemplazados (superseded)' })
     expect(toggle).not.toBeChecked()
 
     await user.click(toggle)
@@ -138,7 +138,7 @@ describe('Events — US-31 toggle superseded', () => {
     renderWithProviders(<Events />, { route: '/events?include_superseded=true' })
 
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
-    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos reemplazados (superseded)' })).toBeChecked()
     expect(lastEventsRequestParams()?.include_superseded).toBe(true)
   })
 })
@@ -210,7 +210,7 @@ describe('Events — filtro por estado (US-07)', () => {
     renderWithProviders(<Events />, { route: '/events' })
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
 
-    const toggle = screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })
+    const toggle = screen.getByRole('checkbox', { name: 'Mostrar eventos reemplazados (superseded)' })
     await user.click(toggle)
     await waitFor(() => expect(lastEventsRequestParams()?.include_superseded).toBe(true))
 
@@ -255,7 +255,7 @@ describe('Events — filtro por estado (US-07)', () => {
 
     await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['superseded']))
     expect(lastEventsRequestParams()?.include_superseded).toBe(true)
-    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos reemplazados (superseded)' })).toBeChecked()
   })
 
   it('desmarcar superseded conserva el toggle activo', async () => {
@@ -267,7 +267,7 @@ describe('Events — filtro por estado (US-07)', () => {
 
     await waitFor(() => expect(lastEventsRequestParams()?.status).toEqual(['pending']))
     expect(lastEventsRequestParams()?.include_superseded).toBe(true)
-    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos reemplazados (superseded)' })).toBeChecked()
   })
 
   it('un deep-link con status=superseded arranca con el checkbox y el toggle activos', async () => {
@@ -275,7 +275,7 @@ describe('Events — filtro por estado (US-07)', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalled())
 
     expect(statusCheckbox('superseded')).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos superseded' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Mostrar eventos reemplazados (superseded)' })).toBeChecked()
     await waitFor(() => expect(lastEventsRequestParams()?.include_superseded).toBe(true))
   })
 })

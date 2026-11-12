@@ -181,14 +181,14 @@ describe('Events — panel de filtros en pantallas angostas', () => {
 
     const toggle = screen.getByRole('button', { name: /Filtros \(2\)/ })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('checkbox', { name: 'critical' })).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: 'Crítica critical' })).toBeNull()
 
     await user.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('checkbox', { name: 'critical' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Crítica critical' })).toBeChecked()
 
     await user.click(toggle)
-    expect(screen.queryByRole('checkbox', { name: 'critical' })).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: 'Crítica critical' })).toBeNull()
   })
 
   it('el contador cuenta ruta, fechas y superseded además de las casillas', () => {
@@ -203,6 +203,6 @@ describe('Events — panel de filtros en pantallas angostas', () => {
     mockWidth(1280)
     renderWithProviders(<Events />, { route: '/events' })
     expect(screen.queryByRole('button', { name: /Filtros/ })).toBeNull()
-    expect(screen.getByRole('checkbox', { name: 'critical' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Crítica critical' })).toBeInTheDocument()
   })
 })

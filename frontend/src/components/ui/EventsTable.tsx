@@ -139,13 +139,11 @@ export function EventsTable({ items, selected, onSelectionChange, selectable = t
       ),
     },
     {
-      key: 'ack',
-      header: 'Ejecución',
-      cell: (item) => <AckStatusBadge ackStatus={item.ack_status} variant="value" />,
-    },
-    {
       key: 'detected',
       header: 'Detectado',
+      // US-06 pide la fecha de creación en la fila. El relativo acompaña
+      // pero no reemplaza: «hace un mes» no dice qué día fue, y un tooltip
+      // no se ve ni de un vistazo ni en pantalla táctil.
       cell: (item) => (
         <span className="text-xs tabular-nums text-text-muted">{formatAbsolute(item.detected_at)}</span>
       ),
@@ -168,6 +166,16 @@ export function EventsTable({ items, selected, onSelectionChange, selectable = t
         ) : null,
     },
   ]
+
+  // «Ejecución» sólo aporta cuando algún evento de la página reportó ack; si
+  // ninguno lo hizo, la columna es una cabecera sobre una franja vacía.
+  if (items.some((item) => item.ack_status != null)) {
+    columns.splice(columns.length - 2, 0, {
+      key: 'ack',
+      header: 'Ejecución',
+      cell: (item) => <AckStatusBadge ackStatus={item.ack_status} variant="value" />,
+    })
+  }
 
   return (
     <div>

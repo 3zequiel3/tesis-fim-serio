@@ -331,7 +331,13 @@ export function AgentCard({
   const showQueuePressureBanner = agent.queue_pressure_high === true
 
   return (
-    <div className="space-y-3 rounded-panel border border-line bg-surface-raised p-4">
+    <div
+      className={`space-y-3 rounded-panel border bg-surface-raised p-4 ${
+        agent.status === 'dead' || agent.status === 'revoked'
+          ? 'border-danger-line border-l-4'
+          : 'border-line'
+      }`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         {/* No hay `hostname` en el backend (RN-71 / C35 FIX-03) — agent_id es la identidad, como en core/health.py:97 */}
@@ -362,7 +368,7 @@ export function AgentCard({
             <OutOfScopeDropsIndicator count={agent.out_of_scope_drops} />
           </span>
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+        <div className="h-1.5 overflow-hidden rounded-full border border-line bg-surface">
           <div
             className={`h-full rounded-full transition-all ${
               pressurePct > 80 ? 'bg-status-rejected' : pressurePct > 50 ? 'bg-status-pending' : 'bg-status-approved'

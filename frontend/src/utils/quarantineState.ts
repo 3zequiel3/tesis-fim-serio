@@ -6,14 +6,17 @@ import type { QuarantineState } from '@/api/events'
 // badge va aparte, con un estilo distinto del de `status` y del de ejecución.
 
 export interface QuarantineStateMeta {
+  /** El valor canónico (RN-71), que es lo que muestra el badge. */
   label: string
+  /** El nombre legible, para los filtros y cualquier texto corrido. */
+  name: string
   className: string
 }
 
 const QUARANTINE_STATE_META: Record<Exclude<QuarantineState, 'none'>, QuarantineStateMeta> = {
-  quarantined: { label: 'quarantined', className: 'bg-transparent text-status-quarantined-fg border border-status-quarantined border-dashed' },
-  released: { label: 'released', className: 'bg-transparent text-info-fg border border-info-line border-dashed' },
-  discarded: { label: 'discarded', className: 'bg-transparent text-neutral-fg border border-neutral-line border-dashed' },
+  quarantined: { label: 'quarantined', name: 'En cuarentena', className: 'bg-transparent text-status-quarantined-fg border border-status-quarantined border-dashed' },
+  released: { label: 'released', name: 'Liberado', className: 'bg-transparent text-info-fg border border-info-line border-dashed' },
+  discarded: { label: 'discarded', name: 'Descartado', className: 'bg-transparent text-neutral-fg border border-neutral-line border-dashed' },
 }
 
 /**

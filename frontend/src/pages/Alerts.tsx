@@ -85,11 +85,23 @@ const COLUMNS: Column<Alert>[] = [
     header: 'Estado',
     cell: (a) => {
       const meta = getAlertDeliveryMeta(a.status)
-      return <CanonicalLabel name={meta.label} value={a.status} className={`font-semibold ${meta.toneClass}`} />
+      return (
+        <span className="inline-flex flex-wrap items-baseline gap-x-1.5">
+          <CanonicalLabel name={meta.label} value={a.status} className={`font-semibold ${meta.toneClass}`} />
+          {/* El canal era una columna propia repitiendo «n8n» en cada fila.
+              Sólo informa junto a la entrega, y sólo cuando hubo una. */}
+          {a.channel && <span className="font-mono text-[0.6875rem] text-text-muted">por {a.channel}</span>}
+        </span>
+      )
     },
   },
-  { key: 'channel', header: 'Canal', cell: (a) => <span className="font-mono text-xs text-text-muted">{a.channel ?? 'sin canal entregado'}</span> },
-  { key: 'created', header: 'Creada', cell: (a) => <span className="text-xs text-text-muted">{formatAbsolute(a.created_at)}</span> },
+  {
+    key: 'created',
+    header: 'Creada',
+    // Misma razón que en la tabla de eventos: la fecha es el dato, el
+    // relativo sería una comodidad que la tapa.
+    cell: (a) => <span className="text-xs tabular-nums text-text-muted">{formatAbsolute(a.created_at)}</span>,
+  },
   {
     // La fecha de entrega repetía la de creación segundo a segundo en cada
     // fila: cincuenta timbres idénticos y ningún dato. Lo que informa es
@@ -192,6 +204,7 @@ export function Alerts() {
           columns={COLUMNS}
           rows={data?.items ?? []}
           getRowKey={(a) => a.id}
+          rowClassName={(a) => `border-l-4 ${getSeverityMeta(a.severity).bandClass}`}
         />
       </DataState>
 

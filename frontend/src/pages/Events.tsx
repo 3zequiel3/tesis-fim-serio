@@ -14,6 +14,9 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { SlidersHorizontal } from 'lucide-react'
 import { parseEventFilters, serializeEventFilters } from '@/utils/eventFilters'
 import type { EventFilters } from '@/api/events'
+import { CanonicalLabel } from '@/components/ui/CanonicalLabel'
+import { getSeverityMeta } from '@/utils/severity'
+import { getQuarantineStateMeta } from '@/utils/quarantineState'
 
 // US-07 C1, W1, D-2 del design: los siete estados canónicos (RN-71), siempre
 // visibles y en este orden. `superseded` NO depende del toggle "Mostrar
@@ -206,7 +209,7 @@ export function Events() {
       <div
         id="events-filters"
         hidden={!showFilters}
-        className="space-y-4 rounded-panel border border-line bg-surface-raised p-4"
+        className="space-y-3 rounded-panel border border-line bg-surface-raised p-4"
       >
         {/* Filtro por estado */}
         <fieldset>
@@ -226,6 +229,9 @@ export function Events() {
           </div>
         </fieldset>
 
+        {/* Severidad y cuarentena son listas cortas: conviven en una fila
+            para que la tabla entre en pantalla sin desplazarse. */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Filtro por severidad (D34/RN-128) */}
         <fieldset>
           <legend className="mb-1.5 text-xs font-semibold text-text-muted">Severidad</legend>
@@ -238,7 +244,7 @@ export function Events() {
                   onChange={() => handleSeverityToggle(s)}
                   className="size-4 accent-accent"
                 />
-                <span className="font-mono text-xs">{s}</span>
+                <CanonicalLabel name={getSeverityMeta(s).label} value={s} className={`text-xs font-semibold ${getSeverityMeta(s).textClass}`} />
               </label>
             ))}
           </div>
@@ -255,15 +261,18 @@ export function Events() {
                   checked={(filters.quarantine_state ?? []).includes(s)}
                   onChange={() => handleQuarantineStateToggle(s)}
                   // `quarantined` también es un estado del evento (selector de
-                  // arriba): el nombre accesible los distingue.
-                  aria-label={`Cuarentena ${s}`}
+                  // arriba): el nombre accesible los distingue. Lleva el texto
+                  // visible completo porque WCAG 2.5.3 pide que el nombre
+                  // accesible contenga lo que se lee en pantalla.
+                  aria-label={`Cuarentena: ${getQuarantineStateMeta(s)?.name ?? s} ${s}`}
                   className="size-4 accent-accent"
                 />
-                <span className="font-mono text-xs">{s}</span>
+                <CanonicalLabel name={getQuarantineStateMeta(s)?.name} value={s} className="text-xs" />
               </label>
             ))}
           </div>
         </fieldset>
+        </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {/* Filtro por path */}
@@ -332,7 +341,7 @@ export function Events() {
             }}
             className="size-4 accent-accent"
           />
-          Mostrar eventos superseded
+          Mostrar eventos reemplazados (superseded)
         </label>
       </div>
 
