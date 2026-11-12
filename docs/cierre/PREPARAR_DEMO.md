@@ -57,9 +57,17 @@ nada en este laboratorio. **Gana la primera regla que coincide**; el default es
 
 ### Operadores
 
-`demo_ux` y `demo_op2`, ambos con rol `admin` y contraseña `DemoFim2026!`. Los dos hacen
-falta: la escena 2 necesita dos sesiones distintas. **Son usuarios descartables de
-laboratorio; borralos cuando termines.**
+`demo_ux` y `demo_op2`, ambos con rol `admin`. Los dos hacen falta: la escena 2 necesita
+dos sesiones distintas. **Son usuarios descartables de laboratorio; borralos cuando
+termines.**
+
+La contraseña no se escribe en este archivo: es un repositorio y esto es una tesis sobre
+integridad. Exportala en la terminal antes de correr lo que sigue, y usá una que no uses
+en ningún otro lado.
+
+```bash
+read -rs -p 'Contraseña del laboratorio: ' DEMO_PASSWORD; export DEMO_PASSWORD; echo
+```
 
 ### Consola
 
@@ -114,7 +122,7 @@ docker compose exec -T db psql -U fim -d fim -c "
 # 4. Resincronizar la línea base con el contenido actual de los archivos
 TOKEN=$(curl -fsS -X POST http://localhost:8000/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"demo_ux","password":"DemoFim2026!"}' \
+  -d "{\"username\":\"demo_ux\",\"password\":\"$DEMO_PASSWORD\"}" \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
 curl -fsS -X POST http://localhost:8000/agents/docker-agent/rescan \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
