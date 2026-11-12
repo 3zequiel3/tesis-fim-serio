@@ -35,7 +35,9 @@ function serializeAlertFilters(f: AlertFilters): URLSearchParams {
 
 /**
  * Cuánto pasó entre que la alerta se creó y se entregó, redondeado a algo
- * que se lea de un vistazo. Devuelve «—» mientras no haya entrega.
+ * que se lea de un vistazo. Devuelve «—» mientras no haya entrega. Va bajo
+ * el estado: la marca absoluta de entrega repetía la de creación segundo a
+ * segundo en cada fila, y lo que informa es la demora.
  */
 function formatDeliveryLag(createdAt: string | null | undefined, deliveredAt: string | null | undefined): string {
   if (!createdAt || !deliveredAt) return '—'
@@ -50,16 +52,28 @@ const STATUS_OPTIONS: AlertStatus[] = ['pending', 'delivered', 'failed']
 const SEVERITY_OPTIONS: AlertSeverity[] = ['critical', 'high', 'medium', 'low']
 
 const COLUMNS: Column<Alert>[] = [
-  { key: 'id', header: 'ID', cell: (a) => <span className="tabular-nums text-text-muted">{a.id}</span> },
   {
+    // US-19: la fila entera es navegable hacia el detalle del evento. La
+    // acción viaja bajo la ruta, igual que el proceso causante en la tabla
+    // de eventos: es contexto de la fila, no un eje de lectura propio, y
+    // en una lista de alertas se repite casi en cada renglón.
     key: 'path',
     header: 'Ruta',
     primary: true,
     cell: (a) => (
-      // US-19: la alerta es navegable hacia el detalle del evento asociado.
-      <Link to={`/events/${a.event_id}`} className="hover:underline">
-        {a.path ? <PathLabel path={a.path} /> : '—'}
-      </Link>
+      <div className="space-y-0.5">
+        <Link to={`/events/${a.event_id}`} className="hover:underline">
+          {a.path ? <PathLabel path={a.path} /> : '—'}
+        </Link>
+        <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-text-muted">
+          {a.action_taken ? (
+            <CanonicalLabel name={getRuleActionLabel(a.action_taken)} value={a.action_taken} />
+          ) : (
+            <span>—</span>
+          )}
+          <span className="font-mono text-[0.6875rem] opacity-70">evento #{a.event_id}</span>
+        </div>
+      </div>
     ),
   },
   {
@@ -71,49 +85,34 @@ const COLUMNS: Column<Alert>[] = [
     },
   },
   {
-    key: 'action',
-    header: 'Acción',
-    cell: (a) =>
-      a.action_taken ? (
-        <CanonicalLabel name={getRuleActionLabel(a.action_taken)} value={a.action_taken} className="text-xs text-text-muted" />
-      ) : (
-        <span className="text-xs text-text-muted">—</span>
-      ),
-  },
-  {
+    // Estado y canal son una sola idea —cómo le fue a la entrega—, y US-19
+    // pide que el canal se muestre, no que ocupe una columna repitiendo
+    // «n8n» en cada renglón.
     key: 'status',
-    header: 'Estado',
+    header: 'Entrega',
     cell: (a) => {
       const meta = getAlertDeliveryMeta(a.status)
       return (
-        <span className="inline-flex flex-wrap items-baseline gap-x-1.5">
+        <div className="space-y-0.5">
           <CanonicalLabel name={meta.label} value={a.status} className={`font-semibold ${meta.toneClass}`} />
-          {/* El canal era una columna propia repitiendo «n8n» en cada fila.
-              Sólo informa junto a la entrega, y sólo cuando hubo una. */}
-          {a.channel && <span className="font-mono text-[0.6875rem] text-text-muted">por {a.channel}</span>}
-        </span>
+          <div className="text-xs text-text-muted">
+            {/* Una alerta que todavía no salió no tiene canal: el estado ya
+                lo dice, así que un guion acá sólo agrega un carácter. */}
+            {a.channel && <span className="font-mono text-[0.6875rem]">por {a.channel}</span>}
+            {a.delivered_at && (
+              <span className="ml-2 tabular-nums">{formatDeliveryLag(a.created_at, a.delivered_at)}</span>
+            )}
+          </div>
+        </div>
       )
     },
   },
   {
+    // Misma razón que en la tabla de eventos: la fecha es el dato, un
+    // relativo sería una comodidad que la tapa (US-19, US-06).
     key: 'created',
     header: 'Creada',
-    // Misma razón que en la tabla de eventos: la fecha es el dato, el
-    // relativo sería una comodidad que la tapa.
     cell: (a) => <span className="text-xs tabular-nums text-text-muted">{formatAbsolute(a.created_at)}</span>,
-  },
-  {
-    // La fecha de entrega repetía la de creación segundo a segundo en cada
-    // fila: cincuenta timbres idénticos y ningún dato. Lo que informa es
-    // cuánto tardó, así que la columna muestra la demora y deja la marca
-    // absoluta en el tooltip.
-    key: 'delivered',
-    header: 'Demora',
-    cell: (a) => (
-      <span className="text-xs text-text-muted" title={formatAbsolute(a.delivered_at, { nullLabel: 'sin entregar' })}>
-        {formatDeliveryLag(a.created_at, a.delivered_at)}
-      </span>
-    ),
   },
 ]
 

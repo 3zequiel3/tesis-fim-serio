@@ -182,6 +182,21 @@ export function Events() {
 
   const checkLabel = 'flex cursor-pointer items-center gap-2 text-text'
 
+  // Los quince filtros eran quince casillas con una insignia al lado: el
+  // cuadradito repetía lo que la insignia ya podía decir por sí misma. El
+  // input sigue ahí —mismo rol, mismo nombre accesible, misma navegación por
+  // teclado—, sólo que invisible: lo que se ve y se pulsa es la insignia, y
+  // el estado se lee por anillo Y opacidad, nunca por color solo (WCAG 1.4.1).
+  const filterPill =
+    // `gap-1` es necesario: el separador de CanonicalLabel es un nodo de
+    // texto suelto y un item flex de solo espacio no se renderiza, así que
+    // sin el gap la insignia diría «Críticacritical».
+    'inline-flex items-baseline gap-1 rounded-control opacity-70 transition ' +
+    'peer-hover:opacity-90 ' +
+    'peer-checked:opacity-100 peer-checked:ring-2 peer-checked:ring-accent ' +
+    'peer-focus-visible:ring-2 peer-focus-visible:ring-focus peer-focus-visible:ring-offset-2 ' +
+    'peer-focus-visible:ring-offset-surface-raised'
+
   return (
     <div className="space-y-4">
       {/* Encabezado */}
@@ -216,14 +231,16 @@ export function Events() {
           <legend className="mb-1.5 text-xs font-semibold text-text-muted">Estado</legend>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {ALL_STATUSES.map((s) => (
-              <label key={s} className={checkLabel}>
+              <label key={s} className="cursor-pointer">
                 <input
                   type="checkbox"
                   checked={(filters.status ?? []).includes(s)}
                   onChange={() => handleStatusToggle(s)}
-                  className="size-4 accent-accent"
+                  className="peer sr-only"
                 />
-                <StatusBadge status={s} />
+                <span className={filterPill}>
+                  <StatusBadge status={s} />
+                </span>
               </label>
             ))}
           </div>
@@ -237,14 +254,18 @@ export function Events() {
           <legend className="mb-1.5 text-xs font-semibold text-text-muted">Severidad</legend>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {ALL_SEVERITIES.map((s) => (
-              <label key={s} className={checkLabel}>
+              <label key={s} className="cursor-pointer">
                 <input
                   type="checkbox"
                   checked={(filters.severity ?? []).includes(s)}
                   onChange={() => handleSeverityToggle(s)}
-                  className="size-4 accent-accent"
+                  className="peer sr-only"
                 />
-                <CanonicalLabel name={getSeverityMeta(s).label} value={s} className={`text-xs font-semibold ${getSeverityMeta(s).textClass}`} />
+                <CanonicalLabel
+                  name={getSeverityMeta(s).label}
+                  value={s}
+                  className={`${filterPill} border-l-4 ${getSeverityMeta(s).bandClass} rounded-control bg-surface px-2 py-0.5 text-xs font-semibold ${getSeverityMeta(s).textClass}`}
+                />
               </label>
             ))}
           </div>
@@ -255,7 +276,7 @@ export function Events() {
           <legend className="mb-1.5 text-xs font-semibold text-text-muted">Cuarentena</legend>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {ALL_QUARANTINE_STATES.map((s) => (
-              <label key={s} className={checkLabel}>
+              <label key={s} className="cursor-pointer">
                 <input
                   type="checkbox"
                   checked={(filters.quarantine_state ?? []).includes(s)}
@@ -265,9 +286,13 @@ export function Events() {
                   // visible completo porque WCAG 2.5.3 pide que el nombre
                   // accesible contenga lo que se lee en pantalla.
                   aria-label={`Cuarentena: ${getQuarantineStateMeta(s)?.name ?? s} ${s}`}
-                  className="size-4 accent-accent"
+                  className="peer sr-only"
                 />
-                <CanonicalLabel name={getQuarantineStateMeta(s)?.name} value={s} className="text-xs" />
+                <CanonicalLabel
+                  name={getQuarantineStateMeta(s)?.name}
+                  value={s}
+                  className={`${filterPill} rounded-control px-2 py-0.5 text-xs ${getQuarantineStateMeta(s)?.className ?? 'border border-dashed border-neutral-line text-neutral-fg'}`}
+                />
               </label>
             ))}
           </div>
