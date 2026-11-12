@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { inputClassName } from '@/components/ui/Field'
 import type { Rule, RuleSeverity, RuleAction, CreateRulePayload, UpdateRulePayload } from '@/api/rules'
+import { RULE_ACTION_OPTIONS } from '@/utils/ruleAction'
 
 interface RuleFormProps {
   /** Si se pasa una regla existente, el formulario está en modo edición */
@@ -21,10 +22,7 @@ const SEVERITY_OPTIONS: { value: RuleSeverity; label: string }[] = [
 ]
 
 const ACTION_OPTIONS: { value: RuleAction; label: string }[] = [
-  { value: 'auto_restore', label: 'Auto-restaurar' },
-  { value: 'quarantine', label: 'Cuarentena' },
-  { value: 'manual_review', label: 'Revisión manual' },
-  { value: 'alert_only', label: 'Solo alerta' },
+  ...RULE_ACTION_OPTIONS,
 ]
 
 export function RuleForm({ rule, onSubmit, onCancel, isLoading, patternServerError }: RuleFormProps) {

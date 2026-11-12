@@ -9,16 +9,11 @@ import { Button } from '@/components/ui/Button'
 import { DataState } from '@/components/ui/DataState'
 import { ResponsiveTable, type Column } from '@/components/ui/ResponsiveTable'
 import { getSeverityMeta } from '@/utils/severity'
+import { getRuleActionLabel } from '@/utils/ruleAction'
+import { CanonicalLabel } from '@/components/ui/CanonicalLabel'
 import type { Rule, CreateRulePayload, UpdateRulePayload } from '@/api/rules'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const ACTION_LABELS: Record<string, string> = {
-  auto_restore: 'Auto-restaurar',
-  quarantine: 'Cuarentena',
-  manual_review: 'Revisión manual',
-  alert_only: 'Solo alerta',
-}
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
@@ -125,14 +120,17 @@ export function Rules() {
     {
       key: 'severity',
       header: 'Severidad',
-      cell: (rule) => (
-        <span className={`font-semibold ${getSeverityMeta(rule.severity).textClass}`}>{rule.severity}</span>
-      ),
+      cell: (rule) => {
+        const meta = getSeverityMeta(rule.severity)
+        return <CanonicalLabel name={meta.label} value={rule.severity} className={`font-semibold ${meta.textClass}`} />
+      },
     },
     {
       key: 'action',
       header: 'Acción',
-      cell: (rule) => <span className="text-text">{ACTION_LABELS[rule.action] ?? rule.action}</span>,
+      cell: (rule) => (
+        <CanonicalLabel name={getRuleActionLabel(rule.action)} value={rule.action} className="text-text" />
+      ),
     },
     {
       key: 'sync',
@@ -187,7 +185,8 @@ export function Rules() {
           <h1 className="text-2xl font-semibold text-text">Reglas de monitoreo</h1>
           {rulesetVersion !== undefined && (
             <p className="mt-0.5 text-xs text-text-muted">
-              ruleset_version actual: <span className="font-mono text-text">{rulesetVersion}</span>
+              Versión del conjunto de reglas:{' '}
+              <span className="font-mono text-text">{rulesetVersion}</span>
             </p>
           )}
         </div>

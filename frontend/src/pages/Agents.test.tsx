@@ -65,7 +65,7 @@ describe('Agents — confirmación visual del rescan (US-22)', () => {
 
     renderWithProviders(<Agents />, { route: '/agents' })
 
-    const rescanButton = await screen.findByRole('button', { name: 'Rescan' })
+    const rescanButton = await screen.findByRole('button', { name: 'Volver a escanear' })
     await user.click(rescanButton)
 
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Rescan iniciado'))
@@ -82,7 +82,7 @@ describe('Agents — confirmación visual del rescan (US-22)', () => {
 
     renderWithProviders(<Agents />, { route: '/agents' })
 
-    const rescanButton = await screen.findByRole('button', { name: 'Rescan' })
+    const rescanButton = await screen.findByRole('button', { name: 'Volver a escanear' })
     await user.click(rescanButton)
 
     const dialog = await screen.findByRole('dialog', { name: 'Confirmar rescan forzado' })
@@ -129,11 +129,11 @@ describe('Agents — errores del backend con la forma real (A7, D91/RN-185)', ()
     const user = userEvent.setup()
     renderWithProviders(<Agents />, { route: '/agents' })
 
-    await user.click(await screen.findByRole('button', { name: 'Rescan' }))
+    await user.click(await screen.findByRole('button', { name: 'Volver a escanear' }))
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Error al iniciar rescan: agent not found'))
 
     apiPost.mockRejectedValueOnce(mockApiError(422, [{ loc: ['body'], msg: 'Field required', type: 'missing' }]))
-    await user.click(screen.getByRole('button', { name: 'Rescan' }))
+    await user.click(screen.getByRole('button', { name: 'Volver a escanear' }))
     await waitFor(() => expect(toastError).toHaveBeenLastCalledWith('Error al iniciar rescan: Field required'))
   })
 

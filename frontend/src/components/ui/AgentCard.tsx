@@ -14,6 +14,8 @@ import { getWatchPathStatusMeta } from '@/utils/watchPathStatus'
 import { getDiscardedEventsMeta } from '@/utils/discardedEvents'
 import { getOutOfScopeDropsMeta } from '@/utils/outOfScopeDrops'
 import { formatAbsolute, formatRelative } from '@/utils/timeDisplay'
+import { getAgentStatusMeta } from '@/utils/agentStatus'
+import { CanonicalLabel } from '@/components/ui/CanonicalLabel'
 
 /** A backend rejection of the watch_paths save, shown next to the entry it names (D91/RN-185). */
 export interface ConfigSaveError {
@@ -41,20 +43,12 @@ interface AgentCardProps {
 // deshabilitada mientras el agente está en drenaje graceful.
 const DRAINING_TOOLTIP = 'No disponible durante shutdown graceful'
 
-const STATUS_STYLES: Record<Agent['status'], string> = {
-  online: 'bg-success-bg text-success-fg',
-  offline: 'bg-neutral-bg text-neutral-fg',
-  draining: 'bg-warning-bg text-warning-fg',
-  dead: 'bg-danger-bg text-danger-fg',
-  revoked: 'bg-danger-bg text-danger-fg',
-}
-
 // D36/RN-130 (C41): indicador por path de que la remediación automática no
 // puede correr ahí (path monitoreado, no remediable) o de que el path no
 // existe. Se omite por completo cuando el agente no reportó mapa (agente
 // viejo, o sin heartbeat aún) o cuando el path es escribible — ver
 // getWatchPathStatusMeta. Visualmente distinto del badge de status del
-// agente (STATUS_STYLES): esto es una degradación parcial, no una falla.
+// agente (getAgentStatusMeta): esto es una degradación parcial, no una falla.
 function WatchPathStatusIndicator({ status }: { status: string | undefined }) {
   const meta = getWatchPathStatusMeta(status)
   if (!meta) return null
@@ -99,7 +93,7 @@ function OutOfScopeDropsIndicator({ count }: { count: number | null | undefined 
       title={meta.title}
       className={`shrink-0 rounded-control px-1.5 py-0.5 text-xs font-semibold tabular-nums whitespace-nowrap ${meta.className}`}
     >
-      Fuera de scope: {meta.label}
+      Fuera de alcance: {meta.label}
     </span>
   )
 }
@@ -310,7 +304,7 @@ function RescanSection({
           disabled={isDraining || isRescanning || noneSelected}
           title={isDraining ? DRAINING_TOOLTIP : undefined}
         >
-          {isRescanning ? 'Rescaneando...' : 'Rescan'}
+          {isRescanning ? 'Volviendo a escanear…' : 'Volver a escanear'}
         </Button>
       </div>
     </>
@@ -342,9 +336,11 @@ export function AgentCard({
       <div className="flex items-center justify-between gap-2">
         {/* No hay `hostname` en el backend (RN-71 / C35 FIX-03) — agent_id es la identidad, como en core/health.py:97 */}
         <p className="font-mono font-semibold text-text [overflow-wrap:anywhere]">{agent.agent_id}</p>
-        <span className={`shrink-0 rounded-control px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[agent.status]}`}>
-          {agent.status}
-        </span>
+        <CanonicalLabel
+          name={getAgentStatusMeta(agent.status).label}
+          value={agent.status}
+          className={`shrink-0 rounded-control px-2 py-0.5 text-xs font-semibold ${getAgentStatusMeta(agent.status).toneClass}`}
+        />
       </div>
 
       {/* US-30 (RN-93/W17): indicador distintivo de drenaje graceful. N desconocido

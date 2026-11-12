@@ -7,6 +7,9 @@ import { inputClassName } from '@/components/ui/Field'
 import { ResponsiveTable, type Column } from '@/components/ui/ResponsiveTable'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import { getSeverityMeta } from '@/utils/severity'
+import { getRuleActionLabel } from '@/utils/ruleAction'
+import { getAlertDeliveryMeta } from '@/utils/alertDelivery'
+import { CanonicalLabel } from '@/components/ui/CanonicalLabel'
 import type { Alert, AlertFilters, AlertStatus, AlertSeverity } from '@/api/alerts'
 
 // ─── URL param helpers ────────────────────────────────────────────────────────
@@ -30,10 +33,17 @@ function serializeAlertFilters(f: AlertFilters): URLSearchParams {
   return sp
 }
 
-const STATUS_TONE: Record<string, string> = {
-  pending: 'text-warning-fg',
-  delivered: 'text-success-fg',
-  failed: 'text-danger-fg',
+/**
+ * Cuánto pasó entre que la alerta se creó y se entregó, redondeado a algo
+ * que se lea de un vistazo. Devuelve «—» mientras no haya entrega.
+ */
+function formatDeliveryLag(createdAt: string | null | undefined, deliveredAt: string | null | undefined): string {
+  if (!createdAt || !deliveredAt) return '—'
+  const ms = new Date(deliveredAt).getTime() - new Date(createdAt).getTime()
+  if (!Number.isFinite(ms) || ms < 0) return '—'
+  if (ms < 1000) return `${ms} ms`
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`
+  return `${Math.round(ms / 60_000)} min`
 }
 
 const STATUS_OPTIONS: AlertStatus[] = ['pending', 'delivered', 'failed']
@@ -55,22 +65,43 @@ const COLUMNS: Column<Alert>[] = [
   {
     key: 'severity',
     header: 'Severidad',
-    cell: (a) => (
-      <span className={`font-semibold ${getSeverityMeta(a.severity).textClass}`}>{a.severity}</span>
-    ),
+    cell: (a) => {
+      const meta = getSeverityMeta(a.severity)
+      return <CanonicalLabel name={meta.label} value={a.severity} className={`font-semibold ${meta.textClass}`} />
+    },
   },
-  { key: 'action', header: 'Acción', cell: (a) => <span className="font-mono text-xs text-text-muted">{a.action_taken ?? '—'}</span> },
+  {
+    key: 'action',
+    header: 'Acción',
+    cell: (a) =>
+      a.action_taken ? (
+        <CanonicalLabel name={getRuleActionLabel(a.action_taken)} value={a.action_taken} className="text-xs text-text-muted" />
+      ) : (
+        <span className="text-xs text-text-muted">—</span>
+      ),
+  },
   {
     key: 'status',
     header: 'Estado',
-    cell: (a) => <span className={`font-semibold ${STATUS_TONE[a.status] ?? 'text-text'}`}>{a.status}</span>,
+    cell: (a) => {
+      const meta = getAlertDeliveryMeta(a.status)
+      return <CanonicalLabel name={meta.label} value={a.status} className={`font-semibold ${meta.toneClass}`} />
+    },
   },
   { key: 'channel', header: 'Canal', cell: (a) => <span className="font-mono text-xs text-text-muted">{a.channel ?? 'sin canal entregado'}</span> },
   { key: 'created', header: 'Creada', cell: (a) => <span className="text-xs text-text-muted">{formatAbsolute(a.created_at)}</span> },
   {
+    // La fecha de entrega repetía la de creación segundo a segundo en cada
+    // fila: cincuenta timbres idénticos y ningún dato. Lo que informa es
+    // cuánto tardó, así que la columna muestra la demora y deja la marca
+    // absoluta en el tooltip.
     key: 'delivered',
-    header: 'Entregada',
-    cell: (a) => <span className="text-xs text-text-muted">{formatAbsolute(a.delivered_at, { nullLabel: '—' })}</span>,
+    header: 'Demora',
+    cell: (a) => (
+      <span className="text-xs text-text-muted" title={formatAbsolute(a.delivered_at, { nullLabel: 'sin entregar' })}>
+        {formatDeliveryLag(a.created_at, a.delivered_at)}
+      </span>
+    ),
   },
 ]
 
@@ -121,7 +152,7 @@ export function Alerts() {
             <option value="">Todos</option>
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {getAlertDeliveryMeta(s).label ?? s} ({s})
               </option>
             ))}
           </select>
@@ -139,7 +170,7 @@ export function Alerts() {
             <option value="">Todas</option>
             {SEVERITY_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {getSeverityMeta(s).label ?? s} ({s})
               </option>
             ))}
           </select>

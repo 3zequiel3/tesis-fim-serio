@@ -12,7 +12,13 @@
 // aparece por primera vez cuando alguien crea la primera regla `medium` es
 // un nivel que se descubre como defecto.
 
+// El nombre vive acá por el mismo motivo que el color: si cada pantalla lo
+// escribe por su cuenta, `critical` termina siendo «Crítica» en una tabla y
+// `critical` crudo en la de al lado.
+
 export interface SeverityMeta {
+  /** El nombre que lleva en pantalla. `undefined` para un nivel desconocido. */
+  label: string | undefined
   /** Clase de texto — idéntica a la que las tres pantallas migradas ya usaban. */
   textClass: string
   /** Clase de banda de borde izquierdo (`border-l-4` + esta clase) — D-1 del design. */
@@ -22,6 +28,7 @@ export interface SeverityMeta {
 }
 
 const NEUTRAL_META: SeverityMeta = {
+  label: undefined,
   textClass: 'text-neutral-fg',
   bandClass: 'border-l-neutral-line',
   rank: 0,
@@ -34,10 +41,10 @@ const NEUTRAL_META: SeverityMeta = {
 // orange-400) — rojo contra naranja es el par exacto que un deuteranope no
 // separa por tono solo (WCAG 1.4.1).
 const SEVERITY_META: Record<string, SeverityMeta> = {
-  critical: { textClass: 'text-sev-critical-fg', bandClass: 'border-l-sev-critical-band', rank: 4 },
-  high: { textClass: 'text-sev-high-fg', bandClass: 'border-l-sev-high-band', rank: 3 },
-  medium: { textClass: 'text-sev-medium-fg', bandClass: 'border-l-sev-medium-band', rank: 2 },
-  low: { textClass: 'text-sev-low-fg', bandClass: 'border-l-sev-low-band', rank: 1 },
+  critical: { label: 'Crítica', textClass: 'text-sev-critical-fg', bandClass: 'border-l-sev-critical-band', rank: 4 },
+  high: { label: 'Alta', textClass: 'text-sev-high-fg', bandClass: 'border-l-sev-high-band', rank: 3 },
+  medium: { label: 'Media', textClass: 'text-sev-medium-fg', bandClass: 'border-l-sev-medium-band', rank: 2 },
+  low: { label: 'Baja', textClass: 'text-sev-low-fg', bandClass: 'border-l-sev-low-band', rank: 1 },
 }
 
 /**

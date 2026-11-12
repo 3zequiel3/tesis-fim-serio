@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { EventListItem } from '@/api/events'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import { getSeverityMeta } from '@/utils/severity'
+import { CanonicalLabel } from '@/components/ui/CanonicalLabel'
 import { getEventTypeGapMeta } from '@/utils/eventType'
 import { processContextLabel } from '@/utils/process'
 import { PathLabel } from '@/components/ui/PathLabel'
@@ -130,9 +131,11 @@ export function EventsTable({ items, selected, onSelectionChange, selectable = t
       key: 'severity',
       header: 'Severidad',
       cell: (item) => (
-        <span className={`font-mono text-xs font-semibold ${getSeverityMeta(item.severity).textClass}`}>
-          {item.severity}
-        </span>
+        <CanonicalLabel
+          name={getSeverityMeta(item.severity).label}
+          value={item.severity}
+          className={`text-xs font-semibold ${getSeverityMeta(item.severity).textClass}`}
+        />
       ),
     },
     {

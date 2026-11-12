@@ -5,6 +5,7 @@ import { renderWithProviders } from '@/test/renderWithProviders'
 import { signInAs, signOut } from '@/test/signIn'
 import { AgentCard } from './AgentCard'
 import type { Agent } from '@/api/agents'
+import { getAgentStatusMeta } from '@/utils/agentStatus'
 
 // D39/RN-133 (frontend-agents spec): AgentCard es el síntoma más visible del
 // defecto original — `Date.now() - d.getTime()` sobre un `last_heartbeat`
@@ -138,7 +139,7 @@ describe('AgentCard — descartes fuera de scope (D69/RN-163)', () => {
     renderWithProviders(
       <AgentCard agent={makeAgent({ out_of_scope_drops: 2748492 })} onConfigSave={noop} onRescan={noop} />
     )
-    const indicator = screen.getByText(/Fuera de scope: 2748492/)
+    const indicator = screen.getByText(/Fuera de alcance: 2748492/)
     expect(indicator).toBeInTheDocument()
     expect(indicator.className).not.toContain('danger')
     expect(indicator.className).not.toContain('warning')
@@ -148,15 +149,15 @@ describe('AgentCard — descartes fuera de scope (D69/RN-163)', () => {
     renderWithProviders(
       <AgentCard agent={makeAgent({ out_of_scope_drops: 0 })} onConfigSave={noop} onRescan={noop} />
     )
-    expect(screen.getByText(/Fuera de scope: 0/)).toBeInTheDocument()
+    expect(screen.getByText(/Fuera de alcance: 0/)).toBeInTheDocument()
   })
 
   it('un agente sin el campo muestra el estado desconocido y no cero', () => {
     renderWithProviders(
       <AgentCard agent={makeAgent({ out_of_scope_drops: undefined })} onConfigSave={noop} onRescan={noop} />
     )
-    expect(screen.queryByText(/Fuera de scope: 0/)).not.toBeInTheDocument()
-    expect(screen.getByText(/Fuera de scope: —/)).toBeInTheDocument()
+    expect(screen.queryByText(/Fuera de alcance: 0/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Fuera de alcance: —/)).toBeInTheDocument()
   })
 
   it('descartes locales positivos y descartes fuera de scope positivos conviven con tratamientos distintos', () => {
@@ -168,7 +169,7 @@ describe('AgentCard — descartes fuera de scope (D69/RN-163)', () => {
       />
     )
     const discarded = screen.getByText(/Descartes: 4/)
-    const outOfScope = screen.getByText(/Fuera de scope: 2748492/)
+    const outOfScope = screen.getByText(/Fuera de alcance: 2748492/)
     expect(discarded).toBeInTheDocument()
     expect(outOfScope).toBeInTheDocument()
     expect(discarded.className).not.toBe(outOfScope.className)
@@ -203,7 +204,7 @@ describe('AgentCard — indicador de drenaje graceful (US-30)', () => {
     renderWithProviders(
       <AgentCard agent={makeAgent({ status: 'draining' })} onConfigSave={noop} onRescan={noop} />
     )
-    const rescanButton = screen.getByRole('button', { name: /rescan/i })
+    const rescanButton = screen.getByRole('button', { name: /volver a escanear/i })
     expect(rescanButton).toBeDisabled()
     expect(rescanButton).toHaveAttribute('title', 'No disponible durante shutdown graceful')
   })
@@ -282,7 +283,7 @@ describe('AgentCard — selección de paths para rescan (US-22)', () => {
     const varCheckbox = screen.getByRole('checkbox', { name: /\/var\/lib\/fim/ })
     await user.click(varCheckbox)
 
-    await user.click(screen.getByRole('button', { name: /rescan/i }))
+    await user.click(screen.getByRole('button', { name: /volver a escanear/i }))
 
     expect(onRescan).toHaveBeenCalledWith('agent-tz-test', ['/etc'])
   })
@@ -298,7 +299,7 @@ describe('AgentCard — selección de paths para rescan (US-22)', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: /rescan/i }))
+    await user.click(screen.getByRole('button', { name: /volver a escanear/i }))
 
     expect(onRescan).toHaveBeenCalledWith('agent-tz-test', ['/etc', '/var/lib/fim'])
   })
@@ -461,7 +462,10 @@ describe('AgentCard — US-21 ruleset aplicado y realce de estados no-ok', () =>
     renderWithProviders(
       <AgentCard agent={makeAgent({ status })} onConfigSave={noop} onRescan={noop} />
     )
-    const badge = screen.getByText(status, { selector: 'span' })
+    // El badge muestra «Caído dead». El valor canónico vive en un `span`
+    // interno, así que pedirlo por `status` devolvería ese hijo y no el
+    // badge; el nombre, en cambio, es nodo de texto directo del badge.
+    const badge = screen.getByText(getAgentStatusMeta(status).label!, { selector: 'span' })
     expect(badge.className).toContain(colorClass)
   })
 
@@ -533,17 +537,17 @@ describe('AgentCard — editor de rutas seguro (D12b)', () => {
     expect(screen.getByRole('button', { name: /guardar rutas/i })).toBeInTheDocument()
   })
 
-  it('un usuario que no es admin no ve «Editar» ni «Rescan»', () => {
+  it('un usuario que no es admin no ve «Editar» ni «Volver a escanear»', () => {
     signInAs('viewer')
     renderWithProviders(<AgentCard agent={makeAgent()} onConfigSave={noop} onRescan={noop} />)
     expect(screen.queryByRole('button', { name: /editar/i })).toBeNull()
-    expect(screen.queryByRole('button', { name: /rescan/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /volver a escanear/i })).toBeNull()
   })
 })
 
 // M4 (D93/RN-187): the rescan selection can never silently mean «everything».
 describe('AgentCard — selección de rescan segura (M4)', () => {
-  it('sin ninguna ruta seleccionada «Rescan» queda deshabilitado y no envía nada', async () => {
+  it('sin ninguna ruta seleccionada «Volver a escanear» queda deshabilitado y no envía nada', async () => {
     const onRescan = vi.fn()
     const user = userEvent.setup()
     renderWithProviders(
@@ -551,8 +555,8 @@ describe('AgentCard — selección de rescan segura (M4)', () => {
     )
     await user.click(screen.getByRole('checkbox', { name: '/etc' }))
     await user.click(screen.getByRole('checkbox', { name: '/srv' }))
-    expect(screen.getByRole('button', { name: /^rescan$/i })).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: /^rescan$/i }))
+    expect(screen.getByRole('button', { name: /^volver a escanear$/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /^volver a escanear$/i }))
     expect(onRescan).not.toHaveBeenCalled()
   })
 
