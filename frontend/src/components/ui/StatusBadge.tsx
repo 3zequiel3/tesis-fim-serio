@@ -1,6 +1,7 @@
 import { ArrowRightLeft, Bell, Check, CircleHelp, Clock, Lock, RotateCcw, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { EventStatus } from '@/api/events'
+import { EVENT_STATUS_LABELS_ONE } from '@/utils/eventStatus'
 
 // The only renderer of the seven RN-71 states (D93/RN-187): color + icon +
 // canonical snake_case text, so state is never conveyed by color alone.
@@ -26,13 +27,28 @@ const UNKNOWN_STYLE: StatusStyle = { Icon: CircleHelp, className: 'bg-neutral-bg
 
 export function StatusBadge({ status, className = '' }: { status: string; className?: string }) {
   const { Icon, className: tone } = (STATUS_STYLES as Record<string, StatusStyle>)[status] ?? UNKNOWN_STYLE
+  // A state outside RN-71 has no name to go by, so it is shown exactly as it
+  // arrived — rendered as the badge's own text, which is what makes its
+  // neutral styling observable.
+  const name = EVENT_STATUS_LABELS_ONE[status as EventStatus]
   return (
     <span
       data-status={status}
       className={`inline-flex items-center gap-1.5 rounded-control px-2 py-0.5 text-xs font-semibold ${tone} ${className}`}
     >
       <Icon aria-hidden="true" size={14} strokeWidth={2.25} />
-      {status}
+      {name === undefined ? (
+        status
+      ) : (
+        <>
+          {name}
+          {/* Nodo de texto suelto: separa ambos textos en el nombre accesible
+              ("Pendiente pending"). Un item flex anónimo de solo espacio no se
+              renderiza, así que la separación visual la sigue dando el gap. */}
+          {' '}
+          <span className="font-mono text-[0.6875rem] font-normal opacity-70">{status}</span>
+        </>
+      )}
     </span>
   )
 }

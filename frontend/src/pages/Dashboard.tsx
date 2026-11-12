@@ -5,29 +5,16 @@ import { DataState } from '@/components/ui/DataState'
 import { PathLabel } from '@/components/ui/PathLabel'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { getSeverityMeta } from '@/utils/severity'
+import { EVENT_STATUS_LABELS } from '@/utils/eventStatus'
 import { formatAbsolute } from '@/utils/timeDisplay'
 import type { EventStatus } from '@/api/events'
 import type { AgentStatus } from '@/api/agents'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// US-04, criterio 2: «los valores de estado se muestran siempre en minúsculas
-// (snake_case), alineados al léxico canónico C1». El criterio exige que el
-// valor canónico esté a la vista; no exige que sea lo único a la vista, y
-// RN-71 acota su alcance a persistencia, APIs, streams, logs y documentación
-// técnica — no a la etiqueta que lee un operador. Cada fila muestra entonces
-// el nombre en español y, junto a él, el valor canónico en monoespaciada: el
-// humano lee el nombre, el criterio conserva el identificador.
-
-const EVENT_STATUS_LABELS: Record<EventStatus, string> = {
-  pending: 'Pendientes',
-  approved: 'Aprobados',
-  rejected: 'Rechazados',
-  auto_restored: 'Restaurados',
-  quarantined: 'En cuarentena',
-  alert_only: 'Solo alerta',
-  superseded: 'Reemplazados',
-}
+// Los nombres de estado viven en utils/eventStatus junto al léxico canónico:
+// una sola fuente para la consola entera. Cada fila muestra el nombre y, al
+// lado, el valor canónico.
 
 const AGENT_STATUS_LABELS: Record<AgentStatus, string> = {
   online: 'En línea',

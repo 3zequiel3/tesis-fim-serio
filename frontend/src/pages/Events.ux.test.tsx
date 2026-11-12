@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test/renderWithProviders'
 import { signInAs, signOut } from '@/test/signIn'
 import { Events } from './Events'
+import { EVENT_STATUS_LABELS_ONE } from '@/utils/eventStatus'
 import type { EventListItem } from '@/api/events'
 
 // frontend-events (frontend-ux-redesign): URL sanitizing, debounce race, selection.
@@ -111,7 +112,7 @@ describe('Events — filtro de ruta con debounce (M9)', () => {
 
     await user.type(screen.getByLabelText('Prefijo de ruta'), '/etc')
     // Within the 300 ms window, the operator also ticks a status.
-    await user.click(screen.getByRole('checkbox', { name: 'pending' }))
+    await user.click(screen.getByRole('checkbox', { name: `${EVENT_STATUS_LABELS_ONE.pending} pending` }))
 
     await waitFor(() => {
       const last = requests()[requests().length - 1]
