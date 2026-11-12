@@ -13,6 +13,10 @@ Fuente de cada dato: el código del repositorio (rutas citadas entre paréntesis
 
 ---
 
+> **Puesta a punto del laboratorio:** los comandos para dejar el entorno en el estado
+> inicial, volver a ese estado después de cada ensayo y resolver los problemas conocidos
+> están en [PREPARAR_DEMO.md](PREPARAR_DEMO.md). Este archivo es el guion hablado.
+
 ## Antes de empezar
 
 ### 1. Topología: una sola máquina, agente nativo
