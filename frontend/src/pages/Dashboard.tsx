@@ -11,11 +11,23 @@ import type { AgentStatus } from '@/api/agents'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// C1/RN-71: minúsculas snake_case en toda la UI, con excepción única para
-// botones de acción — una etiqueta de contador no lo es. La etiqueta ES el
-// valor canónico, igual que en la tabla de eventos. Por eso las etiquetas de
-// estado se componen en la familia monoespaciada: se leen como el dato que
-// son, no como prosa a medio traducir.
+// US-04, criterio 2: «los valores de estado se muestran siempre en minúsculas
+// (snake_case), alineados al léxico canónico C1». El criterio exige que el
+// valor canónico esté a la vista; no exige que sea lo único a la vista, y
+// RN-71 acota su alcance a persistencia, APIs, streams, logs y documentación
+// técnica — no a la etiqueta que lee un operador. Cada fila muestra entonces
+// el nombre en español y, junto a él, el valor canónico en monoespaciada: el
+// humano lee el nombre, el criterio conserva el identificador.
+
+const EVENT_STATUS_LABELS: Record<EventStatus, string> = {
+  pending: 'Pendientes',
+  approved: 'Aprobados',
+  rejected: 'Rechazados',
+  auto_restored: 'Restaurados',
+  quarantined: 'En cuarentena',
+  alert_only: 'Solo alerta',
+  superseded: 'Reemplazados',
+}
 
 const AGENT_STATUS_LABELS: Record<AgentStatus, string> = {
   online: 'En línea',
@@ -182,12 +194,13 @@ function StatusReadout({ counts }: { counts: Record<EventStatus, number> }) {
             <li key={s}>
               <Link
                 to={eventsLink(s)}
-                className="grid grid-cols-[9.5rem_1fr_auto] items-center gap-3 px-4 py-2.5 hover:bg-surface-hover sm:grid-cols-[11rem_1fr_auto]"
+                className="grid grid-cols-[minmax(0,11rem)_1fr_auto] items-center gap-3 px-4 py-2.5 hover:bg-surface-hover sm:grid-cols-[minmax(0,15rem)_1fr_auto]"
               >
-                <span
-                  className={`truncate font-mono text-sm ${count > 0 ? 'text-text' : 'text-text-muted'}`}
-                >
-                  {s}
+                <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                  <span className={count > 0 ? 'text-text' : 'text-text-muted'}>
+                    {EVENT_STATUS_LABELS[s]}
+                  </span>
+                  <span className="font-mono text-xs text-text-muted">{s}</span>
                 </span>
                 {/* Un estado en cero no dibuja riel: seis rieles vacíos son
                     ruido y le roban la única barra que sí dice algo. */}
